@@ -1,0 +1,11 @@
+.\.venv\Scripts\python.exe -m streamlit run app\Home.py
+
+
+
+.\.venv\Scripts\python.exe -m streamlit cache clear
+
+
+python scripts/load_fact_from_excel.py ^
+  --excel "C:\Users\basti\Desktop\GESTIONZERO\DB_GLOBAL_INVENTARIO.xlsx" ^
+  --sheet "BASE" ^
+  --source "DB_GLOBAL_INVENTARIO.xlsx:BASE"

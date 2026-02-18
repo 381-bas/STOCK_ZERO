@@ -1,0 +1,49 @@
+-- STOCK_ZERO · 01_schema.sql
+-- Base: tabla de hechos (raw normalizada, lista para vistas "latest" y app)
+
+CREATE TABLE IF NOT EXISTS public.fact_stock_venta (
+    id                  BIGSERIAL PRIMARY KEY,
+
+    -- "FECHA" de carga/datos (la que viene en el archivo)
+    fecha               DATE NOT NULL,
+
+    -- Dimensiones (opcionales, pero útiles para filtros futuros)
+    region              TEXT NULL,
+    cadena              TEXT NULL,
+    gestores            TEXT NULL,
+    supervisor          TEXT NULL,
+
+    -- Identidad operativa
+    rutero              TEXT NULL,
+    reponedor           TEXT NULL,
+
+    -- Local
+    cod_rt              TEXT NOT NULL,
+    nombre_local_rr     TEXT NULL,
+
+    -- Producto
+    marca               TEXT NOT NULL,
+    sku                 TEXT NOT NULL,
+    descripcion_producto TEXT NULL,
+
+    -- Métricas (UX)
+    stock               INTEGER NOT NULL,
+    venta_7             INTEGER NOT NULL,
+
+    -- Campo futuro (por ahora vacío)
+    otros               TEXT NOT NULL DEFAULT '',
+
+    -- Auditoría carga
+    ingested_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    source              TEXT NULL,
+
+    CONSTRAINT uq_fact_stock_venta UNIQUE (fecha, cod_rt, sku, marca)
+);
+
+-- Índices recomendados (rendimiento filtros)
+CREATE INDEX IF NOT EXISTS idx_fact_fecha ON public.fact_stock_venta (fecha DESC);
+CREATE INDEX IF NOT EXISTS idx_fact_ruta  ON public.fact_stock_venta (rutero, reponedor);
+CREATE INDEX IF NOT EXISTS idx_fact_local ON public.fact_stock_venta (cod_rt);
+CREATE INDEX IF NOT EXISTS idx_fact_prod  ON public.fact_stock_venta (marca, sku);
+CREATE INDEX IF NOT EXISTS idx_fact_local_prod_fecha
+  ON public.fact_stock_venta (cod_rt, sku, marca, fecha DESC);

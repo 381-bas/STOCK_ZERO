@@ -1,0 +1,119 @@
+-- STOCK_ZERO · 02_views.sql
+-- Vistas para: "solo lo último", selector ruta-persona, locales y salida UX
+
+-- 1) Vista base: SOLO LO ÚLTIMO por (COD_RT, SKU, MARCA) usando FECHA máxima
+CREATE OR REPLACE VIEW public.v_home_latest AS
+WITH ranked AS (
+  SELECT
+    f.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY f.cod_rt, f.sku, f.marca
+      ORDER BY f.fecha DESC, f.ingested_at DESC
+    ) AS rn
+  FROM public.fact_stock_venta f
+)
+SELECT *
+FROM ranked
+WHERE rn = 1;
+
+-- 2) Selector unificado (RUTERO—REPONEDOR)
+CREATE OR REPLACE VIEW public.v_selector_rutero_reponedor AS
+SELECT DISTINCT
+  rutero,
+  reponedor
+FROM public.v_home_latest
+WHERE rutero IS NOT NULL AND reponedor IS NOT NULL
+ORDER BY rutero, reponedor;
+
+-- 3) Locales disponibles por ruta/persona (para dropdown LOCAL A→Z)
+CREATE OR REPLACE VIEW public.v_locales_por_ruta AS
+SELECT DISTINCT
+  rutero,
+  reponedor,
+  cod_rt,
+  nombre_local_rr,
+  region,
+  cadena,
+  gestores,
+  supervisor
+FROM public.v_home_latest
+WHERE rutero IS NOT NULL AND reponedor IS NOT NULL
+ORDER BY cod_rt;
+
+-- 4) Contexto del local (para header: Rutero/Reponedor/Local/Fecha datos)
+CREATE OR REPLACE VIEW public.v_local_context_latest AS
+SELECT
+  rutero,
+  reponedor,
+  cod_rt,
+  MAX(fecha) AS fecha_datos,
+  MAX(nombre_local_rr) AS nombre_local_rr
+FROM public.v_home_latest
+GROUP BY rutero, reponedor, cod_rt;
+
+-- 5) Vista "snake_case" con flags listos (para app)
+CREATE OR REPLACE VIEW public.v_local_skus_latest AS
+SELECT
+  rutero,
+  reponedor,
+  cod_rt,
+  nombre_local_rr,
+  fecha,
+
+  marca,
+  sku,
+  descripcion_producto,
+
+  stock,
+  venta_7,
+
+  CASE WHEN stock < 0 THEN 'SI' ELSE 'NO' END AS negativo,
+  CASE
+    WHEN venta_7 > 0 AND stock > 0 AND stock < venta_7 THEN 'SI'
+    ELSE 'NO'
+  END AS riesgo_quiebre,
+
+  ''::text AS otros
+FROM public.v_home_latest;
+
+-- 6) Vista UX (columnas EXACTAS como pediste)
+--    Nota: aquí dejamos columnas con espacios/acentos usando comillas.
+CREATE OR REPLACE VIEW public.v_local_skus_ux AS
+SELECT
+  rutero,
+  reponedor,
+  cod_rt,
+  nombre_local_rr,
+  fecha,
+
+  marca AS "MARCA",
+  sku AS "Sku",
+  descripcion_producto AS "Descripción del Producto",
+  stock AS "Stock",
+  venta_7 AS "Venta(+7)",
+
+  CASE WHEN stock < 0 THEN 'SI' ELSE 'NO' END AS "NEGATIVO",
+  CASE
+    WHEN venta_7 > 0 AND stock > 0 AND stock < venta_7 THEN 'SI'
+    ELSE 'NO'
+  END AS "RIESGO DE QUIEBRE",
+
+  ''::text AS "OTROS"
+FROM public.v_home_latest;
+
+-- 7) KPIs base por local (opcional, pero útil para la cabecera)
+CREATE OR REPLACE VIEW public.v_local_kpis AS
+SELECT
+  rutero,
+  reponedor,
+  cod_rt,
+  MAX(nombre_local_rr) AS nombre_local_rr,
+  MAX(fecha) AS fecha_datos,
+
+  COUNT(*) AS total_skus,
+  SUM(CASE WHEN stock < 0 THEN 1 ELSE 0 END) AS negativos,
+  SUM(CASE WHEN venta_7 > 0 AND stock > 0 AND stock < venta_7 THEN 1 ELSE 0 END) AS riesgo_quiebre,
+  SUM(venta_7) AS venta_total_7,
+  SUM(stock) AS stock_total
+FROM public.v_home_latest
+GROUP BY rutero, reponedor, cod_rt;

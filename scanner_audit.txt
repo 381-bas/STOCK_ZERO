@@ -1,0 +1,1416 @@
+================================================================================================
+SCANNER AUDIT REPORT (FULL DUMP)
+Fecha: 2026-02-17T19:57:24
+Root : C:\Users\basti\Desktop\STOCK_ZERO
+================================================================================================
+
+[PYTHON]
+sys.executable: C:\Users\basti\Desktop\STOCK_ZERO\.venv\Scripts\python.exe
+sys.version   : 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+
+[PACKAGES CHECK]
+streamlit : OK
+pandas    : OK
+openpyxl  : OK
+
+[SYNTAX]
+OK: Sin errores de sintaxis.
+
+[IMPORTS BY FILE] (resumen)
+- app\db.py: __future__, pathlib, os, logging, typing, pandas, streamlit, dotenv, sqlalchemy, sqlalchemy.engine, psycopg2
+- app\exports.py: io, pandas, openpyxl.styles, reportlab.lib.pagesizes, reportlab.lib, reportlab.lib.styles, reportlab.platypus, reportlab.lib.units
+- app\Home.py: os, urllib.parse, streamlit, datetime, app, app.exports
+- scripts\load_fact_from_excel.py: os, argparse, pandas, psycopg2, psycopg2.extras
+- scripts\scanner.py: __future__, argparse, ast, hashlib, importlib.util, os, sys, dataclasses, datetime, pathlib, typing
+
+[STREAMLIT IMPORTERS]
+Archivos que importan streamlit: 2
+- app\db.py
+- app\Home.py
+
+================================================================================================
+[INDEX / TOC]
+Tip: usa Ctrl+F por el marcador exacto:  <<<BEGIN FILE: <ruta>>>
+================================================================================================
+01) [STREAMLIT] app\db.py  | size=12846 | mtime=2026-02-17T03:07:20 | sha256=fc41ddd329bb...
+    - L0033  class  AppError
+    - L0037  def  _get_db_urls
+    - L0053  def  _probe_pg
+    - L0071  def  get_active_db_url
+    - L0083  def  _engine_cached
+    - L0114  def  get_engine
+    - L0119  def  get_data_version_info
+    - L0151  def  get_data_version
+    - L0175  def  _qdf_cached
+    - L0181  def  qdf
+    - L0186  def  get_rutero_reponedor
+    - L0194  def  get_locales
+    - L0203  def  get_marcas
+    - L0213  def  get_contexto_local
+    - L0222  def  get_kpis_local
+    - L0246  def  get_tabla_ux_paginada
+    - L0323  def  get_tabla_ux_export
+02) [PY] app\exports.py  | size=4144 | mtime=2026-02-13T01:20:01 | sha256=e04b8645a2af...
+    - L0016  def  build_export_df
+    - L0030  def  export_excel_one_sheet
+    - L0053  def  export_pdf_table
+03) [STREAMLIT] app\Home.py  | size=12987 | mtime=2026-02-17T09:35:21 | sha256=6e79c39413b4...
+    - L0015  def  _qp_get
+    - L0027  def  _as_bool
+    - L0088  def  _reset_on_rr_change
+    - L0096  def  _reset_on_local_change
+    - L0257  def  _where_sql_and_params
+04) [PY] scripts\load_fact_from_excel.py  | size=4994 | mtime=2026-02-17T01:21:32 | sha256=9933bebc189d...
+    - L0009  def  norm_col
+    - L0012  def  to_int_series
+    - L0017  def  to_sku_text
+    - L0023  def  main
+05) [PY] scripts\scanner.py  | size=9035 | mtime=2026-02-16T18:38:54 | sha256=442c012b6404...
+    - L0045  class  PyFileInfo
+    - L0057  def  pkg_status
+    - L0062  def  safe_read_text
+    - L0069  def  collect_py_files
+    - L0079  def  sha256_text
+    - L0085  def  parse_imports
+    - L0103  def  parse_symbols
+    - L0121  def  format_code_with_lineno
+    - L0128  def  load_file_info
+    - L0160  def  main
+
+================================================================================================
+[FULL CODE DUMP]
+Formato: '00001 | <línea>'
+================================================================================================
+
+------------------------------------------------------------------------------------------------
+<<<BEGIN FILE: app\db.py>>>
+SIZE : 12846 bytes
+MTIME: 2026-02-17T03:07:20
+SHA256(text): fc41ddd329bb8806ceec8dc75865e9d5b27ff9945e7405036788e1afb0e249e5
+------------------------------------------------------------------------------------------------
+00001 | # app/db.py
+00002 | from __future__ import annotations
+00003 | 
+00004 | from pathlib import Path
+00005 | import os
+00006 | import logging
+00007 | from typing import Any
+00008 | 
+00009 | import pandas as pd
+00010 | import streamlit as st
+00011 | from dotenv import load_dotenv
+00012 | from sqlalchemy import create_engine, text
+00013 | from sqlalchemy.engine import Engine
+00014 | 
+00015 | # (probe liviano para elegir primary/fallback sin castigar cada query)
+00016 | try:
+00017 |     import psycopg2  # type: ignore
+00018 | except Exception:
+00019 |     psycopg2 = None  # noqa
+00020 | 
+00021 | logger = logging.getLogger("stock_zero")
+00022 | if not logger.handlers:
+00023 |     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
+00024 | 
+00025 | ROOT = Path(__file__).resolve().parents[1]
+00026 | ENV_PATH = ROOT / ".env"
+00027 | load_dotenv(dotenv_path=ENV_PATH, override=True)
+00028 | 
+00029 | 
+00030 | DV_TTL = int(os.getenv("DV_TTL", "60"))
+00031 | QDF_TTL = int(os.getenv("QDF_TTL", "180"))
+00032 | 
+00033 | class AppError(RuntimeError):
+00034 |     pass
+00035 | 
+00036 | 
+00037 | def _get_db_urls() -> tuple[str, str | None]:
+00038 |     """
+00039 |     APP: usa DB_URL_APP si existe (ideal RO). Si no, cae a DB_URL.
+00040 |     Fallback opcional: DB_URL_FALLBACK
+00041 |     """
+00042 |     primary = (os.getenv("DB_URL_APP", "") or os.getenv("DB_URL", "")).strip()
+00043 |     fallback = os.getenv("DB_URL_FALLBACK", "").strip() or None
+00044 |     if not primary and not fallback:
+00045 |         raise AppError(
+00046 |             "Configuración incompleta: falta DB_URL_APP/DB_URL.\n"
+00047 |             "Solución: agrega en tu .env una línea:\n"
+00048 |             "DB_URL_APP=postgresql://USER:PASS@HOST:PORT/DB"
+00049 |         )
+00050 |     return primary, fallback
+00051 | 
+00052 | 
+00053 | def _probe_pg(url: str) -> bool:
+00054 |     """
+00055 |     Probe cada ~30s (cacheado) para elegir primary/fallback.
+00056 |     Si psycopg2 no está disponible, asumimos primary.
+00057 |     """
+00058 |     if psycopg2 is None:
+00059 |         return True
+00060 |     timeout = int(os.getenv("CONNECT_TIMEOUT", "3"))
+00061 |     try:
+00062 |         with psycopg2.connect(url, connect_timeout=timeout) as conn:
+00063 |             with conn.cursor() as cur:
+00064 |                 cur.execute("SELECT 1;")
+00065 |         return True
+00066 |     except Exception:
+00067 |         return False
+00068 | 
+00069 | 
+00070 | @st.cache_data(ttl=30, show_spinner=False)
+00071 | def get_active_db_url() -> str:
+00072 |     primary, fallback = _get_db_urls()
+00073 |     if primary and _probe_pg(primary):
+00074 |         return primary
+00075 |     if fallback and _probe_pg(fallback):
+00076 |         logger.warning("Usando DB_URL_FALLBACK (primary no responde).")
+00077 |         return fallback
+00078 |     # Si todo falla, devolvemos primary para que el error sea explícito al consultar
+00079 |     return primary or (fallback or "")
+00080 | 
+00081 | 
+00082 | @st.cache_resource(show_spinner=False)
+00083 | def _engine_cached(db_url: str) -> Engine:
+00084 |     """
+00085 |     Pool para concurrencia (30–50 users). Ajustable por .env
+00086 |     """
+00087 |     pool_size = int(os.getenv("POOL_SIZE", "15"))
+00088 |     max_overflow = int(os.getenv("MAX_OVERFLOW", "30"))
+00089 |     pool_timeout = int(os.getenv("POOL_TIMEOUT", "30"))
+00090 |     pool_recycle = int(os.getenv("POOL_RECYCLE", "1800"))
+00091 | 
+00092 |     connect_timeout = int(os.getenv("CONNECT_TIMEOUT", "3"))
+00093 |     stmt_timeout_ms = int(os.getenv("STATEMENT_TIMEOUT_MS", "15000"))
+00094 | 
+00095 |     connect_args: dict[str, Any] = {"connect_timeout": connect_timeout}
+00096 |     # statement_timeout a nivel conexión (evita queries eternas bajo carga)
+00097 |     if stmt_timeout_ms > 0:
+00098 |         connect_args["options"] = f"-c statement_timeout={stmt_timeout_ms}"
+00099 | 
+00100 |     eng = create_engine(
+00101 |         db_url,
+00102 |         pool_size=pool_size,
+00103 |         max_overflow=max_overflow,
+00104 |         pool_timeout=pool_timeout,
+00105 |         pool_recycle=pool_recycle,
+00106 |         pool_pre_ping=True,
+00107 |         future=True,
+00108 |         connect_args=connect_args,
+00109 |     )
+00110 |     logger.info("Engine listo (pool_size=%s, max_overflow=%s)", pool_size, max_overflow)
+00111 |     return eng
+00112 | 
+00113 | 
+00114 | def get_engine() -> Engine:
+00115 |     return _engine_cached(get_active_db_url())
+00116 | 
+00117 | 
+00118 | @st.cache_data(ttl=DV_TTL, show_spinner=False)
+00119 | def get_data_version_info() -> dict[str, Any]:
+00120 |     """
+00121 |     Devuelve:
+00122 |       - fecha_datos (negocio)
+00123 |       - ingested_at (carga real) => ideal para invalidar caché
+00124 |     Requiere vista: public.v_data_version
+00125 |     """
+00126 |     eng = get_engine()
+00127 |     with eng.connect() as conn:
+00128 |         # 1) Ideal: v_data_version
+00129 |         try:
+00130 |             df = pd.read_sql(text("SELECT fecha_datos, ingested_at FROM public.v_data_version;"), conn)
+00131 |             if not df.empty:
+00132 |                 return {
+00133 |                     "fecha_datos": df.iloc[0].get("fecha_datos"),
+00134 |                     "ingested_at": df.iloc[0].get("ingested_at"),
+00135 |                 }
+00136 |         except Exception as e:
+00137 |             logger.warning("No pude leer v_data_version: %s", e)
+00138 | 
+00139 |         # 2) Fallback mínimo: fecha_datos desde v_local_context_latest
+00140 |         try:
+00141 |             df2 = pd.read_sql(text("SELECT MAX(fecha_datos) AS fecha_datos FROM public.v_local_context_latest;"), conn)
+00142 |             fd = df2.iloc[0].get("fecha_datos") if not df2.empty else None
+00143 |             return {"fecha_datos": fd, "ingested_at": None}
+00144 |         except Exception as e:
+00145 |             logger.warning("No pude leer v_local_context_latest: %s", e)
+00146 | 
+00147 |     return {"fecha_datos": None, "ingested_at": None}
+00148 | 
+00149 | 
+00150 | @st.cache_data(ttl=300, show_spinner=False)
+00151 | def get_data_version() -> str:
+00152 |     """
+00153 |     Versión de datos para invalidar caché.
+00154 |     Fallbacks para no depender de una sola vista/columna.
+00155 |     """
+00156 |     eng = get_engine()
+00157 |     candidates = [
+00158 |         "SELECT MAX(ingested_at) AS dv FROM public.fact_stock_venta;",
+00159 |         "SELECT MAX(fecha) AS dv FROM public.v_home_latest;",
+00160 |         "SELECT MAX(fecha) AS dv FROM public.v_local_skus_ux;",
+00161 |     ]
+00162 |     with eng.connect() as conn:
+00163 |         for sql in candidates:
+00164 |             try:
+00165 |                 df = pd.read_sql(text(sql), conn)
+00166 |                 dv = df.iloc[0]["dv"]
+00167 |                 if dv is not None:
+00168 |                     return str(dv)
+00169 |             except Exception:
+00170 |                 continue
+00171 |     return "NA"
+00172 | 
+00173 | 
+00174 | @st.cache_data(ttl=QDF_TTL, show_spinner=False)
+00175 | def _qdf_cached(data_version: str, sql: str, params: dict[str, Any] | None) -> pd.DataFrame:
+00176 |     eng = get_engine()
+00177 |     with eng.connect() as conn:
+00178 |         return pd.read_sql(text(sql), conn, params=params)
+00179 | 
+00180 | 
+00181 | def qdf(sql: str, params: dict[str, Any] | None = None) -> pd.DataFrame:
+00182 |     dv = get_data_version()
+00183 |     return _qdf_cached(dv, sql, params)
+00184 | 
+00185 | 
+00186 | def get_rutero_reponedor() -> pd.DataFrame:
+00187 |     return qdf("""
+00188 |         SELECT rutero, reponedor
+00189 |         FROM public.v_selector_rutero_reponedor
+00190 |         ORDER BY rutero, reponedor
+00191 |     """)
+00192 | 
+00193 | 
+00194 | def get_locales(rutero: str, reponedor: str) -> pd.DataFrame:
+00195 |     return qdf("""
+00196 |         SELECT cod_rt, nombre_local_rr
+00197 |         FROM public.v_locales_por_ruta
+00198 |         WHERE rutero = :rutero AND reponedor = :reponedor
+00199 |         ORDER BY cod_rt
+00200 |     """, {"rutero": rutero, "reponedor": reponedor})
+00201 | 
+00202 | 
+00203 | def get_marcas(rutero: str, reponedor: str, cod_rt: str) -> list[str]:
+00204 |     df = qdf("""
+00205 |         SELECT DISTINCT marca
+00206 |         FROM public.v_home_latest
+00207 |         WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+00208 |         ORDER BY marca
+00209 |     """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt})
+00210 |     return df["marca"].astype(str).tolist() if not df.empty else []
+00211 | 
+00212 | 
+00213 | def get_contexto_local(rutero: str, reponedor: str, cod_rt: str) -> pd.DataFrame:
+00214 |     return qdf("""
+00215 |         SELECT rutero, reponedor, cod_rt, nombre_local_rr, fecha_datos
+00216 |         FROM public.v_local_context_latest
+00217 |         WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+00218 |         LIMIT 1
+00219 |     """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt})
+00220 | 
+00221 | 
+00222 | def get_kpis_local(rutero: str, reponedor: str, cod_rt: str, marcas: list[str]) -> pd.DataFrame:
+00223 |     # Si marcas muy grande, evitamos ANY(:marcas) por performance
+00224 |     max_m = int(os.getenv("MAX_MARCA_FILTER", "50"))
+00225 |     if marcas and len(marcas) <= max_m:
+00226 |         return qdf("""
+00227 |             SELECT
+00228 |               COUNT(*) AS total_skus,
+00229 |               SUM(CASE WHEN stock < 0 THEN 1 ELSE 0 END) AS negativos,
+00230 |               SUM(CASE WHEN venta_7 > 0 AND stock > 0 AND stock < venta_7 THEN 1 ELSE 0 END) AS riesgo_quiebre,
+00231 |               SUM(venta_7) AS venta_total_7,
+00232 |               SUM(stock) AS stock_total
+00233 |             FROM public.v_home_latest
+00234 |             WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+00235 |               AND marca = ANY(:marcas)
+00236 |         """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt, "marcas": marcas})
+00237 | 
+00238 |     return qdf("""
+00239 |         SELECT total_skus, negativos, riesgo_quiebre, venta_total_7, stock_total
+00240 |         FROM public.v_local_kpis
+00241 |         WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+00242 |         LIMIT 1
+00243 |     """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt})
+00244 | 
+00245 | 
+00246 | def get_tabla_ux_paginada(
+00247 |     rutero: str,
+00248 |     reponedor: str,
+00249 |     cod_rt: str,
+00250 |     marcas: list[str],
+00251 |     page: int,
+00252 |     page_size: int,
+00253 |     search: str = "",
+00254 |     only_negativos: bool = False,
+00255 |     only_riesgo: bool = False,
+00256 | ) -> tuple[pd.DataFrame, int]:
+00257 |     """
+00258 |     Paginación server-side + filtros (búsqueda + foco).
+00259 |     Devuelve (df, total_rows).
+00260 |     """
+00261 |     params: dict[str, Any] = {
+00262 |         "rutero": rutero,
+00263 |         "reponedor": reponedor,
+00264 |         "cod_rt": cod_rt,
+00265 |         "limit": page_size,
+00266 |         "offset": page * page_size,
+00267 |     }
+00268 | 
+00269 |     filters = []
+00270 |     if marcas:
+00271 |         filters.append('AND "MARCA" = ANY(:marcas)')
+00272 |         params["marcas"] = marcas
+00273 | 
+00274 |     if only_negativos:
+00275 |         filters.append('AND UPPER(COALESCE("NEGATIVO",\'NO\')) = \'SI\'')
+00276 | 
+00277 |     if only_riesgo:
+00278 |         filters.append('AND UPPER(COALESCE("RIESGO DE QUIEBRE",\'NO\')) = \'SI\'')
+00279 | 
+00280 |     s = (search or "").strip()
+00281 |     if len(s) >= 2:
+00282 |         params["q"] = f"%{s}%"
+00283 |         filters.append("""
+00284 |             AND (
+00285 |                 CAST("Sku" AS TEXT) ILIKE :q
+00286 |                 OR "Descripción del Producto" ILIKE :q
+00287 |                 OR "MARCA" ILIKE :q
+00288 |             )
+00289 |         """)
+00290 | 
+00291 |     where_extra = "\n".join(filters)
+00292 | 
+00293 |     sql = f"""
+00294 |     WITH base AS (
+00295 |       SELECT *
+00296 |       FROM public.v_local_skus_ux
+00297 |       WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+00298 |       {where_extra}
+00299 |     ),
+00300 |     scored AS (
+00301 |       SELECT
+00302 |         *,
+00303 |         CASE WHEN UPPER(COALESCE("NEGATIVO",'NO'))='SI' THEN 1 ELSE 0 END AS _p1,
+00304 |         CASE WHEN UPPER(COALESCE("RIESGO DE QUIEBRE",'NO'))='SI' THEN 1 ELSE 0 END AS _p2,
+00305 |         COUNT(*) OVER() AS _total
+00306 |       FROM base
+00307 |     )
+00308 |     SELECT *
+00309 |     FROM scored
+00310 |     ORDER BY _p1 DESC, _p2 DESC, "MARCA" ASC, "Sku" ASC
+00311 |     LIMIT :limit OFFSET :offset;
+00312 |     """
+00313 | 
+00314 |     df = qdf(sql, params)
+00315 |     total = int(df["_total"].iloc[0]) if (not df.empty and "_total" in df.columns) else 0
+00316 |     drop_cols = [c for c in ["_p1", "_p2", "_total"] if c in df.columns]
+00317 |     if drop_cols:
+00318 |         df = df.drop(columns=drop_cols)
+00319 |     return df, total
+00320 | 
+00321 | 
+00322 | @st.cache_data(ttl=QDF_TTL, show_spinner=False)
+00323 | def get_tabla_ux_export(
+00324 |     rutero: str,
+00325 |     reponedor: str,
+00326 |     cod_rt: str,
+00327 |     marcas: list[str],
+00328 |     search: str = "",
+00329 |     only_negativos: bool = False,
+00330 |     only_riesgo: bool = False,
+00331 | ) -> pd.DataFrame:
+00332 |     """
+00333 |     Dataset para export (on-demand desde UI).
+00334 |     Respeta filtros de marca + búsqueda + foco.
+00335 |     """
+00336 |     params: dict[str, Any] = {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt}
+00337 | 
+00338 |     filters = []
+00339 |     if marcas:
+00340 |         filters.append('AND "MARCA" = ANY(:marcas)')
+00341 |         params["marcas"] = marcas
+00342 | 
+00343 |     if only_negativos:
+00344 |         filters.append('AND UPPER(COALESCE("NEGATIVO",\'NO\')) = \'SI\'')
+00345 | 
+00346 |     if only_riesgo:
+00347 |         filters.append('AND UPPER(COALESCE("RIESGO DE QUIEBRE",\'NO\')) = \'SI\'')
+00348 | 
+00349 |     s = (search or "").strip()
+00350 |     if len(s) >= 2:
+00351 |         params["q"] = f"%{s}%"
+00352 |         filters.append("""
+00353 |             AND (
+00354 |                 CAST("Sku" AS TEXT) ILIKE :q
+00355 |                 OR "Descripción del Producto" ILIKE :q
+00356 |                 OR "MARCA" ILIKE :q
+00357 |             )
+00358 |         """)
+00359 | 
+00360 |     where_extra = "\n".join(filters)
+00361 | 
+00362 |     sql = f"""
+00363 |     SELECT *
+00364 |     FROM public.v_local_skus_ux
+00365 |     WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+00366 |     {where_extra}
+00367 |     """
+00368 | 
+00369 |     df = qdf(sql, params)
+00370 | 
+00371 |     # Orden “operativo” (negativos/risco arriba) + estable por marca/sku
+00372 |     if not df.empty:
+00373 |         p1 = (df.get("NEGATIVO", "NO").astype(str).str.upper() == "SI").astype(int)
+00374 |         p2 = (df.get("RIESGO DE QUIEBRE", "NO").astype(str).str.upper() == "SI").astype(int)
+00375 |         df["_p1"] = p1
+00376 |         df["_p2"] = p2
+00377 |         df["_sku_num"] = pd.to_numeric(df["Sku"], errors="coerce")
+00378 |         df["_sku_isna"] = df["_sku_num"].isna().astype(int)
+00379 | 
+00380 |         df = df.sort_values(
+00381 |             by=["_p1", "_p2", "MARCA", "_sku_isna", "_sku_num", "Sku"],
+00382 |             ascending=[False, False, True, True, True, True],
+00383 |             kind="mergesort",
+00384 |         ).drop(columns=["_p1", "_p2", "_sku_num", "_sku_isna"])
+00385 | 
+00386 |     return df
+
+<<<END FILE: app\db.py>>>
+
+------------------------------------------------------------------------------------------------
+<<<BEGIN FILE: app\exports.py>>>
+SIZE : 4144 bytes
+MTIME: 2026-02-13T01:20:01
+SHA256(text): e04b8645a2afe88d643039f3e986c5249a16978d9894d458480f62e9ad9d231b
+------------------------------------------------------------------------------------------------
+00001 | # app/exports.py
+00002 | import io
+00003 | import pandas as pd
+00004 | from openpyxl.styles import PatternFill, Font
+00005 | from reportlab.lib.pagesizes import A4, landscape
+00006 | from reportlab.lib import colors
+00007 | from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+00008 | from reportlab.platypus import SimpleDocTemplate, LongTable, TableStyle, Paragraph, Spacer
+00009 | from reportlab.lib.units import cm
+00010 | 
+00011 | EXPORT_COLS = [
+00012 |     "MARCA", "Sku", "Descripción del Producto",
+00013 |     "Stock", "Venta(+7)", "NEGATIVO", "RIESGO DE QUIEBRE", "OTROS"
+00014 | ]
+00015 | 
+00016 | def build_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
+00017 |     df = df_ux.copy()
+00018 | 
+00019 |     for c in EXPORT_COLS:
+00020 |         if c not in df.columns:
+00021 |             df[c] = ""
+00022 | 
+00023 |     df["Sku"] = df["Sku"].astype(str)
+00024 | 
+00025 |     for c in ["Stock", "Venta(+7)"]:
+00026 |         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
+00027 | 
+00028 |     return df[EXPORT_COLS]
+00029 | 
+00030 | def export_excel_one_sheet(cod_rt: str, df_export: pd.DataFrame) -> bytes:
+00031 |     out = io.BytesIO()
+00032 |     sheet_name = str(cod_rt)[:31]
+00033 | 
+00034 |     with pd.ExcelWriter(out, engine="openpyxl") as writer:
+00035 |         df_export.to_excel(writer, index=False, sheet_name=sheet_name)
+00036 | 
+00037 |         ws = writer.sheets[sheet_name]
+00038 |         ws.freeze_panes = "A2"
+00039 |         ws.auto_filter.ref = ws.dimensions
+00040 | 
+00041 |         # Ajuste simple de anchos (cap)
+00042 |         for col_cells in ws.columns:
+00043 |             col_letter = col_cells[0].column_letter
+00044 |             values = []
+00045 |             for cell in col_cells[:200]:
+00046 |                 if cell.value is not None:
+00047 |                     values.append(len(str(cell.value)))
+00048 |             max_len = max(values) if values else 10
+00049 |             ws.column_dimensions[col_letter].width = min(max(10, max_len + 2), 45)
+00050 | 
+00051 |     return out.getvalue()
+00052 | 
+00053 | def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
+00054 |     out = io.BytesIO()
+00055 |     doc = SimpleDocTemplate(
+00056 |         out,
+00057 |         pagesize=landscape(A4),
+00058 |         leftMargin=1.0 * cm,
+00059 |         rightMargin=1.0 * cm,
+00060 |         topMargin=1.0 * cm,
+00061 |         bottomMargin=1.0 * cm,
+00062 |     )
+00063 | 
+00064 |     styles = getSampleStyleSheet()
+00065 |     body = ParagraphStyle(
+00066 |         "BodySmall",
+00067 |         parent=styles["BodyText"],
+00068 |         fontName="Helvetica",
+00069 |         fontSize=7,
+00070 |         leading=8,
+00071 |     )
+00072 | 
+00073 |     story = []
+00074 |     for line in title_lines:
+00075 |         story.append(Paragraph(line, styles["Heading4"]))
+00076 |     story.append(Spacer(1, 8))
+00077 | 
+00078 |     df = df_export.copy()
+00079 |     df["Descripción del Producto"] = df["Descripción del Producto"].astype(str)
+00080 | 
+00081 |     data = [EXPORT_COLS]
+00082 |     for _, r in df.iterrows():
+00083 |         row = []
+00084 |         for c in EXPORT_COLS:
+00085 |             v = r.get(c, "")
+00086 |             if c == "Descripción del Producto":
+00087 |                 row.append(Paragraph(str(v), body))
+00088 |             else:
+00089 |                 row.append(str(v))
+00090 |         data.append(row)
+00091 | 
+00092 |     # Ajustado para que quepa dentro de ~27.7cm (landscape A4 con márgenes)
+00093 |     col_widths = [
+00094 |         2.6 * cm,  # MARCA
+00095 |         2.4 * cm,  # Sku
+00096 |         10.8 * cm, # Descripción
+00097 |         1.6 * cm,  # Stock
+00098 |         2.0 * cm,  # Venta(+7)
+00099 |         2.0 * cm,  # NEGATIVO
+00100 |         3.1 * cm,  # RIESGO
+00101 |         2.2 * cm,  # OTROS
+00102 |     ]
+00103 | 
+00104 |     table = LongTable(data, colWidths=col_widths, repeatRows=1)
+00105 |     table.setStyle(TableStyle([
+00106 |         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E6E6E6")),
+00107 |         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+00108 |         ("FONTSIZE", (0, 0), (-1, 0), 8),
+00109 | 
+00110 |         ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+00111 |         ("FONTSIZE", (0, 1), (-1, -1), 7),
+00112 | 
+00113 |         ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CFCFCF")),
+00114 |         ("VALIGN", (0, 0), (-1, -1), "TOP"),
+00115 |         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F7F7")]),
+00116 | 
+00117 |         ("ALIGN", (3, 1), (4, -1), "RIGHT"),  # Stock, Venta
+00118 |         ("ALIGN", (5, 1), (7, -1), "CENTER"), # Flags
+00119 | 
+00120 |         ("LEFTPADDING", (0, 0), (-1, -1), 4),
+00121 |         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+00122 |         ("TOPPADDING", (0, 0), (-1, -1), 3),
+00123 |         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+00124 |     ]))
+00125 | 
+00126 |     story.append(table)
+00127 |     doc.build(story)
+00128 |     return out.getvalue()
+
+<<<END FILE: app\exports.py>>>
+
+------------------------------------------------------------------------------------------------
+<<<BEGIN FILE: app\Home.py>>>
+SIZE : 12987 bytes
+MTIME: 2026-02-17T09:35:21
+SHA256(text): 6e79c39413b4f2df098972608eda14e9a4c3ef709555e968b53477512c69a896
+------------------------------------------------------------------------------------------------
+00001 | # app/Home.py
+00002 | import os
+00003 | import urllib.parse
+00004 | import streamlit as st
+00005 | from datetime import datetime
+00006 | 
+00007 | from app import db
+00008 | from app.exports import build_export_df, export_excel_one_sheet, export_pdf_table
+00009 | 
+00010 | st.set_page_config(page_title="STOCK_ZERO", layout="wide")
+00011 | 
+00012 | # -----------------------------
+00013 | # Helpers query params (compat)
+00014 | # -----------------------------
+00015 | def _qp_get(key: str, default: str = "") -> str:
+00016 |     try:
+00017 |         qp = st.query_params  # Streamlit moderno
+00018 |         v = qp.get(key, default)
+00019 |         if isinstance(v, list):
+00020 |             return v[0] if v else default
+00021 |         return v if v is not None else default
+00022 |     except Exception:
+00023 |         qp = st.experimental_get_query_params()
+00024 |         v = qp.get(key, [default])
+00025 |         return v[0] if isinstance(v, list) and v else default
+00026 | 
+00027 | def _as_bool(s: str) -> bool:
+00028 |     s = (s or "").strip().lower()
+00029 |     return s in {"1", "true", "t", "si", "sí", "y", "yes"}
+00030 | 
+00031 | # -----------------------------
+00032 | # Access by token in link (?t=)
+00033 | # -----------------------------
+00034 | APP_TOKEN = os.getenv("APP_TOKEN", "").strip()
+00035 | t_in = _qp_get("t", "").strip()
+00036 | 
+00037 | st.title("STOCK_ZERO")
+00038 | st.caption("Lectura operativa · filtro + búsqueda · export por filtro actual")
+00039 | 
+00040 | if APP_TOKEN and t_in != APP_TOKEN:
+00041 |     st.error("Link no válido o expirado. Solicita un link actualizado.")
+00042 |     st.stop()
+00043 | 
+00044 | # -----------------------------
+00045 | # Init defaults from query params
+00046 | if "init_done" not in st.session_state:
+00047 |     st.session_state.init_done = True
+00048 |     st.session_state.f_search = _qp_get("q", "")
+00049 |     st.session_state.f_foco = _qp_get("foco", "Todo")  # Todo | Negativos | Riesgo | Negativos + Riesgo
+00050 | # -----------------------------
+00051 | # DB read: show real error (debug)
+00052 | # -----------------------------
+00053 | try:
+00054 |     rr = db.qdf("""
+00055 |         SELECT rutero, reponedor
+00056 |         FROM public.v_selector_rutero_reponedor
+00057 |         ORDER BY rutero, reponedor
+00058 |     """)
+00059 | except Exception as e:
+00060 |     st.error("No pude leer datos desde la DB. Revisa DB_URL/Secrets y vistas.")
+00061 |     with st.expander("Detalles técnicos"):
+00062 |         st.code(repr(e))
+00063 |     st.stop()
+00064 | 
+00065 | if rr.empty:
+00066 |     st.warning("No hay datos para mostrar.")
+00067 |     st.stop()
+00068 | 
+00069 | rr = rr.copy()
+00070 | rr["label"] = rr["rutero"].astype(str) + " — " + rr["reponedor"].astype(str)
+00071 | 
+00072 | # Preselección por query params si vienen
+00073 | qp_rutero = _qp_get("rutero", "")
+00074 | qp_reponedor = _qp_get("reponedor", "")
+00075 | default_rr_label = ""
+00076 | if qp_rutero and qp_reponedor:
+00077 |     hit = rr[(rr["rutero"].astype(str) == qp_rutero) & (rr["reponedor"].astype(str) == qp_reponedor)]
+00078 |     if not hit.empty:
+00079 |         default_rr_label = hit.iloc[0]["label"]
+00080 | 
+00081 | if "sel_rr_label" not in st.session_state:
+00082 |     st.session_state.sel_rr_label = default_rr_label or rr.iloc[0]["label"]
+00083 | 
+00084 | 
+00085 | # -----------------------------
+00086 | # Filters (auto-update, sin botón)
+00087 | # -----------------------------
+00088 | def _reset_on_rr_change():
+00089 |     # Cambió RUTERO/REPONEDOR => reiniciar dependientes
+00090 |     st.session_state.sel_local_label = ""   # fuerza recalcular local válido
+00091 |     st.session_state.sel_marcas = []        # vuelve a "Todas"
+00092 |     st.session_state.f_search = ""          # (opcional) limpia búsqueda
+00093 |     st.session_state.f_foco = "Todo"        # (opcional) vuelve a foco base
+00094 |     
+00095 | 
+00096 | def _reset_on_local_change():
+00097 |     # Cambió LOCAL => reiniciar marcas (porque cambian las disponibles)
+00098 |     st.session_state.sel_marcas = []
+00099 | 
+00100 | top1, top2 = st.columns([2, 3], gap="small")
+00101 | 
+00102 | with top1:
+00103 |     rr_label = st.selectbox(
+00104 |         "RUTERO — REPONEDOR",
+00105 |         rr["label"].tolist(),
+00106 |         key="sel_rr_label",
+00107 |         on_change=_reset_on_rr_change,
+00108 |     )
+00109 | 
+00110 | # RR seleccionado (ya está en session_state)
+00111 | sel_rr = rr[rr["label"] == st.session_state.sel_rr_label].iloc[0]
+00112 | rutero = sel_rr["rutero"]
+00113 | reponedor = sel_rr["reponedor"]
+00114 | 
+00115 | # locales (dependen de rr)
+00116 | try:
+00117 |     locs = db.qdf("""
+00118 |         SELECT cod_rt, nombre_local_rr
+00119 |         FROM public.v_locales_por_ruta
+00120 |         WHERE rutero=:rutero AND reponedor=:reponedor
+00121 |         ORDER BY cod_rt
+00122 |     """, {"rutero": rutero, "reponedor": reponedor})
+00123 | except Exception as e:
+00124 |     st.error("No pude leer locales (v_locales_por_ruta).")
+00125 |     with st.expander("Detalles técnicos"):
+00126 |         st.code(repr(e))
+00127 |     st.stop()
+00128 | 
+00129 | if locs.empty:
+00130 |     st.warning("No hay locales para este RUTERO—REPONEDOR.")
+00131 |     st.stop()
+00132 | 
+00133 | locs = locs.copy()
+00134 | locs["label"] = locs["cod_rt"].astype(str) + " — " + locs["nombre_local_rr"].astype(str)
+00135 | loc_labels = locs["label"].tolist()
+00136 | 
+00137 | # Garantiza que el local actual exista en las opciones (evita “rebote”)
+00138 | if st.session_state.get("sel_local_label", "") not in loc_labels:
+00139 |     qp_cod_rt = _qp_get("cod_rt", "").strip()
+00140 |     if qp_cod_rt:
+00141 |         hit = locs[locs["cod_rt"].astype(str) == qp_cod_rt]
+00142 |         st.session_state.sel_local_label = hit.iloc[0]["label"] if not hit.empty else loc_labels[0]
+00143 |     else:
+00144 |         st.session_state.sel_local_label = loc_labels[0]
+00145 | 
+00146 | with top2:
+00147 |     local_label = st.selectbox(
+00148 |         "LOCAL (COD_RT)",
+00149 |         loc_labels,
+00150 |         key="sel_local_label",
+00151 |         on_change=_reset_on_local_change,
+00152 |     )
+00153 | 
+00154 | # LOCAL seleccionado (ya está en session_state)
+00155 | row_loc = locs[locs["label"] == st.session_state.sel_local_label].iloc[0]
+00156 | cod_rt = row_loc["cod_rt"]
+00157 | nombre_local_rr = row_loc["nombre_local_rr"]
+00158 | 
+00159 | # marcas (dependen de rr + local)
+00160 | marcas_disponibles: list[str] = []
+00161 | try:
+00162 |     mdf = db.qdf("""
+00163 |         SELECT DISTINCT marca
+00164 |         FROM public.v_home_latest
+00165 |         WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+00166 |         ORDER BY marca
+00167 |     """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt})
+00168 |     marcas_disponibles = mdf["marca"].astype(str).tolist() if not mdf.empty else []
+00169 | except Exception:
+00170 |     marcas_disponibles = []
+00171 | 
+00172 | # init de marcas desde query params SOLO 1 vez (primera carga)
+00173 | if "sel_marcas" not in st.session_state:
+00174 |     qp_marcas = _qp_get("marcas", "")
+00175 |     default_marcas = [m.strip() for m in qp_marcas.split(",") if m.strip()]
+00176 |     st.session_state.sel_marcas = [m for m in default_marcas if m in set(marcas_disponibles)]
+00177 | 
+00178 | # sanitiza selección (evita valores fuera de options)
+00179 | st.session_state.sel_marcas = [m for m in (st.session_state.sel_marcas or []) if m in set(marcas_disponibles)]
+00180 | 
+00181 | mid1, mid2 = st.columns([3, 2], gap="small")
+00182 | 
+00183 | with mid1:
+00184 |     st.multiselect(
+00185 |         "MARCA (opcional)",
+00186 |         options=marcas_disponibles,
+00187 |         key="sel_marcas",
+00188 |         placeholder="Todas",
+00189 |     )
+00190 | 
+00191 | with mid2:
+00192 |     foco_opts = ["Todo", "Negativos", "Riesgo", "Negativos + Riesgo"]
+00193 |     foco_default = st.session_state.f_foco if st.session_state.get("f_foco") in foco_opts else st.session_state.get("f_foco", "Todo")
+00194 |     # por compat: si viene f_foco de init, úsalo
+00195 |     if "f_foco" not in st.session_state:
+00196 |         st.session_state.f_foco = _qp_get("foco", "Todo")
+00197 |     st.selectbox(
+00198 |         "Foco operativo",
+00199 |         foco_opts,
+00200 |         key="f_foco",
+00201 |         index=foco_opts.index(st.session_state.f_foco) if st.session_state.f_foco in foco_opts else 0,
+00202 |     )
+00203 | 
+00204 | st.text_input(
+00205 |     "Búsqueda (SKU o descripción)",
+00206 |     key="f_search",
+00207 |     placeholder="Ej: 779... / galleta / snack...",
+00208 | )
+00209 | 
+00210 | # Variables finales para el resto del script (mantiene tu estructura actual)
+00211 | marcas = st.session_state.get("sel_marcas", [])
+00212 | 
+00213 | # -----------------------------
+00214 | # KPIs + fecha (robusto)
+00215 | # -----------------------------
+00216 | marca_filter = ""
+00217 | kpi_params = {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt}
+00218 | if marcas:
+00219 |     marca_filter = "AND marca = ANY(:marcas)"
+00220 |     kpi_params["marcas"] = marcas
+00221 | 
+00222 | kpis = db.qdf(f"""
+00223 |     SELECT
+00224 |       COUNT(*) AS total_skus,
+00225 |       SUM(CASE WHEN stock < 0 THEN 1 ELSE 0 END) AS negativos,
+00226 |       SUM(CASE WHEN venta_7 > 0 AND stock > 0 AND stock < venta_7 THEN 1 ELSE 0 END) AS riesgo_quiebre,
+00227 |       SUM(venta_7) AS venta_total_7,
+00228 |       SUM(stock) AS stock_total,
+00229 |       MAX(fecha) AS fecha_datos
+00230 |     FROM public.v_home_latest
+00231 |     WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+00232 |     {marca_filter}
+00233 | """, kpi_params)
+00234 | 
+00235 | file_stamp = datetime.now().date().isoformat()
+00236 | if not kpis.empty and kpis.iloc[0].get("fecha_datos") is not None:
+00237 |     file_stamp = str(kpis.iloc[0]["fecha_datos"])
+00238 | 
+00239 | c1, c2, c3, c4, c5 = st.columns(5)
+00240 | if not kpis.empty:
+00241 |     row = kpis.iloc[0]
+00242 |     c1.metric("Total SKUs", int(row["total_skus"] or 0))
+00243 |     c2.metric("Negativos", int(row["negativos"] or 0))
+00244 |     c3.metric("Riesgo quiebre", int(row["riesgo_quiebre"] or 0))
+00245 |     c4.metric("Venta(+7) total", int(row["venta_total_7"] or 0))
+00246 |     c5.metric("Stock total", int(row["stock_total"] or 0))
+00247 | 
+00248 | st.caption(f"Datos al: {file_stamp} · Local: {cod_rt} · {nombre_local_rr}")
+00249 | 
+00250 | # -----------------------------
+00251 | # Build WHERE filters for v_local_skus_ux
+00252 | # -----------------------------
+00253 | only_neg = st.session_state.f_foco in {"Negativos", "Negativos + Riesgo"}
+00254 | only_risk = st.session_state.f_foco in {"Riesgo", "Negativos + Riesgo"}
+00255 | search = (st.session_state.f_search or "").strip()
+00256 | 
+00257 | def _where_sql_and_params():
+00258 |     params = {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt}
+00259 |     extra = []
+00260 |     if marcas:
+00261 |         extra.append('"MARCA" = ANY(:marcas)')
+00262 |         params["marcas"] = marcas
+00263 |     if only_neg:
+00264 |         extra.append("UPPER(COALESCE(\"NEGATIVO\",'NO'))='SI'")
+00265 |     if only_risk:
+00266 |         extra.append("UPPER(COALESCE(\"RIESGO DE QUIEBRE\",'NO'))='SI'")
+00267 |     if search:
+00268 |         extra.append("(\"Sku\" ILIKE :q OR \"Descripción del Producto\" ILIKE :q)")
+00269 |         params["q"] = f"%{search}%"
+00270 |     extra_sql = (" AND " + " AND ".join(extra)) if extra else ""
+00271 |     return extra_sql, params
+00272 | 
+00273 | extra_sql, base_params = _where_sql_and_params()
+00274 | 
+00275 | # -----------------------------
+00276 | # Query FULL rows (sin paginación)
+00277 | # -----------------------------
+00278 | sql_full = f"""
+00279 | SELECT *
+00280 | FROM public.v_local_skus_ux
+00281 | WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+00282 | {extra_sql}
+00283 | ORDER BY
+00284 |   CASE WHEN "Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
+00285 |   CASE WHEN "Sku" ~ '^[0-9]+$' THEN ("Sku")::bigint END ASC,
+00286 |   "Sku" ASC,
+00287 |   "MARCA" ASC,
+00288 |   "Descripción del Producto" ASC
+00289 | """
+00290 | 
+00291 | df = db.qdf(sql_full, base_params)
+00292 | 
+00293 | st.caption(f"Filas: {len(df)}")
+00294 | 
+00295 | df_show = build_export_df(df) if not df.empty else df
+00296 | 
+00297 | # Tabla “base”
+00298 | st.dataframe(
+00299 |     df_show[["MARCA","Sku","Descripción del Producto","Stock","Venta(+7)","NEGATIVO","RIESGO DE QUIEBRE","OTROS"]]
+00300 |     if not df_show.empty else df_show,
+00301 |     use_container_width=True,
+00302 |     hide_index=True,
+00303 | )
+00304 | 
+00305 | # -----------------------------
+00306 | # Export (por filtro actual) — usa lo ya consultado
+00307 | # -----------------------------
+00308 | with st.expander("EXPORTAR (por filtro actual)", expanded=False):
+00309 |     st.write("Exporta exactamente lo que estás viendo (filtros + búsqueda + foco).")
+00310 |     if df_show.empty:
+00311 |         st.info("No hay filas para exportar con el filtro actual.")
+00312 |     else:
+00313 |         prep = st.toggle("Preparar export ahora", value=False)
+00314 |         if prep:
+00315 |             df_export = build_export_df(df)  # asegura columnas/formatos
+00316 | 
+00317 |             fname_base = f"STOCK_ZERO_{cod_rt}_{file_stamp}"
+00318 |             excel_bytes = export_excel_one_sheet(cod_rt, df_export)
+00319 | 
+00320 |             pdf_lines = [
+00321 |                 f"STOCK_ZERO · {cod_rt} · {nombre_local_rr}",
+00322 |                 f"RUTERO: {rutero}  |  REPONEDOR: {reponedor}",
+00323 |                 f"Datos al: {file_stamp}  |  Foco: {st.session_state.f_foco}",
+00324 |                 f"Marcas: {', '.join(marcas) if marcas else 'Todas'}  |  Búsqueda: {search if search else '-'}",
+00325 |             ]
+00326 |             pdf_bytes = export_pdf_table(pdf_lines, df_export)
+00327 | 
+00328 |             dA, dB = st.columns(2)
+00329 |             with dA:
+00330 |                 st.download_button(
+00331 |                     "Descargar Excel (filtrado)",
+00332 |                     data=excel_bytes,
+00333 |                     file_name=f"{fname_base}.xlsx",
+00334 |                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+00335 |                     use_container_width=True,
+00336 |                 )
+00337 |             with dB:
+00338 |                 st.download_button(
+00339 |                     "Descargar PDF (filtrado)",
+00340 |                     data=pdf_bytes,
+00341 |                     file_name=f"{fname_base}.pdf",
+00342 |                     mime="application/pdf",
+00343 |                     use_container_width=True,
+00344 |                 )
+00345 | 
+00346 |     app_url = os.getenv("APP_URL", "").strip().rstrip("/")
+00347 |     params = {
+00348 |         "t": t_in or (APP_TOKEN if APP_TOKEN else ""),
+00349 |         "rutero": str(rutero),
+00350 |         "reponedor": str(reponedor),
+00351 |         "cod_rt": str(cod_rt),
+00352 |         "marcas": ",".join(marcas) if marcas else "",
+00353 |         "q": search,
+00354 |         "foco": st.session_state.f_foco,
+00355 |     }
+00356 |     qs = urllib.parse.urlencode({k: v for k, v in params.items() if v})
+00357 |     share = f"{app_url}/?{qs}" if app_url else f"?{qs}"
+00358 |     st.code(share, language="text")
+00359 |     st.caption("Tip: copia/pega el link. Si usas APP_TOKEN, rota el acceso cambiando el token en Secrets.")
+
+<<<END FILE: app\Home.py>>>
+
+------------------------------------------------------------------------------------------------
+<<<BEGIN FILE: scripts\load_fact_from_excel.py>>>
+SIZE : 4994 bytes
+MTIME: 2026-02-17T01:21:32
+SHA256(text): 9933bebc189d1ed073092fa48f442b08cef504b73053dbc83a998c991cc3225c
+------------------------------------------------------------------------------------------------
+00001 | # scripts/load_fact_from_excel.py
+00002 | # -*- coding: utf-8 -*-
+00003 | import os
+00004 | import argparse
+00005 | import pandas as pd
+00006 | import psycopg2
+00007 | from psycopg2.extras import execute_values
+00008 | 
+00009 | def norm_col(c: str) -> str:
+00010 |     return str(c).strip()
+00011 | 
+00012 | def to_int_series(s: pd.Series) -> pd.Series:
+00013 |     s = s.fillna(0)
+00014 |     # Algunos vienen como float (7.0). Convertimos seguro a int.
+00015 |     return pd.to_numeric(s, errors="coerce").fillna(0).round(0).astype(int)
+00016 | 
+00017 | def to_sku_text(s: pd.Series) -> pd.Series:
+00018 |     # SKU puede venir como número. Lo guardamos como texto sin .0
+00019 |     s = s.astype(str).str.strip()
+00020 |     s = s.str.replace(r"\.0$", "", regex=True)
+00021 |     return s
+00022 | 
+00023 | def main():
+00024 |     ap = argparse.ArgumentParser()
+00025 |     ap.add_argument("--excel", default=r"data\DB_GLOBAL_INVENTARIO.xlsx")
+00026 |     ap.add_argument("--sheet", default="BASE")
+00027 |     ap.add_argument("--db_url", default=os.getenv("DB_URL_LOAD", "") or os.getenv("DB_URL", ""))
+00028 |     ap.add_argument("--source", default="DB_GLOBAL_INVENTARIO.xlsx:BASE")
+00029 |     args = ap.parse_args()
+00030 | 
+00031 |     if not args.db_url:
+00032 |         raise SystemExit("Falta DB_URL. Setea DB_URL en .env o pásalo con --db_url")
+00033 | 
+00034 |     df = pd.read_excel(args.excel, sheet_name=args.sheet)
+00035 | 
+00036 |     # Normaliza nombres de columnas (quita espacios al inicio/fin)
+00037 |     df.columns = [norm_col(c) for c in df.columns]
+00038 | 
+00039 |     # Mapeo desde Excel -> columnas internas
+00040 |     # Nota: en Excel el SKU viene como 'Sku' pero en tu archivo es 'Sku' con espacio en algunos casos ('Sku' o 'Sku' con prefijo)
+00041 |     # Ya lo dejamos normalizado con strip, así quedará "Sku" si venía " Sku".
+00042 |     required = {
+00043 |         "FECHA": "fecha",
+00044 |         "REGIÓN": "region",
+00045 |         "CADENA": "cadena",
+00046 |         "MARCA": "marca",
+00047 |         "Sku": "sku",
+00048 |         "Descripción del Producto": "descripcion_producto",
+00049 |         "COD_RT": "cod_rt",
+00050 |         "Nombre_local_RR": "nombre_local_rr",
+00051 |         "GESTORES": "gestores",
+00052 |         "SUPERVISOR": "supervisor",
+00053 |         "REPONEDOR": "reponedor",
+00054 |         "RUTERO": "rutero",
+00055 |         "Inventario en Locales(U)": "stock",
+00056 |         "Venta(u)": "venta_7",
+00057 |     }
+00058 | 
+00059 |     # Algunos archivos traen 'CADENA ' y 'SUPERVISOR ' con espacio; con strip quedan 'CADENA' y 'SUPERVISOR'
+00060 |     # Verificamos presentes
+00061 |     missing = [k for k in required.keys() if k not in df.columns]
+00062 |     if missing:
+00063 |         raise SystemExit(f"Faltan columnas en BASE: {missing}\nColumnas encontradas: {list(df.columns)}")
+00064 | 
+00065 |     out = pd.DataFrame()
+00066 |     out["fecha"] = pd.to_datetime(df["FECHA"], errors="coerce").dt.date
+00067 |     out["region"] = df["REGIÓN"].astype(str).str.strip()
+00068 |     out["cadena"] = df["CADENA"].astype(str).str.strip()
+00069 |     out["marca"] = df["MARCA"].astype(str).str.strip()
+00070 | 
+00071 |     out["sku"] = to_sku_text(df["Sku"])
+00072 |     out["descripcion_producto"] = df["Descripción del Producto"].astype(str).str.strip()
+00073 | 
+00074 |     out["cod_rt"] = df["COD_RT"].astype(str).str.strip()
+00075 |     out["nombre_local_rr"] = df["Nombre_local_RR"].astype(str).str.strip()
+00076 | 
+00077 |     out["gestores"] = df["GESTORES"].astype(str).str.strip()
+00078 |     out["supervisor"] = df["SUPERVISOR"].astype(str).str.strip()
+00079 | 
+00080 |     out["reponedor"] = df["REPONEDOR"].astype(str).str.strip()
+00081 |     out["rutero"] = df["RUTERO"].astype(str).str.strip()
+00082 | 
+00083 |     out["stock"] = to_int_series(df["Inventario en Locales(U)"])
+00084 |     out["venta_7"] = to_int_series(df["Venta(u)"])
+00085 | 
+00086 |     out["otros"] = ""
+00087 |     out["source"] = args.source
+00088 | 
+00089 |     # Limpieza mínima
+00090 |     out = out.dropna(subset=["fecha", "cod_rt", "sku", "marca"])
+00091 |     out = out[out["cod_rt"].astype(str).str.len() > 0]
+00092 |     out = out[out["sku"].astype(str).str.len() > 0]
+00093 | 
+00094 |     rows = list(out[[
+00095 |         "fecha","region","cadena","gestores","supervisor",
+00096 |         "rutero","reponedor","cod_rt","nombre_local_rr",
+00097 |         "marca","sku","descripcion_producto","stock","venta_7",
+00098 |         "otros","source"
+00099 |     ]].itertuples(index=False, name=None))
+00100 | 
+00101 |     sql = """
+00102 |     INSERT INTO public.fact_stock_venta
+00103 |     (fecha, region, cadena, gestores, supervisor,
+00104 |      rutero, reponedor, cod_rt, nombre_local_rr,
+00105 |      marca, sku, descripcion_producto, stock, venta_7,
+00106 |      otros, source)
+00107 |     VALUES %s
+00108 |     ON CONFLICT (fecha, cod_rt, sku, marca)
+00109 |     DO UPDATE SET
+00110 |       region = EXCLUDED.region,
+00111 |       cadena = EXCLUDED.cadena,
+00112 |       gestores = EXCLUDED.gestores,
+00113 |       supervisor = EXCLUDED.supervisor,
+00114 |       rutero = EXCLUDED.rutero,
+00115 |       reponedor = EXCLUDED.reponedor,
+00116 |       nombre_local_rr = EXCLUDED.nombre_local_rr,
+00117 |       descripcion_producto = EXCLUDED.descripcion_producto,
+00118 |       stock = EXCLUDED.stock,
+00119 |       venta_7 = EXCLUDED.venta_7,
+00120 |       otros = EXCLUDED.otros,
+00121 |       source = EXCLUDED.source,
+00122 |       ingested_at = NOW();
+00123 |     """
+00124 | 
+00125 |     with psycopg2.connect(args.db_url) as conn:
+00126 |         with conn.cursor() as cur:
+00127 |             execute_values(cur, sql, rows, page_size=5000)
+00128 |         conn.commit()
+00129 | 
+00130 |     print(f"OK: cargadas/upsert {len(rows)} filas desde {args.excel} [{args.sheet}]")
+00131 | 
+00132 | if __name__ == "__main__":
+00133 |     main()
+
+<<<END FILE: scripts\load_fact_from_excel.py>>>
+
+------------------------------------------------------------------------------------------------
+<<<BEGIN FILE: scripts\scanner.py>>>
+SIZE : 9035 bytes
+MTIME: 2026-02-16T18:38:54
+SHA256(text): 442c012b6404112619d1293624abe69060fd7c9d214a4ed6c33b0ebf7295d5ed
+------------------------------------------------------------------------------------------------
+00001 | # -*- coding: utf-8 -*-
+00002 | """
+00003 | scanner.py — Auditor del proyecto (sin ejecutar tu app).
+00004 | 
+00005 | Genera 1 SOLO .txt con:
+00006 | - Entorno Python (sys.executable, sys.version)
+00007 | - Chequeo paquetes (streamlit, pandas, openpyxl)
+00008 | - Imports por archivo (resumen)
+00009 | - ÍNDICE por archivo + sub-índice de defs/classes (con línea original del .py)
+00010 | - Dump completo de cada .py con números de línea y marcadores:
+00011 |     <<<BEGIN FILE: path>>>
+00012 |     <<<END FILE: path>>>
+00013 | 
+00014 | Uso:
+00015 |     python skills/scanner.py
+00016 |     python skills/scanner.py --root "C:\\Users\\basti\\Desktop\\STOCK_ZERO\\app" --out "scanner_audit.txt"
+00017 | """
+00018 | 
+00019 | from __future__ import annotations
+00020 | 
+00021 | import argparse
+00022 | import ast
+00023 | import hashlib
+00024 | import importlib.util
+00025 | import os
+00026 | import sys
+00027 | from dataclasses import dataclass
+00028 | from datetime import datetime
+00029 | from pathlib import Path
+00030 | from typing import Dict, List, Tuple
+00031 | 
+00032 | 
+00033 | IGNORE_DIRS = {
+00034 |     ".git", ".svn", ".hg",
+00035 |     "__pycache__", ".pytest_cache", ".mypy_cache",
+00036 |     ".venv", "venv", "env",
+00037 |     ".streamlit",
+00038 |     "node_modules",
+00039 | }
+00040 | 
+00041 | TARGET_PKGS = ["streamlit", "pandas", "openpyxl"]
+00042 | 
+00043 | 
+00044 | @dataclass
+00045 | class PyFileInfo:
+00046 |     rel: str
+00047 |     abs_path: Path
+00048 |     src: str
+00049 |     size: int
+00050 |     mtime: str
+00051 |     sha256: str
+00052 |     imports: List[str]
+00053 |     has_streamlit: bool
+00054 |     symbols: List[Tuple[int, str, str]]  # (lineno, kind, name) kind in {"def","class","async def"}
+00055 | 
+00056 | 
+00057 | def pkg_status(pkg: str) -> str:
+00058 |     spec = importlib.util.find_spec(pkg)
+00059 |     return "OK" if spec is not None else "MISSING"
+00060 | 
+00061 | 
+00062 | def safe_read_text(p: Path) -> str:
+00063 |     try:
+00064 |         return p.read_text(encoding="utf-8")
+00065 |     except UnicodeDecodeError:
+00066 |         return p.read_text(encoding="cp1252", errors="replace")
+00067 | 
+00068 | 
+00069 | def collect_py_files(root: Path) -> List[Path]:
+00070 |     files: List[Path] = []
+00071 |     for dirpath, dirnames, filenames in os.walk(root):
+00072 |         dirnames[:] = [d for d in dirnames if d not in IGNORE_DIRS]
+00073 |         for fn in filenames:
+00074 |             if fn.lower().endswith(".py"):
+00075 |                 files.append(Path(dirpath) / fn)
+00076 |     return sorted(files, key=lambda x: str(x).lower())
+00077 | 
+00078 | 
+00079 | def sha256_text(text: str) -> str:
+00080 |     h = hashlib.sha256()
+00081 |     h.update(text.encode("utf-8", errors="replace"))
+00082 |     return h.hexdigest()
+00083 | 
+00084 | 
+00085 | def parse_imports(tree: ast.AST) -> List[str]:
+00086 |     imports: List[str] = []
+00087 |     for node in ast.walk(tree):
+00088 |         if isinstance(node, ast.Import):
+00089 |             for n in node.names:
+00090 |                 imports.append(n.name)
+00091 |         elif isinstance(node, ast.ImportFrom):
+00092 |             imports.append(node.module or "")
+00093 |     # unique preserving order
+00094 |     seen = set()
+00095 |     uniq = []
+00096 |     for i in imports:
+00097 |         if i and i not in seen:
+00098 |             seen.add(i)
+00099 |             uniq.append(i)
+00100 |     return uniq
+00101 | 
+00102 | 
+00103 | def parse_symbols(tree: ast.AST) -> List[Tuple[int, str, str]]:
+00104 |     """
+00105 |     Extrae defs/classes con su lineno del archivo original.
+00106 |     Incluye funciones anidadas también (sirve para auditoría).
+00107 |     """
+00108 |     syms: List[Tuple[int, str, str]] = []
+00109 |     for node in ast.walk(tree):
+00110 |         if isinstance(node, ast.FunctionDef):
+00111 |             syms.append((getattr(node, "lineno", -1), "def", node.name))
+00112 |         elif isinstance(node, ast.AsyncFunctionDef):
+00113 |             syms.append((getattr(node, "lineno", -1), "async def", node.name))
+00114 |         elif isinstance(node, ast.ClassDef):
+00115 |             syms.append((getattr(node, "lineno", -1), "class", node.name))
+00116 |     syms = [s for s in syms if s[0] and s[0] > 0]
+00117 |     syms.sort(key=lambda x: x[0])
+00118 |     return syms
+00119 | 
+00120 | 
+00121 | def format_code_with_lineno(src: str, width: int = 5) -> str:
+00122 |     out_lines = []
+00123 |     for i, line in enumerate(src.splitlines(), start=1):
+00124 |         out_lines.append(f"{i:0{width}d} | {line}")
+00125 |     return "\n".join(out_lines)
+00126 | 
+00127 | 
+00128 | def load_file_info(root: Path, p: Path) -> PyFileInfo:
+00129 |     rel = str(p.relative_to(root))
+00130 |     src = safe_read_text(p)
+00131 | 
+00132 |     try:
+00133 |         st = p.stat()
+00134 |         size = st.st_size
+00135 |         mtime = datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds")
+00136 |     except Exception:
+00137 |         size = -1
+00138 |         mtime = "N/A"
+00139 | 
+00140 |     digest = sha256_text(src)
+00141 | 
+00142 |     tree = ast.parse(src, filename=str(p))
+00143 |     imps = parse_imports(tree)
+00144 |     syms = parse_symbols(tree)
+00145 |     has_streamlit = any(i == "streamlit" or i.startswith("streamlit.") for i in imps)
+00146 | 
+00147 |     return PyFileInfo(
+00148 |         rel=rel,
+00149 |         abs_path=p,
+00150 |         src=src,
+00151 |         size=size,
+00152 |         mtime=mtime,
+00153 |         sha256=digest,
+00154 |         imports=imps,
+00155 |         has_streamlit=has_streamlit,
+00156 |         symbols=syms,
+00157 |     )
+00158 | 
+00159 | 
+00160 | def main():
+00161 |     ap = argparse.ArgumentParser()
+00162 |     ap.add_argument("--root", default=".", help="Ruta raíz del proyecto")
+00163 |     ap.add_argument("--out", default="scanner_audit.txt", help="Archivo de salida (un solo .txt)")
+00164 |     ap.add_argument("--max-dump-lines", type=int, default=0,
+00165 |                     help="Máximo líneas por archivo en el dump (0 = sin límite).")
+00166 |     args = ap.parse_args()
+00167 | 
+00168 |     root = Path(args.root).resolve()
+00169 |     out_path = Path(args.out).resolve()
+00170 | 
+00171 |     py_files = collect_py_files(root)
+00172 | 
+00173 |     file_infos: List[PyFileInfo] = []
+00174 |     syntax_errors: List[Tuple[str, str]] = []
+00175 | 
+00176 |     for p in py_files:
+00177 |         rel = str(p.relative_to(root))
+00178 |         try:
+00179 |             file_infos.append(load_file_info(root, p))
+00180 |         except SyntaxError as e:
+00181 |             syntax_errors.append((rel, f"{e.msg} (line {e.lineno}:{e.offset})"))
+00182 |         except Exception as e:
+00183 |             syntax_errors.append((rel, f"ERROR parseando: {e}"))
+00184 | 
+00185 |     # ---------------- Report build ----------------
+00186 |     lines: List[str] = []
+00187 |     lines.append("=" * 96)
+00188 |     lines.append("SCANNER AUDIT REPORT (FULL DUMP)")
+00189 |     lines.append(f"Fecha: {datetime.now().isoformat(timespec='seconds')}")
+00190 |     lines.append(f"Root : {root}")
+00191 |     lines.append("=" * 96)
+00192 |     lines.append("")
+00193 | 
+00194 |     # Python env
+00195 |     lines.append("[PYTHON]")
+00196 |     lines.append(f"sys.executable: {sys.executable}")
+00197 |     lines.append(f"sys.version   : {sys.version.replace(os.linesep, ' ')}")
+00198 |     lines.append("")
+00199 | 
+00200 |     # Packages
+00201 |     lines.append("[PACKAGES CHECK]")
+00202 |     for pkg in TARGET_PKGS:
+00203 |         lines.append(f"{pkg:10s}: {pkg_status(pkg)}")
+00204 |     lines.append("")
+00205 | 
+00206 |     # Syntax
+00207 |     lines.append("[SYNTAX]")
+00208 |     if not syntax_errors:
+00209 |         lines.append("OK: Sin errores de sintaxis.")
+00210 |     else:
+00211 |         lines.append(f"Errores: {len(syntax_errors)}")
+00212 |         for rel, err in syntax_errors:
+00213 |             lines.append(f"- {rel}: {err}")
+00214 |     lines.append("")
+00215 | 
+00216 |     # Imports summary
+00217 |     lines.append("[IMPORTS BY FILE] (resumen)")
+00218 |     for fi in sorted(file_infos, key=lambda x: x.rel.lower()):
+00219 |         imps = ", ".join(fi.imports) if fi.imports else "(sin imports)"
+00220 |         lines.append(f"- {fi.rel}: {imps}")
+00221 |     lines.append("")
+00222 | 
+00223 |     # Streamlit list
+00224 |     st_files = [fi.rel for fi in file_infos if fi.has_streamlit]
+00225 |     lines.append("[STREAMLIT IMPORTERS]")
+00226 |     lines.append(f"Archivos que importan streamlit: {len(st_files)}")
+00227 |     for f in st_files:
+00228 |         lines.append(f"- {f}")
+00229 |     lines.append("")
+00230 | 
+00231 |     # Index (toc)
+00232 |     lines.append("=" * 96)
+00233 |     lines.append("[INDEX / TOC]")
+00234 |     lines.append("Tip: usa Ctrl+F por el marcador exacto:  <<<BEGIN FILE: <ruta>>>")
+00235 |     lines.append("=" * 96)
+00236 | 
+00237 |     for idx, fi in enumerate(sorted(file_infos, key=lambda x: x.rel.lower()), start=1):
+00238 |         tag = "STREAMLIT" if fi.has_streamlit else "PY"
+00239 |         lines.append(f"{idx:02d}) [{tag}] {fi.rel}  | size={fi.size} | mtime={fi.mtime} | sha256={fi.sha256[:12]}...")
+00240 |         if fi.symbols:
+00241 |             for (lineno, kind, name) in fi.symbols:
+00242 |                 lines.append(f"    - L{lineno:04d}  {kind}  {name}")
+00243 |         else:
+00244 |             lines.append("    - (sin defs/classes detectables)")
+00245 |     lines.append("")
+00246 | 
+00247 |     # Full dump
+00248 |     lines.append("=" * 96)
+00249 |     lines.append("[FULL CODE DUMP]")
+00250 |     lines.append("Formato: '00001 | <línea>'")
+00251 |     if args.max_dump_lines and args.max_dump_lines > 0:
+00252 |         lines.append(f"Max líneas por archivo: {args.max_dump_lines}")
+00253 |     lines.append("=" * 96)
+00254 |     lines.append("")
+00255 | 
+00256 |     for fi in sorted(file_infos, key=lambda x: x.rel.lower()):
+00257 |         header = [
+00258 |             "-" * 96,
+00259 |             f"<<<BEGIN FILE: {fi.rel}>>>",
+00260 |             f"SIZE : {fi.size} bytes",
+00261 |             f"MTIME: {fi.mtime}",
+00262 |             f"SHA256(text): {fi.sha256}",
+00263 |             "-" * 96,
+00264 |         ]
+00265 |         lines.extend(header)
+00266 | 
+00267 |         dump = format_code_with_lineno(fi.src, width=5)
+00268 |         if args.max_dump_lines and args.max_dump_lines > 0:
+00269 |             dump_lines = dump.splitlines()
+00270 |             if len(dump_lines) > args.max_dump_lines:
+00271 |                 dump = "\n".join(dump_lines[: args.max_dump_lines]) + "\n... (TRUNCADO) ..."
+00272 | 
+00273 |         lines.append(dump)
+00274 |         lines.append(f"\n<<<END FILE: {fi.rel}>>>")
+00275 |         lines.append("")  # separación
+00276 | 
+00277 |     out_path.write_text("\n".join(lines), encoding="utf-8")
+00278 |     print(f"OK — Reporte FULL generado en: {out_path}")
+00279 | 
+00280 | 
+00281 | if __name__ == "__main__":
+00282 |     main()
+
+<<<END FILE: scripts\scanner.py>>>

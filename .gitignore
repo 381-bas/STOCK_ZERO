@@ -1,0 +1,14 @@
+﻿.venv/
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+.env
+.env.*
+data/
+exports/
+*.xlsx
+*.csv
+*.zip
+*.pdf
+Thumbs.db
+.DS_Store
