@@ -107,7 +107,12 @@ with top1:
     )
 
 # RR seleccionado (ya está en session_state)
-sel_rr = rr[rr["label"] == st.session_state.sel_rr_label].iloc[0]
+hit_rr = rr.loc[rr["label"] == st.session_state.sel_rr_label]
+if hit_rr.empty:
+    st.error("Selección de RUTERO—REPONEDOR inválida (rerun). Vuelve a seleccionar.")
+    st.stop()
+
+sel_rr = hit_rr.iloc[0]
 rutero = sel_rr["rutero"]
 reponedor = sel_rr["reponedor"]
 
@@ -133,12 +138,17 @@ locs = locs.copy()
 locs["label"] = locs["cod_rt"].astype(str) + " — " + locs["nombre_local_rr"].astype(str)
 loc_labels = locs["label"].tolist()
 
+# (GUARDA 1) Nunca asumir que hay labels
+if not loc_labels:
+    st.warning("No hay locales para este RUTERO—REPONEDOR.")
+    st.stop()
+
 # Garantiza que el local actual exista en las opciones (evita “rebote”)
 if st.session_state.get("sel_local_label", "") not in loc_labels:
     qp_cod_rt = _qp_get("cod_rt", "").strip()
     if qp_cod_rt:
-        hit = locs[locs["cod_rt"].astype(str) == qp_cod_rt]
-        st.session_state.sel_local_label = hit.iloc[0]["label"] if not hit.empty else loc_labels[0]
+        hit = locs.loc[locs["cod_rt"].astype(str) == qp_cod_rt, "label"]
+        st.session_state.sel_local_label = hit.iloc[0] if not hit.empty else loc_labels[0]
     else:
         st.session_state.sel_local_label = loc_labels[0]
 
@@ -150,8 +160,13 @@ with top2:
         on_change=_reset_on_local_change,
     )
 
-# LOCAL seleccionado (ya está en session_state)
-row_loc = locs[locs["label"] == st.session_state.sel_local_label].iloc[0]
+# (GUARDA 2) Evita iloc[0] si el label ya no existe (rerun)
+hit_loc = locs.loc[locs["label"] == st.session_state.sel_local_label]
+if hit_loc.empty:
+    st.error("El local seleccionado ya no está disponible (rerun). Vuelve a seleccionar.")
+    st.stop()
+
+row_loc = hit_loc.iloc[0]
 cod_rt = row_loc["cod_rt"]
 nombre_local_rr = row_loc["nombre_local_rr"]
 
