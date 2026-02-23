@@ -27,9 +27,41 @@ def build_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
 
     return df[EXPORT_COLS]
 
+
+def _sorted_for_export(df_in: pd.DataFrame) -> pd.DataFrame:
+    """Orden consistente: MARCA A→Z, SKU numérico primero, luego SKU texto, luego producto."""
+    if df_in is None or df_in.empty:
+        return df_in
+
+    df = df_in.copy()
+
+    # Asegura columnas base
+    for c in EXPORT_COLS:
+        if c not in df.columns:
+            df[c] = ""
+
+    df["MARCA"] = df["MARCA"].astype(str)
+    df["Sku"] = df["Sku"].astype(str)
+    df["Descripción del Producto"] = df["Descripción del Producto"].astype(str)
+
+    sku_num = pd.to_numeric(df["Sku"], errors="coerce")
+    df["_sku_is_text"] = sku_num.isna().astype(int)       # 0 numérico, 1 texto -> numérico primero
+    df["_sku_num"] = sku_num.fillna(0)
+
+    df = df.sort_values(
+        by=["MARCA", "_sku_is_text", "_sku_num", "Sku", "Descripción del Producto"],
+        ascending=[True, True, True, True, True],
+        kind="mergesort",  # estable
+    ).drop(columns=["_sku_is_text", "_sku_num"])
+
+    return df[EXPORT_COLS]
+
+
 def export_excel_one_sheet(cod_rt: str, df_export: pd.DataFrame) -> bytes:
     out = io.BytesIO()
     sheet_name = str(cod_rt)[:31]
+
+    df_export = _sorted_for_export(df_export)
 
     with pd.ExcelWriter(out, engine="openpyxl") as writer:
         df_export.to_excel(writer, index=False, sheet_name=sheet_name)
@@ -49,6 +81,7 @@ def export_excel_one_sheet(cod_rt: str, df_export: pd.DataFrame) -> bytes:
             ws.column_dimensions[col_letter].width = min(max(10, max_len + 2), 45)
 
     return out.getvalue()
+
 
 def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
     out = io.BytesIO()
@@ -75,7 +108,7 @@ def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
         story.append(Paragraph(line, styles["Heading4"]))
     story.append(Spacer(1, 8))
 
-    df = df_export.copy()
+    df = _sorted_for_export(df_export)
     df["Descripción del Producto"] = df["Descripción del Producto"].astype(str)
 
     data = [EXPORT_COLS]
@@ -89,7 +122,6 @@ def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
                 row.append(str(v))
         data.append(row)
 
-    # Ajustado para que quepa dentro de ~27.7cm (landscape A4 con márgenes)
     col_widths = [
         2.6 * cm,  # MARCA
         2.4 * cm,  # Sku
