@@ -119,7 +119,7 @@ def get_data_version_info() -> dict[str, Any]:
     Devuelve:
       - fecha_datos (negocio)
       - ingested_at (carga real) => ideal para invalidar caché
-    Requiere vista: public.v_data_version
+    Requiere vista: public.v_data_version (opcional; hay fallback)
     """
     eng = get_engine()
     with eng.connect() as conn:
@@ -178,6 +178,9 @@ def qdf(sql: str, params: dict[str, Any] | None = None) -> pd.DataFrame:
     return _qdf_cached(dv, sql, params)
 
 
+# -----------------------------
+# Selectores (livianos)
+# -----------------------------
 def get_rutero_reponedor() -> pd.DataFrame:
     return qdf("""
         SELECT rutero, reponedor
@@ -196,14 +199,13 @@ def get_locales(rutero: str, reponedor: str) -> pd.DataFrame:
 
 
 def get_marcas(rutero: str, reponedor: str, cod_rt: str) -> list[str]:
-    # Más liviano: v_local_skus_ux (ya está “aplanada” para UI)
     df = qdf("""
         SELECT DISTINCT "MARCA" AS marca
         FROM public.v_local_skus_ux
         WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
         ORDER BY marca
     """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt})
-    return df["marca"].astype(str).tolist() if not df.empty else []
+    return df["marca"].astype(str).tolist() if df is not None and not df.empty else []
 
 
 def get_contexto_local(rutero: str, reponedor: str, cod_rt: str) -> pd.DataFrame:
@@ -215,30 +217,69 @@ def get_contexto_local(rutero: str, reponedor: str, cod_rt: str) -> pd.DataFrame
     """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt})
 
 
+# -----------------------------
+# KPIs (4) + total interno
+# -----------------------------
 def get_kpis_local(rutero: str, reponedor: str, cod_rt: str, marcas: list[str]) -> pd.DataFrame:
+    """
+    KPIs mínimos (4) + total_skus interno.
+    - Si NO hay filtro de marca (o hay demasiadas), preferimos v_local_kpis_ux (si existe).
+    - Si hay filtro de marca "razonable", calculamos desde v_local_skus_ux (consistente con tabla).
+    """
     max_m = int(os.getenv("MAX_MARCA_FILTER", "50"))
-    if marcas and len(marcas) <= max_m:
+
+    # Caso 1) sin marcas o demasiadas -> agregada (más rápida)
+    if (not marcas) or (len(marcas) > max_m):
+        try:
+            return qdf("""
+                SELECT
+                  total_skus::int AS total_skus,
+                  venta_0::int AS venta_0,
+                  negativos::int AS negativos,
+                  quiebres::int AS quiebres,
+                  otros::int AS otros
+                FROM public.v_local_kpis_ux
+                WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
+                LIMIT 1
+            """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt})
+        except Exception:
+            pass
+
         return qdf("""
             SELECT
-              COUNT(*) AS total_skus,
-              SUM(CASE WHEN stock < 0 THEN 1 ELSE 0 END) AS negativos,
-              SUM(CASE WHEN venta_7 > 0 AND stock > 0 AND stock < venta_7 THEN 1 ELSE 0 END) AS riesgo_quiebre,
-              SUM(venta_7) AS venta_total_7,
-              SUM(stock) AS stock_total
-            FROM public.v_home_latest
+              COUNT(*)::int AS total_skus,
+              SUM(CASE WHEN COALESCE("Venta(+7)",0)=0 THEN 1 ELSE 0 END)::int AS venta_0,
+              SUM(CASE WHEN UPPER(COALESCE("NEGATIVO",'NO'))='SI' THEN 1 ELSE 0 END)::int AS negativos,
+              SUM(CASE WHEN UPPER(COALESCE("RIESGO DE QUIEBRE",'NO'))='SI' THEN 1 ELSE 0 END)::int AS quiebres,
+              SUM(CASE
+                    WHEN TRIM(COALESCE("OTROS",''))<>'' AND UPPER(TRIM("OTROS")) NOT IN ('NO','N/A','NA','-')
+                    THEN 1 ELSE 0
+                  END)::int AS otros
+            FROM public.v_local_skus_ux
             WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
-              AND marca = ANY(:marcas)
-        """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt, "marcas": marcas})
+        """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt})
 
+    # Caso 2) con marcas seleccionadas -> cálculo consistente con tabla
     return qdf("""
-        SELECT total_skus, negativos, riesgo_quiebre, venta_total_7, stock_total
-        FROM public.v_local_kpis
+        SELECT
+          COUNT(*)::int AS total_skus,
+          SUM(CASE WHEN COALESCE("Venta(+7)",0)=0 THEN 1 ELSE 0 END)::int AS venta_0,
+          SUM(CASE WHEN UPPER(COALESCE("NEGATIVO",'NO'))='SI' THEN 1 ELSE 0 END)::int AS negativos,
+          SUM(CASE WHEN UPPER(COALESCE("RIESGO DE QUIEBRE",'NO'))='SI' THEN 1 ELSE 0 END)::int AS quiebres,
+          SUM(CASE
+                WHEN TRIM(COALESCE("OTROS",''))<>'' AND UPPER(TRIM("OTROS")) NOT IN ('NO','N/A','NA','-')
+                THEN 1 ELSE 0
+              END)::int AS otros
+        FROM public.v_local_skus_ux
         WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
-        LIMIT 1
-    """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt})
+          AND "MARCA" = ANY(:marcas)
+    """, {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt, "marcas": marcas})
 
 
-def _build_ux_filters(marcas: list[str], search: str, only_negativos: bool, only_riesgo: bool) -> tuple[str, dict[str, Any]]:
+# -----------------------------
+# Tabla UX
+# -----------------------------
+def _build_ux_filters(marcas: list[str], search: str, foco: str) -> tuple[str, dict[str, Any]]:
     params: dict[str, Any] = {}
     filters: list[str] = []
 
@@ -246,11 +287,18 @@ def _build_ux_filters(marcas: list[str], search: str, only_negativos: bool, only
         filters.append('AND "MARCA" = ANY(:marcas)')
         params["marcas"] = marcas
 
-    if only_negativos:
+    foco = (foco or "Todo").strip()
+    if foco == "Venta 0":
+        filters.append('AND COALESCE("Venta(+7)", 0) = 0')
+    elif foco == "Negativo":
         filters.append('AND UPPER(COALESCE("NEGATIVO",\'NO\')) = \'SI\'')
-
-    if only_riesgo:
+    elif foco == "Quiebres":
         filters.append('AND UPPER(COALESCE("RIESGO DE QUIEBRE",\'NO\')) = \'SI\'')
+    elif foco == "Otros":
+        filters.append("""
+            AND TRIM(COALESCE("OTROS",'')) <> ''
+            AND UPPER(TRIM("OTROS")) NOT IN ('NO','N/A','NA','-')
+        """)
 
     s = (search or "").strip()
     if len(s) >= 2:
@@ -271,11 +319,10 @@ def get_tabla_ux_total(
     reponedor: str,
     cod_rt: str,
     marcas: list[str],
+    foco: str = "Todo",
     search: str = "",
-    only_negativos: bool = False,
-    only_riesgo: bool = False,
 ) -> int:
-    where_extra, p2 = _build_ux_filters(marcas, search, only_negativos, only_riesgo)
+    where_extra, p2 = _build_ux_filters(marcas, search, foco)
     params: dict[str, Any] = {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt, **p2}
 
     df = qdf(f"""
@@ -295,15 +342,14 @@ def get_tabla_ux_page(
     marcas: list[str],
     page: int,
     page_size: int,
+    foco: str = "Todo",
     search: str = "",
-    only_negativos: bool = False,
-    only_riesgo: bool = False,
 ) -> pd.DataFrame:
     page = int(page or 1)
     if page < 1:
         page = 1
 
-    where_extra, p2 = _build_ux_filters(marcas, search, only_negativos, only_riesgo)
+    where_extra, p2 = _build_ux_filters(marcas, search, foco)
     params: dict[str, Any] = {
         "rutero": rutero,
         "reponedor": reponedor,
@@ -321,8 +367,6 @@ def get_tabla_ux_page(
     WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
     {where_extra}
     ORDER BY
-      (UPPER(COALESCE("NEGATIVO",'NO'))='SI') DESC,
-      (UPPER(COALESCE("RIESGO DE QUIEBRE",'NO'))='SI') DESC,
       "MARCA" ASC,
       CASE WHEN "Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
       CASE WHEN "Sku" ~ '^[0-9]+$' THEN ("Sku")::bigint END ASC NULLS LAST,
@@ -340,15 +384,11 @@ def get_tabla_ux_paginada(
     marcas: list[str],
     page: int,
     page_size: int,
+    foco: str = "Todo",
     search: str = "",
-    only_negativos: bool = False,
-    only_riesgo: bool = False,
 ) -> tuple[pd.DataFrame, int]:
-    """
-    Compat: devuelve (df_page, total_rows) usando total/page separados (sin COUNT OVER).
-    """
-    total = get_tabla_ux_total(rutero, reponedor, cod_rt, marcas, search, only_negativos, only_riesgo)
-    df = get_tabla_ux_page(rutero, reponedor, cod_rt, marcas, page, page_size, search, only_negativos, only_riesgo)
+    total = get_tabla_ux_total(rutero, reponedor, cod_rt, marcas, foco=foco, search=search)
+    df = get_tabla_ux_page(rutero, reponedor, cod_rt, marcas, page, page_size, foco=foco, search=search)
     return df, int(total or 0)
 
 
@@ -358,15 +398,10 @@ def get_tabla_ux_export(
     reponedor: str,
     cod_rt: str,
     marcas: list[str],
+    foco: str = "Todo",
     search: str = "",
-    only_negativos: bool = False,
-    only_riesgo: bool = False,
 ) -> pd.DataFrame:
-    """
-    Dataset para export (on-demand desde UI).
-    Ahora sin SELECT * (menos payload).
-    """
-    where_extra, p2 = _build_ux_filters(marcas, search, only_negativos, only_riesgo)
+    where_extra, p2 = _build_ux_filters(marcas, search, foco)
     params: dict[str, Any] = {"rutero": rutero, "reponedor": reponedor, "cod_rt": cod_rt, **p2}
 
     sql = f"""
@@ -376,5 +411,11 @@ def get_tabla_ux_export(
     FROM public.v_local_skus_ux
     WHERE rutero=:rutero AND reponedor=:reponedor AND cod_rt=:cod_rt
     {where_extra}
+    ORDER BY
+      "MARCA" ASC,
+      CASE WHEN "Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
+      CASE WHEN "Sku" ~ '^[0-9]+$' THEN ("Sku")::bigint END ASC NULLS LAST,
+      "Sku" ASC,
+      "Descripción del Producto" ASC;
     """
     return qdf(sql, params)
