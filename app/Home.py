@@ -100,7 +100,7 @@ def main():
     t_in = _qp_get("t", "").strip()
 
     st.title("STOCK_ZERO")
-    st.caption("Lectura operativa · filtros por botón · tabla paginada · export bajo demanda")
+    st.caption("Lectura operativa · marcha blanca UX · tabla compacta · export bajo demanda")
 
     _dbg("TOKEN gate", token_set=bool(APP_TOKEN), t_present=bool(t_in))
     _dbg_block()
@@ -129,20 +129,20 @@ def main():
 
     def _reset_filters_defaults(reason: str):
         # pending (UI)
-        st.session_state.sel_marcas = []
-        st.session_state.f_search = ""
-        st.session_state.f_foco = "Todo"
+        st.session_state["sel_marcas"] = []
+        st.session_state["f_search"] = ""
+        st.session_state["f_foco"] = "Todo"
         # applied (queries)
-        st.session_state.applied_marcas = []
-        st.session_state.applied_search = ""
-        st.session_state.applied_foco = "Todo"
-        st.session_state.page = 1
+        st.session_state["applied_marcas"] = []
+        st.session_state["applied_search"] = ""
+        st.session_state["applied_foco"] = "Todo"
+        st.session_state["page"] = 1
         _invalidate_runtime_cache()
         _dbg(f"RESET filters ({reason})")
         _dbg_block()
 
     def _reset_on_rr_change():
-        st.session_state.sel_local_label = ""
+        st.session_state["sel_local_label"] = ""
         _reset_filters_defaults("rr_change")
 
     def _reset_on_local_change():
@@ -184,7 +184,7 @@ def main():
     rr_opts = [RR_PLACEHOLDER] + rr["label"].tolist()
 
     if "sel_rr_label" not in st.session_state:
-        st.session_state.sel_rr_label = default_rr_label or RR_PLACEHOLDER
+        st.session_state["sel_rr_label"] = default_rr_label or RR_PLACEHOLDER
 
     top1, top2 = st.columns([2, 3], gap="small")
 
@@ -196,13 +196,13 @@ def main():
             on_change=_reset_on_rr_change,
         )
 
-    if st.session_state.sel_rr_label == RR_PLACEHOLDER:
+    if st.session_state["sel_rr_label"] == RR_PLACEHOLDER:
         st.info("Selecciona un RUTERO—REPONEDOR para cargar locales, KPIs y tabla.")
         st.stop()
 
-    hit_rr = rr.loc[rr["label"] == st.session_state.sel_rr_label]
+    hit_rr = rr.loc[rr["label"] == st.session_state["sel_rr_label"]]
     if hit_rr.empty:
-        _dbg("ERR rr selection invalid", sel=st.session_state.sel_rr_label)
+        _dbg("ERR rr selection invalid", sel=st.session_state["sel_rr_label"])
         st.error("Selección de RUTERO—REPONEDOR inválida (rerun). Vuelve a seleccionar.")
         st.stop()
 
@@ -241,9 +241,9 @@ def main():
         qp_cod_rt = _qp_get("cod_rt", "").strip()
         if qp_cod_rt:
             hit = locs.loc[locs["cod_rt"].astype(str) == qp_cod_rt, "label"]
-            st.session_state.sel_local_label = hit.iloc[0] if not hit.empty else loc_labels[0]
+            st.session_state["sel_local_label"] = hit.iloc[0] if not hit.empty else loc_labels[0]
         else:
-            st.session_state.sel_local_label = loc_labels[0]
+            st.session_state["sel_local_label"] = loc_labels[0]
 
     with top2:
         st.selectbox(
@@ -253,9 +253,9 @@ def main():
             on_change=_reset_on_local_change,
         )
 
-    hit_loc = locs.loc[locs["label"] == st.session_state.sel_local_label]
+    hit_loc = locs.loc[locs["label"] == st.session_state["sel_local_label"]]
     if hit_loc.empty:
-        _dbg("ERR local selection invalid", sel=st.session_state.sel_local_label)
+        _dbg("ERR local selection invalid", sel=st.session_state["sel_local_label"])
         st.error("El local seleccionado ya no está disponible (rerun). Vuelve a seleccionar.")
         st.stop()
 
@@ -265,13 +265,13 @@ def main():
     _dbg("LOCAL selected", cod_rt=cod_rt)
     _dbg_block()
 
-    # Estado 2: al cambiar RR/Local, dejamos filtros “aplicados” en default para mostrar KPIs+Tabla
+    # Estado 2: al cambiar RR/Local, setea defaults aplicados
     sel_key = f"{rutero}|{reponedor}|{cod_rt}"
     if st.session_state.get("_sel_key") != sel_key:
         st.session_state["_sel_key"] = sel_key
         _reset_filters_defaults("rr_local_ready")
 
-    # Datos al (global): evita query por local
+    # Datos al (global)
     file_stamp = datetime.now().date().isoformat()
     try:
         with _timed("QUERY data_version_info"):
@@ -293,72 +293,18 @@ def main():
 
     st.session_state.setdefault("sel_marcas", [])
     mset = set(marcas_disponibles)
-    st.session_state.sel_marcas = [m for m in (st.session_state.sel_marcas or []) if m in mset]
-
-    # --------------------------------
-    # FORM 2x2: Marca | Foco ; Search | Aplicar
-    # --------------------------------
-    with st.form("filters_form", clear_on_submit=False):
-        r1c1, r1c2 = st.columns([3, 2], gap="small")
-        with r1c1:
-            st.multiselect(
-                "MARCA (opcional)",
-                options=marcas_disponibles,
-                key="sel_marcas",
-                placeholder="Todas",
-            )
-        with r1c2:
-            foco_opts = ["Todo", "Negativos", "Riesgo", "Negativos + Riesgo"]
-            st.selectbox(
-                "Foco operativo",
-                foco_opts,
-                key="f_foco",
-                index=foco_opts.index(st.session_state.get("f_foco", "Todo"))
-                if st.session_state.get("f_foco", "Todo") in foco_opts else 0,
-            )
-
-        r2c1, r2c2 = st.columns([4, 1], gap="small")
-        with r2c1:
-            st.text_input(
-                "Búsqueda (SKU o descripción)",
-                key="f_search",
-                placeholder="Ej: 779... / galleta / snack... (mín 2 caracteres)",
-            )
-        with r2c2:
-            apply_clicked = st.form_submit_button("Aplicar")
-
-    if apply_clicked:
-        st.session_state.applied_marcas = list(st.session_state.get("sel_marcas", []) or [])
-        st.session_state.applied_foco = st.session_state.get("f_foco", "Todo")
-        st.session_state.applied_search = (st.session_state.get("f_search", "") or "").strip()
-        st.session_state.page = 1
-        _invalidate_runtime_cache()
-        _dbg(
-            "APPLY filters",
-            marcas=len(st.session_state.applied_marcas),
-            foco=st.session_state.applied_foco,
-            q=bool(st.session_state.applied_search),
-        )
-        _dbg_block()
+    st.session_state["sel_marcas"] = [m for m in (st.session_state.get("sel_marcas") or []) if m in mset]
 
     # Snapshot applied (Estado 2 = defaults; Estado 3 = button)
     marcas = list(st.session_state.get("applied_marcas", []) or [])
     foco_ap = st.session_state.get("applied_foco", "Todo")
     search_ap = (st.session_state.get("applied_search", "") or "").strip()
 
-    only_neg = foco_ap in {"Negativos", "Negativos + Riesgo"}
-    only_risk = foco_ap in {"Riesgo", "Negativos + Riesgo"}
-
-    st.caption(
-        f"Datos al: {file_stamp} · Local: {cod_rt} · {nombre_local_rr} · "
-        f"Foco: {foco_ap} · Marcas: {len(marcas) if marcas else 'Todas'} · "
-        f"Búsqueda: {(search_ap if search_ap else '-')}"
-    )
-
+    # DV (para invalidar caches de home)
     dv = db.get_data_version()
 
     # --------------------------------
-    # KPIs (dependen SOLO de marcas)
+    # KPIs (4) — post-local
     # --------------------------------
     kpis_key = (dv, rutero, reponedor, cod_rt, tuple(marcas))
     kpis_row = st.session_state.get("_kpis_row")
@@ -367,7 +313,7 @@ def main():
         try:
             with _timed("QUERY kpis"):
                 kpis = db.get_kpis_local(rutero, reponedor, cod_rt, marcas)
-                _dbg("KPIS loaded", rows=len(kpis))
+                _dbg("KPIS loaded", rows=0 if kpis is None else len(kpis))
                 _dbg_block()
             kpis_row = dict(kpis.iloc[0]) if (kpis is not None and not kpis.empty) else None
             st.session_state["_kpis_key"] = kpis_key
@@ -378,13 +324,63 @@ def main():
             st.session_state["_kpis_row"] = None
             kpis_row = None
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    k1, k2, k3, k4 = st.columns(4, gap="small")
     if kpis_row:
-        c1.metric("Total SKUs", int(kpis_row.get("total_skus") or 0))
-        c2.metric("Negativos", int(kpis_row.get("negativos") or 0))
-        c3.metric("Riesgo quiebre", int(kpis_row.get("riesgo_quiebre") or 0))
-        c4.metric("Venta(+7) total", int(kpis_row.get("venta_total_7") or 0))
-        c5.metric("Stock total", int(kpis_row.get("stock_total") or 0))
+        k1.metric("Venta 0", int(kpis_row.get("venta_0") or 0))
+        k2.metric("Negativo", int(kpis_row.get("negativos") or 0))
+        k3.metric("Quiebres", int(kpis_row.get("quiebres") or 0))
+        k4.metric("Otros", int(kpis_row.get("otros") or 0))
+
+    # --------------------------------
+    # Filtros secundarios (debajo KPIs)
+    # --------------------------------
+    def _apply_filters():
+        st.session_state["applied_marcas"] = list(st.session_state.get("sel_marcas", []) or [])
+        st.session_state["applied_foco"] = st.session_state.get("f_foco", "Todo")
+        st.session_state["applied_search"] = (st.session_state.get("f_search", "") or "").strip()
+        st.session_state["page"] = 1
+        _invalidate_runtime_cache()
+        _dbg(
+            "APPLY filters",
+            marcas=len(st.session_state["applied_marcas"]),
+            foco=st.session_state["applied_foco"],
+            q=bool(st.session_state["applied_search"]),
+        )
+        _dbg_block()
+
+    with st.form("filters_form", clear_on_submit=False):
+        r1c1, r1c2 = st.columns([3, 2], gap="small")
+        with r1c1:
+            st.multiselect(
+                "MARCA (opcional)",
+                options=marcas_disponibles,
+                key="sel_marcas",
+                placeholder="Todas",
+            )
+        with r1c2:
+            foco_opts = ["Todo", "Venta 0", "Negativo", "Quiebres", "Otros"]
+            current = st.session_state.get("f_foco", "Todo")
+            st.selectbox(
+                "Foco operativo",
+                foco_opts,
+                key="f_foco",
+                index=foco_opts.index(current) if current in foco_opts else 0,
+            )
+
+        r2c1, r2c2 = st.columns([4, 1], gap="small")
+        with r2c1:
+            st.text_input(
+                "Búsqueda (SKU o descripción)",
+                key="f_search",
+                placeholder="Ej: 779... / galleta / snack... (mín 2 caracteres)",
+            )
+        with r2c2:
+            st.form_submit_button("Aplicar", on_click=_apply_filters)
+
+    # Snapshot applied (luego de aplicar)
+    marcas = list(st.session_state.get("applied_marcas", []) or [])
+    foco_ap = st.session_state.get("applied_foco", "Todo")
+    search_ap = (st.session_state.get("applied_search", "") or "").strip()
 
     # --------------------------------
     # TABLA paginada (25)
@@ -392,11 +388,10 @@ def main():
     page_size = 25
     st.session_state.setdefault("page", 1)
 
-    # Total rápido desde KPIs cuando corresponde (evita COUNT(*))
+    # total rápido desde KPIs cuando corresponde
     max_m = int(os.getenv("MAX_MARCA_FILTER", "50"))
     can_use_kpi_total = (
         len((search_ap or "").strip()) < 2
-        and foco_ap in {"Todo", "Negativos", "Riesgo"}
         and (not marcas or len(marcas) <= max_m)
         and bool(kpis_row)
     )
@@ -404,12 +399,16 @@ def main():
     if can_use_kpi_total:
         if foco_ap == "Todo":
             kpi_total_rows = int(kpis_row.get("total_skus") or 0)
-        elif foco_ap == "Negativos":
+        elif foco_ap == "Venta 0":
+            kpi_total_rows = int(kpis_row.get("venta_0") or 0)
+        elif foco_ap == "Negativo":
             kpi_total_rows = int(kpis_row.get("negativos") or 0)
-        elif foco_ap == "Riesgo":
-            kpi_total_rows = int(kpis_row.get("riesgo_quiebre") or 0)
+        elif foco_ap == "Quiebres":
+            kpi_total_rows = int(kpis_row.get("quiebres") or 0)
+        elif foco_ap == "Otros":
+            kpi_total_rows = int(kpis_row.get("otros") or 0)
 
-    total_key = (dv, rutero, reponedor, cod_rt, tuple(marcas), search_ap, bool(only_neg), bool(only_risk))
+    total_key = (dv, rutero, reponedor, cod_rt, tuple(marcas), foco_ap, search_ap)
     if st.session_state.get("_total_key") != total_key or st.session_state.get("_total_rows") is None:
         try:
             if kpi_total_rows is not None:
@@ -424,9 +423,8 @@ def main():
                         reponedor=reponedor,
                         cod_rt=cod_rt,
                         marcas=marcas,
+                        foco=foco_ap,
                         search=search_ap,
-                        only_negativos=only_neg,
-                        only_riesgo=only_risk,
                     )
                 st.session_state["_total_key"] = total_key
                 st.session_state["_total_rows"] = int(total_rows or 0)
@@ -440,33 +438,41 @@ def main():
     total_rows = int(st.session_state.get("_total_rows") or 0)
     total_pages = max(1, int(math.ceil(total_rows / page_size))) if total_rows > 0 else 1
 
-    # clamp page ANTES de widget
-    if st.session_state.page > total_pages:
-        st.session_state.page = total_pages
-    if st.session_state.page < 1:
-        st.session_state.page = 1
+    # clamp page ANTES de widget (evita error Streamlit)
+    if st.session_state["page"] > total_pages:
+        st.session_state["page"] = total_pages
+    if st.session_state["page"] < 1:
+        st.session_state["page"] = 1
 
-    p1, p2, p3, p4 = st.columns([1, 2, 1, 4], gap="small")
+    def _page_prev():
+        st.session_state["page"] = max(1, int(st.session_state["page"]) - 1)
+
+    def _page_next():
+        st.session_state["page"] = min(total_pages, int(st.session_state["page"]) + 1)
+
+    p1, p2, p3, p4 = st.columns([0.6, 1.2, 0.6, 6], gap="small")
     with p1:
-        if st.button("◀", disabled=(st.session_state.page <= 1), use_container_width=True):
-            st.session_state.page -= 1
-            st.rerun()
+        st.button("◀", disabled=(st.session_state["page"] <= 1), on_click=_page_prev)
     with p2:
-        # Sin value= para evitar warning de Session State
-        st.number_input("Página", min_value=1, max_value=total_pages, step=1, key="page")
+        st.number_input(
+            "Página",
+            min_value=1,
+            max_value=total_pages,
+            step=1,
+            key="page",
+            label_visibility="collapsed",
+        )
     with p3:
-        if st.button("▶", disabled=(st.session_state.page >= total_pages), use_container_width=True):
-            st.session_state.page += 1
-            st.rerun()
+        st.button("▶", disabled=(st.session_state["page"] >= total_pages), on_click=_page_next)
     with p4:
         if total_rows:
-            start = (int(st.session_state.page) - 1) * page_size + 1
-            end = min(int(st.session_state.page) * page_size, total_rows)
-            st.caption(f"Mostrando {start}-{end} de {total_rows} · page_size={page_size}")
+            start = (int(st.session_state["page"]) - 1) * page_size + 1
+            end = min(int(st.session_state["page"]) * page_size, total_rows)
+            st.caption(f"Página {int(st.session_state['page'])} / {total_pages} · {start}-{end} de {total_rows}")
         else:
             st.caption("Sin filas para el filtro aplicado.")
 
-    # Page query
+    # Query page
     try:
         with _timed("QUERY tabla page"):
             df_page = db.get_tabla_ux_page(
@@ -474,13 +480,12 @@ def main():
                 reponedor=reponedor,
                 cod_rt=cod_rt,
                 marcas=marcas,
-                page=int(st.session_state.page),
+                page=int(st.session_state["page"]),
                 page_size=page_size,
+                foco=foco_ap,
                 search=search_ap,
-                only_negativos=only_neg,
-                only_riesgo=only_risk,
             )
-            _dbg("TABLA page loaded", rows=len(df_page), page=st.session_state.page)
+            _dbg("TABLA page loaded", rows=0 if df_page is None else len(df_page), page=st.session_state["page"])
             _dbg_block()
     except Exception as e:
         _dbg("FAIL tabla page", err=repr(e))
@@ -496,14 +501,37 @@ def main():
         _dbg("DF_SHOW ready", rows=0 if df_show is None else len(df_show))
         _dbg_block()
 
+    # Tabla compacta: MARCA, SKU, PRODUCTO, STOCK, INDICADORES
+    def _row_indicadores(r) -> str:
+        parts = []
+        try:
+            v = int(r.get("Venta(+7)", 0) or 0)
+        except Exception:
+            v = 0
+        if v == 0:
+            parts.append("Venta 0")
+
+        if str(r.get("NEGATIVO", "")).strip().upper() == "SI":
+            parts.append("Negativo")
+
+        if str(r.get("RIESGO DE QUIEBRE", "")).strip().upper() == "SI":
+            parts.append("Quiebres")
+
+        ot = str(r.get("OTROS", "") or "").strip()
+        if ot and ot.upper() not in {"NO", "N/A", "NA", "-"}:
+            parts.append("Otros")
+
+        return " · ".join(parts)
+
     if df_show is not None and not df_show.empty:
-        st.dataframe(
-            df_show[["MARCA", "Sku", "Descripción del Producto", "Stock", "Venta(+7)", "NEGATIVO", "RIESGO DE QUIEBRE", "OTROS"]],
-            use_container_width=True,
-            hide_index=True,
-        )
+        df_tbl = df_show.copy()
+        df_tbl["INDICADORES"] = df_tbl.apply(_row_indicadores, axis=1)
+        df_tbl = df_tbl.rename(columns={"Sku": "SKU", "Descripción del Producto": "PRODUCTO"})
+        df_tbl = df_tbl[["MARCA", "SKU", "PRODUCTO", "Stock", "INDICADORES"]]
     else:
-        st.dataframe(df_show, use_container_width=True, hide_index=True)
+        df_tbl = df_show
+
+    st.dataframe(df_tbl, width="stretch", hide_index=True)
 
     # --------------------------------
     # EXPORT — bajo demanda
@@ -511,7 +539,7 @@ def main():
     with st.expander("EXPORTAR (por filtro aplicado)", expanded=False):
         st.write("Exporta exactamente lo aplicado (marcas + foco + búsqueda).")
 
-        export_key = (dv, rutero, reponedor, cod_rt, tuple(marcas), foco_ap, search_ap, bool(only_neg), bool(only_risk))
+        export_key = (dv, rutero, reponedor, cod_rt, tuple(marcas), foco_ap, search_ap)
 
         cA, cB = st.columns(2)
         do_excel = cA.button("Preparar Excel", use_container_width=True)
@@ -530,11 +558,10 @@ def main():
                         reponedor=reponedor,
                         cod_rt=cod_rt,
                         marcas=marcas,
+                        foco=foco_ap,
                         search=search_ap,
-                        only_negativos=only_neg,
-                        only_riesgo=only_risk,
                     )
-                    _dbg("EXPORT df loaded", rows=len(df_export_raw))
+                    _dbg("EXPORT df loaded", rows=0 if df_export_raw is None else len(df_export_raw))
                     _dbg_block()
             except Exception as e:
                 st.error("No pude preparar export (query).")
