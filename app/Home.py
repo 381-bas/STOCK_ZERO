@@ -327,9 +327,16 @@ def main():
     k1, k2, k3, k4 = st.columns(4, gap="small")
     if kpis_row:
         k1.metric("Venta 0", int(kpis_row.get("venta_0") or 0))
+        k1.caption("Productos sin rotación (Prioridad Alta).")
+
         k2.metric("Negativo", int(kpis_row.get("negativos") or 0))
+        k2.caption("Realizar ajuste de inventario.")
+
         k3.metric("Quiebres", int(kpis_row.get("quiebres") or 0))
+        k3.caption("Solicitar empuje.")
+
         k4.metric("Otros", int(kpis_row.get("otros") or 0))
+        k4.caption("Observaciones cliente.")
 
     # --------------------------------
     # Filtros secundarios (debajo KPIs)
@@ -496,40 +503,45 @@ def main():
                 st.code(traceback.format_exc())
         st.stop()
 
-    with _timed("BUILD df_show (page)"):
-        df_show = build_export_df(df_page) if (df_page is not None and not df_page.empty) else df_page
-        _dbg("DF_SHOW ready", rows=0 if df_show is None else len(df_show))
-        _dbg_block()
+    df_raw = df_page  # UI usa datos raw (incluye Venta(+7) solo para calcular indicadores)
+    _dbg("DF_RAW ready", rows=0 if df_raw is None else len(df_raw))
+    _dbg_block()
 
     # Tabla compacta: MARCA, SKU, PRODUCTO, STOCK, INDICADORES
     def _row_indicadores(r) -> str:
         parts = []
+
+        # Venta 0 (derivada de Venta(+7) == 0)
         try:
             v = int(r.get("Venta(+7)", 0) or 0)
         except Exception:
             v = 0
         if v == 0:
-            parts.append("Venta 0")
+            parts.append("Venta 0: Productos sin rotación (Prioridad Alta).")
 
+        # Negativo
         if str(r.get("NEGATIVO", "")).strip().upper() == "SI":
-            parts.append("Negativo")
+            parts.append("Negativo: Realizar ajuste de inventario.")
 
+        # Quiebres
         if str(r.get("RIESGO DE QUIEBRE", "")).strip().upper() == "SI":
-            parts.append("Quiebres")
+            parts.append("Quiebres: Solicitar empuje.")
 
+        # Otros (solo si es un texto útil)
         ot = str(r.get("OTROS", "") or "").strip()
         if ot and ot.upper() not in {"NO", "N/A", "NA", "-"}:
-            parts.append("Otros")
+            parts.append("Otros: Observaciones cliente.")
 
         return " · ".join(parts)
 
-    if df_show is not None and not df_show.empty:
-        df_tbl = df_show.copy()
+    if df_raw is not None and not df_raw.empty:
+        df_tbl = df_raw.copy()
         df_tbl["INDICADORES"] = df_tbl.apply(_row_indicadores, axis=1)
         df_tbl = df_tbl.rename(columns={"Sku": "SKU", "Descripción del Producto": "PRODUCTO"})
         df_tbl = df_tbl[["MARCA", "SKU", "PRODUCTO", "Stock", "INDICADORES"]]
     else:
-        df_tbl = df_show
+        df_tbl = df_raw
+
 
     st.dataframe(df_tbl, width="stretch", hide_index=True)
 
