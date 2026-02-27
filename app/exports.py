@@ -9,22 +9,42 @@ from reportlab.platypus import SimpleDocTemplate, LongTable, TableStyle, Paragra
 from reportlab.lib.units import cm
 
 EXPORT_COLS = [
-    "MARCA", "Sku", "Descripción del Producto",
-    "Stock", "Venta(+7)", "NEGATIVO", "RIESGO DE QUIEBRE", "OTROS"
+    "MARCA",
+    "Sku",
+    "Descripción del Producto",
+    "Stock",
+    "VENTA 0",
+    "NEGATIVO",
+    "RIESGO DE QUIEBRE",
+    "OTROS",
 ]
 
 def build_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
     df = df_ux.copy()
 
-    for c in EXPORT_COLS:
+    # Asegura columnas base (aunque no se exporte Venta(+7), la usamos para calcular VENTA 0)
+    needed = ["MARCA","Sku","Descripción del Producto","Stock","Venta(+7)","NEGATIVO","RIESGO DE QUIEBRE","OTROS"]
+    for c in needed:
         if c not in df.columns:
             df[c] = ""
 
+    # Tipos
     df["Sku"] = df["Sku"].astype(str)
+    df["Stock"] = pd.to_numeric(df["Stock"], errors="coerce").fillna(0).astype(int)
+    df["Venta(+7)"] = pd.to_numeric(df["Venta(+7)"], errors="coerce").fillna(0).astype(int)
 
-    for c in ["Stock", "Venta(+7)"]:
-        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
+    # Flag VENTA 0: SOLO "SI"
+    df["VENTA 0"] = df["Venta(+7)"].apply(lambda x: "SI" if int(x or 0) == 0 else "")
 
+    # Flags: SOLO "SI"
+    for c in ["NEGATIVO", "RIESGO DE QUIEBRE"]:
+        df[c] = df[c].astype(str).str.strip().str.upper().apply(lambda v: "SI" if v == "SI" else "")
+
+    # OTROS: limpia ruido
+    df["OTROS"] = df["OTROS"].astype(str).str.strip()
+    df.loc[df["OTROS"].str.upper().isin(["NO", "N/A", "NA", "-"]), "OTROS"] = ""
+
+    # DEVUELVE SOLO COLS DE EXPORT (SIN Venta(+7))
     return df[EXPORT_COLS]
 
 
@@ -124,12 +144,12 @@ def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
 
     col_widths = [
         2.6 * cm,  # MARCA
-        2.4 * cm,  # Sku
-        10.8 * cm, # Descripción
-        1.6 * cm,  # Stock
-        2.0 * cm,  # Venta(+7)
+        2.6 * cm,  # Sku
+        11.3 * cm, # Descripción  (ajustada para que calce en A4 landscape con márgenes)
+        1.8 * cm,  # Stock
+        2.0 * cm,  # VENTA 0
         2.0 * cm,  # NEGATIVO
-        3.1 * cm,  # RIESGO
+        3.2 * cm,  # RIESGO DE QUIEBRE
         2.2 * cm,  # OTROS
     ]
 
@@ -146,8 +166,10 @@ def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F7F7")]),
 
-        ("ALIGN", (3, 1), (4, -1), "RIGHT"),  # Stock, Venta
-        ("ALIGN", (5, 1), (7, -1), "CENTER"), # Flags
+        # Alineación correcta por índices (0..7)
+        ("ALIGN", (3, 1), (3, -1), "RIGHT"),    # Stock
+        ("ALIGN", (4, 1), (6, -1), "CENTER"),   # VENTA 0 / NEGATIVO / RIESGO
+        ("ALIGN", (7, 1), (7, -1), "LEFT"),     # OTROS (mejor legibilidad)
 
         ("LEFTPADDING", (0, 0), (-1, -1), 4),
         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
