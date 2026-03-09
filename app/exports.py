@@ -8,7 +8,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, LongTable, TableStyle, Paragraph, Spacer
 from reportlab.lib.units import cm
 
+# app/exports.py
+
 EXPORT_COLS = [
+    "Fecha stock",
     "MARCA",
     "Sku",
     "Descripción del Producto",
@@ -22,11 +25,25 @@ EXPORT_COLS = [
 def build_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
     df = df_ux.copy()
 
-    # Asegura columnas base (aunque no se exporte Venta(+7), la usamos para calcular VENTA 0)
-    needed = ["MARCA","Sku","Descripción del Producto","Stock","Venta(+7)","NEGATIVO","RIESGO DE QUIEBRE","OTROS"]
+    # Asegura columnas base (fecha incluida)
+    needed = [
+        "fecha",
+        "MARCA",
+        "Sku",
+        "Descripción del Producto",
+        "Stock",
+        "Venta(+7)",
+        "NEGATIVO",
+        "RIESGO DE QUIEBRE",
+        "OTROS",
+    ]
     for c in needed:
         if c not in df.columns:
             df[c] = ""
+
+    # Fecha stock = fecha comercial del dato
+    df["Fecha stock"] = pd.to_datetime(df["fecha"], errors="coerce").dt.strftime("%Y-%m-%d")
+    df["Fecha stock"] = df["Fecha stock"].fillna("")
 
     # Tipos
     df["Sku"] = df["Sku"].astype(str)
@@ -46,7 +63,6 @@ def build_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
 
     # DEVUELVE SOLO COLS DE EXPORT (SIN Venta(+7))
     return df[EXPORT_COLS]
-
 
 def _sorted_for_export(df_in: pd.DataFrame) -> pd.DataFrame:
     """Orden consistente: MARCA A→Z, SKU numérico primero, luego SKU texto, luego producto."""
@@ -143,14 +159,15 @@ def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
         data.append(row)
 
     col_widths = [
+        2.4 * cm,  # Fecha stock
         2.6 * cm,  # MARCA
         2.6 * cm,  # Sku
-        11.3 * cm, # Descripción  (ajustada para que calce en A4 landscape con márgenes)
+        9.8 * cm,  # Descripción del Producto
         1.8 * cm,  # Stock
         2.0 * cm,  # VENTA 0
         2.0 * cm,  # NEGATIVO
-        3.2 * cm,  # RIESGO DE QUIEBRE
-        2.2 * cm,  # OTROS
+        3.0 * cm,  # RIESGO DE QUIEBRE
+        2.0 * cm,  # OTROS
     ]
 
     table = LongTable(data, colWidths=col_widths, repeatRows=1)
@@ -167,9 +184,9 @@ def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F7F7")]),
 
         # Alineación correcta por índices (0..7)
-        ("ALIGN", (3, 1), (3, -1), "RIGHT"),    # Stock
-        ("ALIGN", (4, 1), (6, -1), "CENTER"),   # VENTA 0 / NEGATIVO / RIESGO
-        ("ALIGN", (7, 1), (7, -1), "LEFT"),     # OTROS (mejor legibilidad)
+        ("ALIGN", (4, 1), (4, -1), "RIGHT"),    # Stock
+        ("ALIGN", (5, 1), (7, -1), "CENTER"),   # VENTA 0 / NEGATIVO / RIESGO
+        ("ALIGN", (8, 1), (8, -1), "LEFT"),     # OTROS
 
         ("LEFTPADDING", (0, 0), (-1, -1), 4),
         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
