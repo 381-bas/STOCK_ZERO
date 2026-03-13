@@ -81,7 +81,13 @@ def _infer_runtime_env() -> str:
         return raw
     if any(os.getenv(k) for k in ("IS_STREAMLIT_CLOUD", "STREAMLIT_RUNTIME", "STREAMLIT_CLOUD")):
         return "public"
-    return "local"
+    if os.name == "nt":
+        return "local"
+    if any(Path(p).exists() for p in ("/mount/src", "/home/appuser", "/home/adminuser")):
+        return "public"
+    if (os.getenv("USER", "") or os.getenv("USERNAME", "")).strip().lower() in {"appuser", "adminuser"}:
+        return "public"
+    return "public" if os.name != "nt" else "local"
 
 
 def _trace_ctx() -> dict[str, Any]:
@@ -367,13 +373,18 @@ def _get_data_version_cached() -> str:
     return "NA"
 
 
-def get_data_version() -> str:
+def _get_data_version_with_state() -> tuple[str, str]:
     cache_sig = _sig("data_version")
     before = _get_mark("DV", "data_version", cache_sig)
     t0 = time.perf_counter()
     out = _get_data_version_cached()
     cache_state = "miss" if _get_mark("DV", "data_version", cache_sig) != before else "hit"
     _trace("DV", "get_data_version", data_version_ms=_fmt_ms(time.perf_counter() - t0), cache_state=cache_state, dv=out)
+    return out, cache_state
+
+
+def get_data_version() -> str:
+    out, _ = _get_data_version_with_state()
     return out
 
 
@@ -389,6 +400,7 @@ def _qdf_cached(data_version: str, sql: str, params: dict[str, Any] | None) -> p
         df = pd.read_sql(text(sql), conn, params=params)
         read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
 
+    total_ms = _fmt_ms(time.perf_counter() - total_t0)
     _trace(
         "QUERY",
         "qdf_exec",
@@ -397,18 +409,31 @@ def _qdf_cached(data_version: str, sql: str, params: dict[str, Any] | None) -> p
         params_sig=_sig(params or {}),
         rows=len(df),
         read_sql_ms=read_sql_ms,
-        qdf_total_ms=_fmt_ms(time.perf_counter() - total_t0),
+        qdf_total_ms=total_ms,
+        page_read_sql_ms=read_sql_ms,
+        page_total_ms=total_ms,
+    )
+    _trace(
+        "PAGE",
+        "page_exec",
+        dv_sig=_sig(data_version),
+        sql_sig=_sig(sql),
+        params_sig=_sig(params or {}),
+        rows=len(df),
+        page_read_sql_ms=read_sql_ms,
+        page_total_ms=total_ms,
     )
     return df
 
 
 def qdf(sql: str, params: dict[str, Any] | None = None) -> pd.DataFrame:
     total_t0 = time.perf_counter()
-    dv = get_data_version()
+    dv, dv_state = _get_data_version_with_state()
     cache_sig = _sig(dv, sql, params or {})
     before = _get_mark("QUERY", "qdf", cache_sig)
     df = _qdf_cached(dv, sql, params)
     cache_state = "miss" if _get_mark("QUERY", "qdf", cache_sig) != before else "hit"
+    total_ms = _fmt_ms(time.perf_counter() - total_t0)
     _trace(
         "QUERY",
         "qdf",
@@ -416,8 +441,68 @@ def qdf(sql: str, params: dict[str, Any] | None = None) -> pd.DataFrame:
         sql_sig=_sig(sql),
         params_sig=_sig(params or {}),
         rows=0 if df is None else len(df),
-        qdf_total_ms=_fmt_ms(time.perf_counter() - total_t0),
+        qdf_total_ms=total_ms,
+        page_total_ms=total_ms,
         cache_state=cache_state,
+        dv_state=dv_state,
+    )
+    _trace(
+        "PAGE",
+        "page",
+        dv_sig=_sig(dv),
+        sql_sig=_sig(sql),
+        params_sig=_sig(params or {}),
+        rows=0 if df is None else len(df),
+        page_total_ms=total_ms,
+        cache_state=cache_state,
+        dv_state=dv_state,
+    )
+    return df
+
+
+@st.cache_data(ttl=SELECTOR_TTL, show_spinner=False)
+def _selector_df_cached(name: str, sql: str, params: dict[str, Any] | None = None) -> pd.DataFrame:
+    cache_sig = _sig(name, sql, params or {})
+    _set_mark("SELECTOR", name, cache_sig)
+
+    eng = get_engine()
+    total_t0 = time.perf_counter()
+    with eng.connect() as conn:
+        t_sql = time.perf_counter()
+        df = pd.read_sql(text(sql), conn, params=params)
+        read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
+
+    total_ms = _fmt_ms(time.perf_counter() - total_t0)
+    _trace(
+        "SELECTOR",
+        "selector_exec",
+        selector=name,
+        sql_sig=_sig(sql),
+        params_sig=_sig(params or {}),
+        rows=len(df),
+        selector_read_sql_ms=read_sql_ms,
+        selector_total_ms=total_ms,
+        dv_state="not_used",
+    )
+    return df
+
+
+def _selector_df(name: str, sql: str, params: dict[str, Any] | None = None) -> pd.DataFrame:
+    total_t0 = time.perf_counter()
+    cache_sig = _sig(name, sql, params or {})
+    before = _get_mark("SELECTOR", name, cache_sig)
+    df = _selector_df_cached(name, sql, params)
+    cache_state = "miss" if _get_mark("SELECTOR", name, cache_sig) != before else "hit"
+    _trace(
+        "SELECTOR",
+        name,
+        selector=name,
+        sql_sig=_sig(sql),
+        params_sig=_sig(params or {}),
+        rows=0 if df is None else len(df),
+        selector_total_ms=_fmt_ms(time.perf_counter() - total_t0),
+        cache_state=cache_state,
+        dv_state="not_used",
     )
     return df
 
@@ -523,7 +608,6 @@ def get_locales(rutero: str, reponedor: str) -> pd.DataFrame:
     """, {"rutero": rutero, "reponedor": reponedor})
 
 
-@st.cache_data(ttl=SELECTOR_TTL, show_spinner=False)
 def get_contexto_local(
     rutero: str,
     reponedor: str,
@@ -531,7 +615,6 @@ def get_contexto_local(
     modalidad: str | None = None,
 ) -> pd.DataFrame:
     modalidad_sql, extra = _modalidad_clause(modalidad, "modalidad")
-    eng = get_engine()
     sql = f"""
         SELECT
             cod_rt,
@@ -552,27 +635,20 @@ def get_contexto_local(
         "cod_rt": cod_rt,
         **extra,
     }
-    with eng.connect() as conn:
-        return pd.read_sql(text(sql), conn, params=params)
+    return _selector_df("get_contexto_local", sql, params)
 
 
-@st.cache_data(ttl=SELECTOR_TTL, show_spinner=False)
 def get_modalidades_home() -> list[str]:
-    eng = get_engine()
     sql = f"""
         SELECT modalidad
         FROM {SELECTOR_MODALIDAD_VIEW}
         ORDER BY modalidad
     """
-    with eng.connect() as conn:
-        df = pd.read_sql(text(sql), conn)
-
+    df = _selector_df("get_modalidades_home", sql)
     return df["modalidad"].astype(str).tolist() if df is not None and not df.empty else []
 
 
-@st.cache_data(ttl=SELECTOR_TTL, show_spinner=False)
 def get_rutero_reponedor_por_modalidad(modalidad: str) -> pd.DataFrame:
-    eng = get_engine()
     sql = f"""
         SELECT
             rutero,
@@ -581,13 +657,10 @@ def get_rutero_reponedor_por_modalidad(modalidad: str) -> pd.DataFrame:
         WHERE UPPER(TRIM(COALESCE(modalidad, ''))) = UPPER(TRIM(COALESCE(:modalidad, '')))
         ORDER BY rutero, reponedor
     """
-    with eng.connect() as conn:
-        return pd.read_sql(text(sql), conn, params={"modalidad": modalidad})
+    return _selector_df("get_rutero_reponedor_por_modalidad", sql, {"modalidad": modalidad})
 
 
-@st.cache_data(ttl=SELECTOR_TTL, show_spinner=False)
 def get_locales_por_modalidad_rr(modalidad: str, rutero: str, reponedor: str) -> pd.DataFrame:
-    eng = get_engine()
     sql = f"""
         SELECT
             cod_rt,
@@ -598,21 +671,18 @@ def get_locales_por_modalidad_rr(modalidad: str, rutero: str, reponedor: str) ->
           AND UPPER(TRIM(COALESCE(reponedor, ''))) = UPPER(TRIM(COALESCE(:reponedor, '')))
         ORDER BY cod_rt, nombre_local
     """
-    with eng.connect() as conn:
-        return pd.read_sql(
-            text(sql),
-            conn,
-            params={
-                "modalidad": modalidad,
-                "rutero": rutero,
-                "reponedor": reponedor,
-            },
-        )
+    return _selector_df(
+        "get_locales_por_modalidad_rr",
+        sql,
+        {
+            "modalidad": modalidad,
+            "rutero": rutero,
+            "reponedor": reponedor,
+        },
+    )
 
 
-@st.cache_data(ttl=SELECTOR_TTL, show_spinner=False)
 def get_locales_home() -> pd.DataFrame:
-    eng = get_engine()
     sql = f"""
         SELECT
             cod_rt,
@@ -620,8 +690,7 @@ def get_locales_home() -> pd.DataFrame:
         FROM {LOCALES_HOME_VIEW}
         ORDER BY cod_rt, nombre_local
     """
-    with eng.connect() as conn:
-        return pd.read_sql(text(sql), conn)
+    return _selector_df("get_locales_home", sql)
 
 
 def get_mercaderistas_home() -> pd.DataFrame:
@@ -646,9 +715,7 @@ def get_locales_por_mercaderista(mercaderista: str) -> pd.DataFrame:
     """, {"mercaderista": mercaderista})
 
 
-@st.cache_data(ttl=SELECTOR_TTL, show_spinner=False)
 def get_contexto_local_home(cod_rt: str) -> pd.DataFrame:
-    eng = get_engine()
     sql = f"""
         SELECT
             cod_rt,
@@ -663,8 +730,7 @@ def get_contexto_local_home(cod_rt: str) -> pd.DataFrame:
         WHERE cod_rt = :cod_rt
         GROUP BY cod_rt
     """
-    with eng.connect() as conn:
-        return pd.read_sql(text(sql), conn, params={"cod_rt": cod_rt})
+    return _selector_df("get_contexto_local_home", sql, {"cod_rt": cod_rt})
 
 
 # =========================================================
