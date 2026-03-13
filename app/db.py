@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from pathlib import Path
 import os
+import json
+import time
+import hashlib
 import logging
 from typing import Any
 
@@ -33,6 +36,11 @@ RUTA_TABLE = os.getenv("RUTA_TABLE", "public.ruta_rutero")
 RESULT_VIEW = os.getenv("RESULT_VIEW_STOCK_UX", "public.v_stock_local_cliente_ux")
 SELECTOR_TTL = int(os.getenv("SELECTOR_TTL", "600"))
 
+LOCALES_HOME_VIEW = os.getenv(
+    "LOCALES_HOME_VIEW",
+    "public.v_locales_home",
+)
+
 SELECTOR_MODALIDAD_VIEW = os.getenv(
     "SELECTOR_MODALIDAD_VIEW",
     "public.v_selector_modalidad",
@@ -48,8 +56,88 @@ LOCALES_MODALIDAD_RR_VIEW = os.getenv(
     "public.v_locales_por_modalidad_rutero",
 )
 
+
 class AppError(RuntimeError):
     pass
+
+
+TRACE_STATE_KEY = "_stock_zero_trace"
+
+
+def _safe_session_state():
+    try:
+        return st.session_state
+    except Exception:
+        return None
+
+
+def _infer_runtime_env() -> str:
+    raw = (
+        os.getenv("STOCKZERO_RUNTIME_ENV", "")
+        or os.getenv("APP_ENV", "")
+        or os.getenv("ENV", "")
+    ).strip().lower()
+    if raw in {"local", "public"}:
+        return raw
+    if any(os.getenv(k) for k in ("IS_STREAMLIT_CLOUD", "STREAMLIT_RUNTIME", "STREAMLIT_CLOUD")):
+        return "public"
+    return "local"
+
+
+def _trace_ctx() -> dict[str, Any]:
+    ss = _safe_session_state()
+    return {
+        "run_id": (ss.get("_run_id") if ss is not None else None) or "-",
+        "env": (ss.get("_runtime_env") if ss is not None else None) or _infer_runtime_env(),
+        "path": (ss.get("_run_path") if ss is not None else None) or "-",
+        "mode": (ss.get("home_mode") if ss is not None else None) or "-",
+    }
+
+
+def _fmt_ms(seconds: float) -> float:
+    return round(seconds * 1000.0, 3)
+
+
+def _trace(tag: str, event: str, **kv) -> None:
+    payload = {**_trace_ctx(), **kv}
+    extra = " ".join(f"{k}={v}" for k, v in payload.items())
+    try:
+        logger.info("TRACE %s | %s | %s", tag, event, extra)
+    except Exception:
+        pass
+
+
+def _sig(*parts: Any) -> str:
+    try:
+        raw = json.dumps(parts, ensure_ascii=False, sort_keys=True, default=str)
+    except Exception:
+        raw = repr(parts)
+    return hashlib.md5(raw.encode("utf-8", errors="ignore")).hexdigest()[:12]
+
+
+def _trace_bucket() -> dict[str, Any]:
+    ss = _safe_session_state()
+    if ss is None:
+        return {}
+    bucket = ss.get(TRACE_STATE_KEY)
+    if not isinstance(bucket, dict):
+        bucket = {"marks": {}}
+        ss[TRACE_STATE_KEY] = bucket
+    if "marks" not in bucket or not isinstance(bucket["marks"], dict):
+        bucket["marks"] = {}
+    return bucket
+
+
+def _get_mark(scope: str, name: str, sig: str) -> str | None:
+    bucket = _trace_bucket()
+    return bucket.get("marks", {}).get(f"{scope}:{name}:{sig}")
+
+
+def _set_mark(scope: str, name: str, sig: str) -> str:
+    bucket = _trace_bucket()
+    stamp = str(time.time_ns())
+    bucket.setdefault("marks", {})[f"{scope}:{name}:{sig}"] = stamp
+    return stamp
 
 
 # =========================================================
@@ -67,32 +155,90 @@ def _get_db_urls() -> tuple[str, str | None]:
     return primary, fallback
 
 
-def _probe_pg(url: str) -> bool:
+def _probe_pg(url: str, target: str = "primary") -> bool:
+    t0 = time.perf_counter()
     if psycopg2 is None:
+        _trace(
+            "INFRA",
+            "probe_pg",
+            target=target,
+            probe_pg_ms=_fmt_ms(time.perf_counter() - t0),
+            ok=True,
+            driver="psycopg2_missing",
+        )
         return True
+
     timeout = int(os.getenv("CONNECT_TIMEOUT", "3"))
     try:
         with psycopg2.connect(url, connect_timeout=timeout) as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1;")
-        return True
-    except Exception:
-        return False
+        ok = True
+    except Exception as e:
+        ok = False
+        _trace(
+            "INFRA",
+            "probe_pg_err",
+            target=target,
+            probe_pg_ms=_fmt_ms(time.perf_counter() - t0),
+            ok=ok,
+            err=type(e).__name__,
+        )
+        return ok
+
+    _trace("INFRA", "probe_pg", target=target, probe_pg_ms=_fmt_ms(time.perf_counter() - t0), ok=ok)
+    return ok
 
 
 @st.cache_data(ttl=30, show_spinner=False)
-def get_active_db_url() -> str:
+def _get_active_db_url_cached() -> str:
+    cache_sig = _sig("active_db_url")
+    _set_mark("INFRA", "active_db_url", cache_sig)
+
+    t0 = time.perf_counter()
     primary, fallback = _get_db_urls()
-    if primary and _probe_pg(primary):
-        return primary
-    if fallback and _probe_pg(fallback):
+    selected = "none"
+
+    if primary and _probe_pg(primary, target="primary"):
+        selected = "primary"
+        out = primary
+    elif fallback and _probe_pg(fallback, target="fallback"):
         logger.warning("Usando DB_URL_FALLBACK (primary no responde).")
-        return fallback
-    return primary or (fallback or "")
+        selected = "fallback"
+        out = fallback
+    else:
+        out = primary or (fallback or "")
+        if primary:
+            selected = "primary_unchecked"
+        elif fallback:
+            selected = "fallback_unchecked"
+
+    _trace(
+        "INFRA",
+        "active_db_url_exec",
+        active_db_url_ms=_fmt_ms(time.perf_counter() - t0),
+        selected=selected,
+        fallback_present=bool(fallback),
+    )
+    return out
+
+
+def get_active_db_url() -> str:
+    cache_sig = _sig("active_db_url")
+    before = _get_mark("INFRA", "active_db_url", cache_sig)
+    t0 = time.perf_counter()
+    out = _get_active_db_url_cached()
+    cache_state = "miss" if _get_mark("INFRA", "active_db_url", cache_sig) != before else "hit"
+    _trace("INFRA", "get_active_db_url", active_db_url_ms=_fmt_ms(time.perf_counter() - t0), cache_state=cache_state)
+    return out
 
 
 @st.cache_resource(show_spinner=False)
 def _engine_cached(db_url: str) -> Engine:
+    cache_sig = _sig(db_url)
+    _set_mark("INFRA", "engine", cache_sig)
+
+    t0 = time.perf_counter()
     pool_size = int(os.getenv("POOL_SIZE", "15"))
     max_overflow = int(os.getenv("MAX_OVERFLOW", "30"))
     pool_timeout = int(os.getenv("POOL_TIMEOUT", "30"))
@@ -115,68 +261,165 @@ def _engine_cached(db_url: str) -> Engine:
         future=True,
         connect_args=connect_args,
     )
-    logger.info("Engine listo (pool_size=%s, max_overflow=%s)", pool_size, max_overflow)
+    _trace(
+        "INFRA",
+        "engine_exec",
+        engine_ms=_fmt_ms(time.perf_counter() - t0),
+        pool_size=pool_size,
+        max_overflow=max_overflow,
+        pool_timeout=pool_timeout,
+        pool_recycle=pool_recycle,
+        stmt_timeout_ms=stmt_timeout_ms,
+    )
     return eng
 
 
 def get_engine() -> Engine:
-    return _engine_cached(get_active_db_url())
+    db_url = get_active_db_url()
+    cache_sig = _sig(db_url)
+    before = _get_mark("INFRA", "engine", cache_sig)
+    t0 = time.perf_counter()
+    eng = _engine_cached(db_url)
+    cache_state = "miss" if _get_mark("INFRA", "engine", cache_sig) != before else "hit"
+    _trace("INFRA", "get_engine", engine_ms=_fmt_ms(time.perf_counter() - t0), cache_state=cache_state)
+    return eng
 
 
 @st.cache_data(ttl=DV_TTL, show_spinner=False)
-def get_data_version_info() -> dict[str, Any]:
+def _get_data_version_info_cached() -> dict[str, Any]:
+    cache_sig = _sig("data_version_info")
+    _set_mark("DV", "data_version_info", cache_sig)
+
     eng = get_engine()
+    total_t0 = time.perf_counter()
     with eng.connect() as conn:
         try:
+            t_sql = time.perf_counter()
             df = pd.read_sql(text("SELECT fecha_datos, ingested_at FROM public.v_data_version;"), conn)
+            read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
+            _trace("DV", "data_version_info_candidate", source="public.v_data_version", read_sql_ms=read_sql_ms, rows=len(df))
             if not df.empty:
-                return {
+                out = {
                     "fecha_datos": df.iloc[0].get("fecha_datos"),
                     "ingested_at": df.iloc[0].get("ingested_at"),
                 }
+                _trace("DV", "get_data_version_info_exec", data_version_ms=_fmt_ms(time.perf_counter() - total_t0), source="public.v_data_version")
+                return out
         except Exception as e:
             logger.warning("No pude leer v_data_version: %s", e)
+            _trace("DV", "data_version_info_candidate_err", source="public.v_data_version", err=type(e).__name__)
 
         try:
+            t_sql = time.perf_counter()
             df2 = pd.read_sql(text(f"SELECT MAX(fecha) AS fecha_datos FROM {RESULT_VIEW};"), conn)
+            read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
+            _trace("DV", "data_version_info_candidate", source=RESULT_VIEW, read_sql_ms=read_sql_ms, rows=len(df2))
             fd = df2.iloc[0].get("fecha_datos") if not df2.empty else None
+            _trace("DV", "get_data_version_info_exec", data_version_ms=_fmt_ms(time.perf_counter() - total_t0), source=RESULT_VIEW)
             return {"fecha_datos": fd, "ingested_at": None}
         except Exception as e:
             logger.warning("No pude leer %s: %s", RESULT_VIEW, e)
+            _trace("DV", "data_version_info_candidate_err", source=RESULT_VIEW, err=type(e).__name__)
 
+    _trace("DV", "get_data_version_info_exec", data_version_ms=_fmt_ms(time.perf_counter() - total_t0), source="none")
     return {"fecha_datos": None, "ingested_at": None}
 
 
+def get_data_version_info() -> dict[str, Any]:
+    cache_sig = _sig("data_version_info")
+    before = _get_mark("DV", "data_version_info", cache_sig)
+    t0 = time.perf_counter()
+    out = _get_data_version_info_cached()
+    cache_state = "miss" if _get_mark("DV", "data_version_info", cache_sig) != before else "hit"
+    _trace("DV", "get_data_version_info", data_version_ms=_fmt_ms(time.perf_counter() - t0), cache_state=cache_state)
+    return out
+
+
 @st.cache_data(ttl=300, show_spinner=False)
-def get_data_version() -> str:
+def _get_data_version_cached() -> str:
+    cache_sig = _sig("data_version")
+    _set_mark("DV", "data_version", cache_sig)
+
     eng = get_engine()
     candidates = [
-        "SELECT MAX(ingested_at) AS dv FROM public.fact_stock_venta;",
-        f"SELECT MAX(fecha) AS dv FROM {RESULT_VIEW};",
-        "SELECT MAX(fecha_datos) AS dv FROM public.v_data_version;",
+        ("public.fact_stock_venta.ingested_at", "SELECT MAX(ingested_at) AS dv FROM public.fact_stock_venta;"),
+        (RESULT_VIEW, f"SELECT MAX(fecha) AS dv FROM {RESULT_VIEW};"),
+        ("public.v_data_version", "SELECT MAX(fecha_datos) AS dv FROM public.v_data_version;"),
     ]
+    total_t0 = time.perf_counter()
     with eng.connect() as conn:
-        for sql in candidates:
+        for source, sql in candidates:
             try:
+                t_sql = time.perf_counter()
                 df = pd.read_sql(text(sql), conn)
+                read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
                 dv = df.iloc[0]["dv"]
+                _trace("DV", "data_version_candidate", source=source, read_sql_ms=read_sql_ms, dv_found=dv is not None)
                 if dv is not None:
-                    return str(dv)
-            except Exception:
+                    out = str(dv)
+                    _trace("DV", "get_data_version_exec", data_version_ms=_fmt_ms(time.perf_counter() - total_t0), source=source, dv=out)
+                    return out
+            except Exception as e:
+                _trace("DV", "data_version_candidate_err", source=source, err=type(e).__name__)
                 continue
+
+    _trace("DV", "get_data_version_exec", data_version_ms=_fmt_ms(time.perf_counter() - total_t0), source="none", dv="NA")
     return "NA"
+
+
+def get_data_version() -> str:
+    cache_sig = _sig("data_version")
+    before = _get_mark("DV", "data_version", cache_sig)
+    t0 = time.perf_counter()
+    out = _get_data_version_cached()
+    cache_state = "miss" if _get_mark("DV", "data_version", cache_sig) != before else "hit"
+    _trace("DV", "get_data_version", data_version_ms=_fmt_ms(time.perf_counter() - t0), cache_state=cache_state, dv=out)
+    return out
 
 
 @st.cache_data(ttl=QDF_TTL, show_spinner=False)
 def _qdf_cached(data_version: str, sql: str, params: dict[str, Any] | None) -> pd.DataFrame:
+    cache_sig = _sig(data_version, sql, params or {})
+    _set_mark("QUERY", "qdf", cache_sig)
+
     eng = get_engine()
+    total_t0 = time.perf_counter()
     with eng.connect() as conn:
-        return pd.read_sql(text(sql), conn, params=params)
+        t_sql = time.perf_counter()
+        df = pd.read_sql(text(sql), conn, params=params)
+        read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
+
+    _trace(
+        "QUERY",
+        "qdf_exec",
+        dv_sig=_sig(data_version),
+        sql_sig=_sig(sql),
+        params_sig=_sig(params or {}),
+        rows=len(df),
+        read_sql_ms=read_sql_ms,
+        qdf_total_ms=_fmt_ms(time.perf_counter() - total_t0),
+    )
+    return df
 
 
 def qdf(sql: str, params: dict[str, Any] | None = None) -> pd.DataFrame:
+    total_t0 = time.perf_counter()
     dv = get_data_version()
-    return _qdf_cached(dv, sql, params)
+    cache_sig = _sig(dv, sql, params or {})
+    before = _get_mark("QUERY", "qdf", cache_sig)
+    df = _qdf_cached(dv, sql, params)
+    cache_state = "miss" if _get_mark("QUERY", "qdf", cache_sig) != before else "hit"
+    _trace(
+        "QUERY",
+        "qdf",
+        dv_sig=_sig(dv),
+        sql_sig=_sig(sql),
+        params_sig=_sig(params or {}),
+        rows=0 if df is None else len(df),
+        qdf_total_ms=_fmt_ms(time.perf_counter() - total_t0),
+        cache_state=cache_state,
+    )
+    return df
 
 
 # =========================================================
@@ -373,10 +616,8 @@ def get_locales_home() -> pd.DataFrame:
     sql = f"""
         SELECT
             cod_rt,
-            MAX(COALESCE(NULLIF(TRIM(nombre_local_rr), ''), cod_rt)) AS nombre_local
-        FROM {LOCALES_MODALIDAD_RR_VIEW}
-        WHERE NULLIF(TRIM(COALESCE(cod_rt, '')), '') IS NOT NULL
-        GROUP BY cod_rt
+            nombre_local
+        FROM {LOCALES_HOME_VIEW}
         ORDER BY cod_rt, nombre_local
     """
     with eng.connect() as conn:
