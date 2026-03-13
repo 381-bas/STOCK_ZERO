@@ -43,7 +43,13 @@ def _infer_runtime_env() -> str:
         return raw
     if any(os.getenv(k) for k in ("IS_STREAMLIT_CLOUD", "STREAMLIT_RUNTIME", "STREAMLIT_CLOUD")):
         return "public"
-    return "local"
+    if os.name == "nt":
+        return "local"
+    if any(os.path.exists(p) for p in ("/mount/src", "/home/appuser", "/home/adminuser")):
+        return "public"
+    if (os.getenv("USER", "") or os.getenv("USERNAME", "")).strip().lower() in {"appuser", "adminuser"}:
+        return "public"
+    return "public" if os.name != "nt" else "local"
 
 
 def _ensure_run_context() -> None:
@@ -243,7 +249,7 @@ def main():
     # ==============================================
     if modo == "LOCAL":
         try:
-            with _timed("QUERY locales_home", tag="QUERY"):
+            with _timed("SELECTOR locales_home", tag="SELECTOR"):
                 locs = db.get_locales_home()
                 _dbg("LOCS HOME loaded", rows=len(locs))
                 _dbg_block()
@@ -299,7 +305,7 @@ def main():
     # ==============================================
     else:
         try:
-            with _timed("QUERY modalidades_home", tag="QUERY"):
+            with _timed("SELECTOR modalidades_home", tag="SELECTOR"):
                 modalidades = db.get_modalidades_home()
                 _dbg("MODALIDADES loaded", rows=len(modalidades))
                 _dbg_block()
@@ -335,7 +341,7 @@ def main():
 
         if modalidad_sel != MODALIDAD_PLACEHOLDER:
             try:
-                with _timed("QUERY rr_por_modalidad", tag="QUERY"):
+                with _timed("SELECTOR rr_por_modalidad", tag="SELECTOR"):
                     rr_df = db.get_rutero_reponedor_por_modalidad(modalidad_sel)
                     _dbg("RR by modalidad loaded", rows=0 if rr_df is None else len(rr_df))
                     _dbg_block()
@@ -392,7 +398,7 @@ def main():
         _dbg_block()
 
         try:
-            with _timed("QUERY locales_por_modalidad_rr", tag="QUERY"):
+            with _timed("SELECTOR locales_por_modalidad_rr", tag="SELECTOR"):
                 locs = db.get_locales_por_modalidad_rr(modalidad_sel, rutero, reponedor)
                 _dbg("LOCS by modalidad_rr loaded", rows=len(locs))
                 _dbg_block()
@@ -447,10 +453,10 @@ def main():
     # --------------------------------
     try:
         if modo == "LOCAL":
-            with _timed("QUERY contexto_local_home", tag="QUERY"):
+            with _timed("SELECTOR contexto_local_home", tag="SELECTOR"):
                 ctx = db.get_contexto_local_home(cod_rt)
         else:
-            with _timed("QUERY contexto_local_rr", tag="QUERY"):
+            with _timed("SELECTOR contexto_local_rr", tag="SELECTOR"):
                 ctx = db.get_contexto_local(
                     rutero=rutero,
                     reponedor=reponedor,
@@ -512,12 +518,12 @@ def main():
     # --------------------------------
     try:
         if modo == "LOCAL":
-            with _timed("QUERY marcas_local", tag="QUERY"):
+            with _timed("PAGE marcas_local", tag="PAGE"):
                 marcas_disponibles = db.get_marcas_local(cod_rt)
                 _dbg("MARCAS loaded", n=len(marcas_disponibles))
                 _dbg_block()
         else:
-            with _timed("QUERY marcas_rr", tag="QUERY"):
+            with _timed("PAGE marcas_rr", tag="PAGE"):
                 marcas_disponibles = db.get_marcas(
                     rutero=rutero,
                     reponedor=reponedor,
@@ -553,10 +559,10 @@ def main():
     if st.session_state.get("_kpis_key") != kpis_key or kpis_row is None:
         try:
             if modo == "LOCAL":
-                with _timed("QUERY kpis_home", tag="QUERY"):
+                with _timed("PAGE kpis_home", tag="PAGE"):
                     kpis = db.get_kpis_local_home(cod_rt, marcas)
             else:
-                with _timed("QUERY kpis_rr", tag="QUERY"):
+                with _timed("PAGE kpis_rr", tag="PAGE"):
                     kpis = db.get_kpis_local(
                         rutero=rutero,
                         reponedor=reponedor,
@@ -695,7 +701,7 @@ def main():
                 _dbg_block()
             else:
                 if modo == "LOCAL":
-                    with _timed("QUERY total_rows_home", tag="QUERY"):
+                    with _timed("PAGE total_rows_home", tag="PAGE"):
                         total_rows = db.get_tabla_ux_total_home(
                             cod_rt=cod_rt,
                             marcas=marcas,
@@ -703,7 +709,7 @@ def main():
                             search=search_ap,
                         )
                 else:
-                    with _timed("QUERY total_rows_rr", tag="QUERY"):
+                    with _timed("PAGE total_rows_rr", tag="PAGE"):
                         total_rows = db.get_tabla_ux_total(
                             rutero=rutero,
                             reponedor=reponedor,
@@ -769,7 +775,7 @@ def main():
     else:
         try:
             if modo == "LOCAL":
-                with _timed("QUERY tabla_page_home", tag="QUERY"):
+                with _timed("PAGE tabla_page_home", tag="PAGE"):
                     df_page = db.get_tabla_ux_page_home(
                         cod_rt=cod_rt,
                         marcas=marcas,
@@ -779,7 +785,7 @@ def main():
                         search=search_ap,
                     )
             else:
-                with _timed("QUERY tabla_page_rr", tag="QUERY"):
+                with _timed("PAGE tabla_page_rr", tag="PAGE"):
                     df_page = db.get_tabla_ux_page(
                         rutero=rutero,
                         reponedor=reponedor,
