@@ -33,11 +33,40 @@ def _as_bool(s: str) -> bool:
     return s in {"1", "true", "t", "si", "sí", "y", "yes"}
 
 
-def _dbg(msg: str, **kv) -> None:
+def _infer_runtime_env() -> str:
+    raw = (
+        os.getenv("STOCKZERO_RUNTIME_ENV", "")
+        or os.getenv("APP_ENV", "")
+        or os.getenv("ENV", "")
+    ).strip().lower()
+    if raw in {"local", "public"}:
+        return raw
+    if any(os.getenv(k) for k in ("IS_STREAMLIT_CLOUD", "STREAMLIT_RUNTIME", "STREAMLIT_CLOUD")):
+        return "public"
+    return "local"
+
+
+def _ensure_run_context() -> None:
+    seq = int(st.session_state.get("_run_seq", 0)) + 1
+    stamp = int(time.time() * 1000) % 1000000
+    st.session_state["_run_seq"] = seq
+    st.session_state["_run_id"] = f"RUN{seq:04d}-{stamp:06d}"
+    st.session_state["_runtime_env"] = _infer_runtime_env()
+    st.session_state["_run_path"] = "cold" if seq == 1 else "warm"
+
+
+def _dbg(msg: str, tag: str = "UI", **kv) -> None:
     global DEBUG
     ts = datetime.utcnow().strftime("%H:%M:%S.%f")[:-3]
-    extra = " ".join([f"{k}={v}" for k, v in kv.items()]) if kv else ""
-    line = f"{ts} | {msg}" + (f" | {extra}" if extra else "")
+    ctx = {
+        "run_id": st.session_state.get("_run_id", "-"),
+        "env": st.session_state.get("_runtime_env", "-"),
+        "path": st.session_state.get("_run_path", "-"),
+        "mode": st.session_state.get("home_mode", "-"),
+    }
+    payload = {**ctx, **kv}
+    extra = " ".join([f"{k}={v}" for k, v in payload.items()]) if payload else ""
+    line = f"{ts} | {tag} | {msg}" + (f" | {extra}" if extra else "")
 
     try:
         logger.info("DBG %s", line)
@@ -53,7 +82,7 @@ def _dbg(msg: str, **kv) -> None:
     if len(st.session_state["_dbg_lines"]) > 250:
         st.session_state["_dbg_lines"] = st.session_state["_dbg_lines"][-250:]
 
-    st.session_state["_dbg_last"] = msg
+    st.session_state["_dbg_last"] = f"{tag} | {msg}"
 
 
 def _dbg_block() -> None:
@@ -66,19 +95,19 @@ def _dbg_block() -> None:
         st.sidebar.code("\n".join(st.session_state.get("_dbg_lines", [])))
 
 
-def _timed(label: str):
+def _timed(label: str, tag: str = "UI"):
     class _T:
         def __enter__(self_):
             self_.t0 = time.perf_counter()
-            _dbg(f"START {label}")
+            _dbg(f"START {label}", tag=tag)
             return self_
 
         def __exit__(self_, exc_type, exc, tb):
-            ms = int((time.perf_counter() - self_.t0) * 1000)
+            ms = round((time.perf_counter() - self_.t0) * 1000.0, 3)
             if exc_type is None:
-                _dbg(f"OK {label}", ms=ms)
+                _dbg(f"OK {label}", tag=tag, ms=ms)
             else:
-                _dbg(f"ERR {label}", ms=ms, exc=str(exc_type.__name__))
+                _dbg(f"ERR {label}", tag=tag, ms=ms, exc=str(exc_type.__name__))
             return False
 
     return _T()
@@ -93,7 +122,8 @@ def main():
     from app.exports import build_export_df, export_excel_one_sheet, export_pdf_table
 
     DEBUG = _as_bool(_qp_get("debug", "")) or _as_bool(os.getenv("DEBUG_UI", ""))
-    _dbg("BOOT Home.py", py=str(getattr(__import__("sys"), "version", "na")).split()[0])
+    _ensure_run_context()
+    _dbg("BOOT Home.py", py=str(getattr(__import__("sys"), "version", "na")).split()[0], run_seq=st.session_state.get("_run_seq"))
     _dbg_block()
 
     APP_TOKEN = os.getenv("APP_TOKEN", "").strip()
@@ -102,6 +132,7 @@ def main():
     st.title("STOCK_ZERO")
     st.caption("Lectura operativa · marcha blanca UX · tabla compacta · export bajo demanda")
 
+    _dbg("RUN context ready", env=st.session_state.get("_runtime_env"), path=st.session_state.get("_run_path"))
     _dbg("TOKEN gate", token_set=bool(APP_TOKEN), t_present=bool(t_in))
     _dbg_block()
 
@@ -212,7 +243,7 @@ def main():
     # ==============================================
     if modo == "LOCAL":
         try:
-            with _timed("QUERY locales_home"):
+            with _timed("QUERY locales_home", tag="QUERY"):
                 locs = db.get_locales_home()
                 _dbg("LOCS HOME loaded", rows=len(locs))
                 _dbg_block()
@@ -268,7 +299,7 @@ def main():
     # ==============================================
     else:
         try:
-            with _timed("QUERY modalidades_home"):
+            with _timed("QUERY modalidades_home", tag="QUERY"):
                 modalidades = db.get_modalidades_home()
                 _dbg("MODALIDADES loaded", rows=len(modalidades))
                 _dbg_block()
@@ -304,7 +335,7 @@ def main():
 
         if modalidad_sel != MODALIDAD_PLACEHOLDER:
             try:
-                with _timed("QUERY rr_por_modalidad"):
+                with _timed("QUERY rr_por_modalidad", tag="QUERY"):
                     rr_df = db.get_rutero_reponedor_por_modalidad(modalidad_sel)
                     _dbg("RR by modalidad loaded", rows=0 if rr_df is None else len(rr_df))
                     _dbg_block()
@@ -361,7 +392,7 @@ def main():
         _dbg_block()
 
         try:
-            with _timed("QUERY locales_por_modalidad_rr"):
+            with _timed("QUERY locales_por_modalidad_rr", tag="QUERY"):
                 locs = db.get_locales_por_modalidad_rr(modalidad_sel, rutero, reponedor)
                 _dbg("LOCS by modalidad_rr loaded", rows=len(locs))
                 _dbg_block()
@@ -416,10 +447,10 @@ def main():
     # --------------------------------
     try:
         if modo == "LOCAL":
-            with _timed("QUERY contexto_local_home"):
+            with _timed("QUERY contexto_local_home", tag="QUERY"):
                 ctx = db.get_contexto_local_home(cod_rt)
         else:
-            with _timed("QUERY contexto_local_rr"):
+            with _timed("QUERY contexto_local_rr", tag="QUERY"):
                 ctx = db.get_contexto_local(
                     rutero=rutero,
                     reponedor=reponedor,
@@ -481,12 +512,12 @@ def main():
     # --------------------------------
     try:
         if modo == "LOCAL":
-            with _timed("QUERY marcas_local"):
+            with _timed("QUERY marcas_local", tag="QUERY"):
                 marcas_disponibles = db.get_marcas_local(cod_rt)
                 _dbg("MARCAS loaded", n=len(marcas_disponibles))
                 _dbg_block()
         else:
-            with _timed("QUERY marcas_rr"):
+            with _timed("QUERY marcas_rr", tag="QUERY"):
                 marcas_disponibles = db.get_marcas(
                     rutero=rutero,
                     reponedor=reponedor,
@@ -522,10 +553,10 @@ def main():
     if st.session_state.get("_kpis_key") != kpis_key or kpis_row is None:
         try:
             if modo == "LOCAL":
-                with _timed("QUERY kpis_home"):
+                with _timed("QUERY kpis_home", tag="QUERY"):
                     kpis = db.get_kpis_local_home(cod_rt, marcas)
             else:
-                with _timed("QUERY kpis_rr"):
+                with _timed("QUERY kpis_rr", tag="QUERY"):
                     kpis = db.get_kpis_local(
                         rutero=rutero,
                         reponedor=reponedor,
@@ -660,11 +691,11 @@ def main():
             if kpi_total_rows is not None:
                 st.session_state["_total_key"] = total_key
                 st.session_state["_total_rows"] = int(kpi_total_rows)
-                _dbg("TOTAL from KPIs", total=st.session_state["_total_rows"])
+                _dbg("TOTAL from KPIs", tag="CACHE", total=st.session_state["_total_rows"])
                 _dbg_block()
             else:
                 if modo == "LOCAL":
-                    with _timed("QUERY total_rows_home"):
+                    with _timed("QUERY total_rows_home", tag="QUERY"):
                         total_rows = db.get_tabla_ux_total_home(
                             cod_rt=cod_rt,
                             marcas=marcas,
@@ -672,7 +703,7 @@ def main():
                             search=search_ap,
                         )
                 else:
-                    with _timed("QUERY total_rows_rr"):
+                    with _timed("QUERY total_rows_rr", tag="QUERY"):
                         total_rows = db.get_tabla_ux_total(
                             rutero=rutero,
                             reponedor=reponedor,
@@ -685,7 +716,7 @@ def main():
 
                 st.session_state["_total_key"] = total_key
                 st.session_state["_total_rows"] = int(total_rows or 0)
-                _dbg("TOTAL ready", total=st.session_state["_total_rows"])
+                _dbg("TOTAL ready", tag="CACHE", total=st.session_state["_total_rows"])
                 _dbg_block()
         except Exception as e:
             _dbg("FAIL total_rows", err=repr(e))
@@ -738,7 +769,7 @@ def main():
     else:
         try:
             if modo == "LOCAL":
-                with _timed("QUERY tabla_page_home"):
+                with _timed("QUERY tabla_page_home", tag="QUERY"):
                     df_page = db.get_tabla_ux_page_home(
                         cod_rt=cod_rt,
                         marcas=marcas,
@@ -748,7 +779,7 @@ def main():
                         search=search_ap,
                     )
             else:
-                with _timed("QUERY tabla_page_rr"):
+                with _timed("QUERY tabla_page_rr", tag="QUERY"):
                     df_page = db.get_tabla_ux_page(
                         rutero=rutero,
                         reponedor=reponedor,
@@ -889,7 +920,7 @@ def main():
                     if st.session_state.get("_export_df_key") != export_key or df_export is None:
                         try:
                             if modo == "LOCAL":
-                                with _timed("EXPORT query (db.get_tabla_ux_export_home)"):
+                                with _timed("EXPORT query (db.get_tabla_ux_export_home)", tag="CACHE"):
                                     df_export_raw = db.get_tabla_ux_export_home(
                                         cod_rt=cod_rt,
                                         marcas=marcas,
@@ -897,7 +928,7 @@ def main():
                                         search=search_ap,
                                     )
                             else:
-                                with _timed("EXPORT query (db.get_tabla_ux_export)"):
+                                with _timed("EXPORT query (db.get_tabla_ux_export)", tag="CACHE"):
                                     df_export_raw = db.get_tabla_ux_export(
                                         rutero=rutero,
                                         reponedor=reponedor,
@@ -923,20 +954,20 @@ def main():
                             st.session_state["_export_df_key"] = export_key
                             st.session_state["_export_df"] = None
                         else:
-                            with _timed("EXPORT build_df"):
+                            with _timed("EXPORT build_df", tag="CACHE"):
                                 df_export = build_export_df(df_export_raw)
 
                             st.session_state["_export_df_key"] = export_key
                             st.session_state["_export_df"] = df_export
                     else:
-                        _dbg("EXPORT build_df reused from cache")
+                        _dbg("EXPORT build_df reused from cache", tag="CACHE")
                         _dbg_block()
 
                     df_export = st.session_state.get("_export_df")
 
                     if df_export is not None:
                         if need_excel:
-                            with _timed("EXPORT excel_bytes"):
+                            with _timed("EXPORT excel_bytes", tag="UI"):
                                 st.session_state["_export_excel"] = export_excel_one_sheet(cod_rt, df_export)
 
                         if need_pdf:
@@ -955,7 +986,7 @@ def main():
                                     f"Fecha stock: {file_stamp}  |  Foco: {foco_ap}",
                                     f"Clientes: {', '.join(marcas) if marcas else 'Todos'}  |  Búsqueda: {search_ap if search_ap else '-'}",
                                 ]
-                            with _timed("EXPORT pdf_bytes"):
+                            with _timed("EXPORT pdf_bytes", tag="UI"):
                                 st.session_state["_export_pdf"] = export_pdf_table(pdf_lines, df_export)
 
                 finally:
