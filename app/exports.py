@@ -304,3 +304,113 @@ def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
     story.append(table)
     doc.build(story)
     return out.getvalue()
+
+
+def export_pdf_generic(title_lines: list[str], df_export: pd.DataFrame, columns: list[str]) -> bytes:
+    out = io.BytesIO()
+    doc = SimpleDocTemplate(
+        out,
+        pagesize=landscape(A4),
+        leftMargin=1.0 * cm,
+        rightMargin=1.0 * cm,
+        topMargin=1.0 * cm,
+        bottomMargin=1.0 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+    body = ParagraphStyle(
+        "BodySmall",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=7,
+        leading=8,
+    )
+
+    story = []
+    for line in title_lines:
+        story.append(Paragraph(line, styles["Heading4"]))
+    story.append(Spacer(1, 8))
+
+    df = _sorted_for_export(df_export)
+    # ensure required cols exist
+    for c in columns:
+        if c not in df.columns:
+            df[c] = ""
+    df = df[columns].copy()
+    # render description-like columns with Paragraph
+    data = [columns]
+    for _, r in df.iterrows():
+        row = []
+        for c in columns:
+            v = r.get(c, "")
+            if c in {"Descripción del Producto", "ACCIÓN SUGERIDA"}:
+                row.append(Paragraph(str(v), body))
+            else:
+                row.append(str(v))
+        data.append(row)
+
+    # choose layout widths based on columns
+    if columns == EXPORT_COLS:
+        col_widths = [
+            2.4 * cm,
+            2.6 * cm,
+            2.6 * cm,
+            9.8 * cm,
+            1.8 * cm,
+            2.0 * cm,
+            2.0 * cm,
+            3.0 * cm,
+            2.0 * cm,
+        ]
+        align_center_range = (5, 7)
+        align_left_index = 8
+    else:
+        # layout for FOCUS_EXPORT_COLS (11 cols)
+        col_widths = [
+            2.2 * cm,  # Fecha stock
+            2.6 * cm,  # MARCA
+            2.6 * cm,  # Sku
+            8.8 * cm,  # Descripción
+            1.8 * cm,  # Stock
+            2.4 * cm,  # FOCO PRINCIPAL
+            4.2 * cm,  # ACCIÓN SUGERIDA
+            2.0 * cm,  # VENTA 0
+            2.0 * cm,  # NEGATIVO
+            3.0 * cm,  # RIESGO DE QUIEBRE
+            2.0 * cm,  # OTROS
+        ]
+        # center the flags columns (VENTA 0..RIESGO)
+        align_center_range = (7, 9)
+        align_left_index = 10
+
+    table = LongTable(data, colWidths=col_widths, repeatRows=1)
+    style = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E6E6E6")),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 8),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 1), (-1, -1), 7),
+        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CFCFCF")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F7F7")]),
+        ("ALIGN", (4, 1), (4, -1), "RIGHT"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]
+
+    # center flags
+    style.append(("ALIGN", (align_center_range[0], 1), (align_center_range[1], -1), "CENTER"))
+    # left-align the last 'otros' like original
+    style.append(("ALIGN", (align_left_index, 1), (align_left_index, -1), "LEFT"))
+
+    table.setStyle(TableStyle(style))
+
+    story.append(table)
+    doc.build(story)
+    return out.getvalue()
+
+
+def export_pdf_focus_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
+    return export_pdf_generic(title_lines, df_export, FOCUS_EXPORT_COLS)

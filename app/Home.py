@@ -130,6 +130,7 @@ def main():
         export_excel_one_sheet,
         export_excel_generic,
         export_pdf_table,
+        export_pdf_focus_table,
     )
 
     DEBUG = _as_bool(_qp_get("debug", "")) or _as_bool(os.getenv("DEBUG_UI", ""))
@@ -186,6 +187,8 @@ def main():
         st.session_state.pop("_focus_export_df", None)
         st.session_state.pop("_focus_export_excel_key", None)
         st.session_state.pop("_focus_export_excel", None)
+        st.session_state.pop("_focus_export_pdf_key", None)
+        st.session_state.pop("_focus_export_pdf", None)
 
     def _reset_filters_defaults(reason: str):
         st.session_state["sel_marcas"] = []
@@ -993,10 +996,35 @@ def main():
                         st.session_state["_focus_export_excel"] = export_excel_generic(f"{cod_rt}_FOCO", df_focus)
                     st.session_state["_focus_export_excel_key"] = focus_key
 
-        d1, d2, d3 = st.columns(3)
+                # generar PDF foco local (cacheado)
+                if df_focus is not None and not df_focus.empty and st.session_state.get("_focus_export_pdf_key") != focus_key:
+                    if modo == "LOCAL":
+                        pdf_focus_lines = [
+                            f"STOCK_ZERO · {cod_rt} · {nombre_local_rr}",
+                            "FOCO LOCAL",
+                            f"Gestión: {panel_mercaderista}  |  Modalidad: {panel_modalidad}",
+                            f"Fecha stock: {file_stamp}  |  Foco: {foco_ap}",
+                            f"Clientes: {', '.join(marcas) if marcas else 'Todos'}  |  Búsqueda: {search_ap if search_ap else '-'}",
+                        ]
+                    else:
+                        pdf_focus_lines = [
+                            f"STOCK_ZERO · {cod_rt} · {nombre_local_rr}",
+                            "FOCO LOCAL",
+                            f"Modalidad: {modalidad_sel}",
+                            f"Rutero: {rutero}  |  Reponedor: {reponedor}",
+                            f"Fecha stock: {file_stamp}  |  Foco: {foco_ap}",
+                            f"Clientes: {', '.join(marcas) if marcas else 'Todos'}  |  Búsqueda: {search_ap if search_ap else '-'}",
+                        ]
+
+                    with _timed("EXPORT focus_pdf_bytes", tag="UI"):
+                        st.session_state["_focus_export_pdf"] = export_pdf_focus_table(pdf_focus_lines, df_focus)
+                    st.session_state["_focus_export_pdf_key"] = focus_key
+
+        st.markdown("**Descarga tabla**")
+        t1, t2 = st.columns(2)
 
         if st.session_state.get("_export_excel") is not None:
-            d1.download_button(
+            t1.download_button(
                 "Descargar Excel",
                 data=st.session_state["_export_excel"],
                 file_name=f"STOCK_ZERO_{cod_rt}_{file_stamp}.xlsx",
@@ -1005,7 +1033,7 @@ def main():
             )
 
         if st.session_state.get("_export_pdf") is not None:
-            d2.download_button(
+            t2.download_button(
                 "Descargar PDF",
                 data=st.session_state["_export_pdf"],
                 file_name=f"STOCK_ZERO_{cod_rt}_{file_stamp}.pdf",
@@ -1013,9 +1041,14 @@ def main():
                 use_container_width=True,
             )
 
+        st.markdown("**Descarga foco local**")
+        f1, f2 = st.columns(2)
+
         focus_excel = st.session_state.get("_focus_export_excel")
+        focus_pdf = st.session_state.get("_focus_export_pdf")
+
         if focus_excel is not None:
-            d3.download_button(
+            f1.download_button(
                 "Descargar Excel foco local",
                 data=focus_excel,
                 file_name=f"STOCK_ZERO_FOCO_{cod_rt}_{file_stamp}.xlsx",
@@ -1023,7 +1056,18 @@ def main():
                 use_container_width=True,
             )
         else:
-            d3.caption("Foco local: sin filas accionables para el filtro actual.")
+            f1.caption("Sin filas accionables.")
+
+        if focus_pdf is not None:
+            f2.download_button(
+                "Descargar PDF foco local",
+                data=focus_pdf,
+                file_name=f"STOCK_ZERO_FOCO_{cod_rt}_{file_stamp}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        else:
+            f2.caption("Sin filas accionables.")
 
 if __name__ == "__main__":
     main()
