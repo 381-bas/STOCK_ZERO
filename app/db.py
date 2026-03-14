@@ -31,30 +31,64 @@ load_dotenv(dotenv_path=ENV_PATH, override=True)
 DV_TTL = int(os.getenv("DV_TTL", "60"))
 QDF_TTL = int(os.getenv("QDF_TTL", "180"))
 MAX_MARCA_FILTER = int(os.getenv("MAX_MARCA_FILTER", "50"))
+ACTIVE_DB_URL_TTL = int(os.getenv("ACTIVE_DB_URL_TTL", "300"))
 
 RUTA_TABLE = os.getenv("RUTA_TABLE", "public.ruta_rutero")
+
+# RESULT_VIEW = puente transitorio activo para HOME_LOCAL/MERCADERISTA.
+# No representa la verdad final del modelo; existe para desacoplar UX y capa fact/operativa.
 RESULT_VIEW = os.getenv("RESULT_VIEW_STOCK_UX", "public.v_stock_local_cliente_ux")
+RESULT_VIEW_ROLE = os.getenv("RESULT_VIEW_ROLE", "bridge_transition")
+
 SELECTOR_TTL = int(os.getenv("SELECTOR_TTL", "600"))
 
-LOCALES_HOME_VIEW = os.getenv(
-    "LOCALES_HOME_VIEW",
-    "public.v_locales_home",
-)
+LOCALES_HOME_VIEW = os.getenv("LOCALES_HOME_VIEW", "public.v_locales_home")
+SELECTOR_MODALIDAD_VIEW = os.getenv("SELECTOR_MODALIDAD_VIEW", "public.v_selector_modalidad")
+SELECTOR_MODALIDAD_RR_VIEW = os.getenv("SELECTOR_MODALIDAD_RR_VIEW", "public.v_selector_rutero_reponedor_modalidad")
+LOCALES_MODALIDAD_RR_VIEW = os.getenv("LOCALES_MODALIDAD_RR_VIEW", "public.v_locales_por_modalidad_rutero")
 
-SELECTOR_MODALIDAD_VIEW = os.getenv(
-    "SELECTOR_MODALIDAD_VIEW",
-    "public.v_selector_modalidad",
-)
 
-SELECTOR_MODALIDAD_RR_VIEW = os.getenv(
-    "SELECTOR_MODALIDAD_RR_VIEW",
-    "public.v_selector_rutero_reponedor_modalidad",
-)
+def get_result_view_contract() -> dict[str, str]:
+    return {
+        "name": RESULT_VIEW,
+        "role": RESULT_VIEW_ROLE,
+        "status": "active_transition",
+        "truth": "not_final_model_truth",
+    }
 
-LOCALES_MODALIDAD_RR_VIEW = os.getenv(
-    "LOCALES_MODALIDAD_RR_VIEW",
-    "public.v_locales_por_modalidad_rutero",
-)
+
+@st.cache_data(ttl=ACTIVE_DB_URL_TTL, show_spinner=False)
+def _get_active_db_url_cached() -> str:
+    cache_sig = _sig("active_db_url")
+    _set_mark("INFRA", "active_db_url", cache_sig)
+
+    t0 = time.perf_counter()
+    primary, fallback = _get_db_urls()
+    selected = "none"
+
+    if primary and _probe_pg(primary, target="primary"):
+        selected = "primary"
+        out = primary
+    elif fallback and _probe_pg(fallback, target="fallback"):
+        logger.warning("Usando DB_URL_FALLBACK (primary no responde).")
+        selected = "fallback"
+        out = fallback
+    else:
+        out = primary or (fallback or "")
+        if primary:
+            selected = "primary_unchecked"
+        elif fallback:
+            selected = "fallback_unchecked"
+
+    _trace(
+        "INFRA",
+        "active_db_url_exec",
+        active_db_url_ms=_fmt_ms(time.perf_counter() - t0),
+        selected=selected,
+        fallback_present=bool(fallback),
+        ttl=ACTIVE_DB_URL_TTL,
+    )
+    return out
 
 
 class AppError(RuntimeError):
@@ -194,39 +228,6 @@ def _probe_pg(url: str, target: str = "primary") -> bool:
 
     _trace("INFRA", "probe_pg", target=target, probe_pg_ms=_fmt_ms(time.perf_counter() - t0), ok=ok)
     return ok
-
-
-@st.cache_data(ttl=30, show_spinner=False)
-def _get_active_db_url_cached() -> str:
-    cache_sig = _sig("active_db_url")
-    _set_mark("INFRA", "active_db_url", cache_sig)
-
-    t0 = time.perf_counter()
-    primary, fallback = _get_db_urls()
-    selected = "none"
-
-    if primary and _probe_pg(primary, target="primary"):
-        selected = "primary"
-        out = primary
-    elif fallback and _probe_pg(fallback, target="fallback"):
-        logger.warning("Usando DB_URL_FALLBACK (primary no responde).")
-        selected = "fallback"
-        out = fallback
-    else:
-        out = primary or (fallback or "")
-        if primary:
-            selected = "primary_unchecked"
-        elif fallback:
-            selected = "fallback_unchecked"
-
-    _trace(
-        "INFRA",
-        "active_db_url_exec",
-        active_db_url_ms=_fmt_ms(time.perf_counter() - t0),
-        selected=selected,
-        fallback_present=bool(fallback),
-    )
-    return out
 
 
 def get_active_db_url() -> str:
