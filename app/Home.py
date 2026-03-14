@@ -5,7 +5,7 @@ import math
 import logging
 import traceback
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 
 import streamlit as st
 
@@ -63,7 +63,7 @@ def _ensure_run_context() -> None:
 
 def _dbg(msg: str, tag: str = "UI", **kv) -> None:
     global DEBUG
-    ts = datetime.utcnow().strftime("%H:%M:%S.%f")[:-3]
+    ts = datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
     ctx = {
         "run_id": st.session_state.get("_run_id", "-"),
         "env": st.session_state.get("_runtime_env", "-"),
@@ -89,7 +89,6 @@ def _dbg(msg: str, tag: str = "UI", **kv) -> None:
         st.session_state["_dbg_lines"] = st.session_state["_dbg_lines"][-250:]
 
     st.session_state["_dbg_last"] = f"{tag} | {msg}"
-
 
 def _dbg_block() -> None:
     global DEBUG
@@ -125,7 +124,13 @@ def main():
     st.set_page_config(page_title="STOCK_ZERO", layout="wide")
 
     from app import db
-    from app.exports import build_export_df, export_excel_one_sheet, export_pdf_table
+    from app.exports import (
+        build_export_df,
+        build_focus_export_df,
+        export_excel_one_sheet,
+        export_excel_generic,
+        export_pdf_table,
+    )
 
     DEBUG = _as_bool(_qp_get("debug", "")) or _as_bool(os.getenv("DEBUG_UI", ""))
     _ensure_run_context()
@@ -151,10 +156,8 @@ def main():
         st.session_state.f_search = _qp_get("q", "")
         st.session_state.f_foco = _qp_get("foco", "Todo")
 
-        qp_mode = (_qp_get("modo", "LOCAL") or "LOCAL").strip().upper()
-        if qp_mode not in {"LOCAL", "MERCADERISTA"}:
-            qp_mode = "LOCAL"
-        st.session_state.home_mode = qp_mode
+        qp_mode = (_qp_get("modo", "") or "").strip().upper()
+        st.session_state.home_mode = qp_mode if qp_mode in {"LOCAL", "MERCADERISTA"} else "-Seleccionar Tipo-"
 
         _dbg(
             "INIT from query params",
@@ -172,11 +175,17 @@ def main():
 
         st.session_state.pop("_export_key", None)
         st.session_state.pop("_export_df_key", None)
+        st.session_state.pop("_export_raw", None)
         st.session_state.pop("_export_df", None)
+        st.session_state.pop("_export_excel_key", None)
         st.session_state.pop("_export_excel", None)
+        st.session_state.pop("_export_pdf_key", None)
         st.session_state.pop("_export_pdf", None)
-        st.session_state.pop("_export_request", None)
-        st.session_state.pop("_export_busy", None)
+
+        st.session_state.pop("_focus_export_key", None)
+        st.session_state.pop("_focus_export_df", None)
+        st.session_state.pop("_focus_export_excel_key", None)
+        st.session_state.pop("_focus_export_excel", None)
 
     def _reset_filters_defaults(reason: str):
         st.session_state["sel_marcas"] = []
@@ -208,6 +217,7 @@ def main():
     def _reset_on_local_change():
         _reset_filters_defaults("local_change")
 
+    TYPE_PLACEHOLDER = "-Seleccionar Tipo-"
     LOCAL_PLACEHOLDER = "— Selecciona local —"
     MODALIDAD_PLACEHOLDER = "— Selecciona modalidad —"
     RR_PLACEHOLDER = "— Selecciona rutero—reponedor —"
@@ -226,13 +236,14 @@ def main():
     panel_mercaderista = "-"
     panel_modalidad = "-"
 
+
     # --------------------------------
     # Filtros superiores
     # --------------------------------
     top1, top2, top3 = st.columns([1.3, 1.7, 2.6], gap="small")
 
-    mode_opts = ["LOCAL", "MERCADERISTA"]
-    st.session_state.setdefault("home_mode", "LOCAL")
+    mode_opts = [TYPE_PLACEHOLDER, "LOCAL", "MERCADERISTA"]
+    st.session_state.setdefault("home_mode", TYPE_PLACEHOLDER)
 
     with top1:
         st.selectbox(
@@ -243,6 +254,10 @@ def main():
         )
 
     modo = st.session_state["home_mode"]
+
+    if modo not in {"LOCAL", "MERCADERISTA"}:
+        st.info("Selecciona tipo de consulta para habilitar el flujo operativo.")
+        st.stop()
 
     # ==============================================
     # MODO LOCAL
@@ -867,8 +882,8 @@ def main():
     # --------------------------------
     # EXPORT
     # --------------------------------
-    with st.expander("EXPORTAR (por filtro aplicado)", expanded=False):
-        st.write("Exporta exactamente lo aplicado (cliente + foco + búsqueda).")
+    with st.expander("EXPORTAR", expanded=False):
+        st.write("Descarga directa del filtro aplicado y export operativo de foco local.")
 
         if total_rows == 0:
             if total_skus_kpi == 0:
@@ -883,140 +898,132 @@ def main():
 
         if st.session_state.get("_export_key") != export_key:
             st.session_state["_export_key"] = export_key
+            st.session_state.pop("_export_raw", None)
             st.session_state.pop("_export_df_key", None)
             st.session_state.pop("_export_df", None)
+            st.session_state.pop("_export_excel_key", None)
             st.session_state.pop("_export_excel", None)
+            st.session_state.pop("_export_pdf_key", None)
             st.session_state.pop("_export_pdf", None)
-            st.session_state.pop("_export_request", None)
-            st.session_state.pop("_export_busy", None)
+            st.session_state.pop("_focus_export_key", None)
+            st.session_state.pop("_focus_export_df", None)
+            st.session_state.pop("_focus_export_excel_key", None)
+            st.session_state.pop("_focus_export_excel", None)
 
-        cA, cB = st.columns(2)
-        cA.button(
-            "Preparar Excel",
-            key="btn_prepare_excel",
-            use_container_width=True,
-            disabled=(total_rows == 0 or st.session_state.get("_export_busy", False)),
-            on_click=_request_export,
-            args=("excel",),
-        )
-        cB.button(
-            "Preparar PDF",
-            key="btn_prepare_pdf",
-            use_container_width=True,
-            disabled=(total_rows == 0 or st.session_state.get("_export_busy", False)),
-            on_click=_request_export,
-            args=("pdf",),
-        )
+        if total_rows > 0:
+            df_export_raw = st.session_state.get("_export_raw")
 
-        export_request = st.session_state.get("_export_request")
-        export_busy = bool(st.session_state.get("_export_busy", False))
-
-        if export_busy:
-            st.caption("Preparando archivo...")
-
-        if export_request in {"excel", "pdf"} and not export_busy and total_rows > 0:
-            need_excel = export_request == "excel" and st.session_state.get("_export_excel") is None
-            need_pdf = export_request == "pdf" and st.session_state.get("_export_pdf") is None
-
-            if need_excel or need_pdf:
-                st.session_state["_export_busy"] = True
+            if df_export_raw is None:
                 try:
-                    df_export = st.session_state.get("_export_df")
-
-                    if st.session_state.get("_export_df_key") != export_key or df_export is None:
-                        try:
-                            if modo == "LOCAL":
-                                with _timed("EXPORT query (db.get_tabla_ux_export_home)", tag="CACHE"):
-                                    df_export_raw = db.get_tabla_ux_export_home(
-                                        cod_rt=cod_rt,
-                                        marcas=marcas,
-                                        foco=foco_ap,
-                                        search=search_ap,
-                                    )
-                            else:
-                                with _timed("EXPORT query (db.get_tabla_ux_export)", tag="CACHE"):
-                                    df_export_raw = db.get_tabla_ux_export(
-                                        rutero=rutero,
-                                        reponedor=reponedor,
-                                        cod_rt=cod_rt,
-                                        marcas=marcas,
-                                        foco=foco_ap,
-                                        search=search_ap,
-                                        modalidad=modalidad_sel,
-                                    )
-
-                            _dbg("EXPORT df loaded", rows=0 if df_export_raw is None else len(df_export_raw))
-                            _dbg_block()
-                        except Exception as e:
-                            _dbg("FAIL export query", err=repr(e))
-                            st.error("No pude preparar export (query).")
-                            st.code(repr(e))
-                            if DEBUG:
-                                st.code(traceback.format_exc())
-                            st.stop()
-
-                        if df_export_raw is None or df_export_raw.empty:
-                            st.info("No hay filas para exportar con el filtro aplicado.")
-                            st.session_state["_export_df_key"] = export_key
-                            st.session_state["_export_df"] = None
-                        else:
-                            with _timed("EXPORT build_df", tag="CACHE"):
-                                df_export = build_export_df(df_export_raw)
-
-                            st.session_state["_export_df_key"] = export_key
-                            st.session_state["_export_df"] = df_export
+                    if modo == "LOCAL":
+                        with _timed("EXPORT query (db.get_tabla_ux_export_home)", tag="CACHE"):
+                            df_export_raw = db.get_tabla_ux_export_home(
+                                cod_rt=cod_rt,
+                                marcas=marcas,
+                                foco=foco_ap,
+                                search=search_ap,
+                            )
                     else:
-                        _dbg("EXPORT build_df reused from cache", tag="CACHE")
-                        _dbg_block()
+                        with _timed("EXPORT query (db.get_tabla_ux_export)", tag="CACHE"):
+                            df_export_raw = db.get_tabla_ux_export(
+                                rutero=rutero,
+                                reponedor=reponedor,
+                                cod_rt=cod_rt,
+                                marcas=marcas,
+                                foco=foco_ap,
+                                search=search_ap,
+                                modalidad=modalidad_sel,
+                            )
 
-                    df_export = st.session_state.get("_export_df")
+                    _dbg("EXPORT raw loaded", rows=0 if df_export_raw is None else len(df_export_raw))
+                    _dbg_block()
+                    st.session_state["_export_raw"] = df_export_raw
+                except Exception as e:
+                    _dbg("FAIL export query", err=repr(e))
+                    st.error("No pude preparar export.")
+                    st.code(repr(e))
+                    if DEBUG:
+                        st.code(traceback.format_exc())
+                    st.stop()
 
-                    if df_export is not None:
-                        if need_excel:
-                            with _timed("EXPORT excel_bytes", tag="UI"):
-                                st.session_state["_export_excel"] = export_excel_one_sheet(cod_rt, df_export)
+            if df_export_raw is not None and not df_export_raw.empty:
+                df_export = st.session_state.get("_export_df")
+                if st.session_state.get("_export_df_key") != export_key or df_export is None:
+                    with _timed("EXPORT build_df", tag="CACHE"):
+                        df_export = build_export_df(df_export_raw)
+                    st.session_state["_export_df_key"] = export_key
+                    st.session_state["_export_df"] = df_export
 
-                        if need_pdf:
-                            if modo == "LOCAL":
-                                pdf_lines = [
-                                    f"STOCK_ZERO · {cod_rt} · {nombre_local_rr}",
-                                    f"Gestión: {panel_mercaderista}  |  Modalidad: {panel_modalidad}",
-                                    f"Fecha stock: {file_stamp}  |  Foco: {foco_ap}",
-                                    f"Clientes: {', '.join(marcas) if marcas else 'Todos'}  |  Búsqueda: {search_ap if search_ap else '-'}",
-                                ]
-                            else:
-                                pdf_lines = [
-                                    f"STOCK_ZERO · {cod_rt} · {nombre_local_rr}",
-                                    f"Modalidad: {modalidad_sel}",
-                                    f"Rutero: {rutero}  |  Reponedor: {reponedor}",
-                                    f"Fecha stock: {file_stamp}  |  Foco: {foco_ap}",
-                                    f"Clientes: {', '.join(marcas) if marcas else 'Todos'}  |  Búsqueda: {search_ap if search_ap else '-'}",
-                                ]
-                            with _timed("EXPORT pdf_bytes", tag="UI"):
-                                st.session_state["_export_pdf"] = export_pdf_table(pdf_lines, df_export)
+                focus_key = (export_key, foco_ap)
+                df_focus = st.session_state.get("_focus_export_df")
+                if st.session_state.get("_focus_export_key") != focus_key or df_focus is None:
+                    with _timed("EXPORT build_focus_df", tag="CACHE"):
+                        df_focus = build_focus_export_df(df_export_raw, foco=foco_ap)
+                    st.session_state["_focus_export_key"] = focus_key
+                    st.session_state["_focus_export_df"] = df_focus
 
-                finally:
-                    st.session_state["_export_busy"] = False
-                    st.session_state["_export_request"] = None
+                if st.session_state.get("_export_excel_key") != export_key:
+                    with _timed("EXPORT excel_bytes", tag="UI"):
+                        st.session_state["_export_excel"] = export_excel_one_sheet(cod_rt, df_export)
+                    st.session_state["_export_excel_key"] = export_key
 
-        dA, dB = st.columns(2)
+                if st.session_state.get("_export_pdf_key") != export_key:
+                    if modo == "LOCAL":
+                        pdf_lines = [
+                            f"STOCK_ZERO · {cod_rt} · {nombre_local_rr}",
+                            f"Gestión: {panel_mercaderista}  |  Modalidad: {panel_modalidad}",
+                            f"Fecha stock: {file_stamp}  |  Foco: {foco_ap}",
+                            f"Clientes: {', '.join(marcas) if marcas else 'Todos'}  |  Búsqueda: {search_ap if search_ap else '-'}",
+                        ]
+                    else:
+                        pdf_lines = [
+                            f"STOCK_ZERO · {cod_rt} · {nombre_local_rr}",
+                            f"Modalidad: {modalidad_sel}",
+                            f"Rutero: {rutero}  |  Reponedor: {reponedor}",
+                            f"Fecha stock: {file_stamp}  |  Foco: {foco_ap}",
+                            f"Clientes: {', '.join(marcas) if marcas else 'Todos'}  |  Búsqueda: {search_ap if search_ap else '-'}",
+                        ]
+
+                    with _timed("EXPORT pdf_bytes", tag="UI"):
+                        st.session_state["_export_pdf"] = export_pdf_table(pdf_lines, df_export)
+                    st.session_state["_export_pdf_key"] = export_key
+
+                if df_focus is not None and not df_focus.empty and st.session_state.get("_focus_export_excel_key") != focus_key:
+                    with _timed("EXPORT focus_excel_bytes", tag="UI"):
+                        st.session_state["_focus_export_excel"] = export_excel_generic(f"{cod_rt}_FOCO", df_focus)
+                    st.session_state["_focus_export_excel_key"] = focus_key
+
+        d1, d2, d3 = st.columns(3)
+
         if st.session_state.get("_export_excel") is not None:
-            dA.download_button(
-                "Descargar Excel (filtrado)",
+            d1.download_button(
+                "Descargar Excel",
                 data=st.session_state["_export_excel"],
                 file_name=f"STOCK_ZERO_{cod_rt}_{file_stamp}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
+
         if st.session_state.get("_export_pdf") is not None:
-            dB.download_button(
-                "Descargar PDF (filtrado)",
+            d2.download_button(
+                "Descargar PDF",
                 data=st.session_state["_export_pdf"],
                 file_name=f"STOCK_ZERO_{cod_rt}_{file_stamp}.pdf",
                 mime="application/pdf",
                 use_container_width=True,
             )
 
+        focus_excel = st.session_state.get("_focus_export_excel")
+        if focus_excel is not None:
+            d3.download_button(
+                "Descargar Excel foco local",
+                data=focus_excel,
+                file_name=f"STOCK_ZERO_FOCO_{cod_rt}_{file_stamp}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+        else:
+            d3.caption("Foco local: sin filas accionables para el filtro actual.")
 
 if __name__ == "__main__":
     main()
