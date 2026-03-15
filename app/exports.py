@@ -152,7 +152,24 @@ def _accion_sugerida(foco_principal: str) -> str:
     return ""
 
 
-def build_focus_export_df(df_ux: pd.DataFrame, foco: str = "Todo") -> pd.DataFrame:
+def _normalize_focos_export(foco) -> list[str]:
+    valid = ["Venta 0", "Negativo", "Quiebres", "Otros"]
+
+    if foco is None:
+        raw = []
+    elif isinstance(foco, str):
+        raw = [x.strip() for x in foco.replace("|", ",").split(",") if x.strip()]
+    else:
+        raw = [str(x).strip() for x in foco if str(x).strip()]
+
+    out = []
+    for x in raw:
+        if x in valid and x not in out:
+            out.append(x)
+    return out
+
+
+def build_focus_export_df(df_ux: pd.DataFrame, foco: str | list[str] = "Todo") -> pd.DataFrame:
     df = df_ux.copy()
 
     needed = [
@@ -182,16 +199,21 @@ def build_focus_export_df(df_ux: pd.DataFrame, foco: str = "Todo") -> pd.DataFra
     df["FOCO PRINCIPAL"] = df.apply(_focus_principal, axis=1)
     df["ACCIÓN SUGERIDA"] = df["FOCO PRINCIPAL"].apply(_accion_sugerida)
 
-    foco = (foco or "Todo").strip()
+    focos = _normalize_focos_export(foco)
 
-    if foco == "Venta 0":
-        df = df[df["VENTA 0"] == "SI"].copy()
-    elif foco == "Negativo":
-        df = df[df["NEGATIVO"] == "SI"].copy()
-    elif foco == "Quiebres":
-        df = df[df["RIESGO DE QUIEBRE"] == "SI"].copy()
-    elif foco == "Otros":
-        df = df[df["OTROS"] != ""].copy()
+    if focos:
+        mask = pd.Series(False, index=df.index)
+
+        if "Venta 0" in focos:
+            mask = mask | (df["VENTA 0"] == "SI")
+        if "Negativo" in focos:
+            mask = mask | (df["NEGATIVO"] == "SI")
+        if "Quiebres" in focos:
+            mask = mask | (df["RIESGO DE QUIEBRE"] == "SI")
+        if "Otros" in focos:
+            mask = mask | (df["OTROS"] != "")
+
+        df = df[mask].copy()
     else:
         df = df[df["FOCO PRINCIPAL"] != ""].copy()
 
