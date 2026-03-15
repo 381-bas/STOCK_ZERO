@@ -523,7 +523,7 @@ def _modalidad_clause(modalidad: str | None, field: str = "rr.modalidad") -> tup
 def _build_result_filters(
     marcas: list[str] | None,
     search: str,
-    foco: str,
+    foco: str | list[str] | tuple[str, ...] | None,
     alias: str = "",
 ) -> tuple[str, dict[str, Any]]:
     pfx = f"{alias}." if alias else ""
@@ -534,20 +534,44 @@ def _build_result_filters(
         filters.append(f'AND {pfx}"MARCA" = ANY(:marcas)')
         params["marcas"] = marcas
 
-    foco = (foco or "Todo").strip()
-    if foco == "Venta 0":
-        filters.append(f'AND COALESCE({pfx}"Venta(+7)", 0) = 0')
-    elif foco == "Negativo":
-        filters.append(f"AND UPPER(TRIM(COALESCE({pfx}\"NEGATIVO\", ''))) = 'SI'")
-    elif foco == "Quiebres":
-        filters.append(f"AND UPPER(TRIM(COALESCE({pfx}\"RIESGO DE QUIEBRE\", ''))) = 'SI'")
-    elif foco == "Otros":
-        filters.append(
-            f"""
-            AND NULLIF(TRIM(COALESCE({pfx}"OTROS", '')), '') IS NOT NULL
-            AND UPPER(TRIM(COALESCE({pfx}"OTROS", ''))) NOT IN ('NO', 'N/A', 'NA', '-')
-            """
-        )
+    valid_focos = ["Venta 0", "Negativo", "Quiebres", "Otros"]
+
+    if isinstance(foco, str):
+        raw_focos = [x.strip() for x in foco.replace("|", ",").split(",") if x.strip()]
+    elif foco is None:
+        raw_focos = []
+    else:
+        raw_focos = [str(x).strip() for x in foco if str(x).strip()]
+
+    focos = []
+    for item in raw_focos:
+        if item in valid_focos and item not in focos:
+            focos.append(item)
+
+    if focos:
+        foco_clauses: list[str] = []
+
+        if "Venta 0" in focos:
+            foco_clauses.append(f'COALESCE({pfx}"Venta(+7)", 0) = 0')
+
+        if "Negativo" in focos:
+            foco_clauses.append(f"UPPER(TRIM(COALESCE({pfx}\"NEGATIVO\", ''))) = 'SI'")
+
+        if "Quiebres" in focos:
+            foco_clauses.append(f"UPPER(TRIM(COALESCE({pfx}\"RIESGO DE QUIEBRE\", ''))) = 'SI'")
+
+        if "Otros" in focos:
+            foco_clauses.append(
+                f"""
+                (
+                    NULLIF(TRIM(COALESCE({pfx}"OTROS", '')), '') IS NOT NULL
+                    AND UPPER(TRIM(COALESCE({pfx}"OTROS", ''))) NOT IN ('NO', 'N/A', 'NA', '-')
+                )
+                """
+            )
+
+        if foco_clauses:
+            filters.append("AND (" + " OR ".join(f"({c})" for c in foco_clauses) + ")")
 
     s = (search or "").strip()
     if len(s) >= 2:
@@ -563,6 +587,7 @@ def _build_result_filters(
         params["q"] = f"%{s}%"
 
     return "\n".join(filters), params
+
 
 
 def _rr_scope_exists(alias: str = "v", modalidad: str | None = None) -> tuple[str, dict[str, Any]]:
