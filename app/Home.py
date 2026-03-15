@@ -291,6 +291,11 @@ def main():
         st.session_state["applied_search"] = ""
         st.session_state["applied_foco"] = []
         st.session_state["page"] = 1
+
+        # nuevo
+        st.session_state["page_input_ui"] = 1
+        st.session_state.pop("page_select_ui", None)
+
         _invalidate_runtime_cache()
         _dbg(f"RESET filters ({reason})")
         _dbg_block()
@@ -721,34 +726,43 @@ def main():
         )
         _dbg_block()
 
-    st.caption("FILTROS")
-    
-    with st.form("filters_form", clear_on_submit=False):
-        r1c1, r1c2 = st.columns([3, 2], gap="small")
-        with r1c1:
-            st.multiselect(
-                "CLIENTE (opcional)",
-                options=marcas_disponibles,
-                key="sel_marcas",
-                placeholder="Todos",
-            )
-        with r1c2:
-            st.multiselect(
-                "Foco operativo",
-                options=FOCO_OPTIONS,
-                key="f_foco",
-                placeholder="Todo",
-            )
+    filters_expanded = bool(
+        st.session_state.get("applied_marcas")
+        or _normalize_focos_ui(st.session_state.get("applied_foco", []))
+        or (st.session_state.get("applied_search", "") or "").strip()
+    )
 
-        r2c1, r2c2 = st.columns([4, 1], gap="small")
-        with r2c1:
+    with st.expander("FILTROS (opcional)", expanded=filters_expanded):
+        with st.form("filters_form", clear_on_submit=False):
+            r1c1, r1c2 = st.columns([3, 2], gap="small")
+
+            with r1c1:
+                st.multiselect(
+                    "CLIENTE (opcional)",
+                    options=marcas_disponibles,
+                    key="sel_marcas",
+                    placeholder="Todos",
+                )
+
+            with r1c2:
+                st.multiselect(
+                    "Foco operativo",
+                    options=FOCO_OPTIONS,
+                    key="f_foco",
+                    placeholder="Todo",
+                )
+
             st.text_input(
                 "Búsqueda (SKU o descripción)",
                 key="f_search",
                 placeholder="Ej: 779... / galleta / snack... (mín 2 caracteres)",
             )
-        with r2c2:
-            st.form_submit_button("Aplicar", on_click=_apply_filters)
+
+            st.form_submit_button(
+                "Aplicar",
+                on_click=_apply_filters,
+                use_container_width=True,
+            )
 
     marcas = list(st.session_state.get("applied_marcas", []) or [])
     foco_ap = _normalize_focos_ui(st.session_state.get("applied_foco", []))
@@ -837,33 +851,42 @@ def main():
         st.session_state["page"] = 1
 
     def _page_prev():
-        new_page = max(1, int(st.session_state.get("page", 1)) - 1)
-        st.session_state["page"] = new_page
-        st.session_state["page_select_ui"] = new_page
+        st.session_state["page"] = max(1, int(st.session_state.get("page", 1)) - 1)
+        st.session_state["page_input_ui"] = st.session_state["page"]
 
     def _page_next():
-        new_page = min(total_pages, int(st.session_state.get("page", 1)) + 1)
-        st.session_state["page"] = new_page
-        st.session_state["page_select_ui"] = new_page
+        st.session_state["page"] = min(total_pages, int(st.session_state.get("page", 1)) + 1)
+        st.session_state["page_input_ui"] = st.session_state["page"]
 
-    def _page_from_select():
+    def _page_from_input():
         try:
-            st.session_state["page"] = int(st.session_state.get("page_select_ui", 1))
+            new_page = int(st.session_state.get("page_input_ui", 1))
         except Exception:
-            st.session_state["page"] = 1
-            st.session_state["page_select_ui"] = 1
+            new_page = 1
 
-    page_options = list(range(1, total_pages + 1))
+        new_page = max(1, min(total_pages, new_page))
+        st.session_state["page"] = new_page
+        st.session_state["page_input_ui"] = new_page
+
     current_page = int(st.session_state.get("page", 1))
-
-    if current_page not in page_options:
+    if current_page < 1:
         current_page = 1
         st.session_state["page"] = 1
+    if current_page > total_pages:
+        current_page = total_pages
+        st.session_state["page"] = total_pages
 
-    if int(st.session_state.get("page_select_ui", current_page)) != current_page:
-        st.session_state["page_select_ui"] = current_page
+    if int(st.session_state.get("page_input_ui", current_page)) != current_page:
+        st.session_state["page_input_ui"] = current_page
 
-    p1, p2, p3 = st.columns([0.8, 3.2, 0.8], gap="small")
+    if total_rows:
+        start = (current_page - 1) * page_size + 1
+        end = min(current_page * page_size, total_rows)
+        pager_text = f"{start}-{end} de {total_rows} registros"
+    else:
+        pager_text = "Sin filas para el filtro aplicado."
+
+    p1, p2, p3, p4 = st.columns([0.9, 1.3, 0.9, 2.2], gap="small")
 
     with p1:
         st.button(
@@ -871,14 +894,17 @@ def main():
             key="page_prev_btn",
             disabled=(current_page <= 1),
             on_click=_page_prev,
+            use_container_width=True,
         )
 
     with p2:
-        st.selectbox(
+        st.number_input(
             "Página",
-            options=page_options,
-            key="page_select_ui",
-            on_change=_page_from_select,
+            min_value=1,
+            max_value=max(1, total_pages),
+            step=1,
+            key="page_input_ui",
+            on_change=_page_from_input,
             label_visibility="collapsed",
         )
 
@@ -888,14 +914,11 @@ def main():
             key="page_next_btn",
             disabled=(current_page >= total_pages),
             on_click=_page_next,
+            use_container_width=True,
         )
 
-    if total_rows:
-        start = (int(st.session_state["page"]) - 1) * page_size + 1
-        end = min(int(st.session_state["page"]) * page_size, total_rows)
-        st.caption(f"{start}-{end} de {total_rows} registros")
-    else:
-        st.caption("Sin filas para el filtro aplicado.")
+    with p4:
+        st.caption(pager_text)
 
     if total_rows == 0:
         df_page = pd.DataFrame(columns=[
@@ -1211,5 +1234,6 @@ def main():
                 )
             else:
                 st.caption("Sin PDF disponible")
+        
 if __name__ == "__main__":
     main()
