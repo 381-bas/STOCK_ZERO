@@ -48,6 +48,51 @@ SELECTOR_MODALIDAD_RR_VIEW = os.getenv("SELECTOR_MODALIDAD_RR_VIEW", "public.v_s
 LOCALES_MODALIDAD_RR_VIEW = os.getenv("LOCALES_MODALIDAD_RR_VIEW", "public.v_locales_por_modalidad_rutero")
 
 
+SCOPE_RR_DISTINCT_VIEW = os.getenv(
+    "SCOPE_RR_DISTINCT_VIEW",
+    "public.v_scope_cliente_responsable_rr_distinct",
+)
+SCOPE_SUMMARY_VIEW = os.getenv(
+    "SCOPE_SUMMARY_VIEW",
+    "public.v_scope_cliente_responsable_summary",
+)
+SCOPE_FACT_BRIDGE_VIEW = os.getenv(
+    "SCOPE_FACT_BRIDGE_VIEW",
+    "public.v_scope_cliente_responsable_fact_bridge",
+)
+
+
+CG_PARITY_VIEW = os.getenv(
+    "CG_PARITY_VIEW",
+    "public.v_cg_cumplimiento_semana_local_parity",
+)
+CG_SCOPE_VIEW = os.getenv(
+    "CG_SCOPE_VIEW",
+    "public.v_cg_cumplimiento_semana_scope",
+)
+CG_ALERTAS_VIEW = os.getenv(
+    "CG_ALERTAS_VIEW",
+    "public.v_cg_alertas_control_gestion",
+)
+CG_INICIO_JEFE_VIEW = os.getenv(
+    "CG_INICIO_JEFE_VIEW",
+    "public.v_cg_inicio_jefe",
+)
+CG_INICIO_GESTOR_VIEW = os.getenv(
+    "CG_INICIO_GESTOR_VIEW",
+    "public.v_cg_inicio_gestor",
+)
+CG_DETALLE_VIEW = os.getenv(
+    "CG_DETALLE_VIEW",
+    "public.v_cg_cumplimiento_detalle",
+)
+
+CG_COMPAT_ALERTAS_VIEW = os.getenv("CG_COMPAT_ALERTAS_VIEW", "public.v_alertas_control_gestion")
+CG_COMPAT_INICIO_JEFE_VIEW = os.getenv("CG_COMPAT_INICIO_JEFE_VIEW", "public.v_inicio_jefe")
+CG_COMPAT_INICIO_GESTOR_VIEW = os.getenv("CG_COMPAT_INICIO_GESTOR_VIEW", "public.v_inicio_gestor")
+CG_COMPAT_DETALLE_VIEW = os.getenv("CG_COMPAT_DETALLE_VIEW", "public.v_cumplimiento_detalle")
+
+
 def get_result_view_contract() -> dict[str, str]:
     return {
         "name": RESULT_VIEW,
@@ -1060,8 +1105,750 @@ def get_tabla_ux_export(
     })
 
 
+def _scope_tipo_norm(value: str | None) -> str | None:
+    v = str(value or "").strip().upper()
+    return v if v in {"GESTOR", "SUPERVISOR"} else None
+
+
+def _scope_match_text_expr(
+    alias: str,
+    preferred_field: str,
+    fallback_field: str | None = None,
+) -> str:
+    pfx = f"{alias}." if alias else ""
+    parts = [f"NULLIF(TRIM(COALESCE({pfx}{preferred_field}, '')), '')"]
+    if fallback_field and fallback_field != preferred_field:
+        parts.append(f"NULLIF(TRIM(COALESCE({pfx}{fallback_field}, '')), '')")
+    parts.append("''")
+    return "COALESCE(" + ", ".join(parts) + ")"
+
+
 # =========================================================
-# 5) AUDITORÍA DE COBERTURA E INCONSISTENCIAS
+# 5) CLIENTE_SCOPE SOBRE VISTAS DEDICADAS
+# =========================================================
+def _scope_norm_expr(field: str) -> str:
+    return f"UPPER(TRIM(COALESCE({field}, '')))"
+
+
+def _scope_is_selected(value: str | None) -> bool:
+    if value is None:
+        return False
+    v = str(value).strip()
+    return bool(v) and v.upper() != "TODOS"
+
+
+def _normalize_scope_focos(
+    focos: str | list[str] | tuple[str, ...] | None,
+) -> list[str]:
+    valid_focos = ["Venta 0", "Negativo", "Quiebres", "Otros"]
+
+    if isinstance(focos, str):
+        raw = [x.strip() for x in focos.replace("|", ",").split(",") if x.strip()]
+    elif focos is None:
+        raw = []
+    else:
+        raw = [str(x).strip() for x in focos if str(x).strip()]
+
+    out: list[str] = []
+    for item in raw:
+        if item in valid_focos and item not in out:
+            out.append(item)
+    return out
+
+
+def _scope_page_clause(
+    limit: int | None,
+    offset: int | None,
+    params: dict[str, Any],
+) -> str:
+    if limit is None:
+        return ""
+    params["limit"] = max(int(limit), 1)
+    params["offset"] = max(int(offset or 0), 0)
+    return " LIMIT :limit OFFSET :offset "
+
+
+def _scope_cliente_filters(
+    *,
+    alias: str = "",
+    marca: str | None = None,
+    cliente: str | None = None,
+    responsable_tipo: str | None = None,
+    responsable: str | None = None,
+    cliente_field: str = "cliente_norm",
+    responsable_field: str = "responsable_norm",
+    responsable_tipo_field: str = "responsable_tipo",
+    marca_field: str = "marca",
+    apply_marca_intersection: bool = False,
+) -> tuple[str, dict[str, Any]]:
+    pfx = f"{alias}." if alias else ""
+    params: dict[str, Any] = {}
+    filters: list[str] = []
+
+    if _scope_is_selected(cliente):
+        filters.append(
+            f"AND {_scope_norm_expr(f'{pfx}{cliente_field}')} = {_scope_norm_expr(':cliente')}"
+        )
+        params["cliente"] = str(cliente).strip()
+
+    tipo_norm = _scope_tipo_norm(responsable_tipo)
+
+    if _scope_is_selected(responsable) and tipo_norm is None:
+        filters.append("AND 1=0")
+
+    if tipo_norm is not None:
+        filters.append(
+            f"AND {_scope_norm_expr(f'{pfx}{responsable_tipo_field}')} = {_scope_norm_expr(':responsable_tipo')}"
+        )
+        params["responsable_tipo"] = tipo_norm
+
+    if _scope_is_selected(responsable):
+        filters.append(
+            f"AND {_scope_norm_expr(f'{pfx}{responsable_field}')} = {_scope_norm_expr(':responsable')}"
+        )
+        params["responsable"] = str(responsable).strip()
+
+    if _scope_is_selected(marca):
+        params["marca"] = str(marca).strip()
+        if apply_marca_intersection:
+            cliente_match_expr = _scope_match_text_expr(
+                alias,
+                cliente_field,
+                "cliente" if cliente_field != "cliente" else None,
+            )
+            filters.append(
+                f"""
+                AND EXISTS (
+                    SELECT 1
+                    FROM {SCOPE_FACT_BRIDGE_VIEW} b
+                    WHERE b.cod_rt = {pfx}cod_rt
+                      AND {_scope_norm_expr('b.cliente')} = {_scope_norm_expr(cliente_match_expr)}
+                      AND {_scope_norm_expr('b.marca')} = {_scope_norm_expr(':marca')}
+                )
+                """
+            )
+        else:
+            filters.append(
+                f"AND {_scope_norm_expr(f'{pfx}{marca_field}')} = {_scope_norm_expr(':marca')}"
+            )
+
+    return "\n".join(filters), params
+
+
+def _scope_summary_filters(
+    *,
+    alias: str = "",
+    marca: str | None = None,
+    cliente: str | None = None,
+    responsable_tipo: str | None = None,
+    responsable: str | None = None,
+    focos: str | list[str] | tuple[str, ...] | None = None,
+    search: str = "",
+) -> tuple[str, dict[str, Any]]:
+    filters_sql, params = _scope_cliente_filters(
+        alias=alias,
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=responsable_tipo,
+        responsable=responsable,
+        cliente_field="cliente_norm",
+        responsable_field="responsable_norm",
+        responsable_tipo_field="responsable_tipo",
+        marca_field="marca",
+        apply_marca_intersection=True,
+    )
+
+    pfx = f"{alias}." if alias else ""
+    filters: list[str] = [filters_sql] if filters_sql else []
+
+    focos_norm = _normalize_scope_focos(focos)
+    if focos_norm:
+        foco_clauses: list[str] = []
+        if "Venta 0" in focos_norm:
+            foco_clauses.append(f"COALESCE({pfx}venta_0, 0) > 0")
+        if "Negativo" in focos_norm:
+            foco_clauses.append(f"COALESCE({pfx}negativos, 0) > 0")
+        if "Quiebres" in focos_norm:
+            foco_clauses.append(f"COALESCE({pfx}quiebres, 0) > 0")
+        if "Otros" in focos_norm:
+            foco_clauses.append(f"COALESCE({pfx}otros, 0) > 0")
+        if foco_clauses:
+            filters.append("AND (" + " OR ".join(f"({c})" for c in foco_clauses) + ")")
+
+    s = (search or "").strip()
+    if len(s) >= 2:
+        filters.append(
+            f"""
+            AND (
+                CAST({pfx}cod_rt AS TEXT) ILIKE :q
+                OR COALESCE({pfx}local_nombre_rr, '') ILIKE :q
+                OR COALESCE({pfx}cliente, '') ILIKE :q
+                OR COALESCE({pfx}responsable, '') ILIKE :q
+            )
+            """
+        )
+        params["q"] = f"%{s}%"
+
+    return "\n".join(x for x in filters if x), params
+
+
+def _scope_detail_filters(
+    *,
+    alias: str = "",
+    marca: str | None = None,
+    cliente: str | None = None,
+    responsable_tipo: str | None = None,
+    responsable: str | None = None,
+    focos: str | list[str] | tuple[str, ...] | None = None,
+    search: str = "",
+) -> tuple[str, dict[str, Any]]:
+    filters_sql, params = _scope_cliente_filters(
+        alias=alias,
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=responsable_tipo,
+        responsable=responsable,
+        cliente_field="cliente",
+        responsable_field="responsable",
+        responsable_tipo_field="responsable_tipo",
+        marca_field="marca",
+        apply_marca_intersection=False,
+    )
+
+    pfx = f"{alias}." if alias else ""
+    filters: list[str] = [filters_sql] if filters_sql else []
+
+    focos_norm = _normalize_scope_focos(focos)
+    if focos_norm:
+        foco_clauses: list[str] = []
+        if "Venta 0" in focos_norm:
+            foco_clauses.append(f"COALESCE({pfx}venta_7, 0) = 0")
+        if "Negativo" in focos_norm:
+            foco_clauses.append(f"{_scope_norm_expr(f'{pfx}negativo')} = 'SI'")
+        if "Quiebres" in focos_norm:
+            foco_clauses.append(f"{_scope_norm_expr(f'{pfx}riesgo_quiebre')} = 'SI'")
+        if "Otros" in focos_norm:
+            foco_clauses.append(
+                f"""
+                (
+                    NULLIF(TRIM(COALESCE({pfx}otros, '')), '') IS NOT NULL
+                    AND {_scope_norm_expr(f'{pfx}otros')} NOT IN ('NO', 'N/A', 'NA', '-')
+                )
+                """
+            )
+        if foco_clauses:
+            filters.append("AND (" + " OR ".join(f"({c})" for c in foco_clauses) + ")")
+
+    s = (search or "").strip()
+    if len(s) >= 2:
+        filters.append(
+            f"""
+            AND (
+                CAST({pfx}cod_rt AS TEXT) ILIKE :q
+                OR COALESCE({pfx}local_nombre_rr, '') ILIKE :q
+                OR COALESCE({pfx}cliente, '') ILIKE :q
+                OR COALESCE({pfx}responsable, '') ILIKE :q
+                OR COALESCE({pfx}marca, '') ILIKE :q
+                OR CAST({pfx}sku AS TEXT) ILIKE :q
+                OR COALESCE({pfx}producto, '') ILIKE :q
+            )
+            """
+        )
+        params["q"] = f"%{s}%"
+
+    return "\n".join(x for x in filters if x), params
+
+
+def get_marcas_home_global() -> list[str]:
+    sql = f"""
+        SELECT DISTINCT
+            TRIM(marca) AS marca
+        FROM {SCOPE_FACT_BRIDGE_VIEW}
+        WHERE NULLIF(TRIM(COALESCE(marca, '')), '') IS NOT NULL
+        ORDER BY marca
+    """
+    df = _selector_df("get_marcas_home_global", sql)
+    return df["marca"].astype(str).tolist() if df is not None and not df.empty else []
+
+
+def get_clientes_home_scope(marca: str | None = None) -> list[str]:
+    where_extra, params = _scope_cliente_filters(
+        alias="rr",
+        marca=marca,
+        apply_marca_intersection=True,
+        cliente_field="cliente_norm",
+        responsable_field="responsable_norm",
+        responsable_tipo_field="responsable_tipo",
+    )
+    sql = f"""
+        SELECT DISTINCT
+            COALESCE(NULLIF(TRIM(rr.cliente), ''), TRIM(rr.cliente_norm)) AS cliente
+        FROM {SCOPE_RR_DISTINCT_VIEW} rr
+        WHERE NULLIF(TRIM(COALESCE(rr.cliente_norm, rr.cliente, '')), '') IS NOT NULL
+        {where_extra}
+        ORDER BY cliente
+    """
+    df = _selector_df("get_clientes_home_scope", sql, params)
+    return df["cliente"].astype(str).tolist() if df is not None and not df.empty else []
+
+
+def get_responsables_home_scope(
+    tipo: str,
+    marca: str | None = None,
+    cliente: str | None = None,
+) -> list[str]:
+    tipo_norm = str(tipo or "").strip().upper()
+    if tipo_norm not in {"GESTOR", "SUPERVISOR"}:
+        return []
+
+    where_extra, params = _scope_cliente_filters(
+        alias="rr",
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=tipo_norm,
+        apply_marca_intersection=True,
+        cliente_field="cliente_norm",
+        responsable_field="responsable_norm",
+        responsable_tipo_field="responsable_tipo",
+    )
+    sql = f"""
+        SELECT DISTINCT
+            COALESCE(NULLIF(TRIM(rr.responsable), ''), TRIM(rr.responsable_norm)) AS responsable
+        FROM {SCOPE_RR_DISTINCT_VIEW} rr
+        WHERE NULLIF(TRIM(COALESCE(rr.responsable_norm, rr.responsable, '')), '') IS NOT NULL
+        {where_extra}
+        ORDER BY responsable
+    """
+    df = _selector_df("get_responsables_home_scope", sql, params)
+    return df["responsable"].astype(str).tolist() if df is not None and not df.empty else []
+
+
+def get_rr_people_scope(
+    tipo: str,
+    responsable: str | None = None,
+    marca: str | None = None,
+    cliente: str | None = None,
+) -> pd.DataFrame:
+    tipo_norm = str(tipo or "").strip().upper()
+    if tipo_norm not in {"GESTOR", "SUPERVISOR"}:
+        return pd.DataFrame(
+            columns=[
+                "rutero",
+                "reponedor",
+                "responsable",
+                "cliente",
+                "locales_relacionados",
+            ]
+        )
+
+    where_extra, params = _scope_cliente_filters(
+        alias="rr",
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=tipo_norm,
+        responsable=responsable,
+        apply_marca_intersection=True,
+        cliente_field="cliente_norm",
+        responsable_field="responsable_norm",
+        responsable_tipo_field="responsable_tipo",
+    )
+    sql = f"""
+        SELECT
+            COALESCE(NULLIF(TRIM(rr.rutero), ''), '-') AS rutero,
+            COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-') AS reponedor,
+            COALESCE(NULLIF(TRIM(rr.responsable), ''), TRIM(rr.responsable_norm)) AS responsable,
+            COALESCE(NULLIF(TRIM(rr.cliente), ''), TRIM(rr.cliente_norm)) AS cliente,
+            COUNT(DISTINCT rr.cod_rt)::int AS locales_relacionados
+        FROM {SCOPE_RR_DISTINCT_VIEW} rr
+        WHERE 1=1
+        {where_extra}
+        GROUP BY 1, 2, 3, 4
+        ORDER BY rutero, reponedor, cliente
+    """
+    return _selector_df("get_rr_people_scope", sql, params)
+
+
+def get_scope_level(
+    cliente: str | None = None,
+    responsable: str | None = None,
+) -> str:
+    has_cliente = _scope_is_selected(cliente)
+    has_responsable = _scope_is_selected(responsable)
+
+    if not has_cliente and not has_responsable:
+        return "L0"
+    if has_cliente and not has_responsable:
+        return "L1"
+    if not has_cliente and has_responsable:
+        return "L2"
+    return "L3"
+
+
+def get_kpis_scope_cliente(
+    marca: str | None = None,
+    cliente: str | None = None,
+    responsable_tipo: str | None = None,
+    responsable: str | None = None,
+    focos: list[str] | None = None,
+    search: str = "",
+) -> pd.DataFrame:
+    where_summary, params_summary = _scope_summary_filters(
+        alias="s",
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=responsable_tipo,
+        responsable=responsable,
+        focos=focos,
+        search=search,
+    )
+
+    where_detail, params_detail = _scope_detail_filters(
+        alias="b",
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=responsable_tipo,
+        responsable=responsable,
+        focos=focos,
+        search=search,
+    )
+
+    params = {**params_summary, **params_detail}
+
+    sql = f"""
+        WITH kpi AS (
+            SELECT
+                COUNT(DISTINCT s.cod_rt)::int AS locales_scope,
+                COUNT(DISTINCT s.cliente_norm)::int AS clientes_scope,
+                COUNT(DISTINCT s.responsable_norm)::int AS responsables_scope,
+                COALESCE(SUM(s.skus_scope), 0)::int AS total_skus,
+                COALESCE(SUM(s.venta_0), 0)::int AS venta_0,
+                COALESCE(SUM(s.negativos), 0)::int AS negativos,
+                COALESCE(SUM(s.quiebres), 0)::int AS quiebres,
+                COALESCE(SUM(s.otros), 0)::int AS otros
+            FROM {SCOPE_SUMMARY_VIEW} s
+            WHERE 1=1
+            {where_summary}
+        ),
+        fecha AS (
+            SELECT
+                MAX(b.fecha) AS fecha_stock
+            FROM {SCOPE_FACT_BRIDGE_VIEW} b
+            WHERE 1=1
+            {where_detail}
+        )
+        SELECT
+            fecha.fecha_stock,
+            kpi.locales_scope,
+            kpi.clientes_scope,
+            kpi.responsables_scope,
+            kpi.total_skus,
+            kpi.venta_0,
+            kpi.negativos,
+            kpi.quiebres,
+            kpi.otros
+        FROM kpi
+        CROSS JOIN fecha
+    """
+    return qdf(sql, params)
+
+
+def get_tabla_scope_responsable_total_page(
+    marca: str | None = None,
+    cliente: str | None = None,
+    responsable_tipo: str | None = None,
+    responsable: str | None = None,
+    focos: list[str] | None = None,
+    search: str = "",
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    where_extra, params = _scope_summary_filters(
+        alias="s",
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=responsable_tipo,
+        responsable=responsable,
+        focos=focos,
+        search=search,
+    )
+    page_sql = _scope_page_clause(limit, offset, params)
+
+    sql = f"""
+        WITH base AS (
+            SELECT
+                COALESCE(NULLIF(TRIM(s.responsable_tipo), ''), '-') AS responsable_tipo,
+                COALESCE(NULLIF(TRIM(s.responsable), ''), TRIM(s.responsable_norm)) AS responsable,
+                COUNT(DISTINCT s.cliente_norm)::int AS clientes,
+                COUNT(DISTINCT s.cod_rt)::int AS locales,
+                COALESCE(SUM(s.skus_scope), 0)::int AS total_skus,
+                COALESCE(SUM(s.venta_0), 0)::int AS venta_0,
+                COALESCE(SUM(s.negativos), 0)::int AS negativos,
+                COALESCE(SUM(s.quiebres), 0)::int AS quiebres,
+                COALESCE(SUM(s.otros), 0)::int AS otros,
+                (
+                    COALESCE(SUM(s.venta_0), 0)
+                    + COALESCE(SUM(s.negativos), 0)
+                    + COALESCE(SUM(s.quiebres), 0)
+                    + COALESCE(SUM(s.otros), 0)
+                )::int AS skus_en_foco
+            FROM {SCOPE_SUMMARY_VIEW} s
+            WHERE 1=1
+            {where_extra}
+            GROUP BY 1, 2
+        )
+        SELECT
+            base.*,
+            COUNT(*) OVER()::int AS total_rows
+        FROM base
+        ORDER BY skus_en_foco DESC, negativos DESC, venta_0 DESC, otros DESC, quiebres DESC, responsable ASC
+        {page_sql}
+    """
+    return qdf(sql, params)
+
+
+def get_tabla_scope_cliente_total_page(
+    marca: str | None = None,
+    cliente: str | None = None,
+    responsable_tipo: str | None = None,
+    responsable: str | None = None,
+    focos: list[str] | None = None,
+    search: str = "",
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    where_extra, params = _scope_summary_filters(
+        alias="s",
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=responsable_tipo,
+        responsable=responsable,
+        focos=focos,
+        search=search,
+    )
+    page_sql = _scope_page_clause(limit, offset, params)
+
+    sql = f"""
+        WITH base AS (
+            SELECT
+                COALESCE(NULLIF(TRIM(s.cliente), ''), TRIM(s.cliente_norm)) AS cliente,
+                COUNT(DISTINCT s.responsable_norm)::int AS responsables,
+                COUNT(DISTINCT s.cod_rt)::int AS locales,
+                COALESCE(SUM(s.skus_scope), 0)::int AS total_skus,
+                COALESCE(SUM(s.venta_0), 0)::int AS venta_0,
+                COALESCE(SUM(s.negativos), 0)::int AS negativos,
+                COALESCE(SUM(s.quiebres), 0)::int AS quiebres,
+                COALESCE(SUM(s.otros), 0)::int AS otros,
+                (
+                    COALESCE(SUM(s.venta_0), 0)
+                    + COALESCE(SUM(s.negativos), 0)
+                    + COALESCE(SUM(s.quiebres), 0)
+                    + COALESCE(SUM(s.otros), 0)
+                )::int AS skus_en_foco
+            FROM {SCOPE_SUMMARY_VIEW} s
+            WHERE 1=1
+            {where_extra}
+            GROUP BY 1
+        )
+        SELECT
+            base.*,
+            COUNT(*) OVER()::int AS total_rows
+        FROM base
+        ORDER BY skus_en_foco DESC, negativos DESC, venta_0 DESC, otros DESC, quiebres DESC, cliente ASC
+        {page_sql}
+    """
+    return qdf(sql, params)
+
+
+def get_tabla_scope_local_total_page(
+    marca: str | None = None,
+    cliente: str | None = None,
+    responsable_tipo: str | None = None,
+    responsable: str | None = None,
+    focos: list[str] | None = None,
+    search: str = "",
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    where_extra, params = _scope_summary_filters(
+        alias="s",
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=responsable_tipo,
+        responsable=responsable,
+        focos=focos,
+        search=search,
+    )
+    rr_where_extra, rr_params = _scope_cliente_filters(
+        alias="rr",
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=responsable_tipo,
+        responsable=responsable,
+        cliente_field="cliente_norm",
+        responsable_field="responsable_norm",
+        responsable_tipo_field="responsable_tipo",
+        apply_marca_intersection=True,
+    )
+    params = {**params, **rr_params}
+    page_sql = _scope_page_clause(limit, offset, params)
+
+    sql = f"""
+        WITH rr_ctx AS (
+            SELECT
+                rr.cod_rt,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(rr.cliente_norm), ''), NULLIF(TRIM(rr.cliente), ''), ''))) AS cliente_norm_match,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(rr.responsable_tipo), ''), '-'))) AS responsable_tipo_match,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(rr.responsable_norm), ''), NULLIF(TRIM(rr.responsable), ''), ''))) AS responsable_norm_match,
+                STRING_AGG(
+                    DISTINCT COALESCE(NULLIF(TRIM(rr.rutero), ''), '-'),
+                    ' | '
+                    ORDER BY COALESCE(NULLIF(TRIM(rr.rutero), ''), '-')
+                ) AS rutero,
+                STRING_AGG(
+                    DISTINCT COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-'),
+                    ' | '
+                    ORDER BY COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-')
+                ) AS reponedor
+            FROM {SCOPE_RR_DISTINCT_VIEW} rr
+            WHERE 1=1
+            {rr_where_extra}
+            GROUP BY 1, 2, 3, 4
+        ),
+        base AS (
+            SELECT
+                s.cod_rt,
+                COALESCE(NULLIF(TRIM(s.local_nombre_rr), ''), CAST(s.cod_rt AS TEXT)) AS nombre_local_rr,
+                COALESCE(NULLIF(TRIM(s.cliente), ''), TRIM(s.cliente_norm)) AS cliente,
+                COALESCE(NULLIF(TRIM(s.responsable_tipo), ''), '-') AS responsable_tipo,
+                COALESCE(NULLIF(TRIM(s.responsable), ''), TRIM(s.responsable_norm)) AS responsable,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(s.cliente_norm), ''), NULLIF(TRIM(s.cliente), ''), ''))) AS cliente_norm_match,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(s.responsable_tipo), ''), '-'))) AS responsable_tipo_match,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(s.responsable_norm), ''), NULLIF(TRIM(s.responsable), ''), ''))) AS responsable_norm_match,
+                COALESCE(SUM(s.skus_scope), 0)::int AS total_skus,
+                COALESCE(SUM(s.venta_0), 0)::int AS venta_0,
+                COALESCE(SUM(s.negativos), 0)::int AS negativos,
+                COALESCE(SUM(s.quiebres), 0)::int AS quiebres,
+                COALESCE(SUM(s.otros), 0)::int AS otros,
+                (
+                    COALESCE(SUM(s.venta_0), 0)
+                    + COALESCE(SUM(s.negativos), 0)
+                    + COALESCE(SUM(s.quiebres), 0)
+                    + COALESCE(SUM(s.otros), 0)
+                )::int AS skus_en_foco
+            FROM {SCOPE_SUMMARY_VIEW} s
+            WHERE 1=1
+            {where_extra}
+            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
+        )
+        SELECT
+            base.cod_rt,
+            base.nombre_local_rr,
+            base.cliente,
+            base.responsable_tipo,
+            base.responsable,
+            COALESCE(rr_ctx.rutero, '-') AS rutero,
+            COALESCE(rr_ctx.reponedor, '-') AS reponedor,
+            base.total_skus,
+            base.venta_0,
+            base.negativos,
+            base.quiebres,
+            base.otros,
+            base.skus_en_foco,
+            COUNT(*) OVER()::int AS total_rows
+        FROM base
+        LEFT JOIN rr_ctx
+            ON rr_ctx.cod_rt = base.cod_rt
+           AND rr_ctx.cliente_norm_match = base.cliente_norm_match
+           AND rr_ctx.responsable_tipo_match = base.responsable_tipo_match
+           AND rr_ctx.responsable_norm_match = base.responsable_norm_match
+        ORDER BY
+            base.skus_en_foco DESC,
+            base.negativos DESC,
+            base.venta_0 DESC,
+            base.otros DESC,
+            base.quiebres DESC,
+            base.nombre_local_rr ASC
+        {page_sql}
+    """
+    return qdf(sql, params)
+
+
+def get_detalle_sku_scope_total_page(
+    marca: str | None = None,
+    cliente: str | None = None,
+    responsable_tipo: str | None = None,
+    responsable: str | None = None,
+    focos: list[str] | None = None,
+    search: str = "",
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    level = get_scope_level(cliente=cliente, responsable=responsable)
+    if level in {"L0", "L1"}:
+        return pd.DataFrame(
+            columns=[
+                "fecha",
+                "cod_rt",
+                "nombre_local_rr",
+                "cliente",
+                "responsable_tipo",
+                "responsable",
+                "marca",
+                "sku",
+                "descripcion",
+                "stock",
+                "venta_7",
+                "negativo",
+                "riesgo_quiebre",
+                "otros",
+                "total_rows",
+            ]
+        )
+
+    where_extra, params = _scope_detail_filters(
+        alias="b",
+        marca=marca,
+        cliente=cliente,
+        responsable_tipo=responsable_tipo,
+        responsable=responsable,
+        focos=focos,
+        search=search,
+    )
+    page_sql = _scope_page_clause(limit, offset, params)
+
+    sql = f"""
+        SELECT
+            b.fecha,
+            b.cod_rt,
+            COALESCE(NULLIF(TRIM(b.local_nombre_rr), ''), CAST(b.cod_rt AS TEXT)) AS nombre_local_rr,
+            COALESCE(NULLIF(TRIM(b.cliente), ''), '') AS cliente,
+            COALESCE(NULLIF(TRIM(b.responsable_tipo), ''), '-') AS responsable_tipo,
+            COALESCE(NULLIF(TRIM(b.responsable), ''), '') AS responsable,
+            COALESCE(NULLIF(TRIM(b.marca), ''), '') AS marca,
+            CAST(b.sku AS TEXT) AS sku,
+            COALESCE(b.producto, '') AS descripcion,
+            COALESCE(b.stock, 0)::int AS stock,
+            COALESCE(b.venta_7, 0)::int AS venta_7,
+            COALESCE(b.negativo, '') AS negativo,
+            COALESCE(b.riesgo_quiebre, '') AS riesgo_quiebre,
+            COALESCE(b.otros, '') AS otros,
+            COUNT(*) OVER()::int AS total_rows
+        FROM {SCOPE_FACT_BRIDGE_VIEW} b
+        WHERE 1=1
+        {where_extra}
+        ORDER BY
+            CASE WHEN {_scope_norm_expr('b.negativo')} = 'SI' THEN 0 ELSE 1 END ASC,
+            CASE WHEN {_scope_norm_expr('b.riesgo_quiebre')} = 'SI' THEN 0 ELSE 1 END ASC,
+            COALESCE(b.venta_7, 0) ASC,
+            COALESCE(b.marca, '') ASC,
+            CAST(b.sku AS TEXT) ASC
+        {page_sql}
+    """
+    return qdf(sql, params)
+
+
+# =========================================================
+# 6) AUDITORÍA DE COBERTURA E INCONSISTENCIAS
 # =========================================================
 def get_scope_clientes_rr(
     cod_rt: str,
@@ -1166,3 +1953,182 @@ def get_clientes_sin_match_rr_stock(
           )
         ORDER BY cliente_rr
     """, {"cod_rt": cod_rt, "rutero": rutero, "reponedor": reponedor, **extra})
+
+
+# =========================================================
+# 7) CONTROL GESTION B3 / CONTRATO PUBLICO CANONICO
+# =========================================================
+def get_cg_contract() -> dict[str, Any]:
+    return {
+        "status": "frozen",
+        "branch": "B3_CONTROL_GESTION_SQL",
+        "roles_publicos": ["JEFE_OPERACIONES", "GESTOR"],
+        "views": {
+            "parity": CG_PARITY_VIEW,
+            "scope": CG_SCOPE_VIEW,
+            "alertas": CG_ALERTAS_VIEW,
+            "inicio_jefe": CG_INICIO_JEFE_VIEW,
+            "inicio_gestor": CG_INICIO_GESTOR_VIEW,
+            "detalle": CG_DETALLE_VIEW,
+        },
+        "compat_aliases": {
+            "alertas": CG_COMPAT_ALERTAS_VIEW,
+            "inicio_jefe": CG_COMPAT_INICIO_JEFE_VIEW,
+            "inicio_gestor": CG_COMPAT_INICIO_GESTOR_VIEW,
+            "detalle": CG_COMPAT_DETALLE_VIEW,
+        },
+        "rules": [
+            "no_recalculo_negocio_en_python",
+            "pair_global_truth_separada_de_scope_assigned_truth",
+            "no_supervisor_no_reponedor_en_contrato_publico_actual",
+        ],
+    }
+
+
+def _cg_page_clause(limit: int | None, offset: int | None, params: dict[str, Any]) -> str:
+    clauses: list[str] = []
+    if limit is not None:
+        params["limit"] = max(1, int(limit))
+        clauses.append("LIMIT :limit")
+    if offset is not None:
+        params["offset"] = max(0, int(offset))
+        clauses.append("OFFSET :offset")
+    return (" " + " ".join(clauses)) if clauses else ""
+
+
+def _cg_select_page(
+    *,
+    selector_name: str,
+    view_name: str,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    params: dict[str, Any] = {}
+    page_sql = _cg_page_clause(limit, offset, params)
+    sql = f"""
+        SELECT *
+        FROM {view_name}
+        {page_sql}
+    """
+    return _selector_df(selector_name, sql, params or None)
+
+
+def get_cg_cumplimiento_semana_local_parity(
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    return _cg_select_page(
+        selector_name="get_cg_cumplimiento_semana_local_parity",
+        view_name=CG_PARITY_VIEW,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def get_cg_cumplimiento_semana_scope(
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    return _cg_select_page(
+        selector_name="get_cg_cumplimiento_semana_scope",
+        view_name=CG_SCOPE_VIEW,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def get_cg_alertas_control_gestion(
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    return _cg_select_page(
+        selector_name="get_cg_alertas_control_gestion",
+        view_name=CG_ALERTAS_VIEW,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def get_cg_inicio_jefe(
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    return _cg_select_page(
+        selector_name="get_cg_inicio_jefe",
+        view_name=CG_INICIO_JEFE_VIEW,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def get_cg_inicio_gestor(
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    return _cg_select_page(
+        selector_name="get_cg_inicio_gestor",
+        view_name=CG_INICIO_GESTOR_VIEW,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def get_cg_cumplimiento_detalle(
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    return _cg_select_page(
+        selector_name="get_cg_cumplimiento_detalle",
+        view_name=CG_DETALLE_VIEW,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def get_cg_contract_smoke() -> dict[str, Any]:
+    checks = [
+        ("parity", CG_PARITY_VIEW),
+        ("scope", CG_SCOPE_VIEW),
+        ("alertas", CG_ALERTAS_VIEW),
+        ("inicio_jefe", CG_INICIO_JEFE_VIEW),
+        ("inicio_gestor", CG_INICIO_GESTOR_VIEW),
+        ("detalle", CG_DETALLE_VIEW),
+    ]
+    results: list[dict[str, Any]] = []
+    failed_objects: list[str] = []
+    non_zero_expected = {"parity", "scope", "alertas", "inicio_jefe", "inicio_gestor", "detalle"}
+
+    for object_name, view_name in checks:
+        try:
+            df = _selector_df(
+                f"smoke_{object_name}",
+                f"SELECT COUNT(*)::int AS rows FROM {view_name}",
+            )
+            rows = int(df.iloc[0]["rows"] or 0) if df is not None and not df.empty else 0
+            status = "ok" if rows > 0 or object_name not in non_zero_expected else "warn"
+            results.append({
+                "object": object_name,
+                "view": view_name,
+                "rows": rows,
+                "status": status,
+            })
+        except Exception as exc:
+            failed_objects.append(object_name)
+            results.append({
+                "object": object_name,
+                "view": view_name,
+                "rows": None,
+                "status": "fail",
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+
+    zero_warns = [r["object"] for r in results if r.get("status") == "warn"]
+    smoke_status = "fail" if failed_objects else ("warn" if zero_warns else "ok")
+    return {
+        "smoke_status": smoke_status,
+        "branch": "B3_CONTROL_GESTION_SQL",
+        "views_checked": len(checks),
+        "failed_objects": failed_objects,
+        "zero_row_objects": zero_warns,
+        "results": results,
+    }
