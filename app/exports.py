@@ -2,7 +2,7 @@
 import io
 import pandas as pd
 from openpyxl.styles import PatternFill, Font
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A4, A3, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, LongTable, TableStyle, Paragraph, Spacer
@@ -23,6 +23,11 @@ EXPORT_COLS = [
 
 FOCUS_EXPORT_COLS = [
     "Fecha stock",
+    "COD_RT",
+    "LOCAL",
+    "CLIENTE",
+    "RUTERO",
+    "REPONEDOR",
     "MARCA",
     "Sku",
     "Descripción del Producto",
@@ -89,11 +94,6 @@ def _sorted_for_export(df_in: pd.DataFrame) -> pd.DataFrame:
 
     df = df_in.copy()
 
-    base_cols = [c for c in df.columns]
-    for c in base_cols:
-        if c not in df.columns:
-            df[c] = ""
-
     if "MARCA" not in df.columns:
         df["MARCA"] = ""
     if "Sku" not in df.columns:
@@ -101,17 +101,33 @@ def _sorted_for_export(df_in: pd.DataFrame) -> pd.DataFrame:
     if "Descripción del Producto" not in df.columns:
         df["Descripción del Producto"] = ""
 
-    df["MARCA"] = df["MARCA"].astype(str)
-    df["Sku"] = df["Sku"].astype(str)
-    df["Descripción del Producto"] = df["Descripción del Producto"].astype(str)
+    for c in ["MARCA", "Sku", "Descripción del Producto", "CLIENTE", "COD_RT", "LOCAL", "RUTERO", "REPONEDOR", "FOCO PRINCIPAL"]:
+        if c in df.columns:
+            df[c] = df[c].astype(str)
 
     sku_num = pd.to_numeric(df["Sku"], errors="coerce")
     df["_sku_is_text"] = sku_num.isna().astype(int)
     df["_sku_num"] = sku_num.fillna(0)
 
-    sort_cols = ["MARCA", "_sku_is_text", "_sku_num", "Sku", "Descripción del Producto"]
-    if "FOCO PRINCIPAL" in df.columns:
+    if "FOCO PRINCIPAL" in df.columns and ({"CLIENTE", "COD_RT", "LOCAL"} & set(df.columns)):
+        if "CLIENTE" not in df.columns:
+            df["CLIENTE"] = ""
+        if "COD_RT" not in df.columns:
+            df["COD_RT"] = ""
+        if "LOCAL" not in df.columns:
+            df["LOCAL"] = ""
+        if "RUTERO" not in df.columns:
+            df["RUTERO"] = ""
+        if "REPONEDOR" not in df.columns:
+            df["REPONEDOR"] = ""
+        sort_cols = [
+            "CLIENTE", "COD_RT", "LOCAL", "RUTERO", "REPONEDOR",
+            "MARCA", "FOCO PRINCIPAL", "_sku_is_text", "_sku_num", "Sku", "Descripción del Producto"
+        ]
+    elif "FOCO PRINCIPAL" in df.columns:
         sort_cols = ["MARCA", "FOCO PRINCIPAL", "_sku_is_text", "_sku_num", "Sku", "Descripción del Producto"]
+    else:
+        sort_cols = ["MARCA", "_sku_is_text", "_sku_num", "Sku", "Descripción del Producto"]
 
     df = df.sort_values(
         by=sort_cols,
@@ -174,6 +190,11 @@ def build_focus_export_df(df_ux: pd.DataFrame, foco: str | list[str] = "Todo") -
 
     needed = [
         "fecha",
+        "COD_RT",
+        "LOCAL",
+        "CLIENTE",
+        "RUTERO",
+        "REPONEDOR",
         "MARCA",
         "Sku",
         "Descripción del Producto",
@@ -188,6 +209,8 @@ def build_focus_export_df(df_ux: pd.DataFrame, foco: str | list[str] = "Todo") -
             df[c] = ""
 
     df["Fecha stock"] = pd.to_datetime(df["fecha"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
+    for c in ["COD_RT", "LOCAL", "CLIENTE", "RUTERO", "REPONEDOR", "MARCA"]:
+        df[c] = df[c].astype(str).replace({"nan": "", "None": ""}).fillna("")
     df["Sku"] = df["Sku"].astype(str)
     df["Stock"] = pd.to_numeric(df["Stock"], errors="coerce").fillna(0).astype(int)
     df["Venta(+7)"] = pd.to_numeric(df["Venta(+7)"], errors="coerce").fillna(0).astype(int)
@@ -328,25 +351,102 @@ def export_pdf_table(title_lines: list[str], df_export: pd.DataFrame) -> bytes:
     return out.getvalue()
 
 
+
+def _pdf_column_widths(columns: list[str]) -> tuple[list[float], object]:
+    width_map_cm = {
+        "Fecha stock": 2.1,
+        "FECHA STOCK": 2.1,
+        "MARCA": 2.2,
+        "Sku": 2.0,
+        "SKU": 2.0,
+        "COD_RT": 2.0,
+        "LOCAL": 4.2,
+        "CLIENTE": 3.2,
+        "RESP. TIPO": 2.5,
+        "RESPONSABLE": 3.2,
+        "RUTERO": 3.0,
+        "REPONEDOR": 3.4,
+        "CLIENTES": 2.2,
+        "LOCALES": 2.0,
+        "TOTAL SKUS": 2.3,
+        "SKUS EN FOCO": 2.5,
+        "Stock": 1.6,
+        "STOCK": 1.6,
+        "VENTA(+7)": 2.0,
+        "VENTA 0": 1.9,
+        "NEGATIVO": 2.0,
+        "RIESGO DE QUIEBRE": 3.0,
+        "QUIEBRES OBS.": 2.8,
+        "OTROS": 2.4,
+        "Descripción del Producto": 8.4,
+        "PRODUCTO": 8.4,
+        "FOCO PRINCIPAL": 2.8,
+        "ACCIÓN SUGERIDA": 4.8,
+    }
+    widths_cm = [width_map_cm.get(col, 2.5) for col in columns]
+    total_cm = sum(widths_cm)
+    pagesize = landscape(A3) if len(columns) >= 10 or total_cm > 27.2 else landscape(A4)
+    return [w * cm for w in widths_cm], pagesize
+
+
 def export_pdf_generic(title_lines: list[str], df_export: pd.DataFrame, columns: list[str]) -> bytes:
     out = io.BytesIO()
+    col_widths, pagesize = _pdf_column_widths(columns)
     doc = SimpleDocTemplate(
         out,
-        pagesize=landscape(A4),
-        leftMargin=1.0 * cm,
-        rightMargin=1.0 * cm,
-        topMargin=1.0 * cm,
-        bottomMargin=1.0 * cm,
+        pagesize=pagesize,
+        leftMargin=0.8 * cm,
+        rightMargin=0.8 * cm,
+        topMargin=0.8 * cm,
+        bottomMargin=0.8 * cm,
     )
 
     styles = getSampleStyleSheet()
     body = ParagraphStyle(
-        "BodySmall",
+        "BodySmallWrap",
         parent=styles["BodyText"],
         fontName="Helvetica",
+        fontSize=6.3,
+        leading=7.2,
+    )
+    header = ParagraphStyle(
+        "HeaderSmallWrap",
+        parent=styles["BodyText"],
+        fontName="Helvetica-Bold",
         fontSize=7,
         leading=8,
     )
+
+    wrap_cols = {
+        "Descripción del Producto",
+        "PRODUCTO",
+        "ACCIÓN SUGERIDA",
+        "OTROS",
+        "LOCAL",
+        "CLIENTE",
+        "RESPONSABLE",
+        "RESP. TIPO",
+        "RUTERO",
+        "REPONEDOR",
+        "FOCO PRINCIPAL",
+    }
+    numeric_cols = {
+        "Stock",
+        "STOCK",
+        "TOTAL SKUS",
+        "SKUS EN FOCO",
+        "VENTA(+7)",
+        "VENTA 0",
+        "CLIENTES",
+        "LOCALES",
+    }
+    center_cols = {
+        "VENTA 0",
+        "NEGATIVO",
+        "RIESGO DE QUIEBRE",
+        "QUIEBRES OBS.",
+        "FOCO PRINCIPAL",
+    }
 
     story = []
     for line in title_lines:
@@ -354,81 +454,43 @@ def export_pdf_generic(title_lines: list[str], df_export: pd.DataFrame, columns:
     story.append(Spacer(1, 8))
 
     df = _sorted_for_export(df_export)
-    # ensure required cols exist
     for c in columns:
         if c not in df.columns:
             df[c] = ""
     df = df[columns].copy()
-    # render description-like columns with Paragraph
-    data = [columns]
+
+    data = [[Paragraph(str(col), header) for col in columns]]
     for _, r in df.iterrows():
         row = []
         for c in columns:
             v = r.get(c, "")
-            if c in {"Descripción del Producto", "ACCIÓN SUGERIDA"}:
+            if c in wrap_cols:
                 row.append(Paragraph(str(v), body))
             else:
                 row.append(str(v))
         data.append(row)
 
-    # choose layout widths based on columns
-    if columns == EXPORT_COLS:
-        col_widths = [
-            2.4 * cm,
-            2.6 * cm,
-            2.6 * cm,
-            9.8 * cm,
-            1.8 * cm,
-            2.0 * cm,
-            2.0 * cm,
-            3.0 * cm,
-            2.0 * cm,
-        ]
-        align_center_range = (5, 7)
-        align_left_index = 8
-    else:
-        # layout for FOCUS_EXPORT_COLS (11 cols)
-        col_widths = [
-            2.2 * cm,  # Fecha stock
-            2.6 * cm,  # MARCA
-            2.6 * cm,  # Sku
-            8.8 * cm,  # Descripción
-            1.8 * cm,  # Stock
-            2.4 * cm,  # FOCO PRINCIPAL
-            4.2 * cm,  # ACCIÓN SUGERIDA
-            2.0 * cm,  # VENTA 0
-            2.0 * cm,  # NEGATIVO
-            3.0 * cm,  # RIESGO DE QUIEBRE
-            2.0 * cm,  # OTROS
-        ]
-        # center the flags columns (VENTA 0..RIESGO)
-        align_center_range = (7, 9)
-        align_left_index = 10
-
     table = LongTable(data, colWidths=col_widths, repeatRows=1)
     style = [
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E6E6E6")),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 8),
-        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 1), (-1, -1), 7),
         ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CFCFCF")),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F7F7")]),
-        ("ALIGN", (4, 1), (4, -1), "RIGHT"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
     ]
 
-    # center flags
-    style.append(("ALIGN", (align_center_range[0], 1), (align_center_range[1], -1), "CENTER"))
-    # left-align the last 'otros' like original
-    style.append(("ALIGN", (align_left_index, 1), (align_left_index, -1), "LEFT"))
+    for idx, col in enumerate(columns):
+        if col in numeric_cols:
+            style.append(("ALIGN", (idx, 1), (idx, -1), "RIGHT"))
+        elif col in center_cols:
+            style.append(("ALIGN", (idx, 1), (idx, -1), "CENTER"))
+        else:
+            style.append(("ALIGN", (idx, 1), (idx, -1), "LEFT"))
 
     table.setStyle(TableStyle(style))
-
     story.append(table)
     doc.build(story)
     return out.getvalue()
