@@ -40,6 +40,8 @@ FOCUS_EXPORT_COLS = [
     "OTROS",
 ]
 
+INVENTORY_CLIENTE_EXPORT_COLS = FOCUS_EXPORT_COLS.copy()
+
 
 def _clean_yes(v) -> str:
     return "SI" if str(v or "").strip().upper() == "SI" else ""
@@ -183,6 +185,50 @@ def _normalize_focos_export(foco) -> list[str]:
         if x in valid and x not in out:
             out.append(x)
     return out
+
+
+def build_inventory_cliente_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
+    df = df_ux.copy()
+
+    needed = [
+        "fecha",
+        "COD_RT",
+        "LOCAL",
+        "CLIENTE",
+        "RUTERO",
+        "REPONEDOR",
+        "MARCA",
+        "Sku",
+        "Descripción del Producto",
+        "Stock",
+        "Venta(+7)",
+        "NEGATIVO",
+        "RIESGO DE QUIEBRE",
+        "OTROS",
+    ]
+    for c in needed:
+        if c not in df.columns:
+            df[c] = ""
+
+    df["Fecha stock"] = pd.to_datetime(df["fecha"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
+    for c in ["COD_RT", "LOCAL", "CLIENTE", "RUTERO", "REPONEDOR", "MARCA"]:
+        df[c] = df[c].astype(str).replace({"nan": "", "None": ""}).fillna("")
+    df["Sku"] = df["Sku"].astype(str)
+    df["Stock"] = pd.to_numeric(df["Stock"], errors="coerce").fillna(0).astype(int)
+    df["Venta(+7)"] = pd.to_numeric(df["Venta(+7)"], errors="coerce").fillna(0).astype(int)
+
+    df["VENTA 0"] = df["Venta(+7)"].apply(_venta_0_flag)
+    df["NEGATIVO"] = df["NEGATIVO"].apply(_clean_yes)
+    df["RIESGO DE QUIEBRE"] = df["RIESGO DE QUIEBRE"].apply(_clean_yes)
+    df["OTROS"] = df["OTROS"].apply(_clean_otros)
+    df["FOCO PRINCIPAL"] = df.apply(_focus_principal, axis=1)
+    df["ACCIÓN SUGERIDA"] = df["FOCO PRINCIPAL"].apply(_accion_sugerida)
+
+    if df.empty:
+        return pd.DataFrame(columns=INVENTORY_CLIENTE_EXPORT_COLS)
+
+    df = _sorted_for_export(df)
+    return df[INVENTORY_CLIENTE_EXPORT_COLS]
 
 
 def build_focus_export_df(df_ux: pd.DataFrame, foco: str | list[str] = "Todo") -> pd.DataFrame:
