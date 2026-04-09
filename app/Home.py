@@ -262,6 +262,7 @@ def main():
     from app.exports import (
         build_export_df,
         build_focus_export_df,
+        build_inventory_cliente_export_df,
         export_excel_one_sheet,
         export_excel_generic,
         export_pdf_table,
@@ -883,6 +884,58 @@ def main():
             token = token.strip("_")
             return token[:60] or "scope"
 
+        def _render_cliente_exports_l1_global() -> None:
+            if scope_level != "L1":
+                return
+            if not cliente_sel or not responsable_tipo_all or responsable_sel:
+                return
+
+            try:
+                with _timed("EXPORT cliente_l1_global_query", tag="CACHE"):
+                    df_cliente_raw = db.get_export_inventario_cliente(cliente=cliente_sel)
+                _dbg("CLIENTE L1 export raw loaded", rows=0 if df_cliente_raw is None else len(df_cliente_raw))
+                _dbg_block()
+            except Exception as e:
+                _dbg("FAIL cliente_l1_global_export", err=repr(e))
+                st.warning("No pude preparar los descargables globales del cliente.")
+                return
+
+            if df_cliente_raw is None or df_cliente_raw.empty:
+                st.caption("Sin filas para exportar en el cliente seleccionado.")
+                return
+
+            scope_token = _scope_file_token()
+            df_inventory_cliente = build_inventory_cliente_export_df(df_cliente_raw)
+            df_focus_cliente = build_focus_export_df(df_cliente_raw, foco="Todo")
+
+            st.markdown("#### Descargables cliente")
+            ex1, ex2 = st.columns(2, gap="small")
+
+            with ex1:
+                inventory_excel = export_excel_generic(f"CLIENTE_{scope_token}", df_inventory_cliente)
+                st.download_button(
+                    "Inventario cliente",
+                    data=inventory_excel,
+                    file_name=f"STOCK_ZERO_INVENTARIO_CLIENTE_{scope_token}_{file_stamp}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key=f"cliente_l1_inventory_excel_{scope_token}",
+                )
+
+            with ex2:
+                if df_focus_cliente is None or df_focus_cliente.empty:
+                    st.caption("Sin focos activos para el cliente seleccionado.")
+                else:
+                    focus_excel = export_excel_generic(f"CLIENTE_{scope_token}_FOCO", df_focus_cliente)
+                    st.download_button(
+                        "Foco Cliente",
+                        data=focus_excel,
+                        file_name=f"STOCK_ZERO_FOCO_CLIENTE_{scope_token}_{file_stamp}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                        key=f"cliente_l1_focus_excel_{scope_token}",
+                    )
+
         def _render_cliente_exports() -> None:
             if scope_level not in {"L2", "L3"}:
                 return
@@ -1318,6 +1371,7 @@ def main():
                 ],
             )
             st.dataframe(df_local_view, width="stretch", hide_index=True)
+            _render_cliente_exports_l1_global()
             
         # -----------------------------
         # L2
