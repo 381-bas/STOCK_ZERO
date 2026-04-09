@@ -1847,6 +1847,133 @@ def get_detalle_sku_scope_total_page(
     return qdf(sql, params)
 
 
+def get_export_inventario_cliente(
+    cliente: str,
+) -> pd.DataFrame:
+    cliente_sel = str(cliente or "").strip()
+    if not cliente_sel:
+        return pd.DataFrame(
+            columns=[
+                "fecha",
+                "COD_RT",
+                "LOCAL",
+                "CLIENTE",
+                "RUTERO",
+                "REPONEDOR",
+                "MARCA",
+                "Sku",
+                "Descripción del Producto",
+                "Stock",
+                "Venta(+7)",
+                "NEGATIVO",
+                "RIESGO DE QUIEBRE",
+                "OTROS",
+            ]
+        )
+
+    sql = f"""
+        WITH fecha_ref AS (
+            SELECT MAX(b.fecha) AS fecha_stock
+            FROM {SCOPE_FACT_BRIDGE_VIEW} b
+            WHERE {_scope_norm_expr('b.cliente')} = {_scope_norm_expr(':cliente')}
+        ),
+        rr_ctx AS (
+            SELECT
+                rr.cod_rt,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(rr.cliente_norm), ''), NULLIF(TRIM(rr.cliente), ''), ''))) AS cliente_norm_match,
+                STRING_AGG(
+                    DISTINCT COALESCE(NULLIF(TRIM(rr.rutero), ''), '-'),
+                    ' | '
+                    ORDER BY COALESCE(NULLIF(TRIM(rr.rutero), ''), '-')
+                ) AS rutero,
+                STRING_AGG(
+                    DISTINCT COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-'),
+                    ' | '
+                    ORDER BY COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-')
+                ) AS reponedor
+            FROM {SCOPE_RR_DISTINCT_VIEW} rr
+            WHERE {_scope_norm_expr("COALESCE(NULLIF(TRIM(rr.cliente_norm), ''), NULLIF(TRIM(rr.cliente), ''), '')")} = {_scope_norm_expr(':cliente')}
+            GROUP BY 1, 2
+        ),
+        base_fact AS (
+            SELECT
+                b.fecha,
+                b.cod_rt,
+                COALESCE(NULLIF(TRIM(b.local_nombre_rr), ''), CAST(b.cod_rt AS TEXT)) AS local_nombre_rr,
+                COALESCE(NULLIF(TRIM(b.cliente), ''), '') AS cliente,
+                COALESCE(NULLIF(TRIM(b.marca), ''), '') AS marca,
+                CAST(b.sku AS TEXT) AS sku,
+                COALESCE(b.producto, '') AS producto,
+                COALESCE(b.stock, 0)::int AS stock,
+                COALESCE(b.venta_7, 0)::int AS venta_7,
+                COALESCE(b.negativo, '') AS negativo,
+                COALESCE(b.riesgo_quiebre, '') AS riesgo_quiebre,
+                COALESCE(b.otros, '') AS otros,
+                ROW_NUMBER() OVER (
+                    PARTITION BY
+                        b.fecha,
+                        b.cod_rt,
+                        {_scope_norm_expr('b.cliente')},
+                        {_scope_norm_expr('b.marca')},
+                        CAST(b.sku AS TEXT)
+                    ORDER BY
+                        COALESCE(NULLIF(TRIM(b.local_nombre_rr), ''), CAST(b.cod_rt AS TEXT)) ASC,
+                        COALESCE(b.producto, '') ASC,
+                        COALESCE(NULLIF(TRIM(b.responsable_tipo), ''), '-') ASC,
+                        COALESCE(NULLIF(TRIM(b.responsable), ''), '') ASC
+                ) AS rn_fact
+            FROM {SCOPE_FACT_BRIDGE_VIEW} b
+            CROSS JOIN fecha_ref fr
+            WHERE {_scope_norm_expr('b.cliente')} = {_scope_norm_expr(':cliente')}
+              AND (fr.fecha_stock IS NULL OR b.fecha = fr.fecha_stock)
+        ),
+        fact_dedup AS (
+            SELECT
+                fecha,
+                cod_rt,
+                local_nombre_rr,
+                cliente,
+                marca,
+                sku,
+                producto,
+                stock,
+                venta_7,
+                negativo,
+                riesgo_quiebre,
+                otros
+            FROM base_fact
+            WHERE rn_fact = 1
+        )
+        SELECT
+            f.fecha,
+            CAST(f.cod_rt AS TEXT) AS "COD_RT",
+            f.local_nombre_rr AS "LOCAL",
+            f.cliente AS "CLIENTE",
+            COALESCE(rr_ctx.rutero, '-') AS "RUTERO",
+            COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR",
+            f.marca AS "MARCA",
+            f.sku AS "Sku",
+            f.producto AS "Descripción del Producto",
+            f.stock AS "Stock",
+            f.venta_7 AS "Venta(+7)",
+            f.negativo AS "NEGATIVO",
+            f.riesgo_quiebre AS "RIESGO DE QUIEBRE",
+            f.otros AS "OTROS"
+        FROM fact_dedup f
+        LEFT JOIN rr_ctx
+          ON rr_ctx.cod_rt = f.cod_rt
+         AND rr_ctx.cliente_norm_match = {_scope_norm_expr('f.cliente')}
+        ORDER BY
+            f.local_nombre_rr ASC,
+            f.marca ASC,
+            CASE WHEN f.sku ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
+            CASE WHEN f.sku ~ '^[0-9]+$' THEN CAST(f.sku AS BIGINT) END ASC NULLS LAST,
+            f.sku ASC,
+            f.producto ASC
+    """
+    return qdf(sql, {"cliente": cliente_sel})
+
+
 # =========================================================
 # 6) AUDITORÍA DE COBERTURA E INCONSISTENCIAS
 # =========================================================
