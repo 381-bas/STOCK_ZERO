@@ -1872,12 +1872,7 @@ def get_export_inventario_cliente(
         )
 
     sql = f"""
-        WITH fecha_ref AS (
-            SELECT MAX(b.fecha) AS fecha_stock
-            FROM {SCOPE_FACT_BRIDGE_VIEW} b
-            WHERE {_scope_norm_expr('b.cliente')} = {_scope_norm_expr(':cliente')}
-        ),
-        rr_ctx AS (
+        WITH rr_ctx AS (
             SELECT
                 rr.cod_rt,
                 UPPER(TRIM(COALESCE(NULLIF(TRIM(rr.cliente_norm), ''), NULLIF(TRIM(rr.cliente), ''), ''))) AS cliente_norm_match,
@@ -1911,23 +1906,21 @@ def get_export_inventario_cliente(
                 COALESCE(b.otros, '') AS otros,
                 ROW_NUMBER() OVER (
                     PARTITION BY
-                        b.fecha,
                         b.cod_rt,
                         {_scope_norm_expr('b.cliente')},
                         {_scope_norm_expr('b.marca')},
                         CAST(b.sku AS TEXT)
                     ORDER BY
+                        b.fecha DESC,
                         COALESCE(NULLIF(TRIM(b.local_nombre_rr), ''), CAST(b.cod_rt AS TEXT)) ASC,
                         COALESCE(b.producto, '') ASC,
                         COALESCE(NULLIF(TRIM(b.responsable_tipo), ''), '-') ASC,
                         COALESCE(NULLIF(TRIM(b.responsable), ''), '') ASC
                 ) AS rn_fact
             FROM {SCOPE_FACT_BRIDGE_VIEW} b
-            CROSS JOIN fecha_ref fr
             WHERE {_scope_norm_expr('b.cliente')} = {_scope_norm_expr(':cliente')}
-              AND (fr.fecha_stock IS NULL OR b.fecha = fr.fecha_stock)
         ),
-        fact_dedup AS (
+        fact_latest AS (
             SELECT
                 fecha,
                 cod_rt,
@@ -1959,7 +1952,7 @@ def get_export_inventario_cliente(
             f.negativo AS "NEGATIVO",
             f.riesgo_quiebre AS "RIESGO DE QUIEBRE",
             f.otros AS "OTROS"
-        FROM fact_dedup f
+        FROM fact_latest f
         LEFT JOIN rr_ctx
           ON rr_ctx.cod_rt = f.cod_rt
          AND rr_ctx.cliente_norm_match = {_scope_norm_expr('f.cliente')}
@@ -1972,6 +1965,7 @@ def get_export_inventario_cliente(
             f.producto ASC
     """
     return qdf(sql, {"cliente": cliente_sel})
+
 
 
 # =========================================================
@@ -2082,6 +2076,7 @@ def get_clientes_sin_match_rr_stock(
     """, {"cod_rt": cod_rt, "rutero": rutero, "reponedor": reponedor, **extra})
 
 
+
 # =========================================================
 # 7) CONTROL GESTION B3 / CONTRATO PUBLICO CANONICO
 # =========================================================
@@ -2123,6 +2118,124 @@ def _cg_page_clause(limit: int | None, offset: int | None, params: dict[str, Any
     return (" " + " ".join(clauses)) if clauses else ""
 
 
+def _cg_text_norm_expr(expr: str) -> str:
+    return f"UPPER(TRIM(COALESCE(CAST({expr} AS TEXT), '')))"
+
+
+def _cg_scope_filters(
+    *,
+    alias: str = "v",
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+    cod_rt: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    pfx = f"{alias}." if alias else ""
+    filters: list[str] = []
+    params: dict[str, Any] = {}
+
+    if semana_inicio and str(semana_inicio).strip():
+        filters.append(f'AND {pfx}"SEMANA_INICIO" = :semana_inicio')
+        params["semana_inicio"] = str(semana_inicio).strip()
+
+    if gestor and str(gestor).strip() and str(gestor).strip().upper() != "TODOS":
+        filters.append(
+            f'AND {_cg_text_norm_expr(f"{pfx}" + "\"GESTOR\"")} = {_cg_text_norm_expr(":gestor")}'
+        )
+        params["gestor"] = str(gestor).strip()
+
+    if cliente and str(cliente).strip() and str(cliente).strip().upper() != "TODOS":
+        filters.append(
+            f'AND {_cg_text_norm_expr(f"{pfx}" + "\"CLIENTE\"")} = {_cg_text_norm_expr(":cliente")}'
+        )
+        params["cliente"] = str(cliente).strip()
+
+    if alerta and str(alerta).strip() and str(alerta).strip().upper() != "TODAS":
+        filters.append(
+            f'AND {_cg_text_norm_expr(f"{pfx}" + "\"ALERTA\"")} = {_cg_text_norm_expr(":alerta")}'
+        )
+        params["alerta"] = str(alerta).strip()
+
+    if cod_rt and str(cod_rt).strip():
+        filters.append(f'AND CAST({pfx}"COD_RT" AS TEXT) = :cod_rt')
+        params["cod_rt"] = str(cod_rt).strip()
+
+    return "\n".join(filters), params
+
+
+def _cg_alertas_filters(
+    *,
+    alias: str = "a",
+    semana_inicio: str | None = None,
+    cliente: str | None = None,
+    persona: str | None = None,
+    cod_rt: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    pfx = f"{alias}." if alias else ""
+    filters: list[str] = []
+    params: dict[str, Any] = {}
+
+    if semana_inicio and str(semana_inicio).strip():
+        filters.append(
+            f"""
+            AND {pfx}fecha_visita >= CAST(:semana_inicio AS DATE)
+            AND {pfx}fecha_visita < (CAST(:semana_inicio AS DATE) + INTERVAL '7 day')
+            """
+        )
+        params["semana_inicio"] = str(semana_inicio).strip()
+
+    if cliente and str(cliente).strip() and str(cliente).strip().upper() != "TODOS":
+        filters.append(f'AND {_cg_text_norm_expr(f"{pfx}cliente")} = {_cg_text_norm_expr(":cliente")}')
+        params["cliente"] = str(cliente).strip()
+
+    if persona and str(persona).strip() and str(persona).strip().upper() != "TODOS":
+        filters.append(f'AND {_cg_text_norm_expr(f"{pfx}persona")} = {_cg_text_norm_expr(":persona")}')
+        params["persona"] = str(persona).strip()
+
+    if cod_rt and str(cod_rt).strip():
+        filters.append(f"AND CAST({pfx}cod_rt AS TEXT) = :cod_rt")
+        params["cod_rt"] = str(cod_rt).strip()
+
+    return "\n".join(filters), params
+
+
+def _cg_detalle_filters(
+    *,
+    alias: str = "d",
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    cod_rt: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    pfx = f"{alias}." if alias else ""
+    filters: list[str] = []
+    params: dict[str, Any] = {}
+
+    if semana_inicio and str(semana_inicio).strip():
+        filters.append(
+            f"""
+            AND {pfx}fecha_visita >= CAST(:semana_inicio AS DATE)
+            AND {pfx}fecha_visita < (CAST(:semana_inicio AS DATE) + INTERVAL '7 day')
+            """
+        )
+        params["semana_inicio"] = str(semana_inicio).strip()
+
+    if gestor and str(gestor).strip() and str(gestor).strip().upper() != "TODOS":
+        filters.append(f'AND {_cg_text_norm_expr(f"{pfx}gestor")} = {_cg_text_norm_expr(":gestor")}')
+        params["gestor"] = str(gestor).strip()
+
+    if cliente and str(cliente).strip() and str(cliente).strip().upper() != "TODOS":
+        filters.append(f'AND {_cg_text_norm_expr(f"{pfx}cliente")} = {_cg_text_norm_expr(":cliente")}')
+        params["cliente"] = str(cliente).strip()
+
+    if cod_rt and str(cod_rt).strip():
+        filters.append(f"AND CAST({pfx}cod_rt AS TEXT) = :cod_rt")
+        params["cod_rt"] = str(cod_rt).strip()
+
+    return "\n".join(filters), params
+
+
 def _cg_select_page(
     *,
     selector_name: str,
@@ -2138,6 +2251,38 @@ def _cg_select_page(
         {page_sql}
     """
     return _selector_df(selector_name, sql, params or None)
+
+
+def _cg_select_page_filtered(
+    *,
+    selector_name: str,
+    view_name: str,
+    where_sql: str = "",
+    order_sql: str = "",
+    params: dict[str, Any] | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+    from_alias: str | None = None,
+    select_sql: str = "*",
+) -> pd.DataFrame:
+    query_params = dict(params or {})
+    page_sql = _cg_page_clause(limit, offset, query_params)
+    alias_sql = f" {from_alias}" if from_alias else ""
+    sql = f"""
+        WITH base AS (
+            SELECT {select_sql}
+            FROM {view_name}{alias_sql}
+            WHERE 1=1
+            {where_sql}
+        )
+        SELECT
+            base.*,
+            COUNT(*) OVER()::int AS total_rows
+        FROM base
+        {order_sql}
+        {page_sql}
+    """
+    return _selector_df(selector_name, sql, query_params or None)
 
 
 def get_cg_cumplimiento_semana_local_parity(
@@ -2168,12 +2313,19 @@ def get_cg_alertas_control_gestion(
     limit: int | None = None,
     offset: int | None = None,
 ) -> pd.DataFrame:
-    return _cg_select_page(
-        selector_name="get_cg_alertas_control_gestion",
-        view_name=CG_ALERTAS_VIEW,
-        limit=limit,
-        offset=offset,
-    )
+    params: dict[str, Any] = {}
+    page_sql = _cg_page_clause(limit, offset, params)
+    sql = f"""
+        SELECT *
+        FROM {CG_ALERTAS_VIEW} a
+        ORDER BY
+            COALESCE(prioridad, 0) DESC,
+            fecha_visita DESC,
+            cod_rt ASC,
+            cliente ASC
+        {page_sql}
+    """
+    return _selector_df("get_cg_alertas_control_gestion", sql, params or None)
 
 
 def get_cg_inicio_jefe(
@@ -2212,6 +2364,301 @@ def get_cg_cumplimiento_detalle(
     )
 
 
+def get_cg_scope_semanas() -> list[Any]:
+    df = _selector_df(
+        "get_cg_scope_semanas",
+        f"""
+        SELECT DISTINCT "SEMANA_INICIO" AS semana_inicio
+        FROM {CG_SCOPE_VIEW}
+        WHERE "SEMANA_INICIO" IS NOT NULL
+        ORDER BY semana_inicio DESC
+        """,
+    )
+    return df["semana_inicio"].tolist() if df is not None and not df.empty else []
+
+
+def get_cg_scope_gestores(
+    semana_inicio: str | None = None,
+) -> list[str]:
+    where_sql, params = _cg_scope_filters(alias="v", semana_inicio=semana_inicio)
+    df = _selector_df(
+        "get_cg_scope_gestores",
+        f"""
+        SELECT DISTINCT CAST("GESTOR" AS TEXT) AS gestor
+        FROM {CG_SCOPE_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST("GESTOR" AS TEXT), '')), '') IS NOT NULL
+        {where_sql}
+        ORDER BY gestor
+        """,
+        params or None,
+    )
+    return df["gestor"].astype(str).tolist() if df is not None and not df.empty else []
+
+
+def get_cg_scope_clientes(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+) -> list[str]:
+    where_sql, params = _cg_scope_filters(alias="v", semana_inicio=semana_inicio, gestor=gestor)
+    df = _selector_df(
+        "get_cg_scope_clientes",
+        f"""
+        SELECT DISTINCT CAST("CLIENTE" AS TEXT) AS cliente
+        FROM {CG_SCOPE_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST("CLIENTE" AS TEXT), '')), '') IS NOT NULL
+        {where_sql}
+        ORDER BY cliente
+        """,
+        params or None,
+    )
+    return df["cliente"].astype(str).tolist() if df is not None and not df.empty else []
+
+
+def get_cg_scope_alertas(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+) -> list[str]:
+    where_sql, params = _cg_scope_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+    )
+    df = _selector_df(
+        "get_cg_scope_alertas",
+        f"""
+        SELECT DISTINCT CAST("ALERTA" AS TEXT) AS alerta
+        FROM {CG_SCOPE_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST("ALERTA" AS TEXT), '')), '') IS NOT NULL
+        {where_sql}
+        ORDER BY alerta
+        """,
+        params or None,
+    )
+    return df["alerta"].astype(str).tolist() if df is not None and not df.empty else []
+
+
+def get_cg_scope_kpis(
+    *,
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+    cod_rt: str | None = None,
+) -> pd.DataFrame:
+    where_sql, params = _cg_scope_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        alerta=alerta,
+        cod_rt=cod_rt,
+    )
+    sql = f"""
+        SELECT
+            COUNT(*)::int AS total_rows_scope,
+            COUNT(DISTINCT CAST("COD_RT" AS TEXT))::int AS locales_scope,
+            COUNT(DISTINCT CAST("CLIENTE" AS TEXT))::int AS clientes_scope,
+            COALESCE(SUM(COALESCE("VISITA", 0)), 0)::int AS visitas_plan,
+            COALESCE(SUM(COALESCE("VISITA_REALIZADA", 0)), 0)::int AS visitas_realizadas,
+            COALESCE(SUM(CASE
+                WHEN {_cg_text_norm_expr('"ALERTA"')} = 'CUMPLE' THEN 1
+                ELSE 0
+            END), 0)::int AS cumple,
+            COALESCE(SUM(CASE
+                WHEN {_cg_text_norm_expr('"ALERTA"')} LIKE '%DOBLE%'
+                  OR COALESCE("DIAS_DOBLE_MARCAJE", 0) > 0
+                THEN 1
+                ELSE 0
+            END), 0)::int AS cumple_con_doble_marcaje,
+            COALESCE(SUM(CASE
+                WHEN {_cg_text_norm_expr('"ALERTA"')} <> 'CUMPLE'
+                 AND {_cg_text_norm_expr('"ALERTA"')} NOT LIKE '%DOBLE%'
+                THEN 1
+                ELSE 0
+            END), 0)::int AS incumple
+        FROM {CG_SCOPE_VIEW} v
+        WHERE 1=1
+        {where_sql}
+    """
+    return qdf(sql, params or None)
+
+
+def get_cg_scope_page(
+    *,
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+    cod_rt: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    where_sql, params = _cg_scope_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        alerta=alerta,
+        cod_rt=cod_rt,
+    )
+    order_sql = """
+        ORDER BY
+            "SEMANA_INICIO" DESC,
+            COALESCE("DIFERENCIA", 0) DESC,
+            COALESCE("DIAS_DOBLE_MARCAJE", 0) DESC,
+            CAST("GESTOR" AS TEXT) ASC,
+            CAST("CLIENTE" AS TEXT) ASC,
+            CAST("LOCAL" AS TEXT) ASC
+    """
+    select_sql = """
+        "SEMANA_INICIO",
+        "COD_RT",
+        "CLIENTE",
+        "LOCAL",
+        "GESTOR",
+        "MODALIDAD",
+        "REPONEDOR_SCOPE",
+        "VISITA",
+        "VISITA_REALIZADA",
+        "DIFERENCIA",
+        "DIAS_DOBLE_MARCAJE",
+        "DIAS_KPIONE",
+        "DIAS_POWER_APP",
+        "ALERTA"
+    """
+    return _cg_select_page_filtered(
+        selector_name="get_cg_scope_page",
+        view_name=CG_SCOPE_VIEW,
+        where_sql=where_sql,
+        order_sql=order_sql,
+        params=params,
+        limit=limit,
+        offset=offset,
+        from_alias="v",
+        select_sql=select_sql,
+    )
+
+
+def get_cg_parity_page(
+    *,
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+    cod_rt: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    where_sql, params = _cg_scope_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        alerta=alerta,
+        cod_rt=cod_rt,
+    )
+    order_sql = """
+        ORDER BY
+            "SEMANA_INICIO" DESC,
+            CAST("CLIENTE" AS TEXT) ASC,
+            CAST("LOCAL" AS TEXT) ASC
+    """
+    select_sql = """
+        "SEMANA_INICIO",
+        "COD_RT",
+        "CLIENTE",
+        "LOCAL",
+        "GESTOR",
+        "VISITA",
+        "VISITA_REALIZADA",
+        "DIFERENCIA",
+        "ALERTA"
+    """
+    return _cg_select_page_filtered(
+        selector_name="get_cg_parity_page",
+        view_name=CG_PARITY_VIEW,
+        where_sql=where_sql,
+        order_sql=order_sql,
+        params=params,
+        limit=limit,
+        offset=offset,
+        from_alias="v",
+        select_sql=select_sql,
+    )
+
+
+def get_cg_alertas_page(
+    *,
+    semana_inicio: str | None = None,
+    cliente: str | None = None,
+    persona: str | None = None,
+    cod_rt: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    where_sql, params = _cg_alertas_filters(
+        alias="a",
+        semana_inicio=semana_inicio,
+        cliente=cliente,
+        persona=persona,
+        cod_rt=cod_rt,
+    )
+    order_sql = """
+        ORDER BY
+            COALESCE(prioridad, 0) DESC,
+            fecha_visita DESC,
+            cod_rt ASC,
+            cliente ASC
+    """
+    return _cg_select_page_filtered(
+        selector_name="get_cg_alertas_page",
+        view_name=CG_ALERTAS_VIEW,
+        where_sql=where_sql,
+        order_sql=order_sql,
+        params=params,
+        limit=limit,
+        offset=offset,
+        from_alias="a",
+    )
+
+
+def get_cg_detalle_page(
+    *,
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    cod_rt: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> pd.DataFrame:
+    where_sql, params = _cg_detalle_filters(
+        alias="d",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        cod_rt=cod_rt,
+    )
+    order_sql = """
+        ORDER BY
+            fecha_visita DESC,
+            cod_rt ASC,
+            cliente ASC,
+            gestor ASC
+    """
+    return _cg_select_page_filtered(
+        selector_name="get_cg_detalle_page",
+        view_name=CG_DETALLE_VIEW,
+        where_sql=where_sql,
+        order_sql=order_sql,
+        params=params,
+        limit=limit,
+        offset=offset,
+        from_alias="d",
+    )
+
+
 def get_cg_contract_smoke() -> dict[str, Any]:
     checks = [
         ("parity", CG_PARITY_VIEW),
@@ -2223,20 +2670,22 @@ def get_cg_contract_smoke() -> dict[str, Any]:
     ]
     results: list[dict[str, Any]] = []
     failed_objects: list[str] = []
-    non_zero_expected = {"parity", "scope", "alertas", "inicio_jefe", "inicio_gestor", "detalle"}
+    empty_warns: list[str] = []
 
     for object_name, view_name in checks:
         try:
             df = _selector_df(
                 f"smoke_{object_name}",
-                f"SELECT COUNT(*)::int AS rows FROM {view_name}",
+                f"SELECT EXISTS (SELECT 1 FROM {view_name} LIMIT 1) AS has_rows",
             )
-            rows = int(df.iloc[0]["rows"] or 0) if df is not None and not df.empty else 0
-            status = "ok" if rows > 0 or object_name not in non_zero_expected else "warn"
+            has_rows = bool(df.iloc[0]["has_rows"]) if df is not None and not df.empty else False
+            status = "ok" if has_rows else "warn"
+            if not has_rows:
+                empty_warns.append(object_name)
             results.append({
                 "object": object_name,
                 "view": view_name,
-                "rows": rows,
+                "has_rows": has_rows,
                 "status": status,
             })
         except Exception as exc:
@@ -2244,18 +2693,17 @@ def get_cg_contract_smoke() -> dict[str, Any]:
             results.append({
                 "object": object_name,
                 "view": view_name,
-                "rows": None,
+                "has_rows": None,
                 "status": "fail",
                 "error": f"{type(exc).__name__}: {exc}",
             })
 
-    zero_warns = [r["object"] for r in results if r.get("status") == "warn"]
-    smoke_status = "fail" if failed_objects else ("warn" if zero_warns else "ok")
+    smoke_status = "fail" if failed_objects else ("warn" if empty_warns else "ok")
     return {
         "smoke_status": smoke_status,
         "branch": "B3_CONTROL_GESTION_SQL",
         "views_checked": len(checks),
         "failed_objects": failed_objects,
-        "zero_row_objects": zero_warns,
+        "zero_row_objects": empty_warns,
         "results": results,
     }
