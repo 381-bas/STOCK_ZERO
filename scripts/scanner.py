@@ -160,7 +160,7 @@ def load_file_info(root: Path, p: Path) -> PyFileInfo:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".", help="Ruta raíz del proyecto")
-    ap.add_argument("--out", default="scanner_audit.txt", help="Archivo de salida (un solo .txt)")
+    ap.add_argument("--out", default="codigo_app_stockzero.txt", help="Archivo de salida (un solo .txt)")
     ap.add_argument("--max-dump-lines", type=int, default=0,
                     help="Máximo líneas por archivo en el dump (0 = sin límite).")
     args = ap.parse_args()

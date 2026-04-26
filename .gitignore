@@ -31,3 +31,4 @@ in
 
 Thumbs.db
 .DS_Store
+scripts/validate_salcobrand_addresses.ps1

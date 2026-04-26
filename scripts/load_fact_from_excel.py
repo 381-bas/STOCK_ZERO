@@ -6,19 +6,25 @@ import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 
+
 def norm_col(c: str) -> str:
     return str(c).strip()
 
+
 def to_int_series(s: pd.Series) -> pd.Series:
     s = s.fillna(0)
-    # Algunos vienen como float (7.0). Convertimos seguro a int.
     return pd.to_numeric(s, errors="coerce").fillna(0).round(0).astype(int)
 
+
+def to_text_series(s: pd.Series) -> pd.Series:
+    return s.fillna("").astype(str).str.strip()
+
+
 def to_sku_text(s: pd.Series) -> pd.Series:
-    # SKU puede venir como número. Lo guardamos como texto sin .0
     s = s.astype(str).str.strip()
     s = s.str.replace(r"\.0$", "", regex=True)
     return s
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -32,91 +38,105 @@ def main():
         raise SystemExit("Falta DB_URL. Setea DB_URL en .env o pásalo con --db_url")
 
     df = pd.read_excel(args.excel, sheet_name=args.sheet)
-
-    # Normaliza nombres de columnas (quita espacios al inicio/fin)
     df.columns = [norm_col(c) for c in df.columns]
 
-    # Mapeo desde Excel -> columnas internas
-    # Nota: en Excel el SKU viene como 'Sku' pero en tu archivo es 'Sku' con espacio en algunos casos ('Sku' o 'Sku' con prefijo)
-    # Ya lo dejamos normalizado con strip, así quedará "Sku" si venía " Sku".
-    required = {
-        "FECHA": "fecha",
-        "REGIÓN": "region",
-        "CADENA": "cadena",
-        "MARCA": "marca",
-        "Sku": "sku",
-        "Descripción del Producto": "descripcion_producto",
-        "COD_RT": "cod_rt",
-        "Nombre_local_RR": "nombre_local_rr",
-        "GESTORES": "gestores",
-        "SUPERVISOR": "supervisor",
-        "REPONEDOR": "reponedor",
-        "RUTERO": "rutero",
-        "Inventario en Locales(U)": "stock",
-        "Venta(u)": "venta_7",
-    }
+    required = [
+        "CADENA",
+        "FECHA",
+        "MARCA",
+        "SKU",
+        "DESCRIPCION_PRODUCTO",
+        "N_LOCAL",
+        "VTA(Un)",
+        "INV(Un)",
+        "COD_RT",
+        "NOMBRE_LOCAL_RR",
+        "OTROS",
+    ]
 
-    # Algunos archivos traen 'CADENA ' y 'SUPERVISOR ' con espacio; con strip quedan 'CADENA' y 'SUPERVISOR'
-    # Verificamos presentes
-    missing = [k for k in required.keys() if k not in df.columns]
+    missing = [c for c in required if c not in df.columns]
     if missing:
-        raise SystemExit(f"Faltan columnas en BASE: {missing}\nColumnas encontradas: {list(df.columns)}")
+        raise SystemExit(
+            f"Faltan columnas en BASE: {missing}\n"
+            f"Columnas encontradas: {list(df.columns)}"
+        )
 
     out = pd.DataFrame()
+    out["cadena"] = to_text_series(df["CADENA"])
     out["fecha"] = pd.to_datetime(df["FECHA"], errors="coerce").dt.date
-    out["region"] = df["REGIÓN"].astype(str).str.strip()
-    out["cadena"] = df["CADENA"].astype(str).str.strip()
-    out["marca"] = df["MARCA"].astype(str).str.strip()
-
-    out["sku"] = to_sku_text(df["Sku"])
-    out["descripcion_producto"] = df["Descripción del Producto"].astype(str).str.strip()
-
-    out["cod_rt"] = df["COD_RT"].astype(str).str.strip()
-    out["nombre_local_rr"] = df["Nombre_local_RR"].astype(str).str.strip()
-
-    out["gestores"] = df["GESTORES"].astype(str).str.strip()
-    out["supervisor"] = df["SUPERVISOR"].astype(str).str.strip()
-
-    out["reponedor"] = df["REPONEDOR"].astype(str).str.strip()
-    out["rutero"] = df["RUTERO"].astype(str).str.strip()
-
-    out["stock"] = to_int_series(df["Inventario en Locales(U)"])
-    out["venta_7"] = to_int_series(df["Venta(u)"])
-
-    out["otros"] = ""
+    out["marca"] = to_text_series(df["MARCA"])
+    out["sku"] = to_sku_text(df["SKU"])
+    out["descripcion_producto"] = to_text_series(df["DESCRIPCION_PRODUCTO"])
+    out["n_local"] = to_text_series(df["N_LOCAL"])
+    out["venta_u"] = to_int_series(df["VTA(Un)"])
+    out["inv_u"] = to_int_series(df["INV(Un)"])
+    out["cod_rt"] = to_text_series(df["COD_RT"]).str.upper()
+    out["nombre_local_rr"] = to_text_series(df["NOMBRE_LOCAL_RR"])
+    out["otros"] = to_text_series(df["OTROS"])
     out["source"] = args.source
 
-    # Limpieza mínima
     out = out.dropna(subset=["fecha", "cod_rt", "sku", "marca"])
     out = out[out["cod_rt"].astype(str).str.len() > 0]
     out = out[out["sku"].astype(str).str.len() > 0]
+    out = out[out["marca"].astype(str).str.len() > 0]
+
+    # Excluir huérfanos operacionales NO_RT antes de insertar
+    no_rt_count = int((out["cod_rt"] == "NO_RT").sum())
+    out = out[out["cod_rt"] != "NO_RT"].copy()
+
+    # Defensa extra contra colisiones dentro del mismo payload
+    conflict_key = ["fecha", "cod_rt", "sku", "marca"]
+    duplicate_payload_count = int(out.duplicated(subset=conflict_key, keep="last").sum())
+    out = out.drop_duplicates(subset=conflict_key, keep="last").copy()
 
     rows = list(out[[
-        "fecha","region","cadena","gestores","supervisor",
-        "rutero","reponedor","cod_rt","nombre_local_rr",
-        "marca","sku","descripcion_producto","stock","venta_7",
-        "otros","source"
+        "fecha",
+        "cadena",
+        "marca",
+        "sku",
+        "descripcion_producto",
+        "n_local",
+        "venta_u",
+        "inv_u",
+        "cod_rt",
+        "nombre_local_rr",
+        "otros",
+        "source",
     ]].itertuples(index=False, name=None))
+
+    if not rows:
+        print(
+            "WARN: no hay filas válidas para cargar. "
+            f"omitidas_no_rt={no_rt_count} "
+            f"omitidas_duplicate_payload={duplicate_payload_count}"
+        )
+        return
 
     sql = """
     INSERT INTO public.fact_stock_venta
-    (fecha, region, cadena, gestores, supervisor,
-     rutero, reponedor, cod_rt, nombre_local_rr,
-     marca, sku, descripcion_producto, stock, venta_7,
-     otros, source)
+    (
+        fecha,
+        cadena,
+        marca,
+        sku,
+        descripcion_producto,
+        n_local,
+        venta_u,
+        inv_u,
+        cod_rt,
+        nombre_local_rr,
+        otros,
+        source
+    )
     VALUES %s
     ON CONFLICT (fecha, cod_rt, sku, marca)
     DO UPDATE SET
-      region = EXCLUDED.region,
       cadena = EXCLUDED.cadena,
-      gestores = EXCLUDED.gestores,
-      supervisor = EXCLUDED.supervisor,
-      rutero = EXCLUDED.rutero,
-      reponedor = EXCLUDED.reponedor,
-      nombre_local_rr = EXCLUDED.nombre_local_rr,
       descripcion_producto = EXCLUDED.descripcion_producto,
-      stock = EXCLUDED.stock,
-      venta_7 = EXCLUDED.venta_7,
+      n_local = EXCLUDED.n_local,
+      venta_u = EXCLUDED.venta_u,
+      inv_u = EXCLUDED.inv_u,
+      nombre_local_rr = EXCLUDED.nombre_local_rr,
       otros = EXCLUDED.otros,
       source = EXCLUDED.source,
       ingested_at = NOW();
@@ -127,7 +147,12 @@ def main():
             execute_values(cur, sql, rows, page_size=5000)
         conn.commit()
 
-    print(f"OK: cargadas/upsert {len(rows)} filas desde {args.excel} [{args.sheet}]")
+    print(
+        f"OK: cargadas/upsert {len(rows)} filas desde {args.excel} [{args.sheet}] | "
+        f"omitidas_no_rt={no_rt_count} | "
+        f"omitidas_duplicate_payload={duplicate_payload_count}"
+    )
+
 
 if __name__ == "__main__":
     main()
