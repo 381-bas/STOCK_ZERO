@@ -331,11 +331,9 @@ def main():
 
     def _reset_filters_defaults(reason: str):
         st.session_state["sel_marcas"] = []
-        st.session_state["sel_marca_home_cliente"] = MARCA_SCOPE_PLACEHOLDER
         st.session_state["f_search"] = ""
         st.session_state["f_foco"] = []
         st.session_state["applied_marcas"] = []
-        st.session_state["applied_scope_marca"] = None
         st.session_state["applied_search"] = ""
         st.session_state["applied_foco"] = []
         st.session_state["page"] = 1
@@ -355,7 +353,6 @@ def main():
 
         _reset_cliente_state(
             "mode_change",
-            reset_marca=True,
             reset_cliente=True,
             reset_tipo=True,
             reset_responsable=True,
@@ -377,13 +374,10 @@ def main():
     def _reset_cliente_state(
         reason: str,
         *,
-        reset_marca: bool = False,
         reset_cliente: bool = True,
         reset_tipo: bool = True,
         reset_responsable: bool = True,
     ):
-        if reset_marca:
-            st.session_state["sel_marca_home_cliente"] = MARCA_SCOPE_PLACEHOLDER
         if reset_cliente:
             st.session_state["sel_cliente_home_scope"] = CLIENTE_SCOPE_PLACEHOLDER
         if reset_tipo:
@@ -400,14 +394,9 @@ def main():
         _dbg_block()
 
 
-    def _reset_on_cliente_marca_change():
-        _reset_filters_defaults("cliente_marca_change")
-
-
     def _reset_on_cliente_change():
         _reset_cliente_state(
             "cliente_change",
-            reset_marca=False,
             reset_cliente=False,
             reset_tipo=True,
             reset_responsable=True,
@@ -418,7 +407,6 @@ def main():
     def _reset_on_responsable_tipo_change():
         _reset_cliente_state(
             "responsable_tipo_change",
-            reset_marca=False,
             reset_cliente=False,
             reset_tipo=False,
             reset_responsable=True,
@@ -429,7 +417,6 @@ def main():
     def _reset_on_responsable_lista_change():
         _reset_cliente_state(
             "responsable_lista_change",
-            reset_marca=False,
             reset_cliente=False,
             reset_tipo=False,
             reset_responsable=False,
@@ -442,14 +429,11 @@ def main():
     MODALIDAD_PLACEHOLDER = "— Selecciona modalidad —"
     RR_PLACEHOLDER = "— Selecciona rutero—reponedor —"
 
-    MARCA_SCOPE_PLACEHOLDER = "Todas"
     CLIENTE_SCOPE_PLACEHOLDER = "Todos"
     RESP_TIPO_PLACEHOLDER = "— Selecciona tipo —"
     RESP_TIPO_ALL = "Todos"
     RESP_LISTA_PLACEHOLDER = "Todos"
 
-    st.session_state.setdefault("sel_marca_home_cliente", MARCA_SCOPE_PLACEHOLDER)
-    st.session_state.setdefault("applied_scope_marca", None)
     st.session_state.setdefault("sel_cliente_home_scope", CLIENTE_SCOPE_PLACEHOLDER)
     st.session_state.setdefault("sel_responsable_tipo", RESP_TIPO_PLACEHOLDER)
     st.session_state.setdefault("sel_responsable_lista", RESP_LISTA_PLACEHOLDER)
@@ -507,10 +491,8 @@ def main():
 
     if modo == "CLIENTE":
         try:
-            with _timed("SELECTOR marcas_home_global", tag="SELECTOR"):
-                marcas_scope = db.get_marcas_home_global()
-                _dbg("CLIENTE marcas loaded", rows=len(marcas_scope))
-                _dbg_block()
+            _dbg("CLIENTE marcas selector skipped")
+            _dbg_block()
         except Exception as e:
             _dbg("FAIL marcas_home_global", err=repr(e))
             st.error("No pude leer marcas para CLIENTE.")
@@ -519,10 +501,6 @@ def main():
                 if DEBUG:
                     st.code(traceback.format_exc())
             st.stop()
-
-        marca_opts = [MARCA_SCOPE_PLACEHOLDER] + list(marcas_scope or [])
-        if st.session_state.get("sel_marca_home_cliente", MARCA_SCOPE_PLACEHOLDER) not in marca_opts:
-            st.session_state["sel_marca_home_cliente"] = MARCA_SCOPE_PLACEHOLDER
 
         try:
             with _timed("SELECTOR clientes_home_scope", tag="SELECTOR"):
@@ -630,67 +608,6 @@ def main():
         )
         scope_label = scope_level if responsable_tipo_all else ("KPI" if kpi_only_tipo_scope else scope_level)
         st.session_state["scope_level_cliente_mode"] = scope_level
-
-        def _apply_scope_filters():
-            st.session_state["applied_scope_marca"] = _scope_value_or_none(
-                st.session_state.get("sel_marca_home_cliente"),
-                MARCA_SCOPE_PLACEHOLDER,
-            )
-            st.session_state["applied_foco"] = _normalize_focos_ui(st.session_state.get("f_foco", []))
-            st.session_state["applied_search"] = (st.session_state.get("f_search", "") or "").strip()
-
-            st.session_state["page_cliente_scope"] = 1
-            st.session_state["page_cliente_scope_ui"] = 1
-            st.session_state["page_cliente_detalle"] = 1
-            st.session_state["page_cliente_detalle_ui"] = 1
-
-            _dbg(
-                "APPLY filters CLIENTE",
-                marca=st.session_state.get("applied_scope_marca") or "Todas",
-                foco=st.session_state["applied_foco"],
-                q=bool(st.session_state["applied_search"]),
-                scope=scope_level,
-            )
-            _dbg_block()
-
-        filters_expanded_cliente = bool(
-            st.session_state.get("applied_scope_marca")
-            or _normalize_focos_ui(st.session_state.get("applied_foco", []))
-            or (st.session_state.get("applied_search", "") or "").strip()
-        )
-
-        def _render_scope_filters_panel():
-            with st.expander("FILTROS (opcional)", expanded=filters_expanded_cliente):
-                with st.form("filters_form_cliente", clear_on_submit=False):
-                    f0, f1, f2 = st.columns([1.2, 1.1, 2.0], gap="small")
-
-                    with f0:
-                        st.selectbox(
-                            "MARCA",
-                            marca_opts,
-                            key="sel_marca_home_cliente",
-                        )
-
-                    with f1:
-                        st.multiselect(
-                            "Foco operativo",
-                            options=FOCO_OPTIONS,
-                            key="f_foco",
-                            placeholder="Todo",
-                        )
-
-                    with f2:
-                        st.text_input(
-                            "Búsqueda (SKU o descripción)",
-                            key="f_search",
-                            placeholder="Ej: 779... / galleta / snack... (mín 2 caracteres)",
-                        )
-
-                    st.form_submit_button(
-                        "Aplicar",
-                        on_click=_apply_scope_filters,
-                        use_container_width=True,
-                    )
 
         marca_ap = None
         foco_ap = []
@@ -876,12 +793,6 @@ def main():
             with st.expander(f"MERCADERISTA A CARGO ({len(rr_view)} filas)", expanded=False):
                 st.dataframe(rr_view, width="stretch", hide_index=True)
 
-        def _scope_file_token() -> str:
-            raw = responsable_sel or cliente_sel or "scope"
-            token = "".join(ch if str(ch).isalnum() else "_" for ch in str(raw))
-            token = token.strip("_")
-            return token[:60] or "scope"
-
         def _sanitize_export_token(value, fallback: str = "TODOS") -> str:
             raw = str(value or "").strip()
             if not raw:
@@ -938,241 +849,6 @@ def main():
                 use_container_width=True,
                 key=f"cliente_inventory_excel_{scope_level}_{cliente_token}_{resp_tipo_token}_{responsable_token}",
             )
-
-        def _render_cliente_exports() -> None:
-            if scope_level not in {"L2", "L3"}:
-                return
-
-            local_rename = {
-                "cod_rt": "COD_RT",
-                "local_nombre_rr": "LOCAL",
-                "nombre_local_rr": "LOCAL",
-                "cliente": "CLIENTE",
-                "rutero": "RUTERO",
-                "reponedor": "REPONEDOR",
-                "skus_scope": "TOTAL SKUS",
-                "total_skus": "TOTAL SKUS",
-                "venta_0": "VENTA 0",
-                "negativos": "NEGATIVOS",
-                "quiebres": "QUIEBRES OBS.",
-                "otros": "OTROS",
-                "skus_en_foco": "SKUS EN FOCO",
-            }
-            local_cols = [
-                "COD_RT", "LOCAL", "CLIENTE", "RUTERO", "REPONEDOR",
-                "TOTAL SKUS", "VENTA 0", "NEGATIVOS", "OTROS", "QUIEBRES OBS.", "SKUS EN FOCO",
-            ]
-
-            def _split_pipe_values(value) -> list[str]:
-                raw = str(value or "").strip()
-                if not raw:
-                    return []
-                return [part.strip() for part in raw.split("|") if part.strip()]
-
-            def _match_multi_value(value, target: str | None) -> bool:
-                if not target:
-                    return True
-                return str(target).strip().upper() in {x.upper() for x in _split_pipe_values(value)}
-
-            scope_token = _scope_file_token()
-            title_base = [
-                "STOCK_ZERO · CLIENTE",
-                f"Cliente: {cliente_sel or 'Todos'} | Resp. tipo: {responsable_tipo_raw or '-'} | Responsable: {responsable_sel or 'Todos'}",
-                f"Marca: {marca_ap or 'Todas'} | Foco: {_foco_label(foco_ap)} | Búsqueda: {search_ap if search_ap else '-'}",
-                f"Fecha stock: {file_stamp}",
-            ]
-
-            try:
-                with _timed("EXPORT cliente_scope_local_query", tag="CACHE"):
-                    df_local_export_raw = db.get_tabla_scope_local_total_page(
-                        marca=marca_ap,
-                        cliente=cliente_sel,
-                        responsable_tipo=responsable_tipo_sel,
-                        responsable=responsable_sel,
-                        focos=foco_ap,
-                        search=search_ap,
-                        limit=None,
-                        offset=None,
-                    )
-                df_local_export = _rename_and_pick(df_local_export_raw, local_rename, local_cols)
-            except Exception as e:
-                _dbg("FAIL cliente_scope_local_export", err=repr(e))
-                st.warning("No pude preparar la exportación del scope.")
-                return
-
-            if df_local_export is None or df_local_export.empty:
-                st.caption("Sin filas de scope para exportar.")
-                return
-
-            local_labels = ["Todos"]
-            local_map = {}
-            for _, row in df_local_export[["COD_RT", "LOCAL"]].drop_duplicates().iterrows():
-                label = f"{row['COD_RT']} · {row['LOCAL']}"
-                local_labels.append(label)
-                local_map[label] = str(row["COD_RT"])
-
-            mercaderistas = []
-            for value in df_local_export.get("REPONEDOR", pd.Series(dtype=str)):
-                for item in _split_pipe_values(value):
-                    if item not in mercaderistas:
-                        mercaderistas.append(item)
-
-            st.markdown("#### Exportar scope")
-            fx1, fx2 = st.columns(2, gap="small")
-            with fx1:
-                local_export_sel = st.selectbox(
-                    "LOCAL para descarga",
-                    local_labels,
-                    key=f"cliente_export_local_sel_{scope_token}",
-                )
-            with fx2:
-                mercaderista_export_sel = st.selectbox(
-                    "MERCADERISTA para descarga",
-                    ["Todos"] + mercaderistas,
-                    key=f"cliente_export_merca_sel_{scope_token}",
-                )
-
-            selected_cod_rt = local_map.get(local_export_sel)
-            selected_mercaderista = None if mercaderista_export_sel == "Todos" else mercaderista_export_sel
-
-            df_local_filtered = df_local_export.copy()
-            if selected_cod_rt:
-                df_local_filtered = df_local_filtered[df_local_filtered["COD_RT"].astype(str) == str(selected_cod_rt)].copy()
-            if selected_mercaderista:
-                df_local_filtered = df_local_filtered[
-                    df_local_filtered["REPONEDOR"].apply(lambda v: _match_multi_value(v, selected_mercaderista))
-                ].copy()
-
-            selected_cod_rts = set(df_local_filtered["COD_RT"].astype(str).tolist())
-
-            title_scope_extra = []
-            if selected_cod_rt:
-                title_scope_extra.append(f"Local: {local_export_sel}")
-            if selected_mercaderista:
-                title_scope_extra.append(f"Mercaderista: {selected_mercaderista}")
-            title_lines = title_base + ([" | ".join(title_scope_extra)] if title_scope_extra else [])
-
-            ex1, ex2 = st.columns(2, gap="small")
-
-            with ex1:
-                with st.expander("LISTADO GLOBAL FOCOS", expanded=False):
-                    if df_local_filtered.empty:
-                        st.caption("Sin filas para exportar con el filtro de descarga actual.")
-                    else:
-                        local_excel = export_excel_generic(f"CLIENTE_{scope_token}", df_local_filtered)
-                        local_pdf = export_pdf_generic(
-                            title_lines + ["LISTADO GLOBAL FOCOS"],
-                            df_local_filtered,
-                            list(df_local_filtered.columns),
-                        )
-                        st.download_button(
-                            "Descargar Excel",
-                            data=local_excel,
-                            file_name=f"STOCK_ZERO_CLIENTE_LOCALES_{scope_token}_{file_stamp}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            key=f"cliente_scope_local_excel_{scope_level}",
-                        )
-                        st.download_button(
-                            "Descargar PDF",
-                            data=local_pdf,
-                            file_name=f"STOCK_ZERO_CLIENTE_LOCALES_{scope_token}_{file_stamp}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True,
-                            key=f"cliente_scope_local_pdf_{scope_level}",
-                        )
-
-            with ex2:
-                with st.expander("EXPORTAR SALAS FOCOS", expanded=False):
-                    try:
-                        with _timed("EXPORT cliente_scope_focus_query", tag="CACHE"):
-                            df_focus_raw = db.get_detalle_sku_scope_total_page(
-                                marca=marca_ap,
-                                cliente=cliente_sel,
-                                responsable_tipo=responsable_tipo_sel,
-                                responsable=responsable_sel,
-                                focos=foco_ap,
-                                search=search_ap,
-                                limit=None,
-                                offset=None,
-                            )
-
-                        df_focus_input = _drop_total_rows(df_focus_raw).rename(columns={
-                            "fecha": "fecha",
-                            "cod_rt": "COD_RT",
-                            "nombre_local_rr": "LOCAL",
-                            "cliente": "CLIENTE",
-                            "marca": "MARCA",
-                            "sku": "Sku",
-                            "descripcion": "Descripción del Producto",
-                            "stock": "Stock",
-                            "venta_7": "Venta(+7)",
-                            "negativo": "NEGATIVO",
-                            "riesgo_quiebre": "RIESGO DE QUIEBRE",
-                            "otros": "OTROS",
-                        })
-
-                        ctx_cols = ["COD_RT", "LOCAL", "CLIENTE", "RUTERO", "REPONEDOR"]
-                        df_focus_ctx = df_local_filtered[ctx_cols].copy() if not df_local_filtered.empty else pd.DataFrame(columns=ctx_cols)
-                        if not df_focus_ctx.empty:
-                            df_focus_ctx = df_focus_ctx.drop_duplicates(subset=["COD_RT", "CLIENTE"], keep="first")
-                            df_focus_input = df_focus_input.merge(
-                                df_focus_ctx,
-                                how="left",
-                                on=["COD_RT", "CLIENTE"],
-                                suffixes=("", "_CTX"),
-                            )
-                            for col in ["LOCAL", "RUTERO", "REPONEDOR"]:
-                                ctx_col = f"{col}_CTX"
-                                if ctx_col in df_focus_input.columns:
-                                    if col not in df_focus_input.columns:
-                                        df_focus_input[col] = ""
-                                    df_focus_input[col] = df_focus_input[col].where(
-                                        df_focus_input[col].astype(str).str.strip() != "",
-                                        df_focus_input[ctx_col],
-                                    )
-                                    df_focus_input = df_focus_input.drop(columns=[ctx_col])
-                    except Exception as e:
-                        _dbg("FAIL cliente_scope_focus_export", err=repr(e))
-                        st.warning("No pude preparar la exportación de focos del scope.")
-                        df_focus_input = pd.DataFrame()
-
-                    if df_focus_input is None or df_focus_input.empty:
-                        st.caption("Sin focos exportables para este scope.")
-                    else:
-                        if selected_cod_rts:
-                            df_focus_input = df_focus_input[
-                                df_focus_input["COD_RT"].astype(str).isin(selected_cod_rts)
-                            ].copy()
-                        else:
-                            df_focus_input = df_focus_input.iloc[0:0].copy()
-
-                        df_focus_export = build_focus_export_df(df_focus_input, foco=foco_ap)
-
-                        if df_focus_export is None or df_focus_export.empty:
-                            st.caption("Sin focos exportables para el filtro de descarga actual.")
-                        else:
-                            focus_excel = export_excel_generic(f"CLIENTE_{scope_token}_FOCO", df_focus_export)
-                            focus_pdf = export_pdf_focus_table(
-                                title_lines + ["EXPORTAR SALAS FOCOS"],
-                                df_focus_export,
-                            )
-                            st.download_button(
-                                "Descargar Excel",
-                                data=focus_excel,
-                                file_name=f"STOCK_ZERO_CLIENTE_FOCOS_{scope_token}_{file_stamp}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                use_container_width=True,
-                                key=f"cliente_scope_focus_excel_{scope_level}",
-                            )
-                            st.download_button(
-                                "Descargar PDF",
-                                data=focus_pdf,
-                                file_name=f"STOCK_ZERO_CLIENTE_FOCOS_{scope_token}_{file_stamp}.pdf",
-                                mime="application/pdf",
-                                use_container_width=True,
-                                key=f"cliente_scope_focus_pdf_{scope_level}",
-                            )
 
         def _render_responsables_scope_table(df_resp: pd.DataFrame | None, title: str) -> None:
             st.markdown(f"#### {title}")
