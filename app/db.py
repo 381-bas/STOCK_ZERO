@@ -60,6 +60,10 @@ SCOPE_FACT_BRIDGE_VIEW = os.getenv(
     "SCOPE_FACT_BRIDGE_VIEW",
     "public.v_scope_cliente_responsable_fact_bridge",
 )
+SCOPE_INVENTORY_BASE_VIEW = os.getenv(
+    "SCOPE_INVENTORY_BASE_VIEW",
+    "public.mv_scope_fact_latest_cliente",
+)
 
 
 CG_PARITY_VIEW = os.getenv(
@@ -1438,6 +1442,109 @@ def _scope_detail_filters(
     return "\n".join(x for x in filters if x), params
 
 
+def _scope_inventory_base_filters(
+    *,
+    alias: str = "",
+    marca: str | None = None,
+    cliente: str | None = None,
+    responsable_tipo: str | None = None,
+    responsable: str | None = None,
+    focos: str | list[str] | tuple[str, ...] | None = None,
+    search: str = "",
+) -> tuple[str, dict[str, Any]]:
+    pfx = f"{alias}." if alias else ""
+    params: dict[str, Any] = {}
+    filters: list[str] = []
+
+    base_cliente_expr = _scope_match_text_expr(alias, "marca_norm", "marca")
+    bridge_cliente_expr = (
+        "COALESCE("
+        "NULLIF(TRIM(COALESCE(br.cliente_norm, '')), ''), "
+        "NULLIF(TRIM(COALESCE(br.cliente, '')), ''), "
+        "''"
+        ")"
+    )
+
+    if _scope_is_selected(cliente):
+        filters.append(
+            f"AND {_scope_norm_expr(base_cliente_expr)} = {_scope_norm_expr(':cliente')}"
+        )
+        params["cliente"] = str(cliente).strip()
+
+    if _scope_is_selected(marca):
+        filters.append(
+            f"AND {_scope_norm_expr(base_cliente_expr)} = {_scope_norm_expr(':marca')}"
+        )
+        params["marca"] = str(marca).strip()
+
+    tipo_norm = _scope_tipo_norm(responsable_tipo)
+    responsable_selected = _scope_is_selected(responsable)
+    if responsable_selected and tipo_norm is None:
+        filters.append("AND 1=0")
+    elif tipo_norm is not None or responsable_selected:
+        scope_filters: list[str] = []
+        responsable_tipo_expr = "COALESCE(br.responsable_tipo, '')"
+        responsable_norm_expr = _scope_match_text_expr("br", "responsable_norm", "responsable")
+        if tipo_norm is not None:
+            scope_filters.append(
+                f"AND {_scope_norm_expr(responsable_tipo_expr)} = {_scope_norm_expr(':responsable_tipo')}"
+            )
+            params["responsable_tipo"] = tipo_norm
+        if responsable_selected:
+            scope_filters.append(
+                f"AND {_scope_norm_expr(responsable_norm_expr)} = {_scope_norm_expr(':responsable')}"
+            )
+            params["responsable"] = str(responsable).strip()
+
+        filters.append(
+            f"""
+            AND EXISTS (
+                SELECT 1
+                FROM {SCOPE_FACT_BRIDGE_VIEW} br
+                WHERE br.cod_rt = {pfx}cod_rt
+                  AND CAST(br.sku AS TEXT) = CAST({pfx}sku AS TEXT)
+                  AND {_scope_norm_expr(bridge_cliente_expr)} = {_scope_norm_expr(base_cliente_expr)}
+                  {' '.join(scope_filters)}
+            )
+            """
+        )
+
+    focos_norm = _normalize_scope_focos(focos)
+    if focos_norm:
+        foco_clauses: list[str] = []
+        negativo_expr = f"COALESCE({pfx}negativo::text, '')"
+        quiebre_expr = f"COALESCE({pfx}riesgo_quiebre::text, '')"
+        if "Venta 0" in focos_norm:
+            foco_clauses.append(f"COALESCE({pfx}venta_7, 0) = 0")
+        if "Negativo" in focos_norm:
+            foco_clauses.append(f"{_scope_norm_expr(negativo_expr)} = 'SI'")
+        if "Quiebres" in focos_norm:
+            foco_clauses.append(f"{_scope_norm_expr(quiebre_expr)} = 'SI'")
+        if "Otros" in focos_norm:
+            foco_clauses.append(
+                f"NULLIF(TRIM(COALESCE({pfx}otros::text, '')), '') IS NOT NULL"
+            )
+        if foco_clauses:
+            filters.append("AND (" + " OR ".join(f"({c})" for c in foco_clauses) + ")")
+
+    s = (search or "").strip()
+    if len(s) >= 2:
+        filters.append(
+            f"""
+            AND (
+                CAST({pfx}cod_rt AS TEXT) ILIKE :q
+                OR COALESCE({pfx}local_nombre_rr, '') ILIKE :q
+                OR COALESCE({pfx}marca, '') ILIKE :q
+                OR CAST({pfx}sku AS TEXT) ILIKE :q
+                OR COALESCE({pfx}producto, '') ILIKE :q
+            )
+            """
+        )
+        params["q"] = f"%{s}%"
+
+    return "\n".join(x for x in filters if x), params
+
+
 def get_marcas_home_global() -> list[str]:
     sql = f"""
         SELECT DISTINCT
@@ -1571,8 +1678,8 @@ def get_kpis_scope_cliente(
     focos: list[str] | None = None,
     search: str = "",
 ) -> pd.DataFrame:
-    where_summary, params_summary = _scope_summary_filters(
-        alias="s",
+    where_base, params = _scope_inventory_base_filters(
+        alias="base",
         marca=marca,
         cliente=cliente,
         responsable_tipo=responsable_tipo,
@@ -1580,53 +1687,66 @@ def get_kpis_scope_cliente(
         focos=focos,
         search=search,
     )
-
-    where_detail, params_detail = _scope_detail_filters(
-        alias="b",
-        marca=marca,
-        cliente=cliente,
-        responsable_tipo=responsable_tipo,
-        responsable=responsable,
-        focos=focos,
-        search=search,
-    )
-
-    params = {**params_summary, **params_detail}
 
     sql = f"""
-        WITH kpi AS (
+        WITH base_filtered AS (
             SELECT
-                COUNT(DISTINCT s.cod_rt)::int AS locales_scope,
-                COUNT(DISTINCT s.cliente_norm)::int AS clientes_scope,
-                COUNT(DISTINCT s.responsable_norm)::int AS responsables_scope,
-                COALESCE(SUM(s.skus_scope), 0)::int AS total_skus,
-                COALESCE(SUM(s.venta_0), 0)::int AS venta_0,
-                COALESCE(SUM(s.negativos), 0)::int AS negativos,
-                COALESCE(SUM(s.quiebres), 0)::int AS quiebres,
-                COALESCE(SUM(s.otros), 0)::int AS otros
-            FROM {SCOPE_SUMMARY_VIEW} s
+                base.fecha,
+                base.cod_rt,
+                COALESCE(NULLIF(TRIM(base.local_nombre_rr), ''), CAST(base.cod_rt AS TEXT)) AS local_nombre_rr,
+                COALESCE(NULLIF(TRIM(base.marca), ''), '') AS marca,
+                COALESCE(NULLIF(TRIM(base.marca_norm), ''), NULLIF(TRIM(base.marca), ''), '') AS marca_norm,
+                CAST(base.sku AS TEXT) AS sku,
+                COALESCE(base.producto, '') AS producto,
+                COALESCE(base.stock, 0)::int AS stock,
+                COALESCE(base.venta_7, 0)::int AS venta_7,
+                COALESCE(base.negativo::text, '') AS negativo,
+                COALESCE(base.riesgo_quiebre::text, '') AS riesgo_quiebre,
+                COALESCE(base.otros::text, '') AS otros
+            FROM {SCOPE_INVENTORY_BASE_VIEW} base
             WHERE 1=1
-            {where_summary}
+            {where_base}
         ),
-        fecha AS (
+        responsables AS (
             SELECT
-                MAX(b.fecha) AS fecha_stock
-            FROM {SCOPE_FACT_BRIDGE_VIEW} b
-            WHERE 1=1
-            {where_detail}
+                COUNT(
+                    DISTINCT UPPER(
+                        TRIM(
+                            COALESCE(
+                                NULLIF(TRIM(COALESCE(br.responsable_norm, '')), ''),
+                                NULLIF(TRIM(COALESCE(br.responsable, '')), ''),
+                                ''
+                            )
+                        )
+                    )
+                )::int AS responsables_scope
+            FROM {SCOPE_FACT_BRIDGE_VIEW} br
+            WHERE NULLIF(TRIM(COALESCE(br.responsable_norm, br.responsable, '')), '') IS NOT NULL
+              AND EXISTS (
+                  SELECT 1
+                  FROM base_filtered bf
+                  WHERE bf.cod_rt = br.cod_rt
+                    AND CAST(bf.sku AS TEXT) = CAST(br.sku AS TEXT)
+                    AND {_scope_norm_expr("COALESCE(NULLIF(TRIM(COALESCE(br.cliente_norm, '')), ''), NULLIF(TRIM(COALESCE(br.cliente, '')), ''), '')")} =
+                        {_scope_norm_expr("COALESCE(NULLIF(TRIM(COALESCE(bf.marca_norm, '')), ''), NULLIF(TRIM(COALESCE(bf.marca, '')), ''), '')")}
+              )
         )
         SELECT
-            fecha.fecha_stock,
-            kpi.locales_scope,
-            kpi.clientes_scope,
-            kpi.responsables_scope,
-            kpi.total_skus,
-            kpi.venta_0,
-            kpi.negativos,
-            kpi.quiebres,
-            kpi.otros
-        FROM kpi
-        CROSS JOIN fecha
+            MAX(base_filtered.fecha) AS fecha_stock,
+            COUNT(DISTINCT base_filtered.cod_rt)::int AS locales_scope,
+            COUNT(
+                DISTINCT COALESCE(
+                    NULLIF(TRIM(base_filtered.marca_norm), ''),
+                    NULLIF(TRIM(base_filtered.marca), '')
+                )
+            )::int AS clientes_scope,
+            COALESCE((SELECT responsables_scope FROM responsables), 0)::int AS responsables_scope,
+            COUNT(*)::int AS total_skus,
+            COALESCE(SUM(CASE WHEN COALESCE(base_filtered.venta_7, 0) = 0 THEN 1 ELSE 0 END), 0)::int AS venta_0,
+            COALESCE(SUM(CASE WHEN {_scope_norm_expr("base_filtered.negativo")} = 'SI' THEN 1 ELSE 0 END), 0)::int AS negativos,
+            COALESCE(SUM(CASE WHEN {_scope_norm_expr("base_filtered.riesgo_quiebre")} = 'SI' THEN 1 ELSE 0 END), 0)::int AS quiebres,
+            COALESCE(SUM(CASE WHEN NULLIF(TRIM(COALESCE(base_filtered.otros, '')), '') IS NOT NULL THEN 1 ELSE 0 END), 0)::int AS otros
+        FROM base_filtered
     """
     return qdf(sql, params)
 
