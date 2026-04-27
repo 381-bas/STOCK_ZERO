@@ -692,12 +692,9 @@ def main():
                         use_container_width=True,
                     )
 
-        marca_ap = _scope_value_or_none(
-            st.session_state.get("applied_scope_marca"),
-            MARCA_SCOPE_PLACEHOLDER,
-        )
-        foco_ap = _normalize_focos_ui(st.session_state.get("applied_foco", []))
-        search_ap = (st.session_state.get("applied_search", "") or "").strip()
+        marca_ap = None
+        foco_ap = []
+        search_ap = ""
 
         meta1, meta2, meta3, meta4, meta5 = st.columns([1.0, 1.3, 1.3, 1.2, 1.2], gap="small")
         meta1.caption(f"Scope: {scope_label}")
@@ -745,7 +742,6 @@ def main():
             or 0
         )
         c5.caption(f"SKUs scope: {skus_scope_total}")
-        _render_scope_filters_panel()
         total_skus_scope = skus_scope_total
         total_skus_scope = int((kpi_scope_row or {}).get("total_skus") or 0)
         if total_skus_scope == 0:
@@ -886,19 +882,25 @@ def main():
             token = token.strip("_")
             return token[:60] or "scope"
 
-        def _render_cliente_exports_l1_global() -> None:
-            if scope_level not in {"L0", "L1"}:
-                return
+        def _sanitize_export_token(value, fallback: str = "TODOS") -> str:
+            raw = str(value or "").strip()
+            if not raw:
+                return fallback
+            token = "".join(ch if str(ch).isalnum() else "_" for ch in raw)
+            token = token.strip("_")
+            return token[:60] or fallback
+
+        def _render_cliente_inventory_export() -> None:
 
             try:
-                with _timed("EXPORT cliente_l1_global_query", tag="CACHE"):
+                with _timed("EXPORT cliente_scope_inventory_query", tag="CACHE"):
                     df_cliente_raw = db.get_export_inventario_cliente(
                         cliente=cliente_sel,
-                        marca=marca_ap,
+                        marca=None,
                         responsable_tipo=None if responsable_tipo_all else responsable_tipo_sel,
                         responsable=responsable_sel,
-                        focos=foco_ap,
-                        search=search_ap,
+                        focos=None,
+                        search="",
                     )
                 _dbg(
                     "CLIENTE scope inventory export raw loaded",
@@ -914,37 +916,28 @@ def main():
                 st.caption("Sin filas para exportar en el cliente seleccionado.")
                 return
 
-            scope_token = _scope_file_token() if (responsable_sel or cliente_sel) else "TODOS"
             df_inventory_cliente = build_inventory_cliente_export_df(df_cliente_raw)
-            df_focus_cliente = build_focus_export_df(df_cliente_raw, foco="Todo")
-
-            st.markdown("#### Descargables cliente")
-            ex1, ex2 = st.columns(2, gap="small")
-
-            with ex1:
-                inventory_excel = export_excel_generic(f"CLIENTE_{scope_token}", df_inventory_cliente)
-                st.download_button(
-                    "Inventario cliente",
-                    data=inventory_excel,
-                    file_name=f"STOCK_ZERO_INVENTARIO_CLIENTE_{scope_token}_{file_stamp}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    key=f"cliente_l1_inventory_excel_{scope_token}",
-                )
-
-            with ex2:
-                if df_focus_cliente is None or df_focus_cliente.empty:
-                    st.caption("Sin focos activos para el cliente seleccionado.")
-                else:
-                    focus_excel = export_excel_generic(f"CLIENTE_{scope_token}_FOCO", df_focus_cliente)
-                    st.download_button(
-                        "Foco Cliente",
-                        data=focus_excel,
-                        file_name=f"STOCK_ZERO_FOCO_CLIENTE_{scope_token}_{file_stamp}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
-                        key=f"cliente_l1_focus_excel_{scope_token}",
-                    )
+            cliente_token = _sanitize_export_token(cliente_sel, fallback="TODOS")
+            resp_tipo_token = _sanitize_export_token(
+                None if responsable_tipo_all else responsable_tipo_sel,
+                fallback="TODOS",
+            )
+            responsable_token = _sanitize_export_token(responsable_sel, fallback="TODOS")
+            inventory_excel = export_excel_generic(
+                f"CLIENTE_{cliente_token}_{resp_tipo_token}_{responsable_token}",
+                df_inventory_cliente,
+            )
+            st.download_button(
+                "Descargar inventario",
+                data=inventory_excel,
+                file_name=(
+                    f"STOCK_ZERO_INVENTARIO_CLIENTE_"
+                    f"{cliente_token}_{resp_tipo_token}_{responsable_token}_{file_stamp}.xlsx"
+                ),
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key=f"cliente_inventory_excel_{scope_level}_{cliente_token}_{resp_tipo_token}_{responsable_token}",
+            )
 
         def _render_cliente_exports() -> None:
             if scope_level not in {"L2", "L3"}:
@@ -1311,7 +1304,7 @@ def main():
                 ],
             )
             st.dataframe(df_cli_view, width="stretch", hide_index=True)
-            _render_cliente_exports_l1_global()
+            _render_cliente_inventory_export()
 
         # -----------------------------
         # L1
@@ -1418,7 +1411,7 @@ def main():
                 ],
             )
             st.dataframe(df_local_view, width="stretch", hide_index=True)
-            _render_cliente_exports_l1_global()
+            _render_cliente_inventory_export()
             
         # -----------------------------
         # L2
@@ -1520,7 +1513,7 @@ def main():
             )
             st.dataframe(df_local_view, width="stretch", hide_index=True)
 
-            _render_cliente_exports()
+            _render_cliente_inventory_export()
             _render_rr_people_context()
 
         # -----------------------------
@@ -1597,7 +1590,7 @@ def main():
             )
             st.dataframe(df_local_view, width="stretch", hide_index=True)
 
-            _render_cliente_exports()
+            _render_cliente_inventory_export()
             _render_rr_people_context()
 
             st.markdown("#### Detalle SKU")

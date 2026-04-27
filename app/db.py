@@ -1558,19 +1558,20 @@ def get_marcas_home_global() -> list[str]:
 
 
 def get_clientes_home_scope(marca: str | None = None) -> list[str]:
-    where_extra, params = _scope_cliente_filters(
-        alias="rr",
+    where_extra, params = _scope_inventory_base_filters(
+        alias="base",
         marca=marca,
-        apply_marca_intersection=True,
-        cliente_field="cliente_norm",
-        responsable_field="responsable_norm",
-        responsable_tipo_field="responsable_tipo",
+        cliente=None,
+        responsable_tipo=None,
+        responsable=None,
+        focos=None,
+        search="",
     )
     sql = f"""
         SELECT DISTINCT
-            COALESCE(NULLIF(TRIM(rr.cliente), ''), TRIM(rr.cliente_norm)) AS cliente
-        FROM {SCOPE_RR_DISTINCT_VIEW} rr
-        WHERE NULLIF(TRIM(COALESCE(rr.cliente_norm, rr.cliente, '')), '') IS NOT NULL
+            COALESCE(NULLIF(TRIM(base.marca), ''), TRIM(base.marca_norm)) AS cliente
+        FROM {SCOPE_INVENTORY_BASE_VIEW} base
+        WHERE NULLIF(TRIM(COALESCE(base.marca_norm, base.marca, '')), '') IS NOT NULL
         {where_extra}
         ORDER BY cliente
     """
