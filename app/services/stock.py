@@ -22,6 +22,10 @@ def get_mercaderista_selector_data(modalidad):
     return db.get_rutero_reponedor_por_modalidad(modalidad)
 
 
+def get_locales_por_modalidad_rr(modalidad, rutero, reponedor):
+    return db.get_locales_por_modalidad_rr(modalidad, rutero, reponedor)
+
+
 def get_local_context(modo, cod_rt, rutero=None, reponedor=None, modalidad=None):
     mode = _validate_mode(modo)
     if mode == "LOCAL":
