@@ -64,6 +64,18 @@ SCOPE_INVENTORY_BASE_VIEW = os.getenv(
     "SCOPE_INVENTORY_BASE_VIEW",
     "public.mv_scope_fact_latest_cliente",
 )
+SCOPE_CLIENTE_INVENTORY_ENRICHED_MV = os.getenv(
+    "SCOPE_CLIENTE_INVENTORY_ENRICHED_MV",
+    "public.mv_cliente_scope_inventory_enriched",
+)
+SCOPE_CLIENTE_RANKING_CLIENTE_MV = os.getenv(
+    "SCOPE_CLIENTE_RANKING_CLIENTE_MV",
+    "public.mv_cliente_scope_ranking_cliente",
+)
+SCOPE_CLIENTE_RANKING_RESPONSABLE_MV = os.getenv(
+    "SCOPE_CLIENTE_RANKING_RESPONSABLE_MV",
+    "public.mv_cliente_scope_ranking_responsable",
+)
 
 
 CG_PARITY_VIEW = os.getenv(
@@ -1239,6 +1251,17 @@ def _normalize_scope_focos(
     return out
 
 
+def _scope_focos_is_all_or_empty(
+    focos: str | list[str] | tuple[str, ...] | None,
+) -> bool:
+    focos_norm = _normalize_scope_focos(focos)
+    return not focos_norm or len(focos_norm) == 4
+
+
+def _scope_search_is_effectively_empty(search: str = "") -> bool:
+    return len((search or "").strip()) < 2
+
+
 def _scope_page_clause(
     limit: int | None,
     offset: int | None,
@@ -1762,6 +1785,64 @@ def get_tabla_scope_responsable_total_page(
     limit: int | None = None,
     offset: int | None = None,
 ) -> pd.DataFrame:
+    tipo_norm = _scope_tipo_norm(responsable_tipo)
+    responsable_selected = _scope_is_selected(responsable)
+    use_mv_scope = (
+        not _scope_is_selected(cliente)
+        and not _scope_is_selected(marca)
+        and _scope_search_is_effectively_empty(search)
+        and _scope_focos_is_all_or_empty(focos)
+        and (tipo_norm is not None or not responsable_selected)
+    )
+    if use_mv_scope:
+        params: dict[str, Any] = {}
+        where_clauses: list[str] = []
+        responsable_match_expr = (
+            "COALESCE("
+            "NULLIF(TRIM(r.responsable_norm), ''), "
+            "NULLIF(TRIM(r.responsable), ''), "
+            "''"
+            ")"
+        )
+        if tipo_norm is not None:
+            where_clauses.append(
+                f"AND {_scope_norm_expr('r.responsable_tipo')} = {_scope_norm_expr(':responsable_tipo')}"
+            )
+            params["responsable_tipo"] = tipo_norm
+        if responsable_selected:
+            where_clauses.append(
+                f"AND {_scope_norm_expr(responsable_match_expr)} = {_scope_norm_expr(':responsable')}"
+            )
+            params["responsable"] = str(responsable).strip()
+        page_sql = _scope_page_clause(limit, offset, params)
+        where_sql = "\n".join(where_clauses)
+        sql = f"""
+            SELECT
+                r.responsable_tipo,
+                r.responsable,
+                r.clientes,
+                r.locales,
+                r.total_skus,
+                r.venta_0,
+                r.negativos,
+                r.quiebres,
+                r.otros,
+                r.skus_en_foco,
+                COUNT(*) OVER()::int AS total_rows
+            FROM {SCOPE_CLIENTE_RANKING_RESPONSABLE_MV} r
+            WHERE 1=1
+            {where_sql}
+            ORDER BY
+                r.skus_en_foco DESC,
+                r.negativos DESC,
+                r.venta_0 DESC,
+                r.otros DESC,
+                r.quiebres DESC,
+                r.responsable ASC
+            {page_sql}
+        """
+        return qdf(sql, params)
+
     where_extra, params = _scope_detail_filters(
         alias="b",
         marca=marca,
@@ -1878,6 +1959,102 @@ def get_tabla_scope_cliente_total_page(
     limit: int | None = None,
     offset: int | None = None,
 ) -> pd.DataFrame:
+    tipo_norm = _scope_tipo_norm(responsable_tipo)
+    responsable_selected = _scope_is_selected(responsable)
+    use_mv_scope = (
+        tipo_norm is None
+        and not responsable_selected
+        and _scope_search_is_effectively_empty(search)
+        and _scope_focos_is_all_or_empty(focos)
+    )
+    if use_mv_scope:
+        params: dict[str, Any] = {}
+        where_clauses: list[str] = []
+        cliente_match_expr = "COALESCE(NULLIF(TRIM(base.cliente_norm), ''), NULLIF(TRIM(base.cliente), ''), '')"
+        if _scope_is_selected(cliente):
+            where_clauses.append(
+                f"AND {_scope_norm_expr(cliente_match_expr)} = {_scope_norm_expr(':cliente')}"
+            )
+            params["cliente"] = str(cliente).strip()
+        if _scope_is_selected(marca):
+            where_clauses.append(
+                f"AND {_scope_norm_expr(cliente_match_expr)} = {_scope_norm_expr(':marca')}"
+            )
+            params["marca"] = str(marca).strip()
+        page_sql = _scope_page_clause(limit, offset, params)
+        where_sql = "\n".join(where_clauses)
+        sql = f"""
+            WITH base AS (
+                SELECT
+                    rc.cliente,
+                    rc.cliente_norm,
+                    rc.locales,
+                    rc.total_skus,
+                    rc.venta_0,
+                    rc.negativos,
+                    rc.quiebres,
+                    rc.otros,
+                    rc.skus_en_foco,
+                    rc.fecha_min,
+                    rc.fecha_max
+                FROM {SCOPE_CLIENTE_RANKING_CLIENTE_MV} rc
+                WHERE 1=1
+                {where_sql}
+            ),
+            cliente_keys AS (
+                SELECT DISTINCT
+                    e.cod_rt,
+                    e.cliente_norm
+                FROM {SCOPE_CLIENTE_INVENTORY_ENRICHED_MV} e
+                JOIN base
+                  ON base.cliente_norm = e.cliente_norm
+            ),
+            responsables AS (
+                SELECT
+                    ck.cliente_norm,
+                    COUNT(DISTINCT resp.responsable_norm)::int AS responsables
+                FROM cliente_keys ck
+                JOIN LATERAL (
+                    SELECT UPPER(TRIM(COALESCE(r.gestores, ''))) AS responsable_norm
+                    FROM {RUTA_TABLE} r
+                    WHERE r.cod_rt = ck.cod_rt
+                      AND UPPER(TRIM(COALESCE(r.cliente, ''))) = ck.cliente_norm
+                      AND NULLIF(TRIM(COALESCE(r.gestores, '')), '') IS NOT NULL
+                    UNION
+                    SELECT UPPER(TRIM(COALESCE(r.supervisor, ''))) AS responsable_norm
+                    FROM {RUTA_TABLE} r
+                    WHERE r.cod_rt = ck.cod_rt
+                      AND UPPER(TRIM(COALESCE(r.cliente, ''))) = ck.cliente_norm
+                      AND NULLIF(TRIM(COALESCE(r.supervisor, '')), '') IS NOT NULL
+                ) resp ON TRUE
+                GROUP BY ck.cliente_norm
+            )
+            SELECT
+                base.cliente,
+                COALESCE(responsables.responsables, 0)::int AS responsables,
+                base.locales,
+                base.total_skus,
+                base.venta_0,
+                base.negativos,
+                base.quiebres,
+                base.otros,
+                base.skus_en_foco,
+                base.fecha_min,
+                base.fecha_max,
+                COUNT(*) OVER()::int AS total_rows
+            FROM base
+            LEFT JOIN responsables
+              ON responsables.cliente_norm = base.cliente_norm
+            ORDER BY
+                base.skus_en_foco DESC,
+                base.quiebres DESC,
+                base.venta_0 DESC,
+                base.total_skus DESC,
+                base.cliente ASC
+            {page_sql}
+        """
+        return qdf(sql, params)
+
     where_extra, params = _scope_inventory_base_filters(
         alias="base",
         marca=marca,
@@ -2186,6 +2363,50 @@ def get_export_inventario_cliente(
     search: str = "",
 ) -> pd.DataFrame:
     cliente_sel = str(cliente or "").strip()
+    tipo_norm = _scope_tipo_norm(responsable_tipo)
+    responsable_selected = _scope_is_selected(responsable)
+    if tipo_norm is None and not responsable_selected:
+        where_extra, params = _scope_inventory_base_filters(
+            alias="b",
+            marca=marca,
+            cliente=cliente_sel or None,
+            responsable_tipo=None,
+            responsable=None,
+            focos=focos,
+            search=search,
+        )
+        sql = f"""
+            SELECT
+                b.fecha,
+                CAST(b.cod_rt AS TEXT) AS "COD_RT",
+                b.local_nombre_rr AS "LOCAL",
+                b.cliente AS "CLIENTE",
+                COALESCE(NULLIF(b.gestores, ''), 'SIN ASIGNAR') AS "GESTOR",
+                COALESCE(NULLIF(b.supervisores, ''), 'SIN ASIGNAR') AS "SUPERVISOR",
+                COALESCE(NULLIF(b.ruteros, ''), 'SIN ASIGNAR') AS "RUTERO",
+                COALESCE(NULLIF(b.reponedores, ''), 'SIN ASIGNAR') AS "REPONEDOR",
+                COALESCE(NULLIF(b.modalidades, ''), 'SIN ASIGNAR') AS "MODALIDAD",
+                b.marca AS "MARCA",
+                CAST(b.sku AS TEXT) AS "Sku",
+                b.producto AS "Descripción del Producto",
+                b.stock AS "Stock",
+                b.venta_7 AS "Venta(+7)",
+                b.negativo AS "NEGATIVO",
+                b.riesgo_quiebre AS "RIESGO DE QUIEBRE",
+                b.otros AS "OTROS"
+            FROM {SCOPE_CLIENTE_INVENTORY_ENRICHED_MV} b
+            WHERE 1=1
+            {where_extra}
+            ORDER BY
+                b.fecha DESC,
+                b.cod_rt ASC,
+                b.cliente ASC,
+                CASE WHEN CAST(b.sku AS TEXT) ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
+                CASE WHEN CAST(b.sku AS TEXT) ~ '^[0-9]+$' THEN CAST(b.sku AS BIGINT) END ASC NULLS LAST,
+                CAST(b.sku AS TEXT) ASC
+        """
+        return qdf(sql, params)
+
     where_extra, params = _scope_inventory_base_filters(
         alias="b",
         marca=marca,
