@@ -8,6 +8,7 @@ import streamlit as st
 from app.exports import (
     build_export_df,
     build_focus_export_df,
+    build_inventory_cliente_export_df,
     export_excel_one_sheet,
     export_excel_generic,
     export_pdf_focus_table,
@@ -56,6 +57,8 @@ def render_reposicion(
     MODALIDAD_PLACEHOLDER = "— Selecciona modalidad —"
     RR_PLACEHOLDER = "— Selecciona rutero—reponedor —"
 
+    LOCAL_CLIENTE_ALL = "Todos"
+
     qp_modalidad = _qp_get("modalidad", "").strip()
     qp_rutero = _qp_get("rutero", "").strip()
     qp_reponedor = _qp_get("reponedor", "").strip()
@@ -82,6 +85,13 @@ def render_reposicion(
         st.session_state.pop("page_select_ui", None)
         _invalidate_runtime_cache()
         _dbg(f"RESET filters ({reason})")
+        _dbg_block()
+
+    def _reset_on_local_cliente_change():
+        st.session_state["page"] = 1
+        st.session_state["page_input_ui"] = 1
+        _invalidate_runtime_cache()
+        _dbg("RESET filters (local_cliente_change)")
         _dbg_block()
 
     if modo == "LOCAL":
@@ -136,6 +146,32 @@ def render_reposicion(
         cod_rt = str(row_loc["cod_rt"])
         _dbg("LOCAL selected", modo=modo, cod_rt=cod_rt)
         _dbg_block()
+
+        try:
+            with _timed("SELECTOR clientes_local_home", tag="SELECTOR"):
+                clientes_local = stock_service.get_clientes_local_home(cod_rt)
+                _dbg("CLIENTES LOCAL loaded", rows=len(clientes_local))
+                _dbg_block()
+        except Exception as e:
+            _dbg("FAIL clientes_local_home", err=repr(e))
+            st.error("No pude leer clientes para el local seleccionado.")
+            with st.expander("Detalles técnicos"):
+                st.code(repr(e))
+                if DEBUG:
+                    st.code(traceback.format_exc())
+            st.stop()
+
+        cliente_opts = [LOCAL_CLIENTE_ALL] + clientes_local
+        if st.session_state.get("sel_local_cliente", LOCAL_CLIENTE_ALL) not in cliente_opts:
+            st.session_state["sel_local_cliente"] = LOCAL_CLIENTE_ALL
+
+        with top3:
+            st.selectbox(
+                "CLIENTE",
+                cliente_opts,
+                key="sel_local_cliente",
+                on_change=_reset_on_local_cliente_change,
+            )
 
     elif modo == "MERCADERISTA":
         try:
@@ -319,17 +355,20 @@ def render_reposicion(
             panel_modalidad = modalidad_sel or "-"
 
     if modo == "LOCAL":
+        cliente_sel = st.session_state.get("sel_local_cliente", LOCAL_CLIENTE_ALL)
+        cliente_sel = None if cliente_sel == LOCAL_CLIENTE_ALL else cliente_sel
         i1, i2 = st.columns([2, 1], gap="small")
         i1.caption(f"Mercaderista: {panel_mercaderista}")
         i2.caption(f"Modalidad: {panel_modalidad}")
     else:
+        cliente_sel = None
         i1, i2, i3 = st.columns([1.4, 1.8, 1.4], gap="small")
         i1.caption(f"Rutero: {rutero}")
         i2.caption(f"Reponedor: {reponedor}")
         i3.caption(f"Modalidad: {panel_modalidad}")
 
     if modo == "LOCAL":
-        sel_key = f"{modo}|{cod_rt}"
+        sel_key = f"{modo}|{cod_rt}|{cliente_sel or LOCAL_CLIENTE_ALL}"
     else:
         sel_key = f"{modo}|{modalidad_sel}|{rutero}|{reponedor}|{cod_rt}"
 
@@ -339,33 +378,39 @@ def render_reposicion(
 
     file_stamp = "Sin stock"
 
-    try:
-        with _timed("PAGE marcas", tag="PAGE"):
-            marcas_disponibles = stock_service.get_brand_options(
-                modo=modo,
-                cod_rt=cod_rt,
-                rutero=rutero,
-                reponedor=reponedor,
-                modalidad=modalidad_sel,
-            )
-            _dbg("MARCAS loaded", n=len(marcas_disponibles))
-            _dbg_block()
-    except Exception as e:
-        _dbg("FAIL marcas", err=repr(e))
+    if modo == "LOCAL":
         marcas_disponibles = []
+        marcas = []
+        foco_ap = []
+        search_ap = ""
+    else:
+        try:
+            with _timed("PAGE marcas", tag="PAGE"):
+                marcas_disponibles = stock_service.get_brand_options(
+                    modo=modo,
+                    cod_rt=cod_rt,
+                    rutero=rutero,
+                    reponedor=reponedor,
+                    modalidad=modalidad_sel,
+                )
+                _dbg("MARCAS loaded", n=len(marcas_disponibles))
+                _dbg_block()
+        except Exception as e:
+            _dbg("FAIL marcas", err=repr(e))
+            marcas_disponibles = []
 
-    st.session_state.setdefault("sel_marcas", [])
-    mset = set(marcas_disponibles)
-    st.session_state["sel_marcas"] = [m for m in (st.session_state.get("sel_marcas") or []) if m in mset]
+        st.session_state.setdefault("sel_marcas", [])
+        mset = set(marcas_disponibles)
+        st.session_state["sel_marcas"] = [m for m in (st.session_state.get("sel_marcas") or []) if m in mset]
 
-    marcas = list(st.session_state.get("applied_marcas", []) or [])
-    foco_ap = _normalize_focos_ui(st.session_state.get("applied_foco", []))
-    search_ap = (st.session_state.get("applied_search", "") or "").strip()
+        marcas = list(st.session_state.get("applied_marcas", []) or [])
+        foco_ap = _normalize_focos_ui(st.session_state.get("applied_foco", []))
+        search_ap = (st.session_state.get("applied_search", "") or "").strip()
 
     dv = stock_service.get_data_version()
 
     if modo == "LOCAL":
-        kpis_key = (dv, modo, cod_rt, tuple(marcas))
+        kpis_key = (dv, modo, cod_rt, cliente_sel or LOCAL_CLIENTE_ALL)
     else:
         kpis_key = (dv, modo, modalidad_sel, rutero, reponedor, cod_rt, tuple(marcas))
 
@@ -381,6 +426,7 @@ def render_reposicion(
                     rutero=rutero,
                     reponedor=reponedor,
                     modalidad=modalidad_sel,
+                    cliente=cliente_sel,
                 )
 
             _dbg("KPIS loaded", rows=0 if kpis is None else len(kpis))
@@ -405,61 +451,66 @@ def render_reposicion(
     if total_skus_kpi == 0:
         st.caption("Estado: Sin stock para la combinación seleccionada.")
 
-    def _apply_filters():
-        st.session_state["applied_marcas"] = list(st.session_state.get("sel_marcas", []) or [])
-        st.session_state["applied_foco"] = _normalize_focos_ui(st.session_state.get("f_foco", []))
-        st.session_state["applied_search"] = (st.session_state.get("f_search", "") or "").strip()
-        st.session_state["page"] = 1
-        _invalidate_runtime_cache()
-        _dbg(
-            "APPLY filters",
-            marcas=len(st.session_state["applied_marcas"]),
-            foco=st.session_state["applied_foco"],
-            q=bool(st.session_state["applied_search"]),
+    if modo != "LOCAL":
+        def _apply_filters():
+            st.session_state["applied_marcas"] = list(st.session_state.get("sel_marcas", []) or [])
+            st.session_state["applied_foco"] = _normalize_focos_ui(st.session_state.get("f_foco", []))
+            st.session_state["applied_search"] = (st.session_state.get("f_search", "") or "").strip()
+            st.session_state["page"] = 1
+            _invalidate_runtime_cache()
+            _dbg(
+                "APPLY filters",
+                marcas=len(st.session_state["applied_marcas"]),
+                foco=st.session_state["applied_foco"],
+                q=bool(st.session_state["applied_search"]),
+            )
+            _dbg_block()
+
+        filters_expanded = bool(
+            st.session_state.get("applied_marcas")
+            or _normalize_focos_ui(st.session_state.get("applied_foco", []))
+            or (st.session_state.get("applied_search", "") or "").strip()
         )
-        _dbg_block()
 
-    filters_expanded = bool(
-        st.session_state.get("applied_marcas")
-        or _normalize_focos_ui(st.session_state.get("applied_foco", []))
-        or (st.session_state.get("applied_search", "") or "").strip()
-    )
+        with st.expander("FILTROS (opcional)", expanded=filters_expanded):
+            with st.form("filters_form", clear_on_submit=False):
+                r1c1, r1c2 = st.columns([3, 2], gap="small")
 
-    with st.expander("FILTROS (opcional)", expanded=filters_expanded):
-        with st.form("filters_form", clear_on_submit=False):
-            r1c1, r1c2 = st.columns([3, 2], gap="small")
+                with r1c1:
+                    st.multiselect(
+                        "CLIENTE (opcional)",
+                        options=marcas_disponibles,
+                        key="sel_marcas",
+                        placeholder="Todos",
+                    )
 
-            with r1c1:
-                st.multiselect(
-                    "CLIENTE (opcional)",
-                    options=marcas_disponibles,
-                    key="sel_marcas",
-                    placeholder="Todos",
+                with r1c2:
+                    st.multiselect(
+                        "Foco operativo",
+                        options=FOCO_OPTIONS,
+                        key="f_foco",
+                        placeholder="Todo",
+                    )
+
+                st.text_input(
+                    "Búsqueda (SKU o descripción)",
+                    key="f_search",
+                    placeholder="Ej: 779... / galleta / snack... (mín 2 caracteres)",
                 )
 
-            with r1c2:
-                st.multiselect(
-                    "Foco operativo",
-                    options=FOCO_OPTIONS,
-                    key="f_foco",
-                    placeholder="Todo",
+                st.form_submit_button(
+                    "Aplicar",
+                    on_click=_apply_filters,
+                    use_container_width=True,
                 )
 
-            st.text_input(
-                "Búsqueda (SKU o descripción)",
-                key="f_search",
-                placeholder="Ej: 779... / galleta / snack... (mín 2 caracteres)",
-            )
-
-            st.form_submit_button(
-                "Aplicar",
-                on_click=_apply_filters,
-                use_container_width=True,
-            )
-
-    marcas = list(st.session_state.get("applied_marcas", []) or [])
-    foco_ap = _normalize_focos_ui(st.session_state.get("applied_foco", []))
-    search_ap = (st.session_state.get("applied_search", "") or "").strip()
+        marcas = list(st.session_state.get("applied_marcas", []) or [])
+        foco_ap = _normalize_focos_ui(st.session_state.get("applied_foco", []))
+        search_ap = (st.session_state.get("applied_search", "") or "").strip()
+    else:
+        marcas = []
+        foco_ap = []
+        search_ap = ""
 
     page_size = 25
     st.session_state.setdefault("page", 1)
@@ -475,7 +526,9 @@ def render_reposicion(
     kpi_total_rows = None
     single_foco = foco_ap[0] if len(foco_ap) == 1 else None
 
-    if total_skus_kpi == 0:
+    if modo == "LOCAL":
+        kpi_total_rows = int(total_skus_kpi or 0)
+    elif total_skus_kpi == 0:
         kpi_total_rows = 0
     elif can_use_kpi_total and len(foco_ap) <= 1:
         if not foco_ap:
@@ -490,7 +543,7 @@ def render_reposicion(
             kpi_total_rows = int(kpis_row.get("otros") or 0)
 
     if modo == "LOCAL":
-        total_key = (dv, modo, cod_rt, tuple(marcas), foco_ap, search_ap)
+        total_key = (dv, modo, cod_rt, cliente_sel or LOCAL_CLIENTE_ALL)
     else:
         total_key = (dv, modo, modalidad_sel, rutero, reponedor, cod_rt, tuple(marcas), foco_ap, search_ap)
 
@@ -512,6 +565,7 @@ def render_reposicion(
                         rutero=rutero,
                         reponedor=reponedor,
                         modalidad=modalidad_sel,
+                        cliente=cliente_sel,
                     )
 
                 st.session_state["_total_key"] = total_key
@@ -622,6 +676,7 @@ def render_reposicion(
                     rutero=rutero,
                     reponedor=reponedor,
                     modalidad=modalidad_sel,
+                    cliente=cliente_sel,
                 )
 
             _dbg(
@@ -681,14 +736,17 @@ def render_reposicion(
             "Sku": "SKU",
             "Descripción del Producto": "PRODUCTO",
         })
-        df_tbl = df_tbl[["FECHA STOCK", "CLIENTE", "SKU", "PRODUCTO", "Stock", "INDICADORES"]]
+        if modo == "LOCAL" and cliente_sel:
+            df_tbl = df_tbl[["FECHA STOCK", "SKU", "PRODUCTO", "Stock", "INDICADORES"]]
+        else:
+            df_tbl = df_tbl[["FECHA STOCK", "CLIENTE", "SKU", "PRODUCTO", "Stock", "INDICADORES"]]
     else:
         df_tbl = df_raw
 
     st.dataframe(df_tbl, width="stretch", hide_index=True)
 
     if modo == "LOCAL":
-        export_key = (dv, modo, cod_rt, tuple(marcas), foco_ap, search_ap)
+        export_key = (dv, modo, cod_rt, cliente_sel or LOCAL_CLIENTE_ALL)
     else:
         export_key = (dv, modo, modalidad_sel, rutero, reponedor, cod_rt, tuple(marcas), foco_ap, search_ap)
 
@@ -731,6 +789,7 @@ def render_reposicion(
                         rutero=rutero,
                         reponedor=reponedor,
                         modalidad=modalidad_sel,
+                        cliente=cliente_sel,
                     )
 
                 _dbg("EXPORT raw loaded", rows=0 if df_export_raw is None else len(df_export_raw))
@@ -831,6 +890,67 @@ def render_reposicion(
 
         st.session_state["_export_scope"] = scope
 
+    def _cliente_export_token(value: str | None) -> str:
+        raw = str(value or LOCAL_CLIENTE_ALL).strip() or LOCAL_CLIENTE_ALL
+        token = "".join(ch if str(ch).isalnum() else "_" for ch in raw).strip("_")
+        while "__" in token:
+            token = token.replace("__", "_")
+        return token or LOCAL_CLIENTE_ALL.upper()
+
+    def _prepare_local_inventory_export():
+        if total_rows <= 0:
+            return
+
+        df_export_raw = st.session_state.get("_export_raw")
+
+        if df_export_raw is None:
+            try:
+                with _timed("EXPORT inventario_local_query", tag="CACHE"):
+                    df_export_raw = stock_service.get_export_inventario_local(
+                        cod_rt,
+                        cliente=cliente_sel,
+                    )
+                _dbg("EXPORT inventario_local raw loaded", rows=0 if df_export_raw is None else len(df_export_raw))
+                _dbg_block()
+                st.session_state["_export_raw"] = df_export_raw
+            except Exception as e:
+                _dbg("FAIL inventario_local export query", err=repr(e))
+                st.error("No pude preparar export.")
+                st.code(repr(e))
+                if DEBUG:
+                    st.code(traceback.format_exc())
+                st.stop()
+
+        if df_export_raw is None or df_export_raw.empty:
+            return
+
+        df_export = st.session_state.get("_export_df")
+        if st.session_state.get("_export_df_key") != export_key or df_export is None:
+            with _timed("EXPORT build_inventory_df", tag="CACHE"):
+                df_export = build_inventory_cliente_export_df(df_export_raw)
+                if "GESTOR" in df_export_raw.columns:
+                    gestor_map = df_export_raw[["COD_RT", "LOCAL", "CLIENTE", "MARCA", "Sku", "GESTOR"]].copy()
+                    gestor_map["GESTOR"] = gestor_map["GESTOR"].astype(str).replace({"nan": "", "None": ""}).fillna("")
+                    gestor_map = gestor_map.drop_duplicates()
+                    df_export = df_export.merge(
+                        gestor_map,
+                        on=["COD_RT", "LOCAL", "CLIENTE", "MARCA", "Sku"],
+                        how="left",
+                    )
+                    if "GESTOR" in df_export.columns:
+                        cols = [c for c in df_export.columns if c != "GESTOR"]
+                        insert_at = cols.index("CLIENTE") + 1 if "CLIENTE" in cols else 4
+                        cols = cols[:insert_at] + ["GESTOR"] + cols[insert_at:]
+                        df_export = df_export[cols]
+
+            st.session_state["_export_df_key"] = export_key
+            st.session_state["_export_df"] = df_export
+
+        if st.session_state.get("_export_excel_key") != export_key:
+            with _timed("EXPORT inventory_excel_bytes", tag="UI"):
+                st.session_state["_export_excel"] = export_excel_generic(f"INVENTARIO_{cod_rt}", st.session_state["_export_df"])
+            st.session_state["_export_excel_key"] = export_key
+
     st.markdown("---")
 
     if total_rows == 0:
@@ -839,59 +959,75 @@ def render_reposicion(
         else:
             st.caption("No hay filas para exportar con el filtro aplicado.")
     else:
-        with st.expander("EXPORTAR FOCO: Gestión de indicadores", expanded=False):
-            _prepare_export("foco", "excel")
-            _prepare_export("foco", "pdf")
-
-            if st.session_state.get("_focus_export_excel") is not None:
-                st.download_button(
-                    "Descargar Excel",
-                    data=st.session_state["_focus_export_excel"],
-                    file_name=f"STOCK_ZERO_FOCO_{cod_rt}_{file_stamp}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    key="download_focus_excel",
-                )
-            else:
-                st.caption("Sin Excel disponible")
-
-            if st.session_state.get("_focus_export_pdf") is not None:
-                st.download_button(
-                    "Descargar PDF",
-                    data=st.session_state["_focus_export_pdf"],
-                    file_name=f"STOCK_ZERO_FOCO_{cod_rt}_{file_stamp}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                    key="download_focus_pdf",
-                )
-            else:
-                st.caption("Sin PDF disponible")
-
-        with st.expander("EXPORTAR LOCAL: Gestión reposición.", expanded=False):
-            _prepare_export("local", "excel")
-            _prepare_export("local", "pdf")
+        if modo == "LOCAL":
+            _prepare_local_inventory_export()
+            cliente_token = _cliente_export_token(cliente_sel or LOCAL_CLIENTE_ALL)
 
             if st.session_state.get("_export_excel") is not None:
                 st.download_button(
-                    "Descargar Excel",
+                    "Descargar inventario",
                     data=st.session_state["_export_excel"],
-                    file_name=f"STOCK_ZERO_LOCAL_{cod_rt}_{file_stamp}.xlsx",
+                    file_name=f"STOCK_ZERO_INVENTARIO_LOCAL_{cod_rt}_{cliente_token}_{file_stamp}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
-                    key="download_local_excel",
+                    key="download_local_inventario_excel",
                 )
             else:
                 st.caption("Sin Excel disponible")
+        else:
+            with st.expander("EXPORTAR FOCO: Gestión de indicadores", expanded=False):
+                _prepare_export("foco", "excel")
+                _prepare_export("foco", "pdf")
 
-            if st.session_state.get("_export_pdf") is not None:
-                st.download_button(
-                    "Descargar PDF",
-                    data=st.session_state["_export_pdf"],
-                    file_name=f"STOCK_ZERO_LOCAL_{cod_rt}_{file_stamp}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                    key="download_local_pdf",
-                )
-            else:
-                st.caption("Sin PDF disponible")
+                if st.session_state.get("_focus_export_excel") is not None:
+                    st.download_button(
+                        "Descargar Excel",
+                        data=st.session_state["_focus_export_excel"],
+                        file_name=f"STOCK_ZERO_FOCO_{cod_rt}_{file_stamp}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                        key="download_focus_excel",
+                    )
+                else:
+                    st.caption("Sin Excel disponible")
+
+                if st.session_state.get("_focus_export_pdf") is not None:
+                    st.download_button(
+                        "Descargar PDF",
+                        data=st.session_state["_focus_export_pdf"],
+                        file_name=f"STOCK_ZERO_FOCO_{cod_rt}_{file_stamp}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key="download_focus_pdf",
+                    )
+                else:
+                    st.caption("Sin PDF disponible")
+
+            with st.expander("EXPORTAR LOCAL: Gestión reposición.", expanded=False):
+                _prepare_export("local", "excel")
+                _prepare_export("local", "pdf")
+
+                if st.session_state.get("_export_excel") is not None:
+                    st.download_button(
+                        "Descargar Excel",
+                        data=st.session_state["_export_excel"],
+                        file_name=f"STOCK_ZERO_LOCAL_{cod_rt}_{file_stamp}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                        key="download_local_excel",
+                    )
+                else:
+                    st.caption("Sin Excel disponible")
+
+                if st.session_state.get("_export_pdf") is not None:
+                    st.download_button(
+                        "Descargar PDF",
+                        data=st.session_state["_export_pdf"],
+                        file_name=f"STOCK_ZERO_LOCAL_{cod_rt}_{file_stamp}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key="download_local_pdf",
+                    )
+                else:
+                    st.caption("Sin PDF disponible")
 

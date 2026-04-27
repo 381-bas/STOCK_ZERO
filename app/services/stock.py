@@ -14,6 +14,10 @@ def get_local_selector_data():
     return db.get_locales_home()
 
 
+def get_clientes_local_home(cod_rt):
+    return db.get_clientes_local_home(cod_rt)
+
+
 def get_mercaderista_modalidades():
     return db.get_modalidades_home()
 
@@ -54,10 +58,10 @@ def get_data_version():
     return db.get_data_version()
 
 
-def get_kpis(modo, cod_rt, marcas=None, rutero=None, reponedor=None, modalidad=None):
+def get_kpis(modo, cod_rt, marcas=None, rutero=None, reponedor=None, modalidad=None, cliente=None):
     mode = _validate_mode(modo)
     if mode == "LOCAL":
-        return db.get_kpis_local_home(cod_rt, marcas)
+        return db.get_kpis_local_home(cod_rt, marcas, cliente=cliente)
     return db.get_kpis_local(
         rutero=rutero,
         reponedor=reponedor,
@@ -67,7 +71,17 @@ def get_kpis(modo, cod_rt, marcas=None, rutero=None, reponedor=None, modalidad=N
     )
 
 
-def get_total_rows(modo, cod_rt, marcas=None, foco=None, search="", rutero=None, reponedor=None, modalidad=None):
+def get_total_rows(
+    modo,
+    cod_rt,
+    marcas=None,
+    foco=None,
+    search="",
+    rutero=None,
+    reponedor=None,
+    modalidad=None,
+    cliente=None,
+):
     mode = _validate_mode(modo)
     if mode == "LOCAL":
         return db.get_tabla_ux_total_home(
@@ -75,6 +89,7 @@ def get_total_rows(modo, cod_rt, marcas=None, foco=None, search="", rutero=None,
             marcas=marcas,
             foco=foco,
             search=search,
+            cliente=cliente,
         )
     return db.get_tabla_ux_total(
         rutero=rutero,
@@ -98,6 +113,7 @@ def get_page(
     rutero=None,
     reponedor=None,
     modalidad=None,
+    cliente=None,
 ):
     mode = _validate_mode(modo)
     if mode == "LOCAL":
@@ -108,6 +124,7 @@ def get_page(
             page_size=page_size,
             foco=foco,
             search=search,
+            cliente=cliente,
         )
     return db.get_tabla_ux_page(
         rutero=rutero,
@@ -122,7 +139,17 @@ def get_page(
     )
 
 
-def get_export_raw(modo, cod_rt, marcas=None, foco=None, search="", rutero=None, reponedor=None, modalidad=None):
+def get_export_raw(
+    modo,
+    cod_rt,
+    marcas=None,
+    foco=None,
+    search="",
+    rutero=None,
+    reponedor=None,
+    modalidad=None,
+    cliente=None,
+):
     mode = _validate_mode(modo)
     if mode == "LOCAL":
         return db.get_tabla_ux_export_home(
@@ -130,6 +157,7 @@ def get_export_raw(modo, cod_rt, marcas=None, foco=None, search="", rutero=None,
             marcas=marcas,
             foco=foco,
             search=search,
+            cliente=cliente,
         )
     return db.get_tabla_ux_export(
         rutero=rutero,
@@ -140,3 +168,7 @@ def get_export_raw(modo, cod_rt, marcas=None, foco=None, search="", rutero=None,
         search=search,
         modalidad=modalidad,
     )
+
+
+def get_export_inventario_local(cod_rt, cliente=None):
+    return db.get_export_inventario_local(cod_rt, cliente=cliente)

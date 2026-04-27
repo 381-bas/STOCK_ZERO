@@ -634,6 +634,20 @@ def _build_result_filters(
     return "\n".join(filters), params
 
 
+def _build_local_cliente_filter(
+    cliente: str | None,
+    alias: str = "v",
+) -> tuple[str, dict[str, Any]]:
+    cliente_sel = str(cliente or "").strip()
+    if not cliente_sel or cliente_sel.upper() == "TODOS":
+        return "", {}
+
+    pfx = f"{alias}." if alias else ""
+    return (
+        f'AND UPPER(TRIM(COALESCE({pfx}"MARCA", \'\'))) = UPPER(TRIM(COALESCE(:cliente, \'\')))',
+        {"cliente": cliente_sel},
+    )
+
 
 def _rr_scope_exists(alias: str = "v", modalidad: str | None = None) -> tuple[str, dict[str, Any]]:
     modalidad_sql, modalidad_params = _modalidad_clause(modalidad, "rr.modalidad")
@@ -764,6 +778,18 @@ def get_locales_home() -> pd.DataFrame:
     return _selector_df("get_locales_home", sql)
 
 
+def get_clientes_local_home(cod_rt: str) -> list[str]:
+    df = qdf(f"""
+        SELECT DISTINCT
+            TRIM(cliente) AS cliente
+        FROM {RUTA_TABLE}
+        WHERE cod_rt = :cod_rt
+          AND NULLIF(TRIM(COALESCE(cliente, '')), '') IS NOT NULL
+        ORDER BY cliente
+    """, {"cod_rt": cod_rt})
+    return df["cliente"].astype(str).tolist() if df is not None and not df.empty else []
+
+
 def get_mercaderistas_home() -> pd.DataFrame:
     return qdf(f"""
         SELECT DISTINCT
@@ -839,8 +865,13 @@ def get_marcas(
     return df["marca"].astype(str).tolist() if df is not None and not df.empty else []
 
 
-def get_kpis_local_home(cod_rt: str, marcas: list[str] | None = None) -> pd.DataFrame:
+def get_kpis_local_home(
+    cod_rt: str,
+    marcas: list[str] | None = None,
+    cliente: str | None = None,
+) -> pd.DataFrame:
     where_extra, p2 = _build_result_filters(marcas, search="", foco="Todo", alias="v")
+    cliente_where, cliente_params = _build_local_cliente_filter(cliente, alias="v")
     return qdf(f"""
         SELECT
             MAX(v.fecha) AS fecha_stock,
@@ -856,7 +887,8 @@ def get_kpis_local_home(cod_rt: str, marcas: list[str] | None = None) -> pd.Data
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
         {where_extra}
-    """, {"cod_rt": cod_rt, **p2})
+        {cliente_where}
+    """, {"cod_rt": cod_rt, **p2, **cliente_params})
 
 
 def get_kpis_local(
@@ -898,14 +930,17 @@ def get_tabla_ux_total_home(
     marcas: list[str] | None = None,
     foco: str = "Todo",
     search: str = "",
+    cliente: str | None = None,
 ) -> int:
     where_extra, p2 = _build_result_filters(marcas, search, foco, alias="v")
+    cliente_where, cliente_params = _build_local_cliente_filter(cliente, alias="v")
     df = qdf(f"""
         SELECT COUNT(*)::int AS total
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
         {where_extra}
-    """, {"cod_rt": cod_rt, **p2})
+        {cliente_where}
+    """, {"cod_rt": cod_rt, **p2, **cliente_params})
     return int(df.iloc[0]["total"]) if df is not None and not df.empty else 0
 
 
@@ -916,9 +951,11 @@ def get_tabla_ux_page_home(
     page_size: int = 25,
     foco: str = "Todo",
     search: str = "",
+    cliente: str | None = None,
 ) -> pd.DataFrame:
     page = max(int(page or 1), 1)
     where_extra, p2 = _build_result_filters(marcas, search, foco, alias="v")
+    cliente_where, cliente_params = _build_local_cliente_filter(cliente, alias="v")
     return qdf(f"""
         SELECT
           v.fecha,
@@ -927,6 +964,7 @@ def get_tabla_ux_page_home(
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
         {where_extra}
+        {cliente_where}
         ORDER BY
           v."MARCA" ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
@@ -939,6 +977,7 @@ def get_tabla_ux_page_home(
         "limit": int(page_size),
         "offset": (page - 1) * int(page_size),
         **p2,
+        **cliente_params,
     })
 
 
@@ -948,8 +987,10 @@ def get_tabla_ux_export_home(
     marcas: list[str] | None = None,
     foco: str = "Todo",
     search: str = "",
+    cliente: str | None = None,
 ) -> pd.DataFrame:
     where_extra, p2 = _build_result_filters(marcas, search, foco, alias="v")
+    cliente_where, cliente_params = _build_local_cliente_filter(cliente, alias="v")
     return qdf(f"""
         SELECT
           v.fecha,
@@ -958,13 +999,14 @@ def get_tabla_ux_export_home(
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
         {where_extra}
+        {cliente_where}
         ORDER BY
           v."MARCA" ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
           v."Descripción del Producto" ASC
-    """, {"cod_rt": cod_rt, **p2})
+    """, {"cod_rt": cod_rt, **p2, **cliente_params})
 
 
 def get_tabla_ux_total(
@@ -1965,6 +2007,74 @@ def get_export_inventario_cliente(
             f.producto ASC
     """
     return qdf(sql, {"cliente": cliente_sel})
+
+
+@st.cache_data(ttl=QDF_TTL, show_spinner=False)
+def get_export_inventario_local(
+    cod_rt: str,
+    cliente: str | None = None,
+) -> pd.DataFrame:
+    cliente_where, cliente_params = _build_local_cliente_filter(cliente, alias="v")
+    sql = f"""
+        WITH rr_ctx AS (
+            SELECT
+                rr.cod_rt,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(rr.cliente), ''), ''))) AS cliente_norm_match,
+                MAX(COALESCE(NULLIF(TRIM(rr.local_nombre), ''), CAST(rr.cod_rt AS TEXT))) AS local_nombre,
+                MAX(COALESCE(NULLIF(TRIM(rr.cliente), ''), '')) AS cliente_display,
+                STRING_AGG(
+                    DISTINCT COALESCE(NULLIF(TRIM(rr.gestores), ''), '-'),
+                    ' | '
+                    ORDER BY COALESCE(NULLIF(TRIM(rr.gestores), ''), '-')
+                ) AS gestor,
+                STRING_AGG(
+                    DISTINCT COALESCE(NULLIF(TRIM(rr.rutero), ''), '-'),
+                    ' | '
+                    ORDER BY COALESCE(NULLIF(TRIM(rr.rutero), ''), '-')
+                ) AS rutero,
+                STRING_AGG(
+                    DISTINCT COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-'),
+                    ' | '
+                    ORDER BY COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-')
+                ) AS reponedor
+            FROM {RUTA_TABLE} rr
+            WHERE rr.cod_rt = :cod_rt
+              AND NULLIF(TRIM(COALESCE(rr.cliente, '')), '') IS NOT NULL
+            GROUP BY
+                rr.cod_rt,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(rr.cliente), ''), '')))
+        )
+        SELECT
+            v.fecha,
+            CAST(v.cod_rt AS TEXT) AS "COD_RT",
+            COALESCE(rr_ctx.local_nombre, CAST(v.cod_rt AS TEXT)) AS "LOCAL",
+            COALESCE(rr_ctx.cliente_display, COALESCE(NULLIF(TRIM(v."MARCA"), ''), '')) AS "CLIENTE",
+            COALESCE(rr_ctx.gestor, '-') AS "GESTOR",
+            COALESCE(rr_ctx.rutero, '-') AS "RUTERO",
+            COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR",
+            COALESCE(NULLIF(TRIM(v."MARCA"), ''), '') AS "MARCA",
+            CAST(v."Sku" AS TEXT) AS "Sku",
+            COALESCE(v."Descripción del Producto", '') AS "Descripción del Producto",
+            COALESCE(v."Stock", 0)::int AS "Stock",
+            COALESCE(v."Venta(+7)", 0)::int AS "Venta(+7)",
+            COALESCE(v."NEGATIVO", '') AS "NEGATIVO",
+            COALESCE(v."RIESGO DE QUIEBRE", '') AS "RIESGO DE QUIEBRE",
+            COALESCE(v."OTROS", '') AS "OTROS"
+        FROM {RESULT_VIEW} v
+        LEFT JOIN rr_ctx
+          ON rr_ctx.cod_rt = v.cod_rt
+         AND rr_ctx.cliente_norm_match = UPPER(TRIM(COALESCE(v."MARCA", '')))
+        WHERE v.cod_rt = :cod_rt
+        {cliente_where}
+        ORDER BY
+          COALESCE(rr_ctx.local_nombre, CAST(v.cod_rt AS TEXT)) ASC,
+          v."MARCA" ASC,
+          CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
+          CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
+          v."Sku" ASC,
+          v."Descripción del Producto" ASC
+    """
+    return qdf(sql, {"cod_rt": cod_rt, **cliente_params})
 
 
 
