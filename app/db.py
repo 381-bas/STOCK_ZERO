@@ -1877,8 +1877,8 @@ def get_tabla_scope_cliente_total_page(
     limit: int | None = None,
     offset: int | None = None,
 ) -> pd.DataFrame:
-    where_extra, params = _scope_summary_filters(
-        alias="s",
+    where_extra, params = _scope_inventory_base_filters(
+        alias="base",
         marca=marca,
         cliente=cliente,
         responsable_tipo=responsable_tipo,
@@ -1889,32 +1889,100 @@ def get_tabla_scope_cliente_total_page(
     page_sql = _scope_page_clause(limit, offset, params)
 
     sql = f"""
-        WITH base AS (
+        WITH base_filtered AS (
             SELECT
-                COALESCE(NULLIF(TRIM(s.cliente), ''), TRIM(s.cliente_norm)) AS cliente,
-                COUNT(DISTINCT s.responsable_norm)::int AS responsables,
-                COUNT(DISTINCT s.cod_rt)::int AS locales,
-                COALESCE(SUM(s.skus_scope), 0)::int AS total_skus,
-                COALESCE(SUM(s.venta_0), 0)::int AS venta_0,
-                COALESCE(SUM(s.negativos), 0)::int AS negativos,
-                COALESCE(SUM(s.quiebres), 0)::int AS quiebres,
-                COALESCE(SUM(s.otros), 0)::int AS otros,
-                (
-                    COALESCE(SUM(s.venta_0), 0)
-                    + COALESCE(SUM(s.negativos), 0)
-                    + COALESCE(SUM(s.quiebres), 0)
-                    + COALESCE(SUM(s.otros), 0)
-                )::int AS skus_en_foco
-            FROM {SCOPE_SUMMARY_VIEW} s
+                base.fecha,
+                base.cod_rt,
+                COALESCE(NULLIF(TRIM(base.local_nombre_rr), ''), CAST(base.cod_rt AS TEXT)) AS local_nombre_rr,
+                COALESCE(NULLIF(TRIM(base.marca), ''), '') AS cliente,
+                COALESCE(NULLIF(TRIM(base.marca_norm), ''), NULLIF(TRIM(base.marca), ''), '') AS cliente_norm,
+                CAST(base.sku AS TEXT) AS sku,
+                COALESCE(base.producto, '') AS producto,
+                COALESCE(base.venta_7, 0)::int AS venta_7,
+                COALESCE(base.negativo::text, '') AS negativo,
+                COALESCE(base.riesgo_quiebre::text, '') AS riesgo_quiebre,
+                COALESCE(base.otros::text, '') AS otros
+            FROM {SCOPE_INVENTORY_BASE_VIEW} base
             WHERE 1=1
             {where_extra}
+        ),
+        base_agg AS (
+            SELECT
+                COALESCE(NULLIF(TRIM(cliente), ''), TRIM(cliente_norm)) AS cliente,
+                UPPER(TRIM(COALESCE(NULLIF(TRIM(cliente_norm), ''), NULLIF(TRIM(cliente), ''), ''))) AS cliente_norm_key,
+                COUNT(DISTINCT cod_rt)::int AS locales,
+                COUNT(*)::int AS total_skus,
+                COALESCE(SUM(CASE WHEN COALESCE(venta_7, 0) = 0 THEN 1 ELSE 0 END), 0)::int AS venta_0,
+                COALESCE(SUM(CASE WHEN {_scope_norm_expr('negativo')} = 'SI' THEN 1 ELSE 0 END), 0)::int AS negativos,
+                COALESCE(SUM(CASE WHEN {_scope_norm_expr('riesgo_quiebre')} = 'SI' THEN 1 ELSE 0 END), 0)::int AS quiebres,
+                COALESCE(SUM(CASE WHEN NULLIF(TRIM(COALESCE(otros, '')), '') IS NOT NULL THEN 1 ELSE 0 END), 0)::int AS otros,
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN COALESCE(venta_7, 0) = 0
+                              OR {_scope_norm_expr('negativo')} = 'SI'
+                              OR {_scope_norm_expr('riesgo_quiebre')} = 'SI'
+                              OR NULLIF(TRIM(COALESCE(otros, '')), '') IS NOT NULL
+                            THEN 1 ELSE 0
+                        END
+                    ),
+                    0
+                )::int AS skus_en_foco,
+                MIN(fecha) AS fecha_min,
+                MAX(fecha) AS fecha_max
+            FROM base_filtered
+            GROUP BY 1, 2
+        ),
+        responsables AS (
+            SELECT
+                bf.cliente_norm_key,
+                COUNT(
+                    DISTINCT UPPER(
+                        TRIM(
+                            COALESCE(
+                                NULLIF(TRIM(COALESCE(br.responsable_norm, '')), ''),
+                                NULLIF(TRIM(COALESCE(br.responsable, '')), ''),
+                                ''
+                            )
+                        )
+                    )
+                )::int AS responsables
+            FROM (
+                SELECT DISTINCT
+                    cod_rt,
+                    sku,
+                    UPPER(TRIM(COALESCE(NULLIF(TRIM(cliente_norm), ''), NULLIF(TRIM(cliente), ''), ''))) AS cliente_norm_key
+                FROM base_filtered
+            ) bf
+            JOIN {SCOPE_FACT_BRIDGE_VIEW} br
+              ON br.cod_rt = bf.cod_rt
+             AND CAST(br.sku AS TEXT) = CAST(bf.sku AS TEXT)
+             AND {_scope_norm_expr("COALESCE(NULLIF(TRIM(COALESCE(br.cliente_norm, '')), ''), NULLIF(TRIM(COALESCE(br.cliente, '')), ''), '')")} = bf.cliente_norm_key
+            WHERE NULLIF(TRIM(COALESCE(br.responsable_norm, br.responsable, '')), '') IS NOT NULL
             GROUP BY 1
         )
         SELECT
-            base.*,
+            base_agg.cliente,
+            COALESCE(responsables.responsables, 0)::int AS responsables,
+            base_agg.locales,
+            base_agg.total_skus,
+            base_agg.venta_0,
+            base_agg.negativos,
+            base_agg.quiebres,
+            base_agg.otros,
+            base_agg.skus_en_foco,
+            base_agg.fecha_min,
+            base_agg.fecha_max,
             COUNT(*) OVER()::int AS total_rows
-        FROM base
-        ORDER BY skus_en_foco DESC, negativos DESC, venta_0 DESC, otros DESC, quiebres DESC, cliente ASC
+        FROM base_agg
+        LEFT JOIN responsables
+          ON responsables.cliente_norm_key = base_agg.cliente_norm_key
+        ORDER BY
+            base_agg.skus_en_foco DESC,
+            base_agg.quiebres DESC,
+            base_agg.venta_0 DESC,
+            base_agg.total_skus DESC,
+            base_agg.cliente ASC
         {page_sql}
     """
     return qdf(sql, params)

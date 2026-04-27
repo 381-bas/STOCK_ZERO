@@ -1275,7 +1275,7 @@ def main():
             else:
                 _render_responsables_scope_table(df_resp, "Ranking supervisores")
 
-            st.markdown("#### Clientes en scope")
+            st.markdown("#### Ranking focos por cliente")
             df_cli_view = _rename_and_pick(
                 df_cli,
                 {
@@ -1449,7 +1449,7 @@ def main():
                         st.code(traceback.format_exc())
                 st.stop()
 
-            st.markdown("#### Clientes del responsable")
+            st.markdown("#### Ranking focos por cliente")
             df_cli_view = _rename_and_pick(
                 df_cli,
                 {
