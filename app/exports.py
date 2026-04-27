@@ -64,6 +64,50 @@ INVENTORY_CLIENTE_EXPORT_COLS = [
 ]
 
 
+def _collapse_pipe_values(values) -> str:
+    parts: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        text = str(raw or "").strip()
+        if not text or text.lower() in {"nan", "none"}:
+            continue
+        for item in text.split("|"):
+            token = item.strip()
+            if not token:
+                continue
+            key = token.upper()
+            if key in seen:
+                continue
+            seen.add(key)
+            parts.append(token)
+    return " | ".join(parts)
+
+
+def _coalesce_duplicate_rr_columns(df_in: pd.DataFrame) -> pd.DataFrame:
+    if df_in is None:
+        return df_in
+
+    df = df_in.copy()
+    for base in ["GESTOR", "SUPERVISOR", "RUTERO", "REPONEDOR", "MODALIDAD"]:
+        variants = [c for c in [base, f"{base}_x", f"{base}_y"] if c in df.columns]
+        if len(variants) <= 1:
+            continue
+
+        cols = list(df.columns)
+        insert_at = min(cols.index(c) for c in variants)
+        merged = df[variants].apply(lambda row: _collapse_pipe_values(row.tolist()), axis=1)
+
+        drop_cols = [c for c in variants if c != base]
+        if base in df.columns:
+            df[base] = merged
+        else:
+            df.insert(insert_at, base, merged)
+        if drop_cols:
+            df = df.drop(columns=drop_cols, errors="ignore")
+
+    return df
+
+
 def _clean_yes(v) -> str:
     return "SI" if str(v or "").strip().upper() == "SI" else ""
 
@@ -330,6 +374,7 @@ def build_focus_export_df(df_ux: pd.DataFrame, foco: str | list[str] = "Todo") -
 def export_excel_generic(sheet_name: str, df_export: pd.DataFrame) -> bytes:
     out = io.BytesIO()
     safe_sheet = str(sheet_name or "DATA")[:31]
+    df_export = _coalesce_duplicate_rr_columns(df_export)
     df_export = _sorted_for_export(df_export)
 
     with pd.ExcelWriter(out, engine="openpyxl") as writer:
