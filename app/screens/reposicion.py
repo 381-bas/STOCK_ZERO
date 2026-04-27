@@ -94,6 +94,13 @@ def render_reposicion(
         _dbg("RESET filters (local_cliente_change)")
         _dbg_block()
 
+    def _reset_on_merc_cliente_change():
+        st.session_state["page"] = 1
+        st.session_state["page_input_ui"] = 1
+        _invalidate_runtime_cache()
+        _dbg("RESET filters (merc_cliente_change)")
+        _dbg_block()
+
     if modo == "LOCAL":
         try:
             with _timed("SELECTOR locales_home", tag="SELECTOR"):
@@ -318,6 +325,36 @@ def render_reposicion(
         _dbg("LOCAL selected", modo=modo, modalidad=modalidad_sel, rutero=rutero, reponedor=reponedor, cod_rt=cod_rt)
         _dbg_block()
 
+        try:
+            with _timed("SELECTOR clientes_local_mercaderista", tag="SELECTOR"):
+                clientes_local = stock_service.get_clientes_local_mercaderista(
+                    cod_rt,
+                    modalidad_sel,
+                    rutero,
+                    reponedor,
+                )
+                _dbg("CLIENTES MERC loaded", rows=len(clientes_local))
+                _dbg_block()
+        except Exception as e:
+            _dbg("FAIL clientes_local_mercaderista", err=repr(e))
+            st.error("No pude leer clientes para el local seleccionado.")
+            with st.expander("Detalles técnicos"):
+                st.code(repr(e))
+                if DEBUG:
+                    st.code(traceback.format_exc())
+            st.stop()
+
+        cliente_opts = [LOCAL_CLIENTE_ALL] + clientes_local
+        if st.session_state.get("sel_merc_cliente", LOCAL_CLIENTE_ALL) not in cliente_opts:
+            st.session_state["sel_merc_cliente"] = LOCAL_CLIENTE_ALL
+
+        st.selectbox(
+            "CLIENTE",
+            cliente_opts,
+            key="sel_merc_cliente",
+            on_change=_reset_on_merc_cliente_change,
+        )
+
     else:
         st.error("Modo de consulta no soportado.")
         st.stop()
@@ -361,7 +398,8 @@ def render_reposicion(
         i1.caption(f"Mercaderista: {panel_mercaderista}")
         i2.caption(f"Modalidad: {panel_modalidad}")
     else:
-        cliente_sel = None
+        cliente_sel = st.session_state.get("sel_merc_cliente", LOCAL_CLIENTE_ALL)
+        cliente_sel = None if cliente_sel == LOCAL_CLIENTE_ALL else cliente_sel
         i1, i2, i3 = st.columns([1.4, 1.8, 1.4], gap="small")
         i1.caption(f"Rutero: {rutero}")
         i2.caption(f"Reponedor: {reponedor}")
@@ -370,7 +408,7 @@ def render_reposicion(
     if modo == "LOCAL":
         sel_key = f"{modo}|{cod_rt}|{cliente_sel or LOCAL_CLIENTE_ALL}"
     else:
-        sel_key = f"{modo}|{modalidad_sel}|{rutero}|{reponedor}|{cod_rt}"
+        sel_key = f"{modo}|{modalidad_sel}|{rutero}|{reponedor}|{cod_rt}|{cliente_sel or LOCAL_CLIENTE_ALL}"
 
     if st.session_state.get("_sel_key") != sel_key:
         st.session_state["_sel_key"] = sel_key
@@ -378,7 +416,7 @@ def render_reposicion(
 
     file_stamp = "Sin stock"
 
-    if modo == "LOCAL":
+    if modo in {"LOCAL", "MERCADERISTA"}:
         marcas_disponibles = []
         marcas = []
         foco_ap = []
@@ -412,7 +450,7 @@ def render_reposicion(
     if modo == "LOCAL":
         kpis_key = (dv, modo, cod_rt, cliente_sel or LOCAL_CLIENTE_ALL)
     else:
-        kpis_key = (dv, modo, modalidad_sel, rutero, reponedor, cod_rt, tuple(marcas))
+        kpis_key = (dv, modo, modalidad_sel, rutero, reponedor, cod_rt, cliente_sel or LOCAL_CLIENTE_ALL)
 
     kpis_row = st.session_state.get("_kpis_row")
 
@@ -451,7 +489,7 @@ def render_reposicion(
     if total_skus_kpi == 0:
         st.caption("Estado: Sin stock para la combinación seleccionada.")
 
-    if modo != "LOCAL":
+    if modo not in {"LOCAL", "MERCADERISTA"}:
         def _apply_filters():
             st.session_state["applied_marcas"] = list(st.session_state.get("sel_marcas", []) or [])
             st.session_state["applied_foco"] = _normalize_focos_ui(st.session_state.get("f_foco", []))
@@ -526,7 +564,7 @@ def render_reposicion(
     kpi_total_rows = None
     single_foco = foco_ap[0] if len(foco_ap) == 1 else None
 
-    if modo == "LOCAL":
+    if modo in {"LOCAL", "MERCADERISTA"}:
         kpi_total_rows = int(total_skus_kpi or 0)
     elif total_skus_kpi == 0:
         kpi_total_rows = 0
@@ -545,7 +583,7 @@ def render_reposicion(
     if modo == "LOCAL":
         total_key = (dv, modo, cod_rt, cliente_sel or LOCAL_CLIENTE_ALL)
     else:
-        total_key = (dv, modo, modalidad_sel, rutero, reponedor, cod_rt, tuple(marcas), foco_ap, search_ap)
+        total_key = (dv, modo, modalidad_sel, rutero, reponedor, cod_rt, cliente_sel or LOCAL_CLIENTE_ALL)
 
     if st.session_state.get("_total_key") != total_key or st.session_state.get("_total_rows") is None:
         try:
@@ -736,7 +774,7 @@ def render_reposicion(
             "Sku": "SKU",
             "Descripción del Producto": "PRODUCTO",
         })
-        if modo == "LOCAL" and cliente_sel:
+        if modo in {"LOCAL", "MERCADERISTA"} and cliente_sel:
             df_tbl = df_tbl[["FECHA STOCK", "SKU", "PRODUCTO", "Stock", "INDICADORES"]]
         else:
             df_tbl = df_tbl[["FECHA STOCK", "CLIENTE", "SKU", "PRODUCTO", "Stock", "INDICADORES"]]
@@ -748,7 +786,7 @@ def render_reposicion(
     if modo == "LOCAL":
         export_key = (dv, modo, cod_rt, cliente_sel or LOCAL_CLIENTE_ALL)
     else:
-        export_key = (dv, modo, modalidad_sel, rutero, reponedor, cod_rt, tuple(marcas), foco_ap, search_ap)
+        export_key = (dv, modo, modalidad_sel, rutero, reponedor, cod_rt, cliente_sel or LOCAL_CLIENTE_ALL)
 
     if st.session_state.get("_export_key") != export_key:
         st.session_state["_export_key"] = export_key
@@ -897,7 +935,7 @@ def render_reposicion(
             token = token.replace("__", "_")
         return token or LOCAL_CLIENTE_ALL.upper()
 
-    def _prepare_local_inventory_export():
+    def _prepare_inventory_export():
         if total_rows <= 0:
             return
 
@@ -905,16 +943,26 @@ def render_reposicion(
 
         if df_export_raw is None:
             try:
-                with _timed("EXPORT inventario_local_query", tag="CACHE"):
-                    df_export_raw = stock_service.get_export_inventario_local(
-                        cod_rt,
-                        cliente=cliente_sel,
-                    )
-                _dbg("EXPORT inventario_local raw loaded", rows=0 if df_export_raw is None else len(df_export_raw))
+                if modo == "LOCAL":
+                    with _timed("EXPORT inventario_local_query", tag="CACHE"):
+                        df_export_raw = stock_service.get_export_inventario_local(
+                            cod_rt,
+                            cliente=cliente_sel,
+                        )
+                else:
+                    with _timed("EXPORT inventario_merc_query", tag="CACHE"):
+                        df_export_raw = stock_service.get_export_inventario_mercaderista_local(
+                            cod_rt,
+                            modalidad_sel,
+                            rutero,
+                            reponedor,
+                            cliente=cliente_sel,
+                        )
+                _dbg("EXPORT inventario raw loaded", rows=0 if df_export_raw is None else len(df_export_raw))
                 _dbg_block()
                 st.session_state["_export_raw"] = df_export_raw
             except Exception as e:
-                _dbg("FAIL inventario_local export query", err=repr(e))
+                _dbg("FAIL inventario export query", err=repr(e))
                 st.error("No pude preparar export.")
                 st.code(repr(e))
                 if DEBUG:
@@ -959,18 +1007,20 @@ def render_reposicion(
         else:
             st.caption("No hay filas para exportar con el filtro aplicado.")
     else:
-        if modo == "LOCAL":
-            _prepare_local_inventory_export()
+        if modo in {"LOCAL", "MERCADERISTA"}:
+            _prepare_inventory_export()
             cliente_token = _cliente_export_token(cliente_sel or LOCAL_CLIENTE_ALL)
 
             if st.session_state.get("_export_excel") is not None:
+                file_prefix = "STOCK_ZERO_INVENTARIO_LOCAL" if modo == "LOCAL" else "STOCK_ZERO_INVENTARIO_MERCADERISTA"
+                button_key = "download_local_inventario_excel" if modo == "LOCAL" else "download_merc_inventario_excel"
                 st.download_button(
                     "Descargar inventario",
                     data=st.session_state["_export_excel"],
-                    file_name=f"STOCK_ZERO_INVENTARIO_LOCAL_{cod_rt}_{cliente_token}_{file_stamp}.xlsx",
+                    file_name=f"{file_prefix}_{cod_rt}_{cliente_token}_{file_stamp}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
-                    key="download_local_inventario_excel",
+                    key=button_key,
                 )
             else:
                 st.caption("Sin Excel disponible")

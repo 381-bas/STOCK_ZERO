@@ -18,6 +18,15 @@ def get_clientes_local_home(cod_rt):
     return db.get_clientes_local_home(cod_rt)
 
 
+def get_clientes_local_mercaderista(cod_rt, modalidad, rutero, reponedor):
+    return db.get_clientes_local_mercaderista(
+        cod_rt,
+        modalidad,
+        rutero,
+        reponedor,
+    )
+
+
 def get_mercaderista_modalidades():
     return db.get_modalidades_home()
 
@@ -68,6 +77,7 @@ def get_kpis(modo, cod_rt, marcas=None, rutero=None, reponedor=None, modalidad=N
         cod_rt=cod_rt,
         marcas=marcas,
         modalidad=modalidad,
+        cliente=cliente,
     )
 
 
@@ -99,6 +109,7 @@ def get_total_rows(
         foco=foco,
         search=search,
         modalidad=modalidad,
+        cliente=cliente,
     )
 
 
@@ -136,6 +147,7 @@ def get_page(
         foco=foco,
         search=search,
         modalidad=modalidad,
+        cliente=cliente,
     )
 
 
@@ -167,8 +179,19 @@ def get_export_raw(
         foco=foco,
         search=search,
         modalidad=modalidad,
+        cliente=cliente,
     )
 
 
 def get_export_inventario_local(cod_rt, cliente=None):
     return db.get_export_inventario_local(cod_rt, cliente=cliente)
+
+
+def get_export_inventario_mercaderista_local(cod_rt, modalidad, rutero, reponedor, cliente=None):
+    return db.get_export_inventario_mercaderista_local(
+        cod_rt,
+        modalidad,
+        rutero,
+        reponedor,
+        cliente=cliente,
+    )
