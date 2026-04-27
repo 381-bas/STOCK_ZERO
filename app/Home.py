@@ -1173,44 +1173,8 @@ def main():
                                 key=f"cliente_scope_focus_pdf_{scope_level}",
                             )
 
-        # -----------------------------
-        # L0
-        # -----------------------------
-        if scope_level == "L0":
-            try:
-                with _timed("PAGE tabla_scope_responsable_L0", tag="PAGE"):
-                    df_resp = db.get_tabla_scope_responsable_total_page(
-                        marca=marca_ap,
-                        cliente=cliente_sel,
-                        responsable_tipo=responsable_tipo_sel,
-                        responsable=responsable_sel,
-                        focos=foco_ap,
-                        search=search_ap,
-                        limit=500,
-                        offset=0,
-                    )
-
-                with _timed("PAGE tabla_scope_cliente_L0", tag="PAGE"):
-                    df_cli = db.get_tabla_scope_cliente_total_page(
-                        marca=marca_ap,
-                        cliente=cliente_sel,
-                        responsable_tipo=responsable_tipo_sel,
-                        responsable=responsable_sel,
-                        focos=foco_ap,
-                        search=search_ap,
-                        limit=500,
-                        offset=0,
-                    )
-            except Exception as e:
-                _dbg("FAIL tablas_scope_L0", err=repr(e))
-                st.error("No pude leer tablas agregadas del scope global.")
-                with st.expander("Detalles técnicos"):
-                    st.code(repr(e))
-                    if DEBUG:
-                        st.code(traceback.format_exc())
-                st.stop()
-
-            st.markdown("#### Responsables en scope")
+        def _render_responsables_scope_table(df_resp: pd.DataFrame | None, title: str) -> None:
+            st.markdown(f"#### {title}")
             df_resp_view = _rename_and_pick(
                 df_resp,
                 {
@@ -1240,6 +1204,76 @@ def main():
                 ],
             )
             st.dataframe(df_resp_view, width="stretch", hide_index=True)
+
+        # -----------------------------
+        # L0
+        # -----------------------------
+        if scope_level == "L0":
+            try:
+                if responsable_tipo_all:
+                    with _timed("PAGE tabla_scope_responsable_gestor_L0", tag="PAGE"):
+                        df_resp_gestor = db.get_tabla_scope_responsable_total_page(
+                            marca=marca_ap,
+                            cliente=cliente_sel,
+                            responsable_tipo="GESTOR",
+                            responsable=responsable_sel,
+                            focos=foco_ap,
+                            search=search_ap,
+                            limit=500,
+                            offset=0,
+                        )
+
+                    with _timed("PAGE tabla_scope_responsable_supervisor_L0", tag="PAGE"):
+                        df_resp_supervisor = db.get_tabla_scope_responsable_total_page(
+                            marca=marca_ap,
+                            cliente=cliente_sel,
+                            responsable_tipo="SUPERVISOR",
+                            responsable=responsable_sel,
+                            focos=foco_ap,
+                            search=search_ap,
+                            limit=500,
+                            offset=0,
+                        )
+                else:
+                    with _timed("PAGE tabla_scope_responsable_L0", tag="PAGE"):
+                        df_resp = db.get_tabla_scope_responsable_total_page(
+                            marca=marca_ap,
+                            cliente=cliente_sel,
+                            responsable_tipo=responsable_tipo_sel,
+                            responsable=responsable_sel,
+                            focos=foco_ap,
+                            search=search_ap,
+                            limit=500,
+                            offset=0,
+                        )
+
+                with _timed("PAGE tabla_scope_cliente_L0", tag="PAGE"):
+                    df_cli = db.get_tabla_scope_cliente_total_page(
+                        marca=marca_ap,
+                        cliente=cliente_sel,
+                        responsable_tipo=responsable_tipo_sel,
+                        responsable=responsable_sel,
+                        focos=foco_ap,
+                        search=search_ap,
+                        limit=500,
+                        offset=0,
+                    )
+            except Exception as e:
+                _dbg("FAIL tablas_scope_L0", err=repr(e))
+                st.error("No pude leer tablas agregadas del scope global.")
+                with st.expander("Detalles técnicos"):
+                    st.code(repr(e))
+                    if DEBUG:
+                        st.code(traceback.format_exc())
+                st.stop()
+
+            if responsable_tipo_all:
+                _render_responsables_scope_table(df_resp_gestor, "Ranking gestores")
+                _render_responsables_scope_table(df_resp_supervisor, "Ranking supervisores")
+            elif responsable_tipo_sel == "GESTOR":
+                _render_responsables_scope_table(df_resp, "Ranking gestores")
+            else:
+                _render_responsables_scope_table(df_resp, "Ranking supervisores")
 
             st.markdown("#### Clientes en scope")
             df_cli_view = _rename_and_pick(
@@ -1275,17 +1309,42 @@ def main():
         # -----------------------------
         elif scope_level == "L1":
             try:
-                with _timed("PAGE tabla_scope_responsable_L1", tag="PAGE"):
-                    df_resp = db.get_tabla_scope_responsable_total_page(
-                        marca=marca_ap,
-                        cliente=cliente_sel,
-                        responsable_tipo=responsable_tipo_sel,
-                        responsable=responsable_sel,
-                        focos=foco_ap,
-                        search=search_ap,
-                        limit=500,
-                        offset=0,
-                    )
+                if responsable_tipo_all:
+                    with _timed("PAGE tabla_scope_responsable_gestor_L1", tag="PAGE"):
+                        df_resp_gestor = db.get_tabla_scope_responsable_total_page(
+                            marca=marca_ap,
+                            cliente=cliente_sel,
+                            responsable_tipo="GESTOR",
+                            responsable=responsable_sel,
+                            focos=foco_ap,
+                            search=search_ap,
+                            limit=500,
+                            offset=0,
+                        )
+
+                    with _timed("PAGE tabla_scope_responsable_supervisor_L1", tag="PAGE"):
+                        df_resp_supervisor = db.get_tabla_scope_responsable_total_page(
+                            marca=marca_ap,
+                            cliente=cliente_sel,
+                            responsable_tipo="SUPERVISOR",
+                            responsable=responsable_sel,
+                            focos=foco_ap,
+                            search=search_ap,
+                            limit=500,
+                            offset=0,
+                        )
+                else:
+                    with _timed("PAGE tabla_scope_responsable_L1", tag="PAGE"):
+                        df_resp = db.get_tabla_scope_responsable_total_page(
+                            marca=marca_ap,
+                            cliente=cliente_sel,
+                            responsable_tipo=responsable_tipo_sel,
+                            responsable=responsable_sel,
+                            focos=foco_ap,
+                            search=search_ap,
+                            limit=500,
+                            offset=0,
+                        )
 
                 current_page, offset = _get_page_state("page_cliente_scope", page_size=25)
                 with _timed("PAGE tabla_scope_local_L1", tag="PAGE"):
@@ -1308,36 +1367,13 @@ def main():
                         st.code(traceback.format_exc())
                 st.stop()
 
-            st.markdown("#### Responsables del cliente")
-            df_resp_view = _rename_and_pick(
-                df_resp,
-                {
-                    "responsable_tipo": "RESP. TIPO",
-                    "responsable": "RESPONSABLE",
-                    "clientes": "CLIENTES",
-                    "locales": "LOCALES",
-                    "skus_scope": "TOTAL SKUS",
-                    "total_skus": "TOTAL SKUS",
-                    "venta_0": "VENTA 0",
-                    "negativos": "NEGATIVOS",
-                    "quiebres": "QUIEBRES OBS.",
-                    "otros": "OTROS",
-                    "skus_en_foco": "SKUS EN FOCO",
-                },
-                [
-                    "RESP. TIPO",
-                    "RESPONSABLE",
-                    "CLIENTES",
-                    "LOCALES",
-                    "TOTAL SKUS",
-                    "VENTA 0",
-                    "NEGATIVOS",
-                    "OTROS",
-                    "QUIEBRES OBS.",
-                    "SKUS EN FOCO",
-                ],
-            )
-            st.dataframe(df_resp_view, width="stretch", hide_index=True)
+            if responsable_tipo_all:
+                _render_responsables_scope_table(df_resp_gestor, "Ranking gestores")
+                _render_responsables_scope_table(df_resp_supervisor, "Ranking supervisores")
+            elif responsable_tipo_sel == "GESTOR":
+                _render_responsables_scope_table(df_resp, "Ranking gestores")
+            else:
+                _render_responsables_scope_table(df_resp, "Ranking supervisores")
 
             st.markdown("#### Locales del cliente")
             _render_scope_pager("page_cliente_scope", _df_total_rows(df_local), page_size=25)
