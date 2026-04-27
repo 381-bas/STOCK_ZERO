@@ -40,7 +40,28 @@ FOCUS_EXPORT_COLS = [
     "OTROS",
 ]
 
-INVENTORY_CLIENTE_EXPORT_COLS = FOCUS_EXPORT_COLS.copy()
+INVENTORY_CLIENTE_EXPORT_COLS = [
+    "Fecha stock",
+    "COD_RT",
+    "LOCAL",
+    "CLIENTE",
+    "GESTOR",
+    "SUPERVISOR",
+    "RUTERO",
+    "REPONEDOR",
+    "MODALIDAD",
+    "MARCA",
+    "Sku",
+    "Descripción del Producto",
+    "Stock",
+    "Venta(+7)",
+    "VENTA 0",
+    "FOCO PRINCIPAL",
+    "ACCIÓN SUGERIDA",
+    "NEGATIVO",
+    "RIESGO DE QUIEBRE",
+    "OTROS",
+]
 
 
 def _clean_yes(v) -> str:
@@ -195,8 +216,11 @@ def build_inventory_cliente_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
         "COD_RT",
         "LOCAL",
         "CLIENTE",
+        "GESTOR",
+        "SUPERVISOR",
         "RUTERO",
         "REPONEDOR",
+        "MODALIDAD",
         "MARCA",
         "Sku",
         "Descripción del Producto",
@@ -211,7 +235,17 @@ def build_inventory_cliente_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
             df[c] = ""
 
     df["Fecha stock"] = pd.to_datetime(df["fecha"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
-    for c in ["COD_RT", "LOCAL", "CLIENTE", "RUTERO", "REPONEDOR", "MARCA"]:
+    for c in [
+        "COD_RT",
+        "LOCAL",
+        "CLIENTE",
+        "GESTOR",
+        "SUPERVISOR",
+        "RUTERO",
+        "REPONEDOR",
+        "MODALIDAD",
+        "MARCA",
+    ]:
         df[c] = df[c].astype(str).replace({"nan": "", "None": ""}).fillna("")
     df["Sku"] = df["Sku"].astype(str)
     df["Stock"] = pd.to_numeric(df["Stock"], errors="coerce").fillna(0).astype(int)

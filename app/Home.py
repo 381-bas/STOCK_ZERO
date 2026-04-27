@@ -887,18 +887,26 @@ def main():
             return token[:60] or "scope"
 
         def _render_cliente_exports_l1_global() -> None:
-            if scope_level != "L1":
-                return
-            if not cliente_sel or not responsable_tipo_all or responsable_sel:
+            if scope_level not in {"L0", "L1"}:
                 return
 
             try:
                 with _timed("EXPORT cliente_l1_global_query", tag="CACHE"):
-                    df_cliente_raw = db.get_export_inventario_cliente(cliente=cliente_sel)
-                _dbg("CLIENTE L1 export raw loaded", rows=0 if df_cliente_raw is None else len(df_cliente_raw))
+                    df_cliente_raw = db.get_export_inventario_cliente(
+                        cliente=cliente_sel,
+                        marca=marca_ap,
+                        responsable_tipo=None if responsable_tipo_all else responsable_tipo_sel,
+                        responsable=responsable_sel,
+                        focos=foco_ap,
+                        search=search_ap,
+                    )
+                _dbg(
+                    "CLIENTE scope inventory export raw loaded",
+                    rows=0 if df_cliente_raw is None else len(df_cliente_raw),
+                )
                 _dbg_block()
             except Exception as e:
-                _dbg("FAIL cliente_l1_global_export", err=repr(e))
+                _dbg("FAIL cliente_scope_inventory_export", err=repr(e))
                 st.warning("No pude preparar los descargables globales del cliente.")
                 return
 
@@ -906,7 +914,7 @@ def main():
                 st.caption("Sin filas para exportar en el cliente seleccionado.")
                 return
 
-            scope_token = _scope_file_token()
+            scope_token = _scope_file_token() if (responsable_sel or cliente_sel) else "TODOS"
             df_inventory_cliente = build_inventory_cliente_export_df(df_cliente_raw)
             df_focus_cliente = build_focus_export_df(df_cliente_raw, foco="Todo")
 
@@ -1303,6 +1311,7 @@ def main():
                 ],
             )
             st.dataframe(df_cli_view, width="stretch", hide_index=True)
+            _render_cliente_exports_l1_global()
 
         # -----------------------------
         # L1
