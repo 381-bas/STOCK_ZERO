@@ -7,6 +7,8 @@ import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 
+from cliente_mvs import run_cliente_mvs_refresh
+
 
 # -----------------------------
 # Helpers
@@ -55,6 +57,7 @@ def main():
     ap.add_argument("--sheet", default="RUTA_RUTERO")
     ap.add_argument("--db_url", default=os.getenv("DB_URL_LOAD", "") or os.getenv("DB_URL", ""))
     ap.add_argument("--source", default="DB_GLOBAL_INVENTARIO.xlsx:RUTA_RUTERO")
+    ap.add_argument("--no-refresh-cliente-mvs", action="store_true")
     args = ap.parse_args()
 
     if not args.db_url:
@@ -197,6 +200,17 @@ def main():
 
     print(f"OK: upsert {len(rows)} filas en public.ruta_rutero desde {args.excel} [{args.sheet}]")
     print(f"DB_URL sslmode={'require' if 'sslmode=require' in db_url else 'n/a'} | source={args.source}")
+
+    if args.no_refresh_cliente_mvs:
+        print("SKIP: refresh post-carga de MVs CLIENTE omitido por --no-refresh-cliente-mvs")
+        return
+
+    refresh_result = run_cliente_mvs_refresh(
+        db_url=args.db_url,
+        execute=True,
+        run_smoke=True,
+    )
+    print(refresh_result)
 
 
 if __name__ == "__main__":

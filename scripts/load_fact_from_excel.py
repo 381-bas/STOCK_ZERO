@@ -6,6 +6,8 @@ import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 
+from cliente_mvs import run_cliente_mvs_refresh
+
 
 def norm_col(c: str) -> str:
     return str(c).strip()
@@ -32,6 +34,7 @@ def main():
     ap.add_argument("--sheet", default="BASE")
     ap.add_argument("--db_url", default=os.getenv("DB_URL_LOAD", "") or os.getenv("DB_URL", ""))
     ap.add_argument("--source", default="DB_GLOBAL_INVENTARIO.xlsx:BASE")
+    ap.add_argument("--no-refresh-cliente-mvs", action="store_true")
     args = ap.parse_args()
 
     if not args.db_url:
@@ -152,6 +155,17 @@ def main():
         f"omitidas_no_rt={no_rt_count} | "
         f"omitidas_duplicate_payload={duplicate_payload_count}"
     )
+
+    if args.no_refresh_cliente_mvs:
+        print("SKIP: refresh post-carga de MVs CLIENTE omitido por --no-refresh-cliente-mvs")
+        return
+
+    refresh_result = run_cliente_mvs_refresh(
+        db_url=args.db_url,
+        execute=True,
+        run_smoke=True,
+    )
+    print(refresh_result)
 
 
 if __name__ == "__main__":
