@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import json
 import os
 import re
@@ -41,6 +42,49 @@ def to_json_payload(rec: dict[str, Any]) -> dict[str, Any]:
     return {str(k): clean_json_value(v) for k, v in rec.items()}
 
 
+def read_excel_sheet(excel_path: Path, sheet: str, **kwargs: Any) -> pd.DataFrame:
+    try:
+        return pd.read_excel(excel_path, sheet_name=sheet, **kwargs)
+    except ValueError as exc:
+        raise ValueError(f"No existe la hoja requerida '{sheet}' en {excel_path.name}") from exc
+
+
+def parse_date_value(v: Any) -> date | None:
+    text = clean_text(v)
+    if not text:
+        return None
+    parsed = pd.to_datetime(text, errors="coerce")
+    if pd.isna(parsed):
+        return None
+    return parsed.date()
+
+
+def calc_week_iso(fecha_visita: date | None) -> int | None:
+    if fecha_visita is None:
+        return None
+    return int(fecha_visita.isocalendar().week)
+
+
+def parse_numeric_value(v: Any) -> float | None:
+    text = clean_text(v)
+    if not text:
+        return None
+    normalized = text.replace(",", ".")
+    try:
+        return float(normalized)
+    except ValueError:
+        return None
+
+
+def bool_from_evidence(v: Any) -> bool:
+    text = clean_text(v).upper()
+    if not text:
+        return False
+    if text in {"0", "NO", "FALSE", "SIN", "N/A"}:
+        return False
+    return True
+
+
 def register_batch(cur, source_file: str, source_sheet: str) -> int:
     cur.execute(
         """
@@ -71,7 +115,7 @@ def finalize_batch(cur, batch_id: int, loaded_rows: int, status: str, notes: str
 
 def load_kpione(cur, excel_path: Path) -> dict[str, Any]:
     sheet = "DB (KPIONE)"
-    df = pd.read_excel(excel_path, sheet_name=sheet, dtype=str)
+    df = read_excel_sheet(excel_path, sheet, dtype=str)
     df.columns = [str(c).strip() for c in df.columns]
 
     required = ["nombre_local", "marca", "trabajador", "Fecha_reg", "estado_foto"]
@@ -135,6 +179,96 @@ def load_kpione(cur, excel_path: Path) -> dict[str, Any]:
     }
 
 
+def load_kpione2(cur, excel_path: Path) -> dict[str, Any]:
+    sheet = "DB (KPIONE2.0)"
+    df = read_excel_sheet(excel_path, sheet, dtype=str)
+    df.columns = [str(c).strip() for c in df.columns]
+
+    required = ["Codigo Local", "Marca", "Reponedor", "Fecha", "VISITA"]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise ValueError(f"KPIONE2 missing required columns: {missing}")
+
+    batch_id = register_batch(cur, excel_path.name, sheet)
+
+    try:
+        rows = []
+        for i, rec in enumerate(df.to_dict(orient="records"), start=2):
+            fecha_visita = parse_date_value(rec.get("Fecha"))
+            visita_numeric = parse_numeric_value(rec.get("VISITA"))
+            has_evidence = bool_from_evidence(rec.get("Link Foto")) or bool_from_evidence(rec.get("VISITA"))
+            visita_value = 1 if has_evidence or (visita_numeric is not None and visita_numeric > 0) else 0
+
+            rows.append((
+                batch_id,
+                excel_path.name,
+                sheet,
+                i,
+                Json(to_json_payload(rec), dumps=lambda x: json.dumps(x, ensure_ascii=False)),
+                clean_text(rec.get("Codigo Local")),
+                clean_text(rec.get("Marca")),
+                clean_text(rec.get("Reponedor")),
+                clean_text(rec.get("Fecha")),
+                clean_text(rec.get("VISITA")),
+                fecha_visita,
+                calc_week_iso(fecha_visita),
+                visita_value,
+                clean_text(rec.get("REGISTRO_FUERA_CRUCE")),
+                has_evidence,
+            ))
+
+        execute_values(
+            cur,
+            """
+            insert into cg_raw.kpione2_raw (
+                batch_id,
+                source_file,
+                source_sheet,
+                source_row,
+                payload_json,
+                codigo_local_raw,
+                marca_raw,
+                reponedor_raw,
+                fecha_raw,
+                visita_raw,
+                fecha_visita,
+                semana_iso,
+                visita_value,
+                registro_fuera_cruce,
+                has_evidence
+            ) values %s
+            on conflict (batch_id, source_row) do update set
+                source_file = excluded.source_file,
+                source_sheet = excluded.source_sheet,
+                payload_json = excluded.payload_json,
+                codigo_local_raw = excluded.codigo_local_raw,
+                marca_raw = excluded.marca_raw,
+                reponedor_raw = excluded.reponedor_raw,
+                fecha_raw = excluded.fecha_raw,
+                visita_raw = excluded.visita_raw,
+                fecha_visita = excluded.fecha_visita,
+                semana_iso = excluded.semana_iso,
+                visita_value = excluded.visita_value,
+                registro_fuera_cruce = excluded.registro_fuera_cruce,
+                has_evidence = excluded.has_evidence,
+                ingested_at = now()
+            """,
+            rows,
+            page_size=5000,
+        )
+    except Exception as exc:
+        finalize_batch(cur, batch_id, 0, "cancelled", f"error={exc}")
+        raise
+
+    finalize_batch(cur, batch_id, len(rows), "ok", f"rows={len(rows)}")
+    return {
+        "sheet": sheet,
+        "batch_id": batch_id,
+        "rows_read": int(len(df)),
+        "rows_loaded": int(len(rows)),
+    }
+
+
 def safe_col_name(value: Any, pos: int) -> str:
     raw = clean_text(value)
     if not raw or raw.lower() == "null":
@@ -157,7 +291,7 @@ def make_unique(names: list[str]) -> list[str]:
 
 
 def read_power_app_sheet(excel_path: Path) -> pd.DataFrame:
-    raw = pd.read_excel(excel_path, sheet_name="DB (POWER_APP)", header=None, dtype=str)
+    raw = read_excel_sheet(excel_path, "DB (POWER_APP)", header=None, dtype=str)
 
     header_row = raw.iloc[0].tolist()
     clean_cols = make_unique([safe_col_name(v, i) for i, v in enumerate(header_row)])
@@ -284,10 +418,12 @@ def main() -> None:
     with psycopg2.connect(db_url) as conn:
         with conn.cursor() as cur:
             kpione_info = load_kpione(cur, excel_path)
+            kpione2_info = load_kpione2(cur, excel_path)
             power_info = load_power_app(cur, excel_path)
         conn.commit()
 
     result["kpione"] = kpione_info
+    result["kpione2"] = kpione2_info
     result["power_app"] = power_info
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

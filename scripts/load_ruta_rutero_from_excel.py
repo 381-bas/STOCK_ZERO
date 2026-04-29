@@ -3,11 +3,19 @@
 import os
 import argparse
 import hashlib
+import json
+from datetime import datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
 import pandas as pd
 import psycopg2
-from psycopg2.extras import execute_values
+from psycopg2.extras import Json, execute_values
 
 from cliente_mvs import run_cliente_mvs_refresh
+
+LOADER_NAME = "load_ruta_rutero_from_excel"
+LOCAL_TZ = ZoneInfo("America/Santiago")
 
 
 # -----------------------------
@@ -24,6 +32,19 @@ def clean_str(series: pd.Series) -> pd.Series:
     # pandas puede dejar "nan" como string cuando viene mezclado
     s = s.replace({"nan": "", "None": "", "NaT": ""})
     return s.str.strip()
+
+
+def normalize_text(value) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if text in {"nan", "None", "NaT"}:
+        return ""
+    return text
+
+
+def normalize_key(value) -> str:
+    return normalize_text(value).upper()
 
 
 def to_int01(s: pd.Series) -> pd.Series:
@@ -51,12 +72,255 @@ def ensure_sslmode(db_url: str) -> str:
     return db_url + "?sslmode=require"
 
 
+def get_effective_week_info(loaded_at: datetime) -> tuple[str, int]:
+    local_dt = loaded_at.astimezone(LOCAL_TZ)
+    week_start = (local_dt.date() - timedelta(days=local_dt.weekday())).isoformat()
+    week_iso = int(local_dt.date().isocalendar().week)
+    return week_start, week_iso
+
+
+def register_cg_ruta_batch(
+    cur,
+    *,
+    source_file: str,
+    source_sheet: str,
+    loaded_at: datetime,
+    notes: str,
+) -> int:
+    cur.execute(
+        """
+        insert into cg_core.ruta_rutero_load_batch (
+            source_file,
+            source_sheet,
+            loader_name,
+            loaded_rows,
+            status,
+            loaded_at,
+            notes
+        )
+        values (%s, %s, %s, 0, 'cancelled', %s, %s)
+        returning ruta_batch_id
+        """,
+        (source_file, source_sheet, LOADER_NAME, loaded_at, notes),
+    )
+    return int(cur.fetchone()[0])
+
+
+def finalize_cg_ruta_batch(
+    cur,
+    *,
+    ruta_batch_id: int,
+    loaded_rows: int,
+    status: str,
+    notes: str,
+) -> None:
+    cur.execute(
+        """
+        update cg_core.ruta_rutero_load_batch
+           set loaded_rows = %s,
+               status = %s,
+               notes = %s
+         where ruta_batch_id = %s
+        """,
+        (loaded_rows, status, notes, ruta_batch_id),
+    )
+
+
+def build_cg_history_rows(
+    out: pd.DataFrame,
+    *,
+    ruta_batch_id: int,
+    source_file: str,
+    source_sheet: str,
+    loaded_at: datetime,
+) -> list[tuple]:
+    records = []
+    for rec in out.to_dict(orient="records"):
+        payload = {
+            "cadena": rec["cadena"],
+            "formato": rec["formato"],
+            "region": rec["region"],
+            "comuna": rec["comuna"],
+            "cod_rt": rec["cod_rt"],
+            "cod_b2b": rec["cod_b2b"],
+            "local_nombre": rec["local_nombre"],
+            "direccion": rec["direccion"],
+            "veces_por_semana": rec["veces_por_semana"],
+            "rutero": rec["rutero"],
+            "jefe_operaciones": rec["jefe_operaciones"],
+            "gestores": rec["gestores"],
+            "cliente": rec["cliente"],
+            "supervisor": rec["supervisor"],
+            "reponedor": rec["reponedor"],
+            "lunes": rec["lunes"],
+            "martes": rec["martes"],
+            "miercoles": rec["miercoles"],
+            "jueves": rec["jueves"],
+            "viernes": rec["viernes"],
+            "sabado": rec["sabado"],
+            "domingo": rec["domingo"],
+            "visita_mensual": rec["visita_mensual"],
+            "dif": rec["dif"],
+            "obs": rec["obs"],
+            "aux": rec["aux"],
+            "gg": rec["gg"],
+            "modalidad": rec["modalidad"],
+            "row_hash": rec["row_hash"],
+            "source": rec["source"],
+            "source_row": rec["source_row"],
+        }
+        records.append(
+            (
+                ruta_batch_id,
+                source_file,
+                source_sheet,
+                int(rec["source_row"]),
+                Json(payload, dumps=lambda x: json.dumps(x, ensure_ascii=False)),
+                rec["cadena"],
+                rec["formato"],
+                rec["region"],
+                rec["comuna"],
+                rec["cod_rt"],
+                rec["cod_b2b"],
+                rec["local_nombre"],
+                rec["direccion"],
+                int(rec["veces_por_semana"]),
+                rec["rutero"],
+                rec["jefe_operaciones"],
+                rec["gestores"],
+                rec["cliente"],
+                rec["supervisor"],
+                rec["reponedor"],
+                int(rec["lunes"]),
+                int(rec["martes"]),
+                int(rec["miercoles"]),
+                int(rec["jueves"]),
+                int(rec["viernes"]),
+                int(rec["sabado"]),
+                int(rec["domingo"]),
+                int(rec["visita_mensual"]),
+                int(rec["dif"]),
+                rec["obs"],
+                rec["aux"],
+                int(rec["gg"]),
+                rec["modalidad"],
+                rec["row_hash"],
+                rec["source"],
+                loaded_at,
+                normalize_text(rec["cod_rt"]),
+                normalize_text(rec["cod_b2b"]),
+                normalize_key(rec["cliente"]),
+                normalize_key(rec["gestores"]),
+                normalize_key(rec["supervisor"]),
+                normalize_key(rec["reponedor"]),
+            )
+        )
+    return records
+
+
+def insert_cg_history_rows(cur, rows: list[tuple]) -> None:
+    if not rows:
+        return
+    execute_values(
+        cur,
+        """
+        insert into cg_core.ruta_rutero_load_rows (
+            ruta_batch_id,
+            source_file,
+            source_sheet,
+            source_row,
+            payload_json,
+            cadena,
+            formato,
+            region,
+            comuna,
+            cod_rt,
+            cod_b2b,
+            local_nombre,
+            direccion,
+            veces_por_semana,
+            rutero,
+            jefe_operaciones,
+            gestores,
+            cliente,
+            supervisor,
+            reponedor,
+            lunes,
+            martes,
+            miercoles,
+            jueves,
+            viernes,
+            sabado,
+            domingo,
+            visita_mensual,
+            dif,
+            obs,
+            aux,
+            gg,
+            modalidad,
+            row_hash,
+            source,
+            source_ingested_at,
+            cod_rt_norm,
+            cod_b2b_norm,
+            cliente_norm,
+            gestor_norm,
+            supervisor_norm,
+            reponedor_norm
+        ) values %s
+        on conflict (ruta_batch_id, source_row) do update set
+            payload_json = excluded.payload_json,
+            cadena = excluded.cadena,
+            formato = excluded.formato,
+            region = excluded.region,
+            comuna = excluded.comuna,
+            cod_rt = excluded.cod_rt,
+            cod_b2b = excluded.cod_b2b,
+            local_nombre = excluded.local_nombre,
+            direccion = excluded.direccion,
+            veces_por_semana = excluded.veces_por_semana,
+            rutero = excluded.rutero,
+            jefe_operaciones = excluded.jefe_operaciones,
+            gestores = excluded.gestores,
+            cliente = excluded.cliente,
+            supervisor = excluded.supervisor,
+            reponedor = excluded.reponedor,
+            lunes = excluded.lunes,
+            martes = excluded.martes,
+            miercoles = excluded.miercoles,
+            jueves = excluded.jueves,
+            viernes = excluded.viernes,
+            sabado = excluded.sabado,
+            domingo = excluded.domingo,
+            visita_mensual = excluded.visita_mensual,
+            dif = excluded.dif,
+            obs = excluded.obs,
+            aux = excluded.aux,
+            gg = excluded.gg,
+            modalidad = excluded.modalidad,
+            row_hash = excluded.row_hash,
+            source = excluded.source,
+            source_ingested_at = excluded.source_ingested_at,
+            cod_rt_norm = excluded.cod_rt_norm,
+            cod_b2b_norm = excluded.cod_b2b_norm,
+            cliente_norm = excluded.cliente_norm,
+            gestor_norm = excluded.gestor_norm,
+            supervisor_norm = excluded.supervisor_norm,
+            reponedor_norm = excluded.reponedor_norm,
+            ingested_at = now()
+        """,
+        rows,
+        page_size=5000,
+    )
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--excel", default=r"data\DB_GLOBAL_INVENTARIO.xlsx")
     ap.add_argument("--sheet", default="RUTA_RUTERO")
     ap.add_argument("--db_url", default=os.getenv("DB_URL_LOAD", "") or os.getenv("DB_URL", ""))
     ap.add_argument("--source", default="DB_GLOBAL_INVENTARIO.xlsx:RUTA_RUTERO")
+    ap.add_argument("--no-cg-ruta-history", action="store_true")
     ap.add_argument("--no-refresh-cliente-mvs", action="store_true")
     args = ap.parse_args()
 
@@ -65,7 +329,8 @@ def main():
 
     db_url = ensure_sslmode(args.db_url)
 
-    df = pd.read_excel(args.excel, sheet_name=args.sheet)
+    excel_path = Path(args.excel)
+    df = pd.read_excel(excel_path, sheet_name=args.sheet)
     df.columns = [norm_col(c) for c in df.columns]
 
     # Permitimos variaciones típicas de nombres (por si acaso)
@@ -193,16 +458,83 @@ def main():
       ingested_at=now();
     """
 
+    loaded_at = datetime.now(tz=LOCAL_TZ)
+    effective_week_start, effective_week_iso = get_effective_week_info(loaded_at)
+    ruta_batch_id = None
+    rows_loaded_cg_history = 0
+
     with psycopg2.connect(db_url) as conn:
         with conn.cursor() as cur:
             execute_values(cur, sql, rows, page_size=5000)
         conn.commit()
 
-    print(f"OK: upsert {len(rows)} filas en public.ruta_rutero desde {args.excel} [{args.sheet}]")
-    print(f"DB_URL sslmode={'require' if 'sslmode=require' in db_url else 'n/a'} | source={args.source}")
+    if not args.no_cg_ruta_history:
+        history_rows = build_cg_history_rows(
+            out,
+            ruta_batch_id=0,
+            source_file=excel_path.name,
+            source_sheet=args.sheet,
+            loaded_at=loaded_at,
+        )
+        with psycopg2.connect(db_url) as conn:
+            with conn.cursor() as cur:
+                ruta_batch_id = register_cg_ruta_batch(
+                    cur,
+                    source_file=excel_path.name,
+                    source_sheet=args.sheet,
+                    loaded_at=loaded_at,
+                    notes=f"source={args.source}",
+                )
+                conn.commit()
+
+            for idx, row in enumerate(history_rows):
+                history_rows[idx] = (ruta_batch_id,) + row[1:]
+
+            try:
+                with conn.cursor() as cur:
+                    insert_cg_history_rows(cur, history_rows)
+                    rows_loaded_cg_history = len(history_rows)
+                    finalize_cg_ruta_batch(
+                        cur,
+                        ruta_batch_id=ruta_batch_id,
+                        loaded_rows=rows_loaded_cg_history,
+                        status="ok",
+                        notes=(
+                            f"source={args.source} | rows_public={len(rows)} | "
+                            f"rows_cg_history={rows_loaded_cg_history}"
+                        ),
+                    )
+                conn.commit()
+            except Exception as exc:
+                conn.rollback()
+                with conn.cursor() as cur:
+                    finalize_cg_ruta_batch(
+                        cur,
+                        ruta_batch_id=ruta_batch_id,
+                        loaded_rows=0,
+                        status="cancelled",
+                        notes=f"error={exc}",
+                    )
+                conn.commit()
+                raise
+
+    result = {
+        "loader": LOADER_NAME,
+        "excel": str(excel_path),
+        "sheet": args.sheet,
+        "source": args.source,
+        "rows_loaded_public_ruta": int(len(rows)),
+        "rows_loaded_cg_history": int(rows_loaded_cg_history),
+        "ruta_batch_id": ruta_batch_id,
+        "effective_week_start": effective_week_start,
+        "effective_week_iso": effective_week_iso,
+        "status": "ok",
+        "cg_ruta_history_enabled": not args.no_cg_ruta_history,
+    }
 
     if args.no_refresh_cliente_mvs:
-        print("SKIP: refresh post-carga de MVs CLIENTE omitido por --no-refresh-cliente-mvs")
+        result["cliente_mvs_refresh"] = {"status": "skipped", "reason": "--no-refresh-cliente-mvs"}
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 
     refresh_result = run_cliente_mvs_refresh(
@@ -210,7 +542,8 @@ def main():
         execute=True,
         run_smoke=True,
     )
-    print(refresh_result)
+    result["cliente_mvs_refresh"] = refresh_result
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
