@@ -3557,6 +3557,90 @@ def get_cg_v2_scope_semanas() -> pd.DataFrame:
     )
 
 
+def _cg_v2_selector_values(
+    *,
+    selector_name: str,
+    column_name: str,
+    result_alias: str,
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+) -> list[str]:
+    where_sql, params = _cg_scope_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+    )
+    df = _selector_df(
+        selector_name,
+        f"""
+        SELECT DISTINCT CAST("{column_name}" AS TEXT) AS {result_alias}
+        FROM {CG_V2_SCOPE_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST("{column_name}" AS TEXT), '')), '') IS NOT NULL
+        {where_sql}
+        ORDER BY {result_alias}
+        """,
+        params or None,
+    )
+    return df[result_alias].astype(str).tolist() if df is not None and not df.empty else []
+
+
+def get_cg_v2_gestores(
+    semana_inicio: str | None = None,
+) -> list[str]:
+    return _cg_v2_selector_values(
+        selector_name="get_cg_v2_gestores",
+        column_name="GESTOR",
+        result_alias="gestor",
+        semana_inicio=semana_inicio,
+    )
+
+
+def get_cg_v2_clientes(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+) -> list[str]:
+    return _cg_v2_selector_values(
+        selector_name="get_cg_v2_clientes",
+        column_name="CLIENTE",
+        result_alias="cliente",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+    )
+
+
+def get_cg_v2_alertas(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+) -> list[str]:
+    return _cg_v2_selector_values(
+        selector_name="get_cg_v2_alertas",
+        column_name="ALERTA",
+        result_alias="alerta",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+    )
+
+
+def get_cg_v2_filter_options(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+) -> dict[str, list[str]]:
+    return {
+        "gestores": get_cg_v2_gestores(semana_inicio=semana_inicio),
+        "clientes": get_cg_v2_clientes(semana_inicio=semana_inicio, gestor=gestor),
+        "alertas": get_cg_v2_alertas(
+            semana_inicio=semana_inicio,
+            gestor=gestor,
+            cliente=cliente,
+        ),
+    }
+
+
 def get_cg_v2_scope_kpis(
     semana_inicio: str | None = None,
     gestor: str | None = None,

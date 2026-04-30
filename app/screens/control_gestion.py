@@ -85,42 +85,6 @@ def _cg_metric_cards(metrics: dict[str, int | float]) -> None:
     c6.caption(f'Visitas realizadas: {int(metrics.get("visitas_realizadas") or 0)}')
 
 
-def _cg_norm_text(value: object) -> str:
-    if value is None or pd.isna(value):
-        return ""
-    return str(value).strip().upper()
-
-
-def _cg_unique_options(
-    df: pd.DataFrame | None,
-    column: str,
-    *,
-    all_label: str | None = None,
-) -> list[str]:
-    values: list[str] = []
-    seen: set[str] = set()
-    if df is not None and not df.empty and column in df.columns:
-        for value in df[column].tolist():
-            text = str(value).strip() if not pd.isna(value) else ""
-            if not text:
-                continue
-            key = text.upper()
-            if key in seen:
-                continue
-            seen.add(key)
-            values.append(text)
-    values.sort(key=lambda item: item.upper())
-    return ([all_label] if all_label is not None else []) + values
-
-
-def _cg_filter_df_value(df: pd.DataFrame | None, column: str, selected: str | None) -> pd.DataFrame | None:
-    if df is None or df.empty or not selected or column not in df.columns:
-        return df
-    selected_norm = _cg_norm_text(selected)
-    mask = df[column].map(_cg_norm_text) == selected_norm
-    return df.loc[mask].copy()
-
-
 def _cg_ensure_option_state(state_key: str, options: list[str], default: str) -> str:
     if st.session_state.get(state_key) not in options:
         st.session_state[state_key] = default
@@ -291,41 +255,35 @@ def render_control_gestion(
                 cliente_sel = None
                 alerta_sel = None
                 search_sel = ""
-                selector_df = pd.DataFrame()
-                selector_filtered = pd.DataFrame()
-                selector_page_size = 5000
 
                 f1, f2, f3, f4, f5 = st.columns(5)
                 with f1:
                     semana_label = st.selectbox("SEMANA", semana_opts, key=semana_key)
                     semana_inicio = semanas_map.get(semana_label)
 
-                selector_df = db.get_cg_v2_scope_page(
-                    semana_inicio=semana_inicio,
-                    alerta=None,
-                    search="",
-                    page=1,
-                    page_size=selector_page_size,
-                )
-                selector_filtered = selector_df.copy() if selector_df is not None else pd.DataFrame()
-
-                gestor_opts = _cg_unique_options(selector_filtered, "GESTOR", all_label=cg_all_token)
+                gestor_opts = [cg_all_token] + list(db.get_cg_v2_gestores(semana_inicio=semana_inicio) or [])
                 gestor_key = "sel_cg_v2_gestor"
                 _cg_ensure_option_state(gestor_key, gestor_opts, cg_all_token)
                 with f2:
                     gestor_label = st.selectbox("GESTOR", gestor_opts, key=gestor_key)
                     gestor_sel = None if gestor_label == cg_all_token else gestor_label
 
-                selector_filtered = _cg_filter_df_value(selector_filtered, "GESTOR", gestor_sel)
-                cliente_opts = _cg_unique_options(selector_filtered, "CLIENTE", all_label=cg_all_token)
+                cliente_opts = [cg_all_token] + list(
+                    db.get_cg_v2_clientes(semana_inicio=semana_inicio, gestor=gestor_sel) or []
+                )
                 cliente_key = "sel_cg_v2_cliente"
                 _cg_ensure_option_state(cliente_key, cliente_opts, cg_all_token)
                 with f3:
                     cliente_label = st.selectbox("CLIENTE", cliente_opts, key=cliente_key)
                     cliente_sel = None if cliente_label == cg_all_token else cliente_label
 
-                selector_filtered = _cg_filter_df_value(selector_filtered, "CLIENTE", cliente_sel)
-                alerta_opts = _cg_unique_options(selector_filtered, "ALERTA", all_label="Todas")
+                alerta_opts = ["Todas"] + list(
+                    db.get_cg_v2_alertas(
+                        semana_inicio=semana_inicio,
+                        gestor=gestor_sel,
+                        cliente=cliente_sel,
+                    ) or []
+                )
                 alerta_key = "sel_cg_v2_alerta"
                 _cg_ensure_option_state(alerta_key, alerta_opts, "Todas")
                 with f4:
