@@ -85,17 +85,65 @@ def _cg_metric_cards(metrics: dict[str, int | float]) -> None:
     c6.caption(f'Visitas realizadas: {int(metrics.get("visitas_realizadas") or 0)}')
 
 
+def _cg_norm_text(value: object) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    return str(value).strip().upper()
+
+
+def _cg_unique_options(
+    df: pd.DataFrame | None,
+    column: str,
+    *,
+    all_label: str | None = None,
+) -> list[str]:
+    values: list[str] = []
+    seen: set[str] = set()
+    if df is not None and not df.empty and column in df.columns:
+        for value in df[column].tolist():
+            text = str(value).strip() if not pd.isna(value) else ""
+            if not text:
+                continue
+            key = text.upper()
+            if key in seen:
+                continue
+            seen.add(key)
+            values.append(text)
+    values.sort(key=lambda item: item.upper())
+    return ([all_label] if all_label is not None else []) + values
+
+
+def _cg_filter_df_value(df: pd.DataFrame | None, column: str, selected: str | None) -> pd.DataFrame | None:
+    if df is None or df.empty or not selected or column not in df.columns:
+        return df
+    selected_norm = _cg_norm_text(selected)
+    mask = df[column].map(_cg_norm_text) == selected_norm
+    return df.loc[mask].copy()
+
+
+def _cg_ensure_option_state(state_key: str, options: list[str], default: str) -> str:
+    if st.session_state.get(state_key) not in options:
+        st.session_state[state_key] = default
+    return str(st.session_state.get(state_key) or default)
+
+
+def _cg_reset_page_on_filter_change(filter_key: str, page_key: str, values: tuple[object, ...]) -> None:
+    if st.session_state.get(filter_key) != values:
+        st.session_state[filter_key] = values
+        st.session_state[page_key] = 1
+
+
 def _cg_v2_metric_cards(
     scope_metrics: dict[str, int | float],
     audit_metrics: dict[str, int | float],
 ) -> None:
     c1, c2, c3, c4, c5, c6 = st.columns(6)
-    c1.metric("Visita plan", int(scope_metrics.get("visita_plan") or 0))
-    c2.metric("Realizada raw", int(scope_metrics.get("visita_realizada_raw") or 0))
-    c3.metric("Realizada cap", int(scope_metrics.get("visita_realizada_cap") or 0))
-    c4.metric("Sobrecumpl.", int(scope_metrics.get("sobre_cumplimiento") or 0))
-    c5.metric("Cumple", int(scope_metrics.get("cumple_rows") or 0))
-    c6.metric("Incumple", int(scope_metrics.get("incumple_rows") or 0))
+    c1.metric("Visitas exigidas", int(scope_metrics.get("visita_plan") or 0))
+    c2.metric("Visitas reportadas", int(scope_metrics.get("visita_realizada_raw") or 0))
+    c3.metric("Visitas validas", int(scope_metrics.get("visita_realizada_cap") or 0))
+    c4.metric("Sobrecumplimiento", int(scope_metrics.get("sobre_cumplimiento") or 0))
+    c5.metric("Rutas cumplen", int(scope_metrics.get("cumple_rows") or 0))
+    c6.metric("Rutas incumplen", int(scope_metrics.get("incumple_rows") or 0))
 
     a1, a2, a3, a4 = st.columns(4)
     a1.caption(f'Ruta duplicada: {int(audit_metrics.get("ruta_duplicada_rows") or 0)}')
@@ -236,30 +284,61 @@ def render_control_gestion(
 
                 semana_opts = list(semanas_map.keys())
                 semana_key = "sel_cg_v2_semana"
-                if st.session_state.get(semana_key) not in semana_opts:
-                    st.session_state[semana_key] = cg_all_token
+                _cg_ensure_option_state(semana_key, semana_opts, cg_all_token)
 
                 semana_inicio = None
                 gestor_sel = None
                 cliente_sel = None
                 alerta_sel = None
                 search_sel = ""
+                selector_df = pd.DataFrame()
+                selector_filtered = pd.DataFrame()
+                selector_page_size = 5000
 
                 f1, f2, f3, f4, f5 = st.columns(5)
                 with f1:
                     semana_label = st.selectbox("SEMANA", semana_opts, key=semana_key)
                     semana_inicio = semanas_map.get(semana_label)
+
+                selector_df = db.get_cg_v2_scope_page(
+                    semana_inicio=semana_inicio,
+                    alerta=None,
+                    search="",
+                    page=1,
+                    page_size=selector_page_size,
+                )
+                selector_filtered = selector_df.copy() if selector_df is not None else pd.DataFrame()
+
+                gestor_opts = _cg_unique_options(selector_filtered, "GESTOR", all_label=cg_all_token)
+                gestor_key = "sel_cg_v2_gestor"
+                _cg_ensure_option_state(gestor_key, gestor_opts, cg_all_token)
                 with f2:
-                    gestor_val = st.text_input("GESTOR", key="cg_v2_gestor_filter")
-                    gestor_sel = str(gestor_val).strip() or None
+                    gestor_label = st.selectbox("GESTOR", gestor_opts, key=gestor_key)
+                    gestor_sel = None if gestor_label == cg_all_token else gestor_label
+
+                selector_filtered = _cg_filter_df_value(selector_filtered, "GESTOR", gestor_sel)
+                cliente_opts = _cg_unique_options(selector_filtered, "CLIENTE", all_label=cg_all_token)
+                cliente_key = "sel_cg_v2_cliente"
+                _cg_ensure_option_state(cliente_key, cliente_opts, cg_all_token)
                 with f3:
-                    cliente_val = st.text_input("CLIENTE", key="cg_v2_cliente_filter")
-                    cliente_sel = str(cliente_val).strip() or None
+                    cliente_label = st.selectbox("CLIENTE", cliente_opts, key=cliente_key)
+                    cliente_sel = None if cliente_label == cg_all_token else cliente_label
+
+                selector_filtered = _cg_filter_df_value(selector_filtered, "CLIENTE", cliente_sel)
+                alerta_opts = _cg_unique_options(selector_filtered, "ALERTA", all_label="Todas")
+                alerta_key = "sel_cg_v2_alerta"
+                _cg_ensure_option_state(alerta_key, alerta_opts, "Todas")
                 with f4:
-                    alerta_label = st.selectbox("ALERTA", ["Todas", "CUMPLE", "INCUMPLE"], key="sel_cg_v2_alerta")
+                    alerta_label = st.selectbox("ALERTA", alerta_opts, key=alerta_key)
                     alerta_sel = None if alerta_label == "Todas" else alerta_label
                 with f5:
                     search_sel = str(st.text_input("BUSCAR", key="cg_v2_search_filter")).strip()
+
+                _cg_reset_page_on_filter_change(
+                    "cg_v2_filter_sig",
+                    "page_cg_scope_v2",
+                    (semana_inicio, gestor_sel, cliente_sel, alerta_sel, search_sel),
+                )
 
                 kpi_df = db.get_cg_v2_scope_kpis(
                     semana_inicio=semana_inicio,
@@ -270,6 +349,16 @@ def render_control_gestion(
                 kpi_row = kpi_df.iloc[0].to_dict() if kpi_df is not None and not kpi_df.empty else {}
                 audit_summary = db.get_cg_v2_audit_summary() or {}
                 _cg_v2_metric_cards(kpi_row, audit_summary)
+                with st.expander("Ayuda auditoria v2", expanded=False):
+                    st.caption("Fuera cruce real: registros que no calzan con ruta vigente.")
+                    st.caption(
+                        "Sin batch ruta semana: evidencia historica sin snapshot semanal de RUTA_RUTERO; "
+                        "no necesariamente error operativo actual."
+                    )
+                    st.caption("Doble/triple: misma visita detectada en mas de una fuente.")
+                    st.caption(
+                        "Ruta duplicada: combinacion ruta/cliente duplicada en la base operativa versionada."
+                    )
 
                 current_page, _ = _cg_get_page_state("page_cg_scope_v2", page_size=25)
                 with _timed("PAGE cg_v2_scope_page", tag="PAGE"):
@@ -297,19 +386,18 @@ def render_control_gestion(
                         "REPONEDOR": "REPONEDOR",
                         "SUPERVISOR": "SUPERVISOR",
                         "MODALIDAD": "MODALIDAD",
-                        "VISITA": "VISITA",
+                        "VISITA": "VISITAS EXIGIDAS",
                         "VISITA_REALIZADA": "VISITA REALIZADA",
-                        "VISITA_REALIZADA_CAP": "VISITA CAP",
-                        "SOBRE_CUMPLIMIENTO": "SOBRE CUMPL.",
-                        "DIAS_KPIONE": "DIAS KPIONE",
-                        "DIAS_KPIONE2": "DIAS KPIONE2",
-                        "DIAS_POWER_APP": "DIAS POWER APP",
+                        "VISITA_REALIZADA_RAW": "VISITAS REPORTADAS",
+                        "VISITA_REALIZADA_CAP": "VISITAS VALIDAS",
+                        "SOBRE_CUMPLIMIENTO": "SOBRECUMPLIMIENTO",
+                        "ALERTA": "ALERTA",
+                        "RUTA_DUPLICADA_FLAG": "RUTA DUPLICADA",
+                        "RUTA_DUPLICADA_ROWS": "FILAS RUTA DUP.",
+                        "FUENTES_REPORTADAS_SEMANA": "FUENTES",
                         "DIAS_DOBLE_MARCAJE": "DOBLE MARCAJE",
                         "DIAS_TRIPLE_MARCAJE": "TRIPLE MARCAJE",
-                        "FUENTES_REPORTADAS_SEMANA": "FUENTES",
                         "PERSONA_CONFLICTO_ROWS": "CONFLICTOS PERSONA",
-                        "RUTA_DUPLICADA_FLAG": "RUTA DUP",
-                        "ALERTA": "ALERTA",
                     },
                     [
                         "SEMANA",
@@ -321,18 +409,18 @@ def render_control_gestion(
                         "REPONEDOR",
                         "SUPERVISOR",
                         "MODALIDAD",
-                        "VISITA",
+                        "VISITAS EXIGIDAS",
                         "VISITA REALIZADA",
-                        "VISITA CAP",
-                        "SOBRE CUMPL.",
-                        "DIAS KPIONE",
-                        "DIAS KPIONE2",
-                        "DIAS POWER APP",
+                        "VISITAS REPORTADAS",
+                        "VISITAS VALIDAS",
+                        "SOBRECUMPLIMIENTO",
+                        "ALERTA",
+                        "RUTA DUPLICADA",
+                        "FILAS RUTA DUP.",
+                        "FUENTES",
                         "DOBLE MARCAJE",
                         "TRIPLE MARCAJE",
                         "CONFLICTOS PERSONA",
-                        "RUTA DUP",
-                        "ALERTA",
                     ],
                 )
                 st.dataframe(df_scope_v2_view, width="stretch", hide_index=True)
