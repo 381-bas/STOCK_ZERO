@@ -119,6 +119,10 @@ CG_V2_MULTI_MARCAJE_VIEW = os.getenv(
     "CG_V2_MULTI_MARCAJE_VIEW",
     "cg_mart.v_cg_marcaje_multifuente_dia_v2",
 )
+CG_V2_DAILY_EVIDENCE_VIEW = os.getenv(
+    "CG_V2_DAILY_EVIDENCE_VIEW",
+    "cg_core.v_cg_visita_dia_resuelta_v2",
+)
 CG_V2_RUTA_DUP_VIEW = os.getenv(
     "CG_V2_RUTA_DUP_VIEW",
     "cg_mart.v_cg_ruta_duplicados_auditoria_v2",
@@ -2869,6 +2873,8 @@ def _cg_scope_filters(
     cliente: str | None = None,
     alerta: str | None = None,
     cod_rt: str | None = None,
+    rutero: str | None = None,
+    local: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     pfx = f"{alias}." if alias else ""
     filters: list[str] = []
@@ -2900,6 +2906,18 @@ def _cg_scope_filters(
         filters.append(f'AND CAST({pfx}"COD_RT" AS TEXT) = :cod_rt')
         params["cod_rt"] = str(cod_rt).strip()
 
+    if rutero and str(rutero).strip() and str(rutero).strip().upper() != "TODOS":
+        filters.append(
+            f'AND {_cg_text_norm_expr(f"{pfx}" + "\"RUTERO\"")} = {_cg_text_norm_expr(":rutero")}'
+        )
+        params["rutero"] = str(rutero).strip()
+
+    if local and str(local).strip() and str(local).strip().upper() != "TODOS":
+        filters.append(
+            f'AND {_cg_text_norm_expr(f"{pfx}" + "\"LOCAL\"")} = {_cg_text_norm_expr(":local")}'
+        )
+        params["local"] = str(local).strip()
+
     return "\n".join(filters), params
 
 
@@ -2925,6 +2943,53 @@ def _cg_v2_scope_search_filters(
         """,
         {"search": f"%{raw}%"},
     )
+
+
+def _cg_v2_daily_evidence_filters(
+    *,
+    alias: str = "d",
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    rutero: str | None = None,
+    cod_rt: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    pfx = f"{alias}." if alias else ""
+    filters: list[str] = []
+    params: dict[str, Any] = {}
+
+    if semana_inicio and str(semana_inicio).strip():
+        filters.append(f"AND {pfx}semana_inicio = CAST(:semana_inicio AS DATE)")
+        params["semana_inicio"] = str(semana_inicio).strip()
+
+    if gestor and str(gestor).strip() and str(gestor).strip().upper() != "TODOS":
+        filters.append(f"AND {_cg_text_norm_expr(f'{pfx}gestor')} = {_cg_text_norm_expr(':gestor')}")
+        params["gestor"] = str(gestor).strip()
+
+    if cliente and str(cliente).strip() and str(cliente).strip().upper() != "TODOS":
+        filters.append(f"AND {_cg_text_norm_expr(f'{pfx}cliente')} = {_cg_text_norm_expr(':cliente')}")
+        params["cliente"] = str(cliente).strip()
+
+    if rutero and str(rutero).strip() and str(rutero).strip().upper() != "TODOS":
+        filters.append(f"AND {_cg_text_norm_expr(f'{pfx}rutero')} = {_cg_text_norm_expr(':rutero')}")
+        params["rutero"] = str(rutero).strip()
+
+    if cod_rt and str(cod_rt).strip():
+        filters.append(f"AND CAST({pfx}cod_rt AS TEXT) = :cod_rt")
+        params["cod_rt"] = str(cod_rt).strip()
+
+    return "\n".join(filters), params
+
+
+def _cg_v2_status_case(plan_col: str, flag_col: str) -> str:
+    return f"""
+        CASE
+            WHEN COALESCE({plan_col}, 0) >= 1 AND COALESCE({flag_col}, 0) >= 1 THEN '✓'
+            WHEN COALESCE({plan_col}, 0) >= 1 AND COALESCE({flag_col}, 0) = 0 THEN '✕'
+            WHEN COALESCE({plan_col}, 0) = 0 AND COALESCE({flag_col}, 0) >= 1 THEN '!'
+            ELSE '—'
+        END
+    """
 
 
 def _cg_alertas_filters(
@@ -3557,6 +3622,22 @@ def get_cg_v2_scope_semanas() -> pd.DataFrame:
     )
 
 
+def get_cg_v2_recent_weeks(limit: int = 3) -> list[str]:
+    recent_limit = max(1, int(limit or 3))
+    df = _selector_df(
+        "get_cg_v2_recent_weeks",
+        f"""
+        SELECT DISTINCT CAST("SEMANA_INICIO" AS TEXT) AS semana_inicio
+        FROM {CG_V2_SCOPE_VIEW}
+        WHERE "SEMANA_INICIO" IS NOT NULL
+        ORDER BY semana_inicio DESC
+        LIMIT :limit
+        """,
+        {"limit": recent_limit},
+    )
+    return df["semana_inicio"].astype(str).tolist() if df is not None and not df.empty else []
+
+
 def _cg_v2_selector_values(
     *,
     selector_name: str,
@@ -3565,12 +3646,18 @@ def _cg_v2_selector_values(
     semana_inicio: str | None = None,
     gestor: str | None = None,
     cliente: str | None = None,
+    alerta: str | None = None,
+    rutero: str | None = None,
+    local: str | None = None,
 ) -> list[str]:
     where_sql, params = _cg_scope_filters(
         alias="v",
         semana_inicio=semana_inicio,
         gestor=gestor,
         cliente=cliente,
+        alerta=alerta,
+        rutero=rutero,
+        local=local,
     )
     df = _selector_df(
         selector_name,
@@ -3600,6 +3687,8 @@ def get_cg_v2_gestores(
 def get_cg_v2_clientes(
     semana_inicio: str | None = None,
     gestor: str | None = None,
+    rutero: str | None = None,
+    local: str | None = None,
 ) -> list[str]:
     return _cg_v2_selector_values(
         selector_name="get_cg_v2_clientes",
@@ -3607,6 +3696,8 @@ def get_cg_v2_clientes(
         result_alias="cliente",
         semana_inicio=semana_inicio,
         gestor=gestor,
+        rutero=rutero,
+        local=local,
     )
 
 
@@ -3614,6 +3705,8 @@ def get_cg_v2_alertas(
     semana_inicio: str | None = None,
     gestor: str | None = None,
     cliente: str | None = None,
+    rutero: str | None = None,
+    local: str | None = None,
 ) -> list[str]:
     return _cg_v2_selector_values(
         selector_name="get_cg_v2_alertas",
@@ -3622,6 +3715,8 @@ def get_cg_v2_alertas(
         semana_inicio=semana_inicio,
         gestor=gestor,
         cliente=cliente,
+        rutero=rutero,
+        local=local,
     )
 
 
@@ -3629,16 +3724,53 @@ def get_cg_v2_filter_options(
     semana_inicio: str | None = None,
     gestor: str | None = None,
     cliente: str | None = None,
+    rutero: str | None = None,
+    local: str | None = None,
 ) -> dict[str, list[str]]:
     return {
         "gestores": get_cg_v2_gestores(semana_inicio=semana_inicio),
-        "clientes": get_cg_v2_clientes(semana_inicio=semana_inicio, gestor=gestor),
+        "clientes": get_cg_v2_clientes(
+            semana_inicio=semana_inicio,
+            gestor=gestor,
+            rutero=rutero,
+            local=local,
+        ),
         "alertas": get_cg_v2_alertas(
             semana_inicio=semana_inicio,
             gestor=gestor,
             cliente=cliente,
+            rutero=rutero,
+            local=local,
         ),
     }
+
+
+def get_cg_v2_ruteros(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+) -> list[str]:
+    return _cg_v2_selector_values(
+        selector_name="get_cg_v2_ruteros",
+        column_name="RUTERO",
+        result_alias="rutero",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+    )
+
+
+def get_cg_v2_locales(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    rutero: str | None = None,
+) -> list[str]:
+    return _cg_v2_selector_values(
+        selector_name="get_cg_v2_locales",
+        column_name="LOCAL",
+        result_alias="local",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        rutero=rutero,
+    )
 
 
 def get_cg_v2_scope_kpis(
@@ -3646,6 +3778,9 @@ def get_cg_v2_scope_kpis(
     gestor: str | None = None,
     cliente: str | None = None,
     alerta: str | None = None,
+    rutero: str | None = None,
+    local: str | None = None,
+    search: str = "",
 ) -> pd.DataFrame:
     where_sql, params = _cg_scope_filters(
         alias="v",
@@ -3653,13 +3788,18 @@ def get_cg_v2_scope_kpis(
         gestor=gestor,
         cliente=cliente,
         alerta=alerta,
+        rutero=rutero,
+        local=local,
     )
+    search_sql, search_params = _cg_v2_scope_search_filters(alias="v", search=search)
+    query_params = {**params, **search_params}
     sql = f"""
         SELECT
             COUNT(*)::int AS total_rows,
             COALESCE(SUM(COALESCE("VISITA", 0)), 0)::int AS visita_plan,
             COALESCE(SUM(COALESCE("VISITA_REALIZADA_RAW", 0)), 0)::int AS visita_realizada_raw,
             COALESCE(SUM(COALESCE("VISITA_REALIZADA_CAP", 0)), 0)::int AS visita_realizada_cap,
+            COALESCE(SUM(GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)), 0)::int AS visitas_pendientes,
             COALESCE(SUM(COALESCE("SOBRE_CUMPLIMIENTO", 0)), 0)::int AS sobre_cumplimiento,
             COALESCE(SUM(CASE
                 WHEN {_cg_text_norm_expr('"ALERTA"')} = 'CUMPLE' THEN 1
@@ -3669,11 +3809,214 @@ def get_cg_v2_scope_kpis(
                 WHEN {_cg_text_norm_expr('"ALERTA"')} = 'INCUMPLE' THEN 1
                 ELSE 0
             END), 0)::int AS incumple_rows
+            ,
+            COALESCE(SUM(CASE
+                WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
+                  OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
+                  OR CAST("GESTOR" AS TEXT) LIKE '%|%'
+                  OR CAST("RUTERO" AS TEXT) LIKE '%|%'
+                THEN 1
+                ELSE 0
+            END), 0)::int AS gestion_compartida_rows
         FROM {CG_V2_SCOPE_VIEW} v
         WHERE 1=1
         {where_sql}
+        {search_sql}
     """
-    return qdf(sql, params or None)
+    return qdf(sql, query_params or None)
+
+
+def get_cg_v2_daily_matrix_page(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    vista: str = "RUTERO",
+    rutero: str | None = None,
+    local: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+    search: str = "",
+    page: int = 1,
+    page_size: int = 50,
+) -> pd.DataFrame:
+    vista_key = str(vista or "RUTERO").strip().upper()
+    if vista_key not in {"RUTERO", "LOCAL", "CLIENTE"}:
+        vista_key = "RUTERO"
+
+    where_sql, params = _cg_scope_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        alerta=alerta,
+        rutero=rutero,
+        local=local,
+    )
+    search_sql, search_params = _cg_v2_scope_search_filters(alias="v", search=search)
+    query_params = {**params, **search_params}
+    order_sql_map = {
+        "RUTERO": """
+            ORDER BY
+                "SEMANA_INICIO" DESC,
+                CAST("GESTOR" AS TEXT) ASC,
+                CAST("RUTERO" AS TEXT) ASC,
+                CAST("LOCAL" AS TEXT) ASC,
+                CAST("CLIENTE" AS TEXT) ASC,
+                CAST("REPONEDOR" AS TEXT) ASC
+        """,
+        "LOCAL": """
+            ORDER BY
+                "SEMANA_INICIO" DESC,
+                CAST("GESTOR" AS TEXT) ASC,
+                CAST("LOCAL" AS TEXT) ASC,
+                CAST("CLIENTE" AS TEXT) ASC,
+                CAST("RUTERO" AS TEXT) ASC,
+                CAST("REPONEDOR" AS TEXT) ASC
+        """,
+        "CLIENTE": """
+            ORDER BY
+                "SEMANA_INICIO" DESC,
+                CAST("GESTOR" AS TEXT) ASC,
+                CAST("CLIENTE" AS TEXT) ASC,
+                CAST("LOCAL" AS TEXT) ASC,
+                CAST("RUTERO" AS TEXT) ASC,
+                CAST("REPONEDOR" AS TEXT) ASC
+        """,
+    }
+    select_sql = f"""
+        "SEMANA_INICIO",
+        "SEMANA_ISO",
+        "COD_RT",
+        "COD_B2B",
+        "LOCAL",
+        "CLIENTE",
+        "GESTOR",
+        "RUTERO",
+        "REPONEDOR",
+        "SUPERVISOR",
+        "MODALIDAD",
+        "VISITA",
+        "VISITA_REALIZADA",
+        "VISITA_REALIZADA_RAW",
+        "VISITA_REALIZADA_CAP",
+        GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)::int AS "VISITAS_PENDIENTES",
+        "SOBRE_CUMPLIMIENTO",
+        "ALERTA",
+        "RUTA_DUPLICADA_FLAG",
+        "RUTA_DUPLICADA_ROWS",
+        CASE
+            WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
+              OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
+              OR CAST("GESTOR" AS TEXT) LIKE '%|%'
+              OR CAST("RUTERO" AS TEXT) LIKE '%|%'
+            THEN 'Si'
+            ELSE 'No'
+        END AS "GESTION_COMPARTIDA",
+        "LUNES_PLAN",
+        "MARTES_PLAN",
+        "MIERCOLES_PLAN",
+        "JUEVES_PLAN",
+        "VIERNES_PLAN",
+        "SABADO_PLAN",
+        "DOMINGO_PLAN",
+        "LUNES_FLAG",
+        "MARTES_FLAG",
+        "MIERCOLES_FLAG",
+        "JUEVES_FLAG",
+        "VIERNES_FLAG",
+        "SABADO_FLAG",
+        "DOMINGO_FLAG",
+        {_cg_v2_status_case('"LUNES_PLAN"', '"LUNES_FLAG"')} AS "LUNES_STATUS",
+        {_cg_v2_status_case('"MARTES_PLAN"', '"MARTES_FLAG"')} AS "MARTES_STATUS",
+        {_cg_v2_status_case('"MIERCOLES_PLAN"', '"MIERCOLES_FLAG"')} AS "MIERCOLES_STATUS",
+        {_cg_v2_status_case('"JUEVES_PLAN"', '"JUEVES_FLAG"')} AS "JUEVES_STATUS",
+        {_cg_v2_status_case('"VIERNES_PLAN"', '"VIERNES_FLAG"')} AS "VIERNES_STATUS",
+        {_cg_v2_status_case('"SABADO_PLAN"', '"SABADO_FLAG"')} AS "SABADO_STATUS",
+        {_cg_v2_status_case('"DOMINGO_PLAN"', '"DOMINGO_FLAG"')} AS "DOMINGO_STATUS",
+        "DIAS_KPIONE",
+        "DIAS_KPIONE2",
+        "DIAS_POWER_APP",
+        "DIAS_DOBLE_MARCAJE",
+        "DIAS_TRIPLE_MARCAJE",
+        "FUENTES_REPORTADAS_SEMANA",
+        "PERSONA_CONFLICTO_ROWS"
+    """
+    page_num = max(1, int(page or 1))
+    size = max(1, int(page_size or 50))
+    combined_where = "\n".join(part for part in (where_sql, search_sql) if part)
+    return _cg_select_page_filtered(
+        selector_name="get_cg_v2_daily_matrix_page",
+        view_name=CG_V2_SCOPE_VIEW,
+        where_sql=combined_where,
+        order_sql=order_sql_map[vista_key],
+        params=query_params,
+        limit=size,
+        offset=(page_num - 1) * size,
+        from_alias="v",
+        select_sql=select_sql,
+    )
+
+
+def get_cg_v2_daily_evidence(
+    semana_inicio: str | None = None,
+    cod_rt: str | None = None,
+    cliente: str | None = None,
+    gestor: str | None = None,
+    rutero: str | None = None,
+) -> pd.DataFrame:
+    where_sql, params = _cg_v2_daily_evidence_filters(
+        alias="d",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        rutero=rutero,
+        cod_rt=cod_rt,
+    )
+    return _selector_df(
+        "get_cg_v2_daily_evidence",
+        f"""
+        SELECT
+            cod_rt,
+            cod_b2b,
+            cliente,
+            cliente_norm,
+            local_nombre,
+            gestor,
+            gestor_norm,
+            rutero,
+            reponedor_scope,
+            reponedor_scope_norm,
+            supervisor,
+            jefe_operaciones,
+            modalidad,
+            fecha_visita,
+            EXTRACT(ISODOW FROM fecha_visita)::int AS dia_semana_iso,
+            semana_inicio,
+            semana_iso,
+            visita_valida_dia,
+            kpione_mark,
+            kpione2_mark,
+            power_app_mark,
+            fuentes_reportadas_count,
+            fuentes_reportadas_label,
+            doble_marcaje_dia,
+            triple_marcaje_dia,
+            kpione_rows_dia,
+            kpione2_rows_dia,
+            power_app_rows_dia,
+            persona_conflicto_rows_dia
+        FROM {CG_V2_DAILY_EVIDENCE_VIEW} d
+        WHERE 1=1
+        {where_sql}
+        ORDER BY
+            semana_inicio DESC,
+            fecha_visita DESC,
+            gestor ASC,
+            rutero ASC,
+            cliente ASC,
+            cod_rt ASC
+        """,
+        params or None,
+    )
 
 
 def get_cg_v2_scope_page(
