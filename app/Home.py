@@ -450,11 +450,15 @@ def main():
     # MODO CONTROL GESTION
     # ==============================================
     if modo == "CONTROL GESTION":
+        st.session_state["sel_cg_module"] = "Cumplimiento"
+        st.session_state.setdefault("sel_cg_role", "JEFE OPERACIONES")
+        _dbg("CONTROL_GESTION direct entry", module=st.session_state.get("sel_cg_module"), role=st.session_state.get("sel_cg_role"))
         render_control_gestion(
             db=db,
             DEBUG=DEBUG,
             top2=top2,
             top3=top3,
+            show_top_selectors=False,
             _dbg=_dbg,
             _timed=_timed,
             _df_total_rows=_df_total_rows,

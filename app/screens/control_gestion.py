@@ -42,7 +42,7 @@ def _cg_render_pager(page_key: str, total_rows: int, page_size: int = 25) -> Non
             use_container_width=True,
         )
     with p2:
-        st.selectbox(
+            st.selectbox(
             "Página",
             options=list(range(1, total_pages + 1)),
             index=max(0, current_page - 1),
@@ -144,12 +144,24 @@ def _cg_v2_audit_cards(audit_metrics: dict[str, int | float]) -> None:
         st.caption("Ruta duplicada: combinacion ruta/cliente duplicada en la base operativa versionada.")
 
 
+def _cg_v2_compact_day_status(value: object) -> str:
+    raw = str(value or "").strip()
+    if raw == "✓":
+        return "✓"
+    if raw == "✕":
+        return "1"
+    if raw == "!":
+        return "✓*"
+    return ""
+
+
 def render_control_gestion(
     *,
     db,
     DEBUG,
     top2,
     top3,
+    show_top_selectors=True,
     _dbg,
     _timed,
     _df_total_rows,
@@ -159,19 +171,23 @@ def render_control_gestion(
     cg_module_opts = ["Inicio", "Cumplimiento"]
     cg_all_token = "Todos"
 
-    with top2:
-        st.selectbox(
-            "ROL",
-            cg_role_opts,
-            key="sel_cg_role",
-        )
+    if show_top_selectors:
+        with top2:
+            st.selectbox(
+                "ROL",
+                cg_role_opts,
+                key="sel_cg_role",
+            )
 
-    with top3:
-        st.selectbox(
+        with top3:
+            st.selectbox(
             "MÓDULO",
             cg_module_opts,
             key="sel_cg_module",
-        )
+            )
+    else:
+        st.session_state["sel_cg_role"] = st.session_state.get("sel_cg_role") or "JEFE OPERACIONES"
+        st.session_state["sel_cg_module"] = "Cumplimiento"
 
     role_sel = (st.session_state.get("sel_cg_role") or "JEFE OPERACIONES").strip().upper()
     module_sel = (st.session_state.get("sel_cg_module") or "Inicio").strip()
@@ -210,7 +226,10 @@ def render_control_gestion(
         st.stop()
 
     smoke_status = str(smoke.get("smoke_status") or "unknown").upper()
-    st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()} | rol={role_sel} | modulo={module_sel}")
+    if show_top_selectors:
+        st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()} | rol={role_sel} | modulo={module_sel}")
+    else:
+        st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()}")
     if cg_fallback_notice:
         st.warning(cg_fallback_notice)
 
@@ -397,10 +416,51 @@ def render_control_gestion(
                     )
 
                 st.markdown("#### Matriz diaria V2")
-                st.caption("Leyenda diaria: ✓ evidencia valida | ✕ planificado sin evidencia | — no planificado | ! evidencia fuera de plan")
+                st.caption("1 = visita exigida pendiente; ✓ = visita con evidencia; ✓* = evidencia fuera de plan.")
                 _cg_render_pager("page_cg_matrix_v2", _df_total_rows(df_scope_v2), page_size=25)
+                df_scope_v2_display = df_scope_v2.copy()
+                for day_col in [
+                    "LUNES_STATUS",
+                    "MARTES_STATUS",
+                    "MIERCOLES_STATUS",
+                    "JUEVES_STATUS",
+                    "VIERNES_STATUS",
+                    "SABADO_STATUS",
+                    "DOMINGO_STATUS",
+                ]:
+                    if day_col in df_scope_v2_display.columns:
+                        df_scope_v2_display[day_col] = df_scope_v2_display[day_col].map(_cg_v2_compact_day_status)
+
+                matrix_cols = ["GESTION COMPARTIDA"]
+                if gestor_sel is None:
+                    matrix_cols.append("GESTOR")
+                if not (vista_sel == "RUTERO" and rutero_sel is not None):
+                    matrix_cols.append("RUTERO")
+                matrix_cols.extend(["REPONEDOR", "COD_RT"])
+                if not (vista_sel == "LOCAL" and local_sel is not None):
+                    matrix_cols.append("LOCAL")
+                if not (vista_sel == "CLIENTE" and cliente_sel is not None):
+                    matrix_cols.append("CLIENTE")
+                matrix_cols.extend(
+                    [
+                        "SUPERVISOR",
+                        "MODALIDAD",
+                        "VISITAS EXIGIDAS",
+                        "VISITAS VALIDAS",
+                        "VISITAS PENDIENTES",
+                        "SOBRECUMPLIMIENTO",
+                        "ALERTA",
+                        "LUN",
+                        "MAR",
+                        "MIE",
+                        "JUE",
+                        "VIE",
+                        "SAB",
+                        "DOM",
+                    ],
+                )
                 df_scope_v2_view = _rename_and_pick(
-                    df_scope_v2,
+                    df_scope_v2_display,
                     {
                         "GESTION_COMPARTIDA": "GESTION COMPARTIDA",
                         "GESTOR": "GESTOR",
@@ -416,13 +476,13 @@ def render_control_gestion(
                         "VISITAS_PENDIENTES": "VISITAS PENDIENTES",
                         "SOBRE_CUMPLIMIENTO": "SOBRECUMPLIMIENTO",
                         "ALERTA": "ALERTA",
-                        "LUNES_STATUS": "L",
-                        "MARTES_STATUS": "M",
-                        "MIERCOLES_STATUS": "X",
-                        "JUEVES_STATUS": "J",
-                        "VIERNES_STATUS": "V",
-                        "SABADO_STATUS": "S",
-                        "DOMINGO_STATUS": "D",
+                        "LUNES_STATUS": "LUN",
+                        "MARTES_STATUS": "MAR",
+                        "MIERCOLES_STATUS": "MIE",
+                        "JUEVES_STATUS": "JUE",
+                        "VIERNES_STATUS": "VIE",
+                        "SABADO_STATUS": "SAB",
+                        "DOMINGO_STATUS": "DOM",
                         "VISITA_REALIZADA_RAW": "VISITAS REPORTADAS",
                         "RUTA_DUPLICADA_FLAG": "RUTA DUPLICADA",
                         "RUTA_DUPLICADA_ROWS": "FILAS RUTA DUP.",
@@ -431,36 +491,7 @@ def render_control_gestion(
                         "DIAS_TRIPLE_MARCAJE": "TRIPLE MARCAJE",
                         "PERSONA_CONFLICTO_ROWS": "CONFLICTOS PERSONA"
                     },
-                    [
-                        "GESTION COMPARTIDA",
-                        "GESTOR",
-                        "RUTERO",
-                        "REPONEDOR",
-                        "COD_RT",
-                        "LOCAL",
-                        "CLIENTE",
-                        "SUPERVISOR",
-                        "MODALIDAD",
-                        "VISITAS EXIGIDAS",
-                        "VISITAS VALIDAS",
-                        "VISITAS PENDIENTES",
-                        "SOBRECUMPLIMIENTO",
-                        "ALERTA",
-                        "L",
-                        "M",
-                        "X",
-                        "J",
-                        "V",
-                        "S",
-                        "D",
-                        "VISITAS REPORTADAS",
-                        "RUTA DUPLICADA",
-                        "FILAS RUTA DUP.",
-                        "FUENTES",
-                        "DOBLE MARCAJE",
-                        "TRIPLE MARCAJE",
-                        "CONFLICTOS PERSONA",
-                    ],
+                    matrix_cols,
                 )
                 st.dataframe(df_scope_v2_view, width="stretch", hide_index=True)
                 _cg_v2_audit_cards(audit_summary)
