@@ -103,6 +103,35 @@ CG_DETALLE_VIEW = os.getenv(
     "public.v_cg_cumplimiento_detalle",
 )
 
+CG_V2_SCOPE_VIEW = os.getenv(
+    "CG_V2_SCOPE_VIEW",
+    "public.v_cg_cumplimiento_semana_scope_v2",
+)
+CG_V2_DETALLE_VIEW = os.getenv(
+    "CG_V2_DETALLE_VIEW",
+    "public.v_cg_cumplimiento_detalle_v2",
+)
+CG_V2_OUT_WEEKLY_VIEW = os.getenv(
+    "CG_V2_OUT_WEEKLY_VIEW",
+    "cg_mart.v_cg_out_weekly_v2",
+)
+CG_V2_MULTI_MARCAJE_VIEW = os.getenv(
+    "CG_V2_MULTI_MARCAJE_VIEW",
+    "cg_mart.v_cg_marcaje_multifuente_dia_v2",
+)
+CG_V2_RUTA_DUP_VIEW = os.getenv(
+    "CG_V2_RUTA_DUP_VIEW",
+    "cg_mart.v_cg_ruta_duplicados_auditoria_v2",
+)
+CG_V2_FUERA_CRUCE_REAL_VIEW = os.getenv(
+    "CG_V2_FUERA_CRUCE_REAL_VIEW",
+    "cg_mart.v_cg_fuera_cruce_real_v2",
+)
+CG_V2_SIN_BATCH_RUTA_VIEW = os.getenv(
+    "CG_V2_SIN_BATCH_RUTA_VIEW",
+    "cg_mart.v_cg_sin_batch_ruta_semana_v2",
+)
+
 CG_COMPAT_ALERTAS_VIEW = os.getenv("CG_COMPAT_ALERTAS_VIEW", "public.v_alertas_control_gestion")
 CG_COMPAT_INICIO_JEFE_VIEW = os.getenv("CG_COMPAT_INICIO_JEFE_VIEW", "public.v_inicio_jefe")
 CG_COMPAT_INICIO_GESTOR_VIEW = os.getenv("CG_COMPAT_INICIO_GESTOR_VIEW", "public.v_inicio_gestor")
@@ -2874,6 +2903,30 @@ def _cg_scope_filters(
     return "\n".join(filters), params
 
 
+def _cg_v2_scope_search_filters(
+    *,
+    alias: str = "v",
+    search: str = "",
+) -> tuple[str, dict[str, Any]]:
+    pfx = f"{alias}." if alias else ""
+    raw = str(search or "").strip()
+    if not raw:
+        return "", {}
+    return (
+        f"""
+        AND (
+            CAST({pfx}"COD_RT" AS TEXT) ILIKE :search
+            OR CAST({pfx}"LOCAL" AS TEXT) ILIKE :search
+            OR CAST({pfx}"CLIENTE" AS TEXT) ILIKE :search
+            OR CAST({pfx}"GESTOR" AS TEXT) ILIKE :search
+            OR CAST({pfx}"RUTERO" AS TEXT) ILIKE :search
+            OR CAST({pfx}"REPONEDOR" AS TEXT) ILIKE :search
+        )
+        """,
+        {"search": f"%{raw}%"},
+    )
+
+
 def _cg_alertas_filters(
     *,
     alias: str = "a",
@@ -3417,3 +3470,223 @@ def get_cg_contract_smoke() -> dict[str, Any]:
         "zero_row_objects": empty_warns,
         "results": results,
     }
+
+
+def get_cg_v2_contract() -> dict[str, Any]:
+    return {
+        "status": "parallel_read_only",
+        "legacy_unchanged": True,
+        "views": {
+            "scope": CG_V2_SCOPE_VIEW,
+            "detalle": CG_V2_DETALLE_VIEW,
+            "out_weekly": CG_V2_OUT_WEEKLY_VIEW,
+            "marcaje_multifuente": CG_V2_MULTI_MARCAJE_VIEW,
+            "ruta_duplicados": CG_V2_RUTA_DUP_VIEW,
+            "fuera_cruce_real": CG_V2_FUERA_CRUCE_REAL_VIEW,
+            "sin_batch_ruta_semana": CG_V2_SIN_BATCH_RUTA_VIEW,
+        },
+        "rules": [
+            "ruta_rutero_versionada_gobierna_plan_frecuencia",
+            "kpione_kpione2_power_app_gobiernan_evidencia",
+            "un_reporte_o_mas_por_fecha_local_cliente_equivale_a_una_visita_valida",
+            "multiplicidad_se_conserva_como_auditoria_no_como_visita_adicional",
+            "no_recalculo_negocio_en_python",
+        ],
+    }
+
+
+def get_cg_v2_contract_smoke() -> dict[str, Any]:
+    checks = [
+        ("scope", CG_V2_SCOPE_VIEW),
+        ("detalle", CG_V2_DETALLE_VIEW),
+        ("out_weekly", CG_V2_OUT_WEEKLY_VIEW),
+        ("marcaje_multifuente", CG_V2_MULTI_MARCAJE_VIEW),
+        ("ruta_duplicados", CG_V2_RUTA_DUP_VIEW),
+        ("fuera_cruce_real", CG_V2_FUERA_CRUCE_REAL_VIEW),
+        ("sin_batch_ruta_semana", CG_V2_SIN_BATCH_RUTA_VIEW),
+    ]
+    results: list[dict[str, Any]] = []
+    failed_objects: list[str] = []
+    zero_row_objects: list[str] = []
+
+    for object_name, view_name in checks:
+        try:
+            df = _selector_df(
+                f"smoke_v2_{object_name}",
+                f"SELECT COUNT(*)::bigint AS rows FROM {view_name}",
+            )
+            rows = int(df.iloc[0]["rows"]) if df is not None and not df.empty else 0
+            status = "ok" if rows > 0 else "warn"
+            if rows <= 0:
+                zero_row_objects.append(object_name)
+            results.append({
+                "object": object_name,
+                "view": view_name,
+                "rows": rows,
+                "status": status,
+            })
+        except Exception as exc:
+            failed_objects.append(object_name)
+            results.append({
+                "object": object_name,
+                "view": view_name,
+                "rows": None,
+                "status": "fail",
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+
+    smoke_status = "fail" if failed_objects else ("warn" if zero_row_objects else "ok")
+    return {
+        "smoke_status": smoke_status,
+        "views_checked": len(checks),
+        "failed_objects": failed_objects,
+        "zero_row_objects": zero_row_objects,
+        "results": results,
+    }
+
+
+def get_cg_v2_scope_semanas() -> pd.DataFrame:
+    return _selector_df(
+        "get_cg_v2_scope_semanas",
+        f"""
+        SELECT DISTINCT "SEMANA_INICIO" AS semana_inicio
+        FROM {CG_V2_SCOPE_VIEW}
+        WHERE "SEMANA_INICIO" IS NOT NULL
+        ORDER BY semana_inicio DESC
+        """,
+    )
+
+
+def get_cg_v2_scope_kpis(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+) -> pd.DataFrame:
+    where_sql, params = _cg_scope_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        alerta=alerta,
+    )
+    sql = f"""
+        SELECT
+            COUNT(*)::int AS total_rows,
+            COALESCE(SUM(COALESCE("VISITA", 0)), 0)::int AS visita_plan,
+            COALESCE(SUM(COALESCE("VISITA_REALIZADA_RAW", 0)), 0)::int AS visita_realizada_raw,
+            COALESCE(SUM(COALESCE("VISITA_REALIZADA_CAP", 0)), 0)::int AS visita_realizada_cap,
+            COALESCE(SUM(COALESCE("SOBRE_CUMPLIMIENTO", 0)), 0)::int AS sobre_cumplimiento,
+            COALESCE(SUM(CASE
+                WHEN {_cg_text_norm_expr('"ALERTA"')} = 'CUMPLE' THEN 1
+                ELSE 0
+            END), 0)::int AS cumple_rows,
+            COALESCE(SUM(CASE
+                WHEN {_cg_text_norm_expr('"ALERTA"')} = 'INCUMPLE' THEN 1
+                ELSE 0
+            END), 0)::int AS incumple_rows
+        FROM {CG_V2_SCOPE_VIEW} v
+        WHERE 1=1
+        {where_sql}
+    """
+    return qdf(sql, params or None)
+
+
+def get_cg_v2_scope_page(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+    search: str = "",
+    page: int = 1,
+    page_size: int = 50,
+) -> pd.DataFrame:
+    where_sql, params = _cg_scope_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        alerta=alerta,
+    )
+    search_sql, search_params = _cg_v2_scope_search_filters(alias="v", search=search)
+    query_params = {**params, **search_params}
+    order_sql = """
+        ORDER BY
+            "SEMANA_INICIO" DESC,
+            CAST("LOCAL" AS TEXT) ASC,
+            CAST("CLIENTE" AS TEXT) ASC,
+            CAST("RUTERO" AS TEXT) ASC,
+            CAST("REPONEDOR" AS TEXT) ASC
+    """
+    select_sql = """
+        "SEMANA_INICIO",
+        "COD_RT",
+        "COD_B2B",
+        "LOCAL",
+        "CLIENTE",
+        "GESTOR",
+        "RUTERO",
+        "REPONEDOR",
+        "SUPERVISOR",
+        "MODALIDAD",
+        "VISITA",
+        "VISITA_REALIZADA",
+        "VISITA_REALIZADA_RAW",
+        "VISITA_REALIZADA_CAP",
+        "SOBRE_CUMPLIMIENTO",
+        "DIFERENCIA",
+        "ALERTA",
+        "DIAS_KPIONE",
+        "DIAS_KPIONE2",
+        "DIAS_POWER_APP",
+        "DIAS_DOBLE_MARCAJE",
+        "DIAS_TRIPLE_MARCAJE",
+        "FUENTES_REPORTADAS_SEMANA",
+        "PERSONA_CONFLICTO_ROWS",
+        "RUTA_DUPLICADA_FLAG",
+        "RUTA_DUPLICADA_ROWS"
+    """
+    page_num = max(1, int(page or 1))
+    size = max(1, int(page_size or 50))
+    combined_where = "\n".join(part for part in (where_sql, search_sql) if part)
+    return _cg_select_page_filtered(
+        selector_name="get_cg_v2_scope_page",
+        view_name=CG_V2_SCOPE_VIEW,
+        where_sql=combined_where,
+        order_sql=order_sql,
+        params=query_params,
+        limit=size,
+        offset=(page_num - 1) * size,
+        from_alias="v",
+        select_sql=select_sql,
+    )
+
+
+def get_cg_v2_audit_summary() -> dict[str, Any]:
+    df = qdf(
+        f"""
+        SELECT
+            (SELECT COUNT(*)::int FROM {CG_V2_RUTA_DUP_VIEW}) AS ruta_duplicada_rows,
+            (SELECT COALESCE(SUM(rows), 0)::int FROM {CG_V2_RUTA_DUP_VIEW}) AS ruta_duplicada_source_rows,
+            (SELECT COUNT(*)::int FROM {CG_V2_FUERA_CRUCE_REAL_VIEW}) AS fuera_cruce_real_rows,
+            (SELECT COUNT(*)::int FROM {CG_V2_SIN_BATCH_RUTA_VIEW}) AS sin_batch_ruta_semana_rows,
+            (
+                SELECT COUNT(*)::int
+                FROM {CG_V2_MULTI_MARCAJE_VIEW}
+                WHERE doble_marcaje_dia = 1 OR triple_marcaje_dia = 1
+            ) AS doble_triple_rows,
+            (
+                SELECT COUNT(*)::int
+                FROM {CG_V2_MULTI_MARCAJE_VIEW}
+                WHERE doble_marcaje_dia = 1
+            ) AS doble_rows,
+            (
+                SELECT COUNT(*)::int
+                FROM {CG_V2_MULTI_MARCAJE_VIEW}
+                WHERE triple_marcaje_dia = 1
+            ) AS triple_rows
+        """
+    )
+    if df is None or df.empty:
+        return {}
+    return df.iloc[0].to_dict()
