@@ -196,49 +196,42 @@ def render_control_gestion(
     cg_caption = "B3 contrato publico"
     cg_fallback_notice: str | None = None
 
-    try:
-        smoke = None
-        if use_cg_v2_requested:
-            try:
-                smoke_v2 = db.get_cg_v2_contract_smoke()
-                if str(smoke_v2.get("smoke_status") or "").strip().upper() == "OK":
-                    smoke = smoke_v2
-                    cg_mode = "v2"
-                    cg_caption = "CONTROL_GESTION v2"
-                else:
-                    cg_fallback_notice = (
-                        f"CONTROL_GESTION v2 no quedo listo (smoke={str(smoke_v2.get('smoke_status') or 'unknown').upper()}); "
-                        "uso fallback legacy."
-                    )
-            except Exception as v2_exc:
-                _dbg("WARN cg_v2_contract_smoke_fallback", err=repr(v2_exc))
-                cg_fallback_notice = "CONTROL_GESTION v2 fallo en smoke; uso fallback legacy."
-
-        if smoke is None:
-            smoke = db.get_cg_contract_smoke()
-    except Exception as e:
-        _dbg("FAIL cg_contract_smoke", err=repr(e))
-        st.error("No pude validar el contrato B3 en db.py.")
-        with st.expander("Detalles técnicos"):
-            st.code(repr(e))
-            if DEBUG:
-                st.code(traceback.format_exc())
-        st.stop()
-
-    smoke_status = str(smoke.get("smoke_status") or "unknown").upper()
-    if show_top_selectors:
-        st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()} | rol={role_sel} | modulo={module_sel}")
+    smoke = None
+    smoke_status = "DEFERRED"
+    if use_cg_v2_requested:
+        cg_mode = "v2"
+        cg_caption = "CONTROL_GESTION v2"
+        if show_top_selectors:
+            st.caption(f"{cg_caption} | modo={cg_mode.upper()} | rol={role_sel} | modulo={module_sel}")
+        else:
+            st.caption(f"{cg_caption} | modo={cg_mode.upper()}")
     else:
-        st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()}")
+        try:
+            smoke = db.get_cg_contract_smoke()
+            smoke_status = str(smoke.get("smoke_status") or "unknown").upper()
+        except Exception as e:
+            _dbg("FAIL cg_contract_smoke", err=repr(e))
+            st.error("No pude validar el contrato B3 en db.py.")
+            with st.expander("Detalles técnicos"):
+                st.code(repr(e))
+                if DEBUG:
+                    st.code(traceback.format_exc())
+            st.stop()
+
+        if show_top_selectors:
+            st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()} | rol={role_sel} | modulo={module_sel}")
+        else:
+            st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()}")
+
+        with st.expander("Estado contrato B3", expanded=(smoke_status != "OK")):
+            smoke_rows = pd.DataFrame(smoke.get("results") or [])
+            if smoke_rows.empty:
+                st.warning("Smoke sin resultados. Revisa visibilidad de views public.v_cg_*.")
+            else:
+                st.dataframe(smoke_rows, width="stretch", hide_index=True)
+
     if cg_fallback_notice:
         st.warning(cg_fallback_notice)
-
-    with st.expander("Estado contrato B3", expanded=(smoke_status != "OK")):
-        smoke_rows = pd.DataFrame(smoke.get("results") or [])
-        if smoke_rows.empty:
-            st.warning("Smoke sin resultados. Revisa visibilidad de views public.v_cg_*.")
-        else:
-            st.dataframe(smoke_rows, width="stretch", hide_index=True)
 
     try:
         if module_sel == "Inicio":
@@ -297,8 +290,7 @@ def render_control_gestion(
                 semana_opts = list(semanas_map.keys())
                 semana_key = "sel_cg_v2_semana_recent"
                 semana_default = semana_opts[0]
-                semana_label_current = _cg_ensure_option_state(semana_key, semana_opts, semana_default)
-                semana_inicio = semanas_map.get(semana_label_current)
+                _cg_ensure_option_state(semana_key, semana_opts, semana_default)
 
                 vista_map = {
                     "Por rutero": "RUTERO",
@@ -307,48 +299,44 @@ def render_control_gestion(
                 }
                 vista_opts = list(vista_map.keys())
                 vista_key = "sel_cg_v2_analysis_view"
-                vista_label_current = _cg_ensure_option_state(vista_key, vista_opts, vista_opts[0])
-                vista_sel = vista_map.get(vista_label_current, "RUTERO")
-
-                gestor_opts = [cg_all_token] + list(db.get_cg_v2_gestores(semana_inicio=semana_inicio) or [])
-                gestor_key = "sel_cg_v2_gestor"
-                _cg_ensure_option_state(gestor_key, gestor_opts, cg_all_token)
-                gestor_sel = None
-                rutero_sel = None
-                local_sel = None
-                cliente_sel = None
-                alerta_sel = None
-                search_sel = ""
+                _cg_ensure_option_state(vista_key, vista_opts, vista_opts[0])
 
                 f1, f2, f3 = st.columns(3)
                 with f1:
-                    gestor_label = st.selectbox("GESTOR", gestor_opts, key=gestor_key)
-                    gestor_sel = None if gestor_label == cg_all_token else gestor_label
-                with f2:
                     semana_label = st.selectbox("SEMANA", semana_opts, key=semana_key)
                     semana_inicio = semanas_map.get(semana_label)
+                with f2:
+                    gestores_v2 = [cg_all_token] + list(db.get_cg_v2_gestores(semana_inicio=semana_inicio) or [])
+                    gestor_key = "sel_cg_v2_gestor"
+                    _cg_ensure_option_state(gestor_key, gestores_v2, cg_all_token)
+                    gestor_label = st.selectbox("GESTOR", gestores_v2, key=gestor_key)
+                    gestor_sel = None if gestor_label == cg_all_token else gestor_label
                 with f3:
                     vista_label = st.selectbox("VISTA DE ANALISIS", vista_opts, key=vista_key)
                     vista_sel = vista_map.get(vista_label, "RUTERO")
 
-                if vista_sel == "RUTERO":
-                    target_label = "RUTERO"
-                    target_key = "sel_cg_v2_target_rutero"
-                    target_opts = [cg_all_token] + list(
-                        db.get_cg_v2_ruteros(semana_inicio=semana_inicio, gestor=gestor_sel) or []
-                    )
-                elif vista_sel == "LOCAL":
-                    target_label = "LOCAL"
-                    target_key = "sel_cg_v2_target_local"
-                    target_opts = [cg_all_token] + list(
-                        db.get_cg_v2_locales(semana_inicio=semana_inicio, gestor=gestor_sel) or []
-                    )
-                else:
-                    target_label = "CLIENTE"
-                    target_key = "sel_cg_v2_target_cliente"
-                    target_opts = [cg_all_token] + list(
-                        db.get_cg_v2_clientes(semana_inicio=semana_inicio, gestor=gestor_sel) or []
-                    )
+                target_label = "RUTERO"
+                target_key = "sel_cg_v2_target_rutero"
+                target_opts = [cg_all_token]
+                if gestor_sel is not None:
+                    if vista_sel == "RUTERO":
+                        target_label = "RUTERO"
+                        target_key = "sel_cg_v2_target_rutero"
+                        target_opts = [cg_all_token] + list(
+                            db.get_cg_v2_ruteros(semana_inicio=semana_inicio, gestor=gestor_sel) or []
+                        )
+                    elif vista_sel == "LOCAL":
+                        target_label = "LOCAL"
+                        target_key = "sel_cg_v2_target_local"
+                        target_opts = [cg_all_token] + list(
+                            db.get_cg_v2_locales(semana_inicio=semana_inicio, gestor=gestor_sel) or []
+                        )
+                    else:
+                        target_label = "CLIENTE"
+                        target_key = "sel_cg_v2_target_cliente"
+                        target_opts = [cg_all_token] + list(
+                            db.get_cg_v2_clientes(semana_inicio=semana_inicio, gestor=gestor_sel) or []
+                        )
 
                 _cg_ensure_option_state(target_key, target_opts, cg_all_token)
 
@@ -372,12 +360,22 @@ def render_control_gestion(
                 with g3:
                     search_sel = str(st.text_input("BUSCAR", key="cg_v2_matrix_search")).strip()
 
+                rutero_sel = None
+                local_sel = None
+                cliente_sel = None
                 if vista_sel == "RUTERO" and target_value != cg_all_token:
                     rutero_sel = target_value
                 elif vista_sel == "LOCAL" and target_value != cg_all_token:
                     local_sel = target_value
                 elif vista_sel == "CLIENTE" and target_value != cg_all_token:
                     cliente_sel = target_value
+
+                gestor_ready = gestor_sel is not None
+                detail_ready = gestor_ready and (
+                    (vista_sel == "RUTERO" and rutero_sel is not None)
+                    or (vista_sel == "LOCAL" and local_sel is not None)
+                    or (vista_sel == "CLIENTE" and cliente_sel is not None)
+                )
 
                 _cg_reset_page_on_filter_change(
                     "cg_v2_filter_sig",
@@ -397,8 +395,15 @@ def render_control_gestion(
                     search=search_sel,
                 )
                 kpi_row = kpi_df.iloc[0].to_dict() if kpi_df is not None and not kpi_df.empty else {}
-                audit_summary = db.get_cg_v2_audit_summary() or {}
                 _cg_v2_metric_cards(kpi_row)
+
+                if not gestor_ready:
+                    st.info("Selecciona un gestor para habilitar el detalle operativo diario.")
+                    st.stop()
+
+                if not detail_ready:
+                    st.info(f"Selecciona un {target_label.lower()} para cargar el detalle.")
+                    st.stop()
 
                 current_page, _ = _cg_get_page_state("page_cg_matrix_v2", page_size=25)
                 with _timed("PAGE cg_v2_daily_matrix_page", tag="PAGE"):
@@ -483,18 +488,15 @@ def render_control_gestion(
                         "VIERNES_STATUS": "VIE",
                         "SABADO_STATUS": "SAB",
                         "DOMINGO_STATUS": "DOM",
-                        "VISITA_REALIZADA_RAW": "VISITAS REPORTADAS",
-                        "RUTA_DUPLICADA_FLAG": "RUTA DUPLICADA",
-                        "RUTA_DUPLICADA_ROWS": "FILAS RUTA DUP.",
-                        "FUENTES_REPORTADAS_SEMANA": "FUENTES",
-                        "DIAS_DOBLE_MARCAJE": "DOBLE MARCAJE",
-                        "DIAS_TRIPLE_MARCAJE": "TRIPLE MARCAJE",
-                        "PERSONA_CONFLICTO_ROWS": "CONFLICTOS PERSONA"
                     },
                     matrix_cols,
                 )
                 st.dataframe(df_scope_v2_view, width="stretch", hide_index=True)
-                _cg_v2_audit_cards(audit_summary)
+
+                show_audit = st.toggle("Ver auditoría detallada", value=False, key="cg_v2_show_audit")
+                if show_audit:
+                    audit_summary = db.get_cg_v2_audit_summary() or {}
+                    _cg_v2_audit_cards(audit_summary)
                 st.stop()
             except Exception as v2_exc:
                 _dbg("WARN control_gestion_v2_fallback", err=repr(v2_exc), role=role_sel, module=module_sel)
