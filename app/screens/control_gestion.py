@@ -1,3 +1,4 @@
+import os
 import math
 import traceback
 
@@ -84,6 +85,25 @@ def _cg_metric_cards(metrics: dict[str, int | float]) -> None:
     c6.caption(f'Visitas realizadas: {int(metrics.get("visitas_realizadas") or 0)}')
 
 
+def _cg_v2_metric_cards(
+    scope_metrics: dict[str, int | float],
+    audit_metrics: dict[str, int | float],
+) -> None:
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1.metric("Visita plan", int(scope_metrics.get("visita_plan") or 0))
+    c2.metric("Realizada raw", int(scope_metrics.get("visita_realizada_raw") or 0))
+    c3.metric("Realizada cap", int(scope_metrics.get("visita_realizada_cap") or 0))
+    c4.metric("Sobrecumpl.", int(scope_metrics.get("sobre_cumplimiento") or 0))
+    c5.metric("Cumple", int(scope_metrics.get("cumple_rows") or 0))
+    c6.metric("Incumple", int(scope_metrics.get("incumple_rows") or 0))
+
+    a1, a2, a3, a4 = st.columns(4)
+    a1.caption(f'Ruta duplicada: {int(audit_metrics.get("ruta_duplicada_rows") or 0)}')
+    a2.caption(f'Fuera cruce real: {int(audit_metrics.get("fuera_cruce_real_rows") or 0)}')
+    a3.caption(f'Sin batch ruta semana: {int(audit_metrics.get("sin_batch_ruta_semana_rows") or 0)}')
+    a4.caption(f'Doble/triple: {int(audit_metrics.get("doble_triple_rows") or 0)}')
+
+
 def render_control_gestion(
     *,
     db,
@@ -115,9 +135,31 @@ def render_control_gestion(
 
     role_sel = (st.session_state.get("sel_cg_role") or "JEFE OPERACIONES").strip().upper()
     module_sel = (st.session_state.get("sel_cg_module") or "Inicio").strip()
+    use_cg_v2_requested = module_sel == "Cumplimiento" and os.getenv("USE_CG_V2", "1") == "1"
+    cg_mode = "legacy"
+    cg_caption = "B3 contrato publico"
+    cg_fallback_notice: str | None = None
 
     try:
-        smoke = db.get_cg_contract_smoke()
+        smoke = None
+        if use_cg_v2_requested:
+            try:
+                smoke_v2 = db.get_cg_v2_contract_smoke()
+                if str(smoke_v2.get("smoke_status") or "").strip().upper() == "OK":
+                    smoke = smoke_v2
+                    cg_mode = "v2"
+                    cg_caption = "CONTROL_GESTION v2"
+                else:
+                    cg_fallback_notice = (
+                        f"CONTROL_GESTION v2 no quedo listo (smoke={str(smoke_v2.get('smoke_status') or 'unknown').upper()}); "
+                        "uso fallback legacy."
+                    )
+            except Exception as v2_exc:
+                _dbg("WARN cg_v2_contract_smoke_fallback", err=repr(v2_exc))
+                cg_fallback_notice = "CONTROL_GESTION v2 fallo en smoke; uso fallback legacy."
+
+        if smoke is None:
+            smoke = db.get_cg_contract_smoke()
     except Exception as e:
         _dbg("FAIL cg_contract_smoke", err=repr(e))
         st.error("No pude validar el contrato B3 en db.py.")
@@ -128,7 +170,9 @@ def render_control_gestion(
         st.stop()
 
     smoke_status = str(smoke.get("smoke_status") or "unknown").upper()
-    st.caption(f"B3 contrato público | smoke={smoke_status} | rol={role_sel} | módulo={module_sel}")
+    st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()} | rol={role_sel} | modulo={module_sel}")
+    if cg_fallback_notice:
+        st.warning(cg_fallback_notice)
 
     with st.expander("Estado contrato B3", expanded=(smoke_status != "OK")):
         smoke_rows = pd.DataFrame(smoke.get("results") or [])
@@ -178,6 +222,128 @@ def render_control_gestion(
             _cg_show_df("Alertas prioritarias", df_alertas_view)
             st.info("Supervisión queda reservada fuera del contrato público B3 actual.")
             st.stop()
+
+        if cg_mode == "v2":
+            try:
+                semanas_df = db.get_cg_v2_scope_semanas()
+                semanas_map: dict[str, str | None] = {cg_all_token: None}
+                if semanas_df is not None and not semanas_df.empty:
+                    for value in semanas_df["semana_inicio"].tolist():
+                        if pd.isna(value):
+                            continue
+                        label = pd.to_datetime(value).strftime("%Y-%m-%d")
+                        semanas_map[label] = label
+
+                semana_opts = list(semanas_map.keys())
+                semana_key = "sel_cg_v2_semana"
+                if st.session_state.get(semana_key) not in semana_opts:
+                    st.session_state[semana_key] = cg_all_token
+
+                semana_inicio = None
+                gestor_sel = None
+                cliente_sel = None
+                alerta_sel = None
+                search_sel = ""
+
+                f1, f2, f3, f4, f5 = st.columns(5)
+                with f1:
+                    semana_label = st.selectbox("SEMANA", semana_opts, key=semana_key)
+                    semana_inicio = semanas_map.get(semana_label)
+                with f2:
+                    gestor_val = st.text_input("GESTOR", key="cg_v2_gestor_filter")
+                    gestor_sel = str(gestor_val).strip() or None
+                with f3:
+                    cliente_val = st.text_input("CLIENTE", key="cg_v2_cliente_filter")
+                    cliente_sel = str(cliente_val).strip() or None
+                with f4:
+                    alerta_label = st.selectbox("ALERTA", ["Todas", "CUMPLE", "INCUMPLE"], key="sel_cg_v2_alerta")
+                    alerta_sel = None if alerta_label == "Todas" else alerta_label
+                with f5:
+                    search_sel = str(st.text_input("BUSCAR", key="cg_v2_search_filter")).strip()
+
+                kpi_df = db.get_cg_v2_scope_kpis(
+                    semana_inicio=semana_inicio,
+                    gestor=gestor_sel,
+                    cliente=cliente_sel,
+                    alerta=alerta_sel,
+                )
+                kpi_row = kpi_df.iloc[0].to_dict() if kpi_df is not None and not kpi_df.empty else {}
+                audit_summary = db.get_cg_v2_audit_summary() or {}
+                _cg_v2_metric_cards(kpi_row, audit_summary)
+
+                current_page, _ = _cg_get_page_state("page_cg_scope_v2", page_size=25)
+                with _timed("PAGE cg_v2_scope_page", tag="PAGE"):
+                    df_scope_v2 = db.get_cg_v2_scope_page(
+                        semana_inicio=semana_inicio,
+                        gestor=gestor_sel,
+                        cliente=cliente_sel,
+                        alerta=alerta_sel,
+                        search=search_sel,
+                        page=current_page,
+                        page_size=25,
+                    )
+
+                st.markdown("#### Cumplimiento semanal V2")
+                _cg_render_pager("page_cg_scope_v2", _df_total_rows(df_scope_v2), page_size=25)
+                df_scope_v2_view = _rename_and_pick(
+                    df_scope_v2,
+                    {
+                        "SEMANA_INICIO": "SEMANA",
+                        "COD_RT": "COD_RT",
+                        "LOCAL": "LOCAL",
+                        "CLIENTE": "CLIENTE",
+                        "GESTOR": "GESTOR",
+                        "RUTERO": "RUTERO",
+                        "REPONEDOR": "REPONEDOR",
+                        "SUPERVISOR": "SUPERVISOR",
+                        "MODALIDAD": "MODALIDAD",
+                        "VISITA": "VISITA",
+                        "VISITA_REALIZADA": "VISITA REALIZADA",
+                        "VISITA_REALIZADA_CAP": "VISITA CAP",
+                        "SOBRE_CUMPLIMIENTO": "SOBRE CUMPL.",
+                        "DIAS_KPIONE": "DIAS KPIONE",
+                        "DIAS_KPIONE2": "DIAS KPIONE2",
+                        "DIAS_POWER_APP": "DIAS POWER APP",
+                        "DIAS_DOBLE_MARCAJE": "DOBLE MARCAJE",
+                        "DIAS_TRIPLE_MARCAJE": "TRIPLE MARCAJE",
+                        "FUENTES_REPORTADAS_SEMANA": "FUENTES",
+                        "PERSONA_CONFLICTO_ROWS": "CONFLICTOS PERSONA",
+                        "RUTA_DUPLICADA_FLAG": "RUTA DUP",
+                        "ALERTA": "ALERTA",
+                    },
+                    [
+                        "SEMANA",
+                        "COD_RT",
+                        "LOCAL",
+                        "CLIENTE",
+                        "GESTOR",
+                        "RUTERO",
+                        "REPONEDOR",
+                        "SUPERVISOR",
+                        "MODALIDAD",
+                        "VISITA",
+                        "VISITA REALIZADA",
+                        "VISITA CAP",
+                        "SOBRE CUMPL.",
+                        "DIAS KPIONE",
+                        "DIAS KPIONE2",
+                        "DIAS POWER APP",
+                        "DOBLE MARCAJE",
+                        "TRIPLE MARCAJE",
+                        "CONFLICTOS PERSONA",
+                        "RUTA DUP",
+                        "ALERTA",
+                    ],
+                )
+                st.dataframe(df_scope_v2_view, width="stretch", hide_index=True)
+                st.stop()
+            except Exception as v2_exc:
+                _dbg("WARN control_gestion_v2_fallback", err=repr(v2_exc), role=role_sel, module=module_sel)
+                st.warning("CONTROL_GESTION v2 no pudo leerse completamente; uso fallback legacy.")
+                with st.expander("Detalles tecnicos V2", expanded=False):
+                    st.code(repr(v2_exc))
+                    if DEBUG:
+                        st.code(traceback.format_exc())
 
         semanas_raw = db.get_cg_scope_semanas()
         semanas_map: dict[str, str | None] = {cg_all_token: None}
