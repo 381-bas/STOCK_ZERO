@@ -123,6 +123,10 @@ CG_V2_DAILY_EVIDENCE_VIEW = os.getenv(
     "CG_V2_DAILY_EVIDENCE_VIEW",
     "cg_core.v_cg_visita_dia_resuelta_v2",
 )
+CG_V2_ROUTE_FREQ_RESUELTA_VIEW = os.getenv(
+    "CG_V2_ROUTE_FREQ_RESUELTA_VIEW",
+    "cg_core.v_rr_frecuencia_base_resuelta_v2",
+)
 CG_V2_RUTA_DUP_VIEW = os.getenv(
     "CG_V2_RUTA_DUP_VIEW",
     "cg_mart.v_cg_ruta_duplicados_auditoria_v2",
@@ -3627,10 +3631,11 @@ def get_cg_v2_recent_weeks(limit: int = 3) -> list[str]:
     df = _selector_df(
         "get_cg_v2_recent_weeks",
         f"""
-        SELECT DISTINCT CAST("SEMANA_INICIO" AS TEXT) AS semana_inicio
-        FROM {CG_V2_SCOPE_VIEW}
-        WHERE "SEMANA_INICIO" IS NOT NULL
-        ORDER BY semana_inicio DESC
+        SELECT CAST(effective_week_start AS TEXT) AS semana_inicio
+        FROM {CG_V2_ROUTE_FREQ_RESUELTA_VIEW}
+        WHERE effective_week_start IS NOT NULL
+        GROUP BY effective_week_start
+        ORDER BY effective_week_start DESC
         LIMIT :limit
         """,
         {"limit": recent_limit},
@@ -3638,10 +3643,54 @@ def get_cg_v2_recent_weeks(limit: int = 3) -> list[str]:
     return df["semana_inicio"].astype(str).tolist() if df is not None and not df.empty else []
 
 
+def _cg_v2_route_filters(
+    *,
+    alias: str = "v",
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    rutero: str | None = None,
+    local: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    pfx = f"{alias}." if alias else ""
+    filters: list[str] = []
+    params: dict[str, Any] = {}
+
+    if semana_inicio and str(semana_inicio).strip():
+        filters.append(f"AND CAST({pfx}effective_week_start AS TEXT) = :semana_inicio")
+        params["semana_inicio"] = str(semana_inicio).strip()
+
+    if gestor and str(gestor).strip() and str(gestor).strip().upper() != "TODOS":
+        filters.append(
+            f"AND {_cg_text_norm_expr(f'{pfx}gestor')} = {_cg_text_norm_expr(':gestor')}"
+        )
+        params["gestor"] = str(gestor).strip()
+
+    if cliente and str(cliente).strip() and str(cliente).strip().upper() != "TODOS":
+        filters.append(
+            f"AND {_cg_text_norm_expr(f'{pfx}cliente')} = {_cg_text_norm_expr(':cliente')}"
+        )
+        params["cliente"] = str(cliente).strip()
+
+    if rutero and str(rutero).strip() and str(rutero).strip().upper() != "TODOS":
+        filters.append(
+            f"AND {_cg_text_norm_expr(f'{pfx}rutero')} = {_cg_text_norm_expr(':rutero')}"
+        )
+        params["rutero"] = str(rutero).strip()
+
+    if local and str(local).strip() and str(local).strip().upper() != "TODOS":
+        filters.append(
+            f"AND {_cg_text_norm_expr(f'{pfx}local_nombre')} = {_cg_text_norm_expr(':local')}"
+        )
+        params["local"] = str(local).strip()
+
+    return "\n".join(filters), params
+
+
 def _cg_v2_selector_values(
     *,
     selector_name: str,
-    column_name: str,
+    column_expr: str,
     result_alias: str,
     semana_inicio: str | None = None,
     gestor: str | None = None,
@@ -3650,22 +3699,22 @@ def _cg_v2_selector_values(
     rutero: str | None = None,
     local: str | None = None,
 ) -> list[str]:
-    where_sql, params = _cg_scope_filters(
+    where_sql, params = _cg_v2_route_filters(
         alias="v",
         semana_inicio=semana_inicio,
         gestor=gestor,
         cliente=cliente,
-        alerta=alerta,
         rutero=rutero,
         local=local,
     )
     df = _selector_df(
         selector_name,
         f"""
-        SELECT DISTINCT CAST("{column_name}" AS TEXT) AS {result_alias}
-        FROM {CG_V2_SCOPE_VIEW} v
-        WHERE NULLIF(TRIM(COALESCE(CAST("{column_name}" AS TEXT), '')), '') IS NOT NULL
+        SELECT CAST({column_expr} AS TEXT) AS {result_alias}
+        FROM {CG_V2_ROUTE_FREQ_RESUELTA_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST({column_expr} AS TEXT), '')), '') IS NOT NULL
         {where_sql}
+        GROUP BY {column_expr}
         ORDER BY {result_alias}
         """,
         params or None,
@@ -3678,7 +3727,7 @@ def get_cg_v2_gestores(
 ) -> list[str]:
     return _cg_v2_selector_values(
         selector_name="get_cg_v2_gestores",
-        column_name="GESTOR",
+        column_expr="gestor",
         result_alias="gestor",
         semana_inicio=semana_inicio,
     )
@@ -3692,7 +3741,7 @@ def get_cg_v2_clientes(
 ) -> list[str]:
     return _cg_v2_selector_values(
         selector_name="get_cg_v2_clientes",
-        column_name="CLIENTE",
+        column_expr="cliente",
         result_alias="cliente",
         semana_inicio=semana_inicio,
         gestor=gestor,
@@ -3708,16 +3757,8 @@ def get_cg_v2_alertas(
     rutero: str | None = None,
     local: str | None = None,
 ) -> list[str]:
-    return _cg_v2_selector_values(
-        selector_name="get_cg_v2_alertas",
-        column_name="ALERTA",
-        result_alias="alerta",
-        semana_inicio=semana_inicio,
-        gestor=gestor,
-        cliente=cliente,
-        rutero=rutero,
-        local=local,
-    )
+    # ALERTA en CONTROL_GESTION v2 es un dominio estable y no necesita roundtrip a DB.
+    return ["CUMPLE", "INCUMPLE"]
 
 
 def get_cg_v2_filter_options(
@@ -3751,7 +3792,7 @@ def get_cg_v2_ruteros(
 ) -> list[str]:
     return _cg_v2_selector_values(
         selector_name="get_cg_v2_ruteros",
-        column_name="RUTERO",
+        column_expr="rutero",
         result_alias="rutero",
         semana_inicio=semana_inicio,
         gestor=gestor,
@@ -3765,7 +3806,7 @@ def get_cg_v2_locales(
 ) -> list[str]:
     return _cg_v2_selector_values(
         selector_name="get_cg_v2_locales",
-        column_name="LOCAL",
+        column_expr="local_nombre",
         result_alias="local",
         semana_inicio=semana_inicio,
         gestor=gestor,
@@ -3818,12 +3859,12 @@ def get_cg_v2_scope_kpis(
                 THEN 1
                 ELSE 0
             END), 0)::int AS gestion_compartida_rows
-        FROM {CG_V2_SCOPE_VIEW} v
+        FROM {CG_V2_OUT_WEEKLY_VIEW} v
         WHERE 1=1
         {where_sql}
         {search_sql}
     """
-    return qdf(sql, query_params or None)
+    return _selector_df("get_cg_v2_scope_kpis", sql, query_params or None)
 
 
 def get_cg_v2_daily_matrix_page(
