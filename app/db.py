@@ -2869,6 +2869,78 @@ def _cg_text_norm_expr(expr: str) -> str:
     return f"UPPER(TRIM(COALESCE(CAST({expr} AS TEXT), '')))"
 
 
+def _cg_v2_out_weekly_is_mv() -> bool:
+    view_name = str(CG_V2_OUT_WEEKLY_VIEW or "").strip().lower()
+    return view_name == "cg_mart.mv_cg_out_weekly_v2" or view_name.endswith(".mv_cg_out_weekly_v2")
+
+
+def _cg_norm_filter_value(value: str | None) -> str | None:
+    raw = str(value or "").strip()
+    return raw.upper() if raw else None
+
+
+def _cg_v2_out_weekly_filters(
+    *,
+    alias: str = "v",
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+    cod_rt: str | None = None,
+    rutero: str | None = None,
+    local: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    pfx = f"{alias}." if alias else ""
+    filters: list[str] = []
+    params: dict[str, Any] = {}
+    mv_mode = _cg_v2_out_weekly_is_mv()
+
+    if semana_inicio and str(semana_inicio).strip():
+        filters.append(f'AND {pfx}"SEMANA_INICIO" = :semana_inicio')
+        params["semana_inicio"] = str(semana_inicio).strip()
+
+    if gestor and str(gestor).strip() and str(gestor).strip().upper() != "TODOS":
+        if mv_mode:
+            filters.append(f'AND {pfx}"GESTOR_NORM_FILTER" = :gestor_norm_filter')
+        else:
+            filters.append(f'AND {_cg_text_norm_expr(f"{pfx}" + "\"GESTOR\"")} = :gestor_norm_filter')
+        params["gestor_norm_filter"] = _cg_norm_filter_value(gestor)
+
+    if cliente and str(cliente).strip() and str(cliente).strip().upper() != "TODOS":
+        if mv_mode:
+            filters.append(f'AND {pfx}"CLIENTE_NORM_FILTER" = :cliente_norm_filter')
+        else:
+            filters.append(f'AND {_cg_text_norm_expr(f"{pfx}" + "\"CLIENTE\"")} = :cliente_norm_filter')
+        params["cliente_norm_filter"] = _cg_norm_filter_value(cliente)
+
+    if alerta and str(alerta).strip() and str(alerta).strip().upper() != "TODAS":
+        if mv_mode:
+            filters.append(f'AND {pfx}"ALERTA_NORM_FILTER" = :alerta_norm_filter')
+        else:
+            filters.append(f'AND {_cg_text_norm_expr(f"{pfx}" + "\"ALERTA\"")} = :alerta_norm_filter')
+        params["alerta_norm_filter"] = _cg_norm_filter_value(alerta)
+
+    if cod_rt and str(cod_rt).strip():
+        filters.append(f'AND CAST({pfx}"COD_RT" AS TEXT) = :cod_rt')
+        params["cod_rt"] = str(cod_rt).strip()
+
+    if rutero and str(rutero).strip() and str(rutero).strip().upper() != "TODOS":
+        if mv_mode:
+            filters.append(f'AND {pfx}"RUTERO_NORM_FILTER" = :rutero_norm_filter')
+        else:
+            filters.append(f'AND {_cg_text_norm_expr(f"{pfx}" + "\"RUTERO\"")} = :rutero_norm_filter')
+        params["rutero_norm_filter"] = _cg_norm_filter_value(rutero)
+
+    if local and str(local).strip() and str(local).strip().upper() != "TODOS":
+        if mv_mode:
+            filters.append(f'AND {pfx}"LOCAL_NORM_FILTER" = :local_norm_filter')
+        else:
+            filters.append(f'AND {_cg_text_norm_expr(f"{pfx}" + "\"LOCAL\"")} = :local_norm_filter')
+        params["local_norm_filter"] = _cg_norm_filter_value(local)
+
+    return "\n".join(filters), params
+
+
 def _cg_scope_filters(
     *,
     alias: str = "v",
@@ -3867,7 +3939,8 @@ def get_cg_v2_scope_kpis(
     local: str | None = None,
     search: str = "",
 ) -> pd.DataFrame:
-    where_sql, params = _cg_scope_filters(
+    mv_mode = _cg_v2_out_weekly_is_mv()
+    where_sql, params = _cg_v2_out_weekly_filters(
         alias="v",
         semana_inicio=semana_inicio,
         gestor=gestor,
@@ -3878,23 +3951,16 @@ def get_cg_v2_scope_kpis(
     )
     search_sql, search_params = _cg_v2_scope_search_filters(alias="v", search=search)
     query_params = {**params, **search_params}
-    sql = f"""
-        SELECT
-            COUNT(*)::int AS total_rows,
-            COALESCE(SUM(COALESCE("VISITA", 0)), 0)::int AS visita_plan,
-            COALESCE(SUM(COALESCE("VISITA_REALIZADA_RAW", 0)), 0)::int AS visita_realizada_raw,
-            COALESCE(SUM(COALESCE("VISITA_REALIZADA_CAP", 0)), 0)::int AS visita_realizada_cap,
-            COALESCE(SUM(GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)), 0)::int AS visitas_pendientes,
-            COALESCE(SUM(COALESCE("SOBRE_CUMPLIMIENTO", 0)), 0)::int AS sobre_cumplimiento,
-            COALESCE(SUM(CASE
-                WHEN {_cg_text_norm_expr('"ALERTA"')} = 'CUMPLE' THEN 1
-                ELSE 0
-            END), 0)::int AS cumple_rows,
-            COALESCE(SUM(CASE
-                WHEN {_cg_text_norm_expr('"ALERTA"')} = 'INCUMPLE' THEN 1
-                ELSE 0
-            END), 0)::int AS incumple_rows
-            ,
+    alerta_norm_expr = '"ALERTA_NORM_FILTER"' if mv_mode else _cg_text_norm_expr('"ALERTA"')
+    visitas_pendientes_expr = (
+        'COALESCE(SUM(COALESCE("VISITAS_PENDIENTES_CALC", 0)), 0)::int AS visitas_pendientes'
+        if mv_mode
+        else 'COALESCE(SUM(GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)), 0)::int AS visitas_pendientes'
+    )
+    gestion_compartida_expr = (
+        'COALESCE(SUM(COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0)), 0)::int AS gestion_compartida_rows'
+        if mv_mode
+        else """
             COALESCE(SUM(CASE
                 WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
                   OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
@@ -3903,6 +3969,25 @@ def get_cg_v2_scope_kpis(
                 THEN 1
                 ELSE 0
             END), 0)::int AS gestion_compartida_rows
+        """
+    )
+    sql = f"""
+        SELECT
+            COUNT(*)::int AS total_rows,
+            COALESCE(SUM(COALESCE("VISITA", 0)), 0)::int AS visita_plan,
+            COALESCE(SUM(COALESCE("VISITA_REALIZADA_RAW", 0)), 0)::int AS visita_realizada_raw,
+            COALESCE(SUM(COALESCE("VISITA_REALIZADA_CAP", 0)), 0)::int AS visita_realizada_cap,
+            {visitas_pendientes_expr},
+            COALESCE(SUM(COALESCE("SOBRE_CUMPLIMIENTO", 0)), 0)::int AS sobre_cumplimiento,
+            COALESCE(SUM(CASE
+                WHEN {alerta_norm_expr} = 'CUMPLE' THEN 1
+                ELSE 0
+            END), 0)::int AS cumple_rows,
+            COALESCE(SUM(CASE
+                WHEN {alerta_norm_expr} = 'INCUMPLE' THEN 1
+                ELSE 0
+            END), 0)::int AS incumple_rows,
+            {gestion_compartida_expr}
         FROM {CG_V2_OUT_WEEKLY_VIEW} v
         WHERE 1=1
         {where_sql}
@@ -3927,7 +4012,8 @@ def get_cg_v2_daily_matrix_page(
     if vista_key not in {"RUTERO", "LOCAL", "CLIENTE"}:
         vista_key = "RUTERO"
 
-    where_sql, params = _cg_scope_filters(
+    mv_mode = _cg_v2_out_weekly_is_mv()
+    where_sql, params = _cg_v2_out_weekly_filters(
         alias="v",
         semana_inicio=semana_inicio,
         gestor=gestor,
@@ -3938,6 +4024,30 @@ def get_cg_v2_daily_matrix_page(
     )
     search_sql, search_params = _cg_v2_scope_search_filters(alias="v", search=search)
     query_params = {**params, **search_params}
+    visitas_pendientes_expr = (
+        'COALESCE("VISITAS_PENDIENTES_CALC", 0)::int AS "VISITAS_PENDIENTES"'
+        if mv_mode
+        else 'GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)::int AS "VISITAS_PENDIENTES"'
+    )
+    gestion_compartida_expr = (
+        """
+        CASE
+            WHEN COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0) = 1 THEN 'Si'
+            ELSE 'No'
+        END AS "GESTION_COMPARTIDA"
+        """
+        if mv_mode
+        else """
+        CASE
+            WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
+              OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
+              OR CAST("GESTOR" AS TEXT) LIKE '%|%'
+              OR CAST("RUTERO" AS TEXT) LIKE '%|%'
+            THEN 'Si'
+            ELSE 'No'
+        END AS "GESTION_COMPARTIDA"
+        """
+    )
     select_sql = f"""
         "SEMANA_INICIO",
         "SEMANA_ISO",
@@ -3954,19 +4064,12 @@ def get_cg_v2_daily_matrix_page(
         "VISITA_REALIZADA",
         "VISITA_REALIZADA_RAW",
         "VISITA_REALIZADA_CAP",
-        GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)::int AS "VISITAS_PENDIENTES",
+        {visitas_pendientes_expr},
         "SOBRE_CUMPLIMIENTO",
         "ALERTA",
         "RUTA_DUPLICADA_FLAG",
         "RUTA_DUPLICADA_ROWS",
-        CASE
-            WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
-              OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
-              OR CAST("GESTOR" AS TEXT) LIKE '%|%'
-              OR CAST("RUTERO" AS TEXT) LIKE '%|%'
-            THEN 'Si'
-            ELSE 'No'
-        END AS "GESTION_COMPARTIDA",
+        {gestion_compartida_expr},
         "LUNES_PLAN",
         "MARTES_PLAN",
         "MIERCOLES_PLAN",
@@ -4001,7 +4104,7 @@ def get_cg_v2_daily_matrix_page(
     combined_where = "\n".join(part for part in (where_sql, search_sql) if part)
     return _cg_select_page_filtered(
         selector_name="get_cg_v2_daily_matrix_page",
-        view_name=CG_V2_SCOPE_VIEW,
+        view_name=CG_V2_OUT_WEEKLY_VIEW,
         where_sql=combined_where,
         order_sql=_cg_v2_daily_matrix_order_sql(vista_key),
         params=query_params,
@@ -4025,7 +4128,8 @@ def get_cg_v2_daily_matrix_full(
     if vista_key not in {"RUTERO", "LOCAL", "CLIENTE"}:
         vista_key = "RUTERO"
 
-    where_sql, params = _cg_scope_filters(
+    mv_mode = _cg_v2_out_weekly_is_mv()
+    where_sql, params = _cg_v2_out_weekly_filters(
         alias="v",
         semana_inicio=semana_inicio,
         gestor=gestor,
@@ -4034,6 +4138,24 @@ def get_cg_v2_daily_matrix_full(
         rutero=rutero,
         local=local,
     )
+    base_derived_cols = """
+                UPPER(TRIM(COALESCE("ALERTA", ''))) AS "ALERTA_NORM_FILTER",
+                CASE
+                    WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
+                      OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
+                      OR CAST("GESTOR" AS TEXT) LIKE '%|%'
+                      OR CAST("RUTERO" AS TEXT) LIKE '%|%'
+                    THEN 1
+                    ELSE 0
+                END::int AS "GESTION_COMPARTIDA_FLAG_CALC",
+                GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)::int AS "VISITAS_PENDIENTES_CALC",
+    """
+    if mv_mode:
+        base_derived_cols = """
+                COALESCE("ALERTA_NORM_FILTER", UPPER(TRIM(COALESCE("ALERTA", '')))) AS "ALERTA_NORM_FILTER",
+                COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0)::int AS "GESTION_COMPARTIDA_FLAG_CALC",
+                COALESCE("VISITAS_PENDIENTES_CALC", 0)::int AS "VISITAS_PENDIENTES_CALC",
+        """
     return _selector_df(
         "get_cg_v2_daily_matrix_full",
         f"""
@@ -4052,6 +4174,7 @@ def get_cg_v2_daily_matrix_full(
                 "ALERTA",
                 "RUTA_DUPLICADA_FLAG",
                 "RUTA_DUPLICADA_ROWS",
+                {base_derived_cols}
                 "LUNES_PLAN",
                 "LUNES_FLAG",
                 "MARTES_PLAN",
@@ -4066,7 +4189,7 @@ def get_cg_v2_daily_matrix_full(
                 "SABADO_FLAG",
                 "DOMINGO_PLAN",
                 "DOMINGO_FLAG"
-            FROM {CG_V2_SCOPE_VIEW} v
+            FROM {CG_V2_OUT_WEEKLY_VIEW} v
             WHERE 1=1
             {where_sql}
         )
@@ -4077,37 +4200,20 @@ def get_cg_v2_daily_matrix_full(
             "REPONEDOR",
             "COD_RT",
             "LOCAL",
-            "CLIENTE",
-            "MODALIDAD",
-            MAX(COALESCE("VISITA", 0))::int AS "VISITA",
-            GREATEST(
-                MAX(COALESCE("VISITA", 0)) - MAX(COALESCE("VISITA_REALIZADA_CAP", 0)),
-                0
-            )::int AS "VISITAS_PENDIENTES",
-            CASE
-                WHEN SUM(
-                    CASE
-                        WHEN UPPER(TRIM(COALESCE("ALERTA", ''))) = 'INCUMPLE' THEN 1
-                        ELSE 0
-                    END
-                ) > 0
-                THEN 'INCUMPLE'
-                ELSE 'CUMPLE'
-            END AS "ALERTA",
-            CASE
-                WHEN MAX(
-                    CASE
-                        WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
-                          OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
-                          OR CAST("GESTOR" AS TEXT) LIKE '%|%'
-                          OR CAST("RUTERO" AS TEXT) LIKE '%|%'
-                        THEN 1
-                        ELSE 0
-                    END
-                ) = 1
-                THEN 'Si'
-                ELSE 'No'
-            END AS "GESTION_COMPARTIDA",
+                "CLIENTE",
+                "MODALIDAD",
+                MAX(COALESCE("VISITA", 0))::int AS "VISITA",
+                MAX(COALESCE("VISITAS_PENDIENTES_CALC", 0))::int AS "VISITAS_PENDIENTES",
+                CASE
+                    WHEN SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'INCUMPLE' THEN 1 ELSE 0 END) > 0
+                    THEN 'INCUMPLE'
+                    ELSE 'CUMPLE'
+                END AS "ALERTA",
+                CASE
+                    WHEN MAX(COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0)) = 1
+                    THEN 'Si'
+                    ELSE 'No'
+                END AS "GESTION_COMPARTIDA",
             {_cg_v2_checklist_case('MAX(COALESCE("LUNES_PLAN", 0))', 'MAX(COALESCE("LUNES_FLAG", 0))')} AS "LUN",
             {_cg_v2_checklist_case('MAX(COALESCE("MARTES_PLAN", 0))', 'MAX(COALESCE("MARTES_FLAG", 0))')} AS "MAR",
             {_cg_v2_checklist_case('MAX(COALESCE("MIERCOLES_PLAN", 0))', 'MAX(COALESCE("MIERCOLES_FLAG", 0))')} AS "MIE",
