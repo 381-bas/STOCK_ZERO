@@ -1,3 +1,4 @@
+import html
 import os
 import math
 import traceback
@@ -144,15 +145,91 @@ def _cg_v2_audit_cards(audit_metrics: dict[str, int | float]) -> None:
         st.caption("Ruta duplicada: combinacion ruta/cliente duplicada en la base operativa versionada.")
 
 
-def _cg_v2_compact_day_status(value: object) -> str:
-    raw = str(value or "").strip()
-    if raw == "✓":
-        return "✓"
-    if raw == "✕":
+def _cg_v2_day_html(value: object) -> str:
+    raw = str(value or "").strip().upper()
+    check = '<span class="cg-ok-check">&#10003;</span>'
+    if raw == "REQ_OK":
+        return f'1 {check}'
+    if raw == "REQ":
         return "1"
-    if raw == "!":
-        return "✓*"
+    if raw == "OK":
+        return check
     return ""
+
+
+def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
+    columns = [
+        "COD_RT",
+        "LOCAL",
+        "CLIENTE",
+        "VISITAS EXIGIDAS",
+        "LUN",
+        "MAR",
+        "MIE",
+        "JUE",
+        "VIE",
+        "SAB",
+        "DOM",
+        "PENDIENTE",
+        "ALERTA",
+        "MODALIDAD",
+        "GESTION COMPARTIDA",
+    ]
+    day_cols = {"LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"}
+    rows_html: list[str] = []
+    for _, row in df.iterrows():
+        cell_html: list[str] = []
+        for col in columns:
+            raw_value = row.get(col, "")
+            if col in day_cols:
+                rendered = _cg_v2_day_html(raw_value)
+                cell_html.append(f'<td class="cg-day-cell">{rendered}</td>')
+            else:
+                safe_value = html.escape("" if pd.isna(raw_value) else str(raw_value))
+                cell_html.append(f"<td>{safe_value}</td>")
+        rows_html.append("<tr>" + "".join(cell_html) + "</tr>")
+
+    header_html = "".join(f"<th>{html.escape(col)}</th>" for col in columns)
+    table_html = f"""
+    <style>
+      .cg-validation-wrap {{ overflow-x: auto; }}
+      table.cg-validation-table {{
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.5rem 0 1rem 0;
+        font-size: 0.92rem;
+      }}
+      .cg-validation-table th,
+      .cg-validation-table td {{
+        border-bottom: 1px solid rgba(49, 51, 63, 0.18);
+        padding: 0.45rem 0.55rem;
+        text-align: left;
+        vertical-align: middle;
+      }}
+      .cg-validation-table th {{
+        position: sticky;
+        top: 0;
+        background: #f7f8fb;
+        z-index: 1;
+      }}
+      .cg-validation-table td.cg-day-cell {{
+        min-width: 3.25rem;
+        text-align: center;
+        white-space: nowrap;
+      }}
+      .cg-ok-check {{
+        color: #14804a;
+        font-weight: 700;
+      }}
+    </style>
+    <div class="cg-validation-wrap">
+      <table class="cg-validation-table">
+        <thead><tr>{header_html}</tr></thead>
+        <tbody>{''.join(rows_html)}</tbody>
+      </table>
+    </div>
+    """
+    st.markdown(table_html, unsafe_allow_html=True)
 
 
 def render_control_gestion(
@@ -340,7 +417,7 @@ def render_control_gestion(
 
                 _cg_ensure_option_state(target_key, target_opts, cg_all_token)
 
-                g1, g2, g3 = st.columns([1.2, 1.0, 1.4])
+                g1, g2 = st.columns([1.4, 1.0])
                 with g1:
                     target_value = st.selectbox(target_label, target_opts, key=target_key)
                 with g2:
@@ -357,8 +434,6 @@ def render_control_gestion(
                     _cg_ensure_option_state(alerta_key, alerta_opts, "Todas")
                     alerta_label = st.selectbox("ALERTA", alerta_opts, key=alerta_key)
                     alerta_sel = None if alerta_label == "Todas" else alerta_label
-                with g3:
-                    search_sel = str(st.text_input("BUSCAR", key="cg_v2_matrix_search")).strip()
 
                 rutero_sel = None
                 local_sel = None
@@ -377,12 +452,6 @@ def render_control_gestion(
                     or (vista_sel == "CLIENTE" and cliente_sel is not None)
                 )
 
-                _cg_reset_page_on_filter_change(
-                    "cg_v2_filter_sig",
-                    "page_cg_matrix_v2",
-                    (semana_inicio, gestor_sel, vista_sel, rutero_sel, local_sel, cliente_sel, alerta_sel, search_sel),
-                )
-
                 st.caption("Semanas visibles: actual, S-1 y S-2.")
 
                 kpi_df = db.get_cg_v2_scope_kpis(
@@ -392,22 +461,16 @@ def render_control_gestion(
                     alerta=alerta_sel,
                     rutero=rutero_sel,
                     local=local_sel,
-                    search=search_sel,
                 )
                 kpi_row = kpi_df.iloc[0].to_dict() if kpi_df is not None and not kpi_df.empty else {}
                 _cg_v2_metric_cards(kpi_row)
 
-                if not gestor_ready:
-                    st.info("Selecciona un gestor para habilitar el detalle operativo diario.")
-                    st.stop()
-
                 if not detail_ready:
-                    st.info(f"Selecciona un {target_label.lower()} para cargar el detalle.")
+                    st.info("Selecciona gestor y luego rutero/local/cliente para cargar la validación.")
                     st.stop()
 
-                current_page, _ = _cg_get_page_state("page_cg_matrix_v2", page_size=25)
-                with _timed("PAGE cg_v2_daily_matrix_page", tag="PAGE"):
-                    df_scope_v2 = db.get_cg_v2_daily_matrix_page(
+                with _timed("PAGE cg_v2_daily_matrix_full", tag="PAGE"):
+                    df_scope_v2 = db.get_cg_v2_daily_matrix_full(
                         semana_inicio=semana_inicio,
                         gestor=gestor_sel,
                         vista=vista_sel,
@@ -415,46 +478,47 @@ def render_control_gestion(
                         local=local_sel,
                         cliente=cliente_sel,
                         alerta=alerta_sel,
-                        search=search_sel,
-                        page=current_page,
-                        page_size=25,
                     )
 
-                st.markdown("#### Matriz diaria V2")
-                st.caption("1 = visita exigida pendiente; ✓ = visita con evidencia; ✓* = evidencia fuera de plan.")
-                _cg_render_pager("page_cg_matrix_v2", _df_total_rows(df_scope_v2), page_size=25)
-                df_scope_v2_display = df_scope_v2.copy()
-                for day_col in [
-                    "LUNES_STATUS",
-                    "MARTES_STATUS",
-                    "MIERCOLES_STATUS",
-                    "JUEVES_STATUS",
-                    "VIERNES_STATUS",
-                    "SABADO_STATUS",
-                    "DOMINGO_STATUS",
-                ]:
-                    if day_col in df_scope_v2_display.columns:
-                        df_scope_v2_display[day_col] = df_scope_v2_display[day_col].map(_cg_v2_compact_day_status)
+                st.markdown("#### Validación diaria")
+                st.markdown("1 = visita exigida; &#10003; = evidencia registrada", unsafe_allow_html=True)
 
-                matrix_cols = ["GESTION COMPARTIDA"]
-                if gestor_sel is None:
-                    matrix_cols.append("GESTOR")
-                if not (vista_sel == "RUTERO" and rutero_sel is not None):
-                    matrix_cols.append("RUTERO")
-                matrix_cols.extend(["REPONEDOR", "COD_RT"])
-                if not (vista_sel == "LOCAL" and local_sel is not None):
-                    matrix_cols.append("LOCAL")
-                if not (vista_sel == "CLIENTE" and cliente_sel is not None):
-                    matrix_cols.append("CLIENTE")
-                matrix_cols.extend(
+                if vista_sel == "RUTERO" and rutero_sel is not None and df_scope_v2 is not None and not df_scope_v2.empty:
+                    rep_series = df_scope_v2["REPONEDOR"] if "REPONEDOR" in df_scope_v2.columns else pd.Series(dtype=object)
+                    reponedores = sorted({str(v).strip() for v in rep_series.tolist() if str(v or "").strip()})
+                    if len(reponedores) == 1:
+                        st.caption(f"Rutero / Reponedor: {rutero_sel} / {reponedores[0]}")
+                    elif len(reponedores) > 1:
+                        preview = " | ".join(reponedores[:3])
+                        suffix = " | ..." if len(reponedores) > 3 else ""
+                        st.caption(f"Rutero / Reponedor: {rutero_sel} / {preview}{suffix}")
+                    else:
+                        st.caption(f"Rutero: {rutero_sel}")
+
+                df_scope_v2_view = _rename_and_pick(
+                    df_scope_v2,
+                    {
+                        "COD_RT": "COD_RT",
+                        "LOCAL": "LOCAL",
+                        "CLIENTE": "CLIENTE",
+                        "VISITA": "VISITAS EXIGIDAS",
+                        "LUN": "LUN",
+                        "MAR": "MAR",
+                        "MIE": "MIE",
+                        "JUE": "JUE",
+                        "VIE": "VIE",
+                        "SAB": "SAB",
+                        "DOM": "DOM",
+                        "VISITAS_PENDIENTES": "PENDIENTE",
+                        "ALERTA": "ALERTA",
+                        "MODALIDAD": "MODALIDAD",
+                        "GESTION_COMPARTIDA": "GESTION COMPARTIDA",
+                    },
                     [
-                        "SUPERVISOR",
-                        "MODALIDAD",
+                        "COD_RT",
+                        "LOCAL",
+                        "CLIENTE",
                         "VISITAS EXIGIDAS",
-                        "VISITAS VALIDAS",
-                        "VISITAS PENDIENTES",
-                        "SOBRECUMPLIMIENTO",
-                        "ALERTA",
                         "LUN",
                         "MAR",
                         "MIE",
@@ -462,36 +526,13 @@ def render_control_gestion(
                         "VIE",
                         "SAB",
                         "DOM",
+                        "PENDIENTE",
+                        "ALERTA",
+                        "MODALIDAD",
+                        "GESTION COMPARTIDA",
                     ],
                 )
-                df_scope_v2_view = _rename_and_pick(
-                    df_scope_v2_display,
-                    {
-                        "GESTION_COMPARTIDA": "GESTION COMPARTIDA",
-                        "GESTOR": "GESTOR",
-                        "RUTERO": "RUTERO",
-                        "REPONEDOR": "REPONEDOR",
-                        "COD_RT": "COD_RT",
-                        "LOCAL": "LOCAL",
-                        "CLIENTE": "CLIENTE",
-                        "SUPERVISOR": "SUPERVISOR",
-                        "MODALIDAD": "MODALIDAD",
-                        "VISITA": "VISITAS EXIGIDAS",
-                        "VISITA_REALIZADA_CAP": "VISITAS VALIDAS",
-                        "VISITAS_PENDIENTES": "VISITAS PENDIENTES",
-                        "SOBRE_CUMPLIMIENTO": "SOBRECUMPLIMIENTO",
-                        "ALERTA": "ALERTA",
-                        "LUNES_STATUS": "LUN",
-                        "MARTES_STATUS": "MAR",
-                        "MIERCOLES_STATUS": "MIE",
-                        "JUEVES_STATUS": "JUE",
-                        "VIERNES_STATUS": "VIE",
-                        "SABADO_STATUS": "SAB",
-                        "DOMINGO_STATUS": "DOM",
-                    },
-                    matrix_cols,
-                )
-                st.dataframe(df_scope_v2_view, width="stretch", hide_index=True)
+                _cg_v2_render_validation_table(df_scope_v2_view)
 
                 show_audit = st.toggle("Ver auditoría detallada", value=False, key="cg_v2_show_audit")
                 if show_audit:

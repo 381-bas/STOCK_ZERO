@@ -2988,12 +2988,56 @@ def _cg_v2_daily_evidence_filters(
 def _cg_v2_status_case(plan_col: str, flag_col: str) -> str:
     return f"""
         CASE
-            WHEN COALESCE({plan_col}, 0) >= 1 AND COALESCE({flag_col}, 0) >= 1 THEN '✓'
-            WHEN COALESCE({plan_col}, 0) >= 1 AND COALESCE({flag_col}, 0) = 0 THEN '✕'
-            WHEN COALESCE({plan_col}, 0) = 0 AND COALESCE({flag_col}, 0) >= 1 THEN '!'
-            ELSE '—'
+            WHEN COALESCE({plan_col}, 0) >= 1 AND COALESCE({flag_col}, 0) >= 1 THEN 'PLAN_OK'
+            WHEN COALESCE({plan_col}, 0) >= 1 AND COALESCE({flag_col}, 0) = 0 THEN 'PLAN_PEND'
+            WHEN COALESCE({plan_col}, 0) = 0 AND COALESCE({flag_col}, 0) >= 1 THEN 'OFFPLAN_OK'
+            ELSE 'NONE'
         END
     """
+
+
+def _cg_v2_checklist_case(plan_col: str, flag_col: str) -> str:
+    return f"""
+        CASE
+            WHEN COALESCE({plan_col}, 0) >= 1 AND COALESCE({flag_col}, 0) >= 1 THEN 'REQ_OK'
+            WHEN COALESCE({plan_col}, 0) >= 1 AND COALESCE({flag_col}, 0) = 0 THEN 'REQ'
+            WHEN COALESCE({plan_col}, 0) = 0 AND COALESCE({flag_col}, 0) >= 1 THEN 'OK'
+            ELSE ''
+        END
+    """
+
+
+def _cg_v2_daily_matrix_order_sql(vista_key: str) -> str:
+    order_sql_map = {
+        "RUTERO": """
+            ORDER BY
+                "SEMANA_INICIO" DESC,
+                CAST("GESTOR" AS TEXT) ASC,
+                CAST("RUTERO" AS TEXT) ASC,
+                CAST("LOCAL" AS TEXT) ASC,
+                CAST("CLIENTE" AS TEXT) ASC,
+                CAST("REPONEDOR" AS TEXT) ASC
+        """,
+        "LOCAL": """
+            ORDER BY
+                "SEMANA_INICIO" DESC,
+                CAST("GESTOR" AS TEXT) ASC,
+                CAST("LOCAL" AS TEXT) ASC,
+                CAST("CLIENTE" AS TEXT) ASC,
+                CAST("RUTERO" AS TEXT) ASC,
+                CAST("REPONEDOR" AS TEXT) ASC
+        """,
+        "CLIENTE": """
+            ORDER BY
+                "SEMANA_INICIO" DESC,
+                CAST("GESTOR" AS TEXT) ASC,
+                CAST("CLIENTE" AS TEXT) ASC,
+                CAST("LOCAL" AS TEXT) ASC,
+                CAST("RUTERO" AS TEXT) ASC,
+                CAST("REPONEDOR" AS TEXT) ASC
+        """,
+    }
+    return order_sql_map[vista_key]
 
 
 def _cg_alertas_filters(
@@ -3894,35 +3938,6 @@ def get_cg_v2_daily_matrix_page(
     )
     search_sql, search_params = _cg_v2_scope_search_filters(alias="v", search=search)
     query_params = {**params, **search_params}
-    order_sql_map = {
-        "RUTERO": """
-            ORDER BY
-                "SEMANA_INICIO" DESC,
-                CAST("GESTOR" AS TEXT) ASC,
-                CAST("RUTERO" AS TEXT) ASC,
-                CAST("LOCAL" AS TEXT) ASC,
-                CAST("CLIENTE" AS TEXT) ASC,
-                CAST("REPONEDOR" AS TEXT) ASC
-        """,
-        "LOCAL": """
-            ORDER BY
-                "SEMANA_INICIO" DESC,
-                CAST("GESTOR" AS TEXT) ASC,
-                CAST("LOCAL" AS TEXT) ASC,
-                CAST("CLIENTE" AS TEXT) ASC,
-                CAST("RUTERO" AS TEXT) ASC,
-                CAST("REPONEDOR" AS TEXT) ASC
-        """,
-        "CLIENTE": """
-            ORDER BY
-                "SEMANA_INICIO" DESC,
-                CAST("GESTOR" AS TEXT) ASC,
-                CAST("CLIENTE" AS TEXT) ASC,
-                CAST("LOCAL" AS TEXT) ASC,
-                CAST("RUTERO" AS TEXT) ASC,
-                CAST("REPONEDOR" AS TEXT) ASC
-        """,
-    }
     select_sql = f"""
         "SEMANA_INICIO",
         "SEMANA_ISO",
@@ -3988,12 +4003,131 @@ def get_cg_v2_daily_matrix_page(
         selector_name="get_cg_v2_daily_matrix_page",
         view_name=CG_V2_SCOPE_VIEW,
         where_sql=combined_where,
-        order_sql=order_sql_map[vista_key],
+        order_sql=_cg_v2_daily_matrix_order_sql(vista_key),
         params=query_params,
         limit=size,
         offset=(page_num - 1) * size,
         from_alias="v",
         select_sql=select_sql,
+    )
+
+
+def get_cg_v2_daily_matrix_full(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    vista: str = "RUTERO",
+    rutero: str | None = None,
+    local: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+) -> pd.DataFrame:
+    vista_key = str(vista or "RUTERO").strip().upper()
+    if vista_key not in {"RUTERO", "LOCAL", "CLIENTE"}:
+        vista_key = "RUTERO"
+
+    where_sql, params = _cg_scope_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        alerta=alerta,
+        rutero=rutero,
+        local=local,
+    )
+    return _selector_df(
+        "get_cg_v2_daily_matrix_full",
+        f"""
+        WITH base AS (
+            SELECT
+                "SEMANA_INICIO",
+                "GESTOR",
+                "RUTERO",
+                "REPONEDOR",
+                "COD_RT",
+                "LOCAL",
+                "CLIENTE",
+                "MODALIDAD",
+                "VISITA",
+                "VISITA_REALIZADA_CAP",
+                "ALERTA",
+                "RUTA_DUPLICADA_FLAG",
+                "RUTA_DUPLICADA_ROWS",
+                "LUNES_PLAN",
+                "LUNES_FLAG",
+                "MARTES_PLAN",
+                "MARTES_FLAG",
+                "MIERCOLES_PLAN",
+                "MIERCOLES_FLAG",
+                "JUEVES_PLAN",
+                "JUEVES_FLAG",
+                "VIERNES_PLAN",
+                "VIERNES_FLAG",
+                "SABADO_PLAN",
+                "SABADO_FLAG",
+                "DOMINGO_PLAN",
+                "DOMINGO_FLAG"
+            FROM {CG_V2_SCOPE_VIEW} v
+            WHERE 1=1
+            {where_sql}
+        )
+        SELECT
+            "SEMANA_INICIO",
+            "GESTOR",
+            "RUTERO",
+            "REPONEDOR",
+            "COD_RT",
+            "LOCAL",
+            "CLIENTE",
+            "MODALIDAD",
+            MAX(COALESCE("VISITA", 0))::int AS "VISITA",
+            GREATEST(
+                MAX(COALESCE("VISITA", 0)) - MAX(COALESCE("VISITA_REALIZADA_CAP", 0)),
+                0
+            )::int AS "VISITAS_PENDIENTES",
+            CASE
+                WHEN SUM(
+                    CASE
+                        WHEN UPPER(TRIM(COALESCE("ALERTA", ''))) = 'INCUMPLE' THEN 1
+                        ELSE 0
+                    END
+                ) > 0
+                THEN 'INCUMPLE'
+                ELSE 'CUMPLE'
+            END AS "ALERTA",
+            CASE
+                WHEN MAX(
+                    CASE
+                        WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
+                          OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
+                          OR CAST("GESTOR" AS TEXT) LIKE '%|%'
+                          OR CAST("RUTERO" AS TEXT) LIKE '%|%'
+                        THEN 1
+                        ELSE 0
+                    END
+                ) = 1
+                THEN 'Si'
+                ELSE 'No'
+            END AS "GESTION_COMPARTIDA",
+            {_cg_v2_checklist_case('MAX(COALESCE("LUNES_PLAN", 0))', 'MAX(COALESCE("LUNES_FLAG", 0))')} AS "LUN",
+            {_cg_v2_checklist_case('MAX(COALESCE("MARTES_PLAN", 0))', 'MAX(COALESCE("MARTES_FLAG", 0))')} AS "MAR",
+            {_cg_v2_checklist_case('MAX(COALESCE("MIERCOLES_PLAN", 0))', 'MAX(COALESCE("MIERCOLES_FLAG", 0))')} AS "MIE",
+            {_cg_v2_checklist_case('MAX(COALESCE("JUEVES_PLAN", 0))', 'MAX(COALESCE("JUEVES_FLAG", 0))')} AS "JUE",
+            {_cg_v2_checklist_case('MAX(COALESCE("VIERNES_PLAN", 0))', 'MAX(COALESCE("VIERNES_FLAG", 0))')} AS "VIE",
+            {_cg_v2_checklist_case('MAX(COALESCE("SABADO_PLAN", 0))', 'MAX(COALESCE("SABADO_FLAG", 0))')} AS "SAB",
+            {_cg_v2_checklist_case('MAX(COALESCE("DOMINGO_PLAN", 0))', 'MAX(COALESCE("DOMINGO_FLAG", 0))')} AS "DOM"
+        FROM base
+        GROUP BY
+            "SEMANA_INICIO",
+            "GESTOR",
+            "RUTERO",
+            "REPONEDOR",
+            "COD_RT",
+            "LOCAL",
+            "CLIENTE",
+            "MODALIDAD"
+        {_cg_v2_daily_matrix_order_sql(vista_key)}
+        """,
+        params or None,
     )
 
 
