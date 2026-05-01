@@ -1,4 +1,4 @@
-# app/db.py
+﻿# app/db.py
 from __future__ import annotations
 
 from pathlib import Path
@@ -286,8 +286,8 @@ def _get_db_urls() -> tuple[str, str | None]:
     fallback = os.getenv("DB_URL_FALLBACK", "").strip() or None
     if not primary and not fallback:
         raise AppError(
-            "Configuración incompleta: falta DB_URL_APP/DB_URL.\n"
-            "Solución: agrega en tu .env una línea:\n"
+            "ConfiguraciÃ³n incompleta: falta DB_URL_APP/DB_URL.\n"
+            "SoluciÃ³n: agrega en tu .env una lÃ­nea:\n"
             "DB_URL_APP=postgresql://USER:PASS@HOST:PORT/DB"
         )
     return primary, fallback
@@ -677,7 +677,7 @@ def _build_result_filters(
             f"""
             AND (
                 CAST({pfx}"Sku" AS TEXT) ILIKE :q
-                OR COALESCE({pfx}"Descripción del Producto", '') ILIKE :q
+                OR COALESCE({pfx}"DescripciÃ³n del Producto", '') ILIKE :q
                 OR COALESCE({pfx}"MARCA", '') ILIKE :q
             )
             """
@@ -1037,7 +1037,7 @@ def get_tabla_ux_page_home(
     return qdf(f"""
         SELECT
           v.fecha,
-          v."MARCA", v."Sku", v."Descripción del Producto",
+          v."MARCA", v."Sku", v."DescripciÃ³n del Producto",
           v."Stock", v."Venta(+7)", v."NEGATIVO", v."RIESGO DE QUIEBRE", v."OTROS"
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
@@ -1048,7 +1048,7 @@ def get_tabla_ux_page_home(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."Descripción del Producto" ASC
+          v."DescripciÃ³n del Producto" ASC
         LIMIT :limit OFFSET :offset
     """, {
         "cod_rt": cod_rt,
@@ -1072,7 +1072,7 @@ def get_tabla_ux_export_home(
     return qdf(f"""
         SELECT
           v.fecha,
-          v."MARCA", v."Sku", v."Descripción del Producto",
+          v."MARCA", v."Sku", v."DescripciÃ³n del Producto",
           v."Stock", v."Venta(+7)", v."NEGATIVO", v."RIESGO DE QUIEBRE", v."OTROS"
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
@@ -1083,7 +1083,7 @@ def get_tabla_ux_export_home(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."Descripción del Producto" ASC
+          v."DescripciÃ³n del Producto" ASC
     """, {"cod_rt": cod_rt, **p2, **cliente_params})
 
 
@@ -1137,7 +1137,7 @@ def get_tabla_ux_page(
     return qdf(f"""
         SELECT
           v.fecha,
-          v."MARCA", v."Sku", v."Descripción del Producto",
+          v."MARCA", v."Sku", v."DescripciÃ³n del Producto",
           v."Stock", v."Venta(+7)", v."NEGATIVO", v."RIESGO DE QUIEBRE", v."OTROS"
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
@@ -1149,7 +1149,7 @@ def get_tabla_ux_page(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."Descripción del Producto" ASC
+          v."DescripciÃ³n del Producto" ASC
         LIMIT :limit OFFSET :offset
     """, {
         "rutero": rutero,
@@ -1214,7 +1214,7 @@ def get_tabla_ux_export(
     return qdf(f"""
         SELECT
           v.fecha,
-          v."MARCA", v."Sku", v."Descripción del Producto",
+          v."MARCA", v."Sku", v."DescripciÃ³n del Producto",
           v."Stock", v."Venta(+7)", v."NEGATIVO", v."RIESGO DE QUIEBRE", v."OTROS"
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
@@ -1226,7 +1226,7 @@ def get_tabla_ux_export(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."Descripción del Producto" ASC
+          v."DescripciÃ³n del Producto" ASC
     """, {
         "rutero": rutero,
         "reponedor": reponedor,
@@ -2425,7 +2425,7 @@ def get_export_inventario_cliente(
                 COALESCE(NULLIF(b.modalidades, ''), 'SIN ASIGNAR') AS "MODALIDAD",
                 b.marca AS "MARCA",
                 CAST(b.sku AS TEXT) AS "Sku",
-                b.producto AS "Descripción del Producto",
+                b.producto AS "DescripciÃ³n del Producto",
                 b.stock AS "Stock",
                 b.venta_7 AS "Venta(+7)",
                 b.negativo AS "NEGATIVO",
@@ -2543,7 +2543,7 @@ def get_export_inventario_cliente(
             COALESCE(NULLIF(rr_ctx.modalidad, ''), 'SIN ASIGNAR') AS "MODALIDAD",
             bf.marca AS "MARCA",
             bf.sku AS "Sku",
-            bf.producto AS "Descripción del Producto",
+            bf.producto AS "DescripciÃ³n del Producto",
             bf.stock AS "Stock",
             bf.venta_7 AS "Venta(+7)",
             bf.negativo AS "NEGATIVO",
@@ -2609,7 +2609,7 @@ def get_export_inventario_local(
             COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR",
             COALESCE(NULLIF(TRIM(v."MARCA"), ''), '') AS "MARCA",
             CAST(v."Sku" AS TEXT) AS "Sku",
-            COALESCE(v."Descripción del Producto", '') AS "Descripción del Producto",
+            COALESCE(v."DescripciÃ³n del Producto", '') AS "DescripciÃ³n del Producto",
             COALESCE(v."Stock", 0)::int AS "Stock",
             COALESCE(v."Venta(+7)", 0)::int AS "Venta(+7)",
             COALESCE(v."NEGATIVO", '') AS "NEGATIVO",
@@ -2627,7 +2627,7 @@ def get_export_inventario_local(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."Descripción del Producto" ASC
+          v."DescripciÃ³n del Producto" ASC
     """
     return qdf(sql, {"cod_rt": cod_rt, **cliente_params})
 
@@ -2684,7 +2684,7 @@ def get_export_inventario_mercaderista_local(
             COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR",
             COALESCE(NULLIF(TRIM(v."MARCA"), ''), '') AS "MARCA",
             CAST(v."Sku" AS TEXT) AS "Sku",
-            COALESCE(v."Descripción del Producto", '') AS "Descripción del Producto",
+            COALESCE(v."DescripciÃ³n del Producto", '') AS "DescripciÃ³n del Producto",
             COALESCE(v."Stock", 0)::int AS "Stock",
             COALESCE(v."Venta(+7)", 0)::int AS "Venta(+7)",
             COALESCE(v."NEGATIVO", '') AS "NEGATIVO",
@@ -2703,7 +2703,7 @@ def get_export_inventario_mercaderista_local(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."Descripción del Producto" ASC
+          v."DescripciÃ³n del Producto" ASC
     """
     return qdf(sql, {
         "cod_rt": cod_rt,
@@ -2716,7 +2716,7 @@ def get_export_inventario_mercaderista_local(
 
 
 # =========================================================
-# 6) AUDITORÍA DE COBERTURA E INCONSISTENCIAS
+# 6) AUDITORÃA DE COBERTURA E INCONSISTENCIAS
 # =========================================================
 def get_scope_clientes_rr(
     cod_rt: str,
@@ -2879,6 +2879,83 @@ def _cg_norm_filter_value(value: str | None) -> str | None:
     return raw.upper() if raw else None
 
 
+def _cg_pipe_member_filter(
+    *,
+    column_expr: str,
+    param_prefix: str,
+    value: str | None,
+) -> tuple[str, dict[str, Any]]:
+    token = _cg_norm_filter_value(value)
+    if not token or token == "TODOS":
+        return "", {}
+    return (
+        f"""
+        AND (
+            {column_expr} = :{param_prefix}_exact
+            OR {column_expr} LIKE :{param_prefix}_prefix_spaced
+            OR {column_expr} LIKE :{param_prefix}_suffix_spaced
+            OR {column_expr} LIKE :{param_prefix}_middle_spaced
+            OR {column_expr} LIKE :{param_prefix}_prefix_pipe
+            OR {column_expr} LIKE :{param_prefix}_suffix_pipe
+            OR {column_expr} LIKE :{param_prefix}_middle_pipe
+        )
+        """,
+        {
+            f"{param_prefix}_exact": token,
+            f"{param_prefix}_prefix_spaced": f"{token} | %",
+            f"{param_prefix}_suffix_spaced": f"% | {token}",
+            f"{param_prefix}_middle_spaced": f"% | {token} | %",
+            f"{param_prefix}_prefix_pipe": f"{token}|%",
+            f"{param_prefix}_suffix_pipe": f"%|{token}",
+            f"{param_prefix}_middle_pipe": f"%|{token}|%",
+        },
+    )
+
+
+def _cg_pipe_token_map(raw_values: list[object]) -> dict[str, str]:
+    token_map: dict[str, str] = {}
+    for raw_value in raw_values:
+        raw_text = str(raw_value or "").strip()
+        if not raw_text:
+            continue
+        for token_part in raw_text.split("|"):
+            token_display = token_part.strip()
+            token_norm = _cg_norm_filter_value(token_display)
+            if token_display and token_norm and token_norm not in token_map:
+                token_map[token_norm] = token_display
+    return token_map
+
+
+def _cg_pipe_token_values(
+    raw_values: list[object],
+    *,
+    preferred_first: str | None = None,
+) -> list[str]:
+    token_map = _cg_pipe_token_map(raw_values)
+    if not token_map:
+        return []
+    ordered_keys = sorted(token_map)
+    preferred_norm = _cg_norm_filter_value(preferred_first)
+    if preferred_norm and preferred_norm in token_map:
+        ordered_keys = [preferred_norm] + [key for key in ordered_keys if key != preferred_norm]
+    return [token_map[key] for key in ordered_keys]
+
+
+def _cg_v2_route_shared_display(
+    raw_value: object,
+    *,
+    selected_rutero: str | None = None,
+) -> str:
+    raw_text = str(raw_value or "").strip()
+    if not raw_text:
+        return "No"
+    raw_values = [part.strip() for part in raw_text.split(" || ") if part.strip()]
+    token_values = _cg_pipe_token_values(raw_values, preferred_first=selected_rutero)
+    if len(token_values) <= 1:
+        return "No"
+    return " | ".join(token_values)
+
+
 def _cg_v2_out_weekly_filters(
     *,
     alias: str = "v",
@@ -2901,10 +2978,19 @@ def _cg_v2_out_weekly_filters(
 
     if gestor and str(gestor).strip() and str(gestor).strip().upper() != "TODOS":
         if mv_mode:
-            filters.append(f'AND {pfx}"GESTOR_NORM_FILTER" = :gestor_norm_filter')
+            gestor_filter_sql, gestor_params = _cg_pipe_member_filter(
+                column_expr=f'{pfx}"GESTOR_NORM_FILTER"',
+                param_prefix="gestor_norm_filter",
+                value=gestor,
+            )
         else:
-            filters.append(f'AND {_cg_text_norm_expr(f"{pfx}" + "\"GESTOR\"")} = :gestor_norm_filter')
-        params["gestor_norm_filter"] = _cg_norm_filter_value(gestor)
+            gestor_filter_sql, gestor_params = _cg_pipe_member_filter(
+                column_expr=_cg_text_norm_expr(f'{pfx}"GESTOR"'),
+                param_prefix="gestor_norm_filter",
+                value=gestor,
+            )
+        filters.append(gestor_filter_sql)
+        params.update(gestor_params)
 
     if cliente and str(cliente).strip() and str(cliente).strip().upper() != "TODOS":
         if mv_mode:
@@ -2926,10 +3012,19 @@ def _cg_v2_out_weekly_filters(
 
     if rutero and str(rutero).strip() and str(rutero).strip().upper() != "TODOS":
         if mv_mode:
-            filters.append(f'AND {pfx}"RUTERO_NORM_FILTER" = :rutero_norm_filter')
+            rutero_filter_sql, rutero_params = _cg_pipe_member_filter(
+                column_expr=f'{pfx}"RUTERO_NORM_FILTER"',
+                param_prefix="rutero_norm_filter",
+                value=rutero,
+            )
         else:
-            filters.append(f'AND {_cg_text_norm_expr(f"{pfx}" + "\"RUTERO\"")} = :rutero_norm_filter')
-        params["rutero_norm_filter"] = _cg_norm_filter_value(rutero)
+            rutero_filter_sql, rutero_params = _cg_pipe_member_filter(
+                column_expr=_cg_text_norm_expr(f'{pfx}"RUTERO"'),
+                param_prefix="rutero_norm_filter",
+                value=rutero,
+            )
+        filters.append(rutero_filter_sql)
+        params.update(rutero_params)
 
     if local and str(local).strip() and str(local).strip().upper() != "TODOS":
         if mv_mode:
@@ -3084,29 +3179,29 @@ def _cg_v2_daily_matrix_order_sql(vista_key: str) -> str:
         "RUTERO": """
             ORDER BY
                 "SEMANA_INICIO" DESC,
-                CAST("GESTOR" AS TEXT) ASC,
-                CAST("RUTERO" AS TEXT) ASC,
-                CAST("LOCAL" AS TEXT) ASC,
-                CAST("CLIENTE" AS TEXT) ASC,
-                CAST("REPONEDOR" AS TEXT) ASC
+                "GESTOR" ASC,
+                "RUTERO" ASC,
+                "LOCAL" ASC,
+                "CLIENTE" ASC,
+                "REPONEDOR" ASC
         """,
         "LOCAL": """
             ORDER BY
                 "SEMANA_INICIO" DESC,
-                CAST("GESTOR" AS TEXT) ASC,
-                CAST("LOCAL" AS TEXT) ASC,
-                CAST("CLIENTE" AS TEXT) ASC,
-                CAST("RUTERO" AS TEXT) ASC,
-                CAST("REPONEDOR" AS TEXT) ASC
+                "GESTOR" ASC,
+                "LOCAL" ASC,
+                "CLIENTE" ASC,
+                "RUTERO" ASC,
+                "REPONEDOR" ASC
         """,
         "CLIENTE": """
             ORDER BY
                 "SEMANA_INICIO" DESC,
-                CAST("GESTOR" AS TEXT) ASC,
-                CAST("CLIENTE" AS TEXT) ASC,
-                CAST("LOCAL" AS TEXT) ASC,
-                CAST("RUTERO" AS TEXT) ASC,
-                CAST("REPONEDOR" AS TEXT) ASC
+                "GESTOR" ASC,
+                "CLIENTE" ASC,
+                "LOCAL" ASC,
+                "RUTERO" ASC,
+                "REPONEDOR" ASC
         """,
     }
     return order_sql_map[vista_key]
@@ -3777,10 +3872,13 @@ def _cg_v2_route_filters(
         params["semana_inicio"] = str(semana_inicio).strip()
 
     if gestor and str(gestor).strip() and str(gestor).strip().upper() != "TODOS":
-        filters.append(
-            f"AND {_cg_text_norm_expr(f'{pfx}gestor')} = {_cg_text_norm_expr(':gestor')}"
+        gestor_filter_sql, gestor_params = _cg_pipe_member_filter(
+            column_expr=_cg_text_norm_expr(f"{pfx}gestor"),
+            param_prefix="gestor_norm_filter",
+            value=gestor,
         )
-        params["gestor"] = str(gestor).strip()
+        filters.append(gestor_filter_sql)
+        params.update(gestor_params)
 
     if cliente and str(cliente).strip() and str(cliente).strip().upper() != "TODOS":
         filters.append(
@@ -3789,10 +3887,13 @@ def _cg_v2_route_filters(
         params["cliente"] = str(cliente).strip()
 
     if rutero and str(rutero).strip() and str(rutero).strip().upper() != "TODOS":
-        filters.append(
-            f"AND {_cg_text_norm_expr(f'{pfx}rutero')} = {_cg_text_norm_expr(':rutero')}"
+        rutero_filter_sql, rutero_params = _cg_pipe_member_filter(
+            column_expr=_cg_text_norm_expr(f"{pfx}rutero"),
+            param_prefix="rutero_norm_filter",
+            value=rutero,
         )
-        params["rutero"] = str(rutero).strip()
+        filters.append(rutero_filter_sql)
+        params.update(rutero_params)
 
     if local and str(local).strip() and str(local).strip().upper() != "TODOS":
         filters.append(
@@ -3841,12 +3942,24 @@ def _cg_v2_selector_values(
 def get_cg_v2_gestores(
     semana_inicio: str | None = None,
 ) -> list[str]:
-    return _cg_v2_selector_values(
-        selector_name="get_cg_v2_gestores",
-        column_expr="gestor",
-        result_alias="gestor",
+    where_sql, params = _cg_v2_route_filters(
+        alias="v",
         semana_inicio=semana_inicio,
     )
+    df = _selector_df(
+        "get_cg_v2_gestores",
+        f"""
+        SELECT DISTINCT CAST(v.gestor AS TEXT) AS gestor
+        FROM {CG_V2_ROUTE_FREQ_RESUELTA_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST(v.gestor AS TEXT), '')), '') IS NOT NULL
+        {where_sql}
+        ORDER BY gestor
+        """,
+        params or None,
+    )
+    if df is None or df.empty or "gestor" not in df.columns:
+        return []
+    return _cg_pipe_token_values(df["gestor"].dropna().astype(str).tolist())
 
 
 def get_cg_v2_clientes(
@@ -3906,13 +4019,35 @@ def get_cg_v2_ruteros(
     semana_inicio: str | None = None,
     gestor: str | None = None,
 ) -> list[str]:
-    return _cg_v2_selector_values(
-        selector_name="get_cg_v2_ruteros",
-        column_expr="rutero",
-        result_alias="rutero",
+    where_sql, params = _cg_v2_route_filters(
+        alias="v",
         semana_inicio=semana_inicio,
         gestor=gestor,
     )
+    df = _selector_df(
+        "get_cg_v2_ruteros",
+        f"""
+        SELECT DISTINCT CAST(v.rutero AS TEXT) AS rutero
+        FROM {CG_V2_ROUTE_FREQ_RESUELTA_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST(v.rutero AS TEXT), '')), '') IS NOT NULL
+        {where_sql}
+        ORDER BY rutero
+        """,
+        params or None,
+    )
+    if df is None or df.empty or "rutero" not in df.columns:
+        return []
+    raw_ruteros = df["rutero"].dropna().astype(str).tolist()
+    anchor_ruteros = [
+        raw_text.strip()
+        for raw_text in raw_ruteros
+        if raw_text and "|" not in raw_text
+    ]
+    if anchor_ruteros:
+        return _cg_pipe_token_values(anchor_ruteros)
+    # Fallback controlado: si el universo no expone ruteros standalone,
+    # usamos atomización completa para no dejar el selector vacío.
+    return _cg_pipe_token_values(raw_ruteros)
 
 
 def get_cg_v2_locales(
@@ -4032,7 +4167,8 @@ def get_cg_v2_daily_matrix_page(
     gestion_compartida_expr = (
         """
         CASE
-            WHEN COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0) = 1 THEN 'Si'
+            WHEN COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0) = 1
+            THEN 'Si | ' || COALESCE(NULLIF(CAST("GESTOR" AS TEXT), ''), 'Compartida')
             ELSE 'No'
         END AS "GESTION_COMPARTIDA"
         """
@@ -4043,7 +4179,7 @@ def get_cg_v2_daily_matrix_page(
               OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
               OR CAST("GESTOR" AS TEXT) LIKE '%|%'
               OR CAST("RUTERO" AS TEXT) LIKE '%|%'
-            THEN 'Si'
+            THEN 'Si | ' || COALESCE(NULLIF(CAST("GESTOR" AS TEXT), ''), 'Compartida')
             ELSE 'No'
         END AS "GESTION_COMPARTIDA"
         """
@@ -4156,7 +4292,7 @@ def get_cg_v2_daily_matrix_full(
                 COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0)::int AS "GESTION_COMPARTIDA_FLAG_CALC",
                 COALESCE("VISITAS_PENDIENTES_CALC", 0)::int AS "VISITAS_PENDIENTES_CALC",
         """
-    return _selector_df(
+    df = _selector_df(
         "get_cg_v2_daily_matrix_full",
         f"""
         WITH base AS (
@@ -4195,25 +4331,36 @@ def get_cg_v2_daily_matrix_full(
         )
         SELECT
             "SEMANA_INICIO",
-            "GESTOR",
-            "RUTERO",
-            "REPONEDOR",
+            MAX(COALESCE("GESTOR", '')) AS "GESTOR",
+            MAX(COALESCE("RUTERO", '')) AS "RUTERO",
+            MAX(COALESCE("REPONEDOR", '')) AS "REPONEDOR",
             "COD_RT",
             "LOCAL",
-                "CLIENTE",
-                "MODALIDAD",
-                MAX(COALESCE("VISITA", 0))::int AS "VISITA",
-                MAX(COALESCE("VISITAS_PENDIENTES_CALC", 0))::int AS "VISITAS_PENDIENTES",
-                CASE
-                    WHEN SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'INCUMPLE' THEN 1 ELSE 0 END) > 0
-                    THEN 'INCUMPLE'
-                    ELSE 'CUMPLE'
-                END AS "ALERTA",
-                CASE
-                    WHEN MAX(COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0)) = 1
-                    THEN 'Si'
-                    ELSE 'No'
-                END AS "GESTION_COMPARTIDA",
+            "CLIENTE",
+            "MODALIDAD",
+            MAX(COALESCE("VISITA", 0))::int AS "VISITA",
+            MAX(COALESCE("VISITAS_PENDIENTES_CALC", 0))::int AS "VISITAS_PENDIENTES",
+            CASE
+                WHEN SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'INCUMPLE' THEN 1 ELSE 0 END) > 0
+                THEN 'INCUMPLE'
+                ELSE 'CUMPLE'
+            END AS "ALERTA",
+            CASE
+                WHEN MAX(COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0)) = 1
+                THEN 'Si | ' || COALESCE(
+                    NULLIF(MAX(CASE
+                        WHEN POSITION('|' IN COALESCE("GESTOR", '')) > 0
+                        THEN CAST("GESTOR" AS TEXT)
+                        ELSE ''
+                    END), ''),
+                    COALESCE(NULLIF(MAX(CAST("GESTOR" AS TEXT)), ''), 'Compartida')
+                )
+                ELSE 'No'
+            END AS "GESTION_COMPARTIDA",
+            COALESCE(
+                NULLIF(STRING_AGG(DISTINCT NULLIF(CAST("RUTERO" AS TEXT), ''), ' || '), ''),
+                MAX(COALESCE("RUTERO", ''))
+            ) AS "RUTERO_SHARED_RAW",
             {_cg_v2_checklist_case('MAX(COALESCE("LUNES_PLAN", 0))', 'MAX(COALESCE("LUNES_FLAG", 0))')} AS "LUN",
             {_cg_v2_checklist_case('MAX(COALESCE("MARTES_PLAN", 0))', 'MAX(COALESCE("MARTES_FLAG", 0))')} AS "MAR",
             {_cg_v2_checklist_case('MAX(COALESCE("MIERCOLES_PLAN", 0))', 'MAX(COALESCE("MIERCOLES_FLAG", 0))')} AS "MIE",
@@ -4224,9 +4371,6 @@ def get_cg_v2_daily_matrix_full(
         FROM base
         GROUP BY
             "SEMANA_INICIO",
-            "GESTOR",
-            "RUTERO",
-            "REPONEDOR",
             "COD_RT",
             "LOCAL",
             "CLIENTE",
@@ -4235,8 +4379,16 @@ def get_cg_v2_daily_matrix_full(
         """,
         params or None,
     )
-
-
+    if df is None or df.empty:
+        return df
+    if "RUTERO_SHARED_RAW" in df.columns:
+        df["RUTA_COMPARTIDA"] = df["RUTERO_SHARED_RAW"].apply(
+            lambda raw: _cg_v2_route_shared_display(raw, selected_rutero=rutero)
+        )
+        df.drop(columns=["RUTERO_SHARED_RAW"], inplace=True)
+    else:
+        df["RUTA_COMPARTIDA"] = "No"
+    return df
 def get_cg_v2_daily_evidence(
     semana_inicio: str | None = None,
     cod_rt: str | None = None,
@@ -4398,3 +4550,4 @@ def get_cg_v2_audit_summary() -> dict[str, Any]:
     if df is None or df.empty:
         return {}
     return df.iloc[0].to_dict()
+

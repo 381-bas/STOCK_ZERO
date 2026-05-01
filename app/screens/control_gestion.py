@@ -167,7 +167,13 @@ def _cg_v2_badge_html(value: object, *, kind: str) -> str:
     if kind == "alerta":
         tone = "ok" if norm == "CUMPLE" else "warn"
     elif kind == "shared":
-        tone = "shared-yes" if norm == "SI" else "shared-no"
+        tone = "shared-yes" if norm.startswith("SI") else "shared-no"
+        if norm.startswith("SI |"):
+            _, _, detail = raw.partition("|")
+            safe_detail = html.escape(detail.strip())
+            safe = f"S&iacute; &middot; {safe_detail}" if safe_detail else "S&iacute;"
+    elif kind == "route_shared":
+        tone = "shared-no" if norm == "NO" else "shared-yes"
     return f'<span class="cg-chip cg-chip-{tone}">{safe}</span>'
 
 
@@ -192,6 +198,7 @@ def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
         "ALERTA",
         "MODALIDAD",
         "GESTION COMPARTIDA",
+        "RUTA COMPARTIDA",
     ]
     day_cols = {"LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"}
     rows_html: list[str] = []
@@ -207,7 +214,10 @@ def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
                 cell_html.append(f'<td class="cg-nowrap-cell">{rendered}</td>')
             elif col == "GESTION COMPARTIDA":
                 rendered = _cg_v2_badge_html(raw_value, kind="shared")
-                cell_html.append(f'<td class="cg-nowrap-cell">{rendered}</td>')
+                cell_html.append(f'<td class="cg-shared-cell">{rendered}</td>')
+            elif col == "RUTA COMPARTIDA":
+                rendered = _cg_v2_badge_html(raw_value, kind="route_shared")
+                cell_html.append(f'<td class="cg-shared-cell">{rendered}</td>')
             else:
                 safe_value = html.escape("" if pd.isna(raw_value) else str(raw_value))
                 if col == "COD_RT":
@@ -235,23 +245,24 @@ def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
       .cg-validation-table th,
       .cg-validation-table td {{
         border-bottom: 1px solid rgba(49, 51, 63, 0.18);
-        padding: 0.45rem 0.55rem;
+        padding: 0.26rem 0.45rem;
         text-align: left;
         vertical-align: middle;
+        line-height: 1.12;
       }}
       .cg-validation-table th {{
         background: #f7f8fb;
-        font-size: 0.84rem;
+        font-size: 0.8rem;
         letter-spacing: 0.01em;
         white-space: nowrap;
       }}
       .cg-validation-table td.cg-day-cell {{
-        min-width: 3.25rem;
+        min-width: 3rem;
         text-align: center;
         white-space: nowrap;
       }}
       .cg-validation-table td.cg-num-cell {{
-        min-width: 5.5rem;
+        min-width: 5rem;
         text-align: center;
         white-space: nowrap;
       }}
@@ -259,22 +270,28 @@ def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
       .cg-validation-table td.cg-nowrap-cell {{
         white-space: nowrap;
       }}
+      .cg-validation-table td.cg-shared-cell {{
+        min-width: 10rem;
+      }}
+      .cg-validation-table td.cg-shared-cell .cg-chip {{
+        white-space: normal;
+      }}
       .cg-validation-table td.cg-code-cell {{
         font-weight: 600;
       }}
       .cg-validation-table td.cg-local-cell {{
-        min-width: 16rem;
+        min-width: 14rem;
       }}
       .cg-validation-table td.cg-client-cell {{
-        min-width: 12rem;
+        min-width: 10rem;
       }}
       .cg-chip {{
         display: inline-block;
         border-radius: 999px;
-        padding: 0.16rem 0.48rem;
-        font-size: 0.78rem;
+        padding: 0.1rem 0.38rem;
+        font-size: 0.72rem;
         font-weight: 600;
-        line-height: 1.2;
+        line-height: 1.1;
       }}
       .cg-chip-ok {{
         color: #0f6b3c;
@@ -621,6 +638,7 @@ def render_control_gestion(
                         "ALERTA": "ALERTA",
                         "MODALIDAD": "MODALIDAD",
                         "GESTION_COMPARTIDA": "GESTION COMPARTIDA",
+                        "RUTA_COMPARTIDA": "RUTA COMPARTIDA",
                     },
                     [
                         "COD_RT",
@@ -638,6 +656,7 @@ def render_control_gestion(
                         "ALERTA",
                         "MODALIDAD",
                         "GESTION COMPARTIDA",
+                        "RUTA COMPARTIDA",
                     ],
                 )
                 _cg_v2_render_validation_table(df_scope_v2_view)
