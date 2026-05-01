@@ -13,6 +13,8 @@ import pandas as pd
 import psycopg2
 from psycopg2.extras import Json, execute_values
 
+from refresh_control_gestion_v2_mv import run_cg_v2_mv_refresh
+
 
 DEFAULT_FILE = r"data\CUMPLIMIENTO_FRECUENCIA.xlsx"
 LOADER_NAME = "load_control_gestion_raw_v17"
@@ -399,6 +401,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--excel", default=DEFAULT_FILE)
     ap.add_argument("--db_url", default=os.getenv("DB_URL_LOAD", "") or os.getenv("DB_URL", ""))
+    ap.add_argument("--refresh-cg-v2-mv", action="store_true")
+    ap.add_argument("--validate-cg-v2-mv", action="store_true")
     args = ap.parse_args()
 
     excel_path = Path(args.excel)
@@ -406,6 +410,8 @@ def main() -> None:
         raise SystemExit(f"No existe el archivo: {excel_path}")
     if not args.db_url:
         raise SystemExit("Falta DB_URL_LOAD/DB_URL")
+    if args.validate_cg_v2_mv and not args.refresh_cg_v2_mv:
+        raise SystemExit("--validate-cg-v2-mv requiere --refresh-cg-v2-mv")
 
     db_url = ensure_sslmode(args.db_url)
 
@@ -425,6 +431,20 @@ def main() -> None:
     result["kpione"] = kpione_info
     result["kpione2"] = kpione2_info
     result["power_app"] = power_info
+    if args.refresh_cg_v2_mv:
+        try:
+            result["cg_v2_mv_refresh"] = run_cg_v2_mv_refresh(
+                db_url=args.db_url,
+                validate=args.validate_cg_v2_mv,
+            )
+        except Exception as exc:
+            result["status"] = "error"
+            result["cg_v2_mv_refresh"] = {
+                "status": "error",
+                "error": str(exc),
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            raise SystemExit(1)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

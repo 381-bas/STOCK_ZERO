@@ -13,6 +13,7 @@ import psycopg2
 from psycopg2.extras import Json, execute_values
 
 from cliente_mvs import run_cliente_mvs_refresh
+from refresh_control_gestion_v2_mv import run_cg_v2_mv_refresh
 
 LOADER_NAME = "load_ruta_rutero_from_excel"
 LOCAL_TZ = ZoneInfo("America/Santiago")
@@ -322,10 +323,14 @@ def main():
     ap.add_argument("--source", default="DB_GLOBAL_INVENTARIO.xlsx:RUTA_RUTERO")
     ap.add_argument("--no-cg-ruta-history", action="store_true")
     ap.add_argument("--no-refresh-cliente-mvs", action="store_true")
+    ap.add_argument("--refresh-cg-v2-mv", action="store_true")
+    ap.add_argument("--validate-cg-v2-mv", action="store_true")
     args = ap.parse_args()
 
     if not args.db_url:
         raise SystemExit("Falta DB_URL_LOAD/DB_URL. Setea DB_URL_LOAD o pasa --db_url")
+    if args.validate_cg_v2_mv and not args.refresh_cg_v2_mv:
+        raise SystemExit("--validate-cg-v2-mv requiere --refresh-cg-v2-mv")
 
     db_url = ensure_sslmode(args.db_url)
 
@@ -534,15 +539,29 @@ def main():
 
     if args.no_refresh_cliente_mvs:
         result["cliente_mvs_refresh"] = {"status": "skipped", "reason": "--no-refresh-cliente-mvs"}
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-        return
+    else:
+        refresh_result = run_cliente_mvs_refresh(
+            db_url=args.db_url,
+            execute=True,
+            run_smoke=True,
+        )
+        result["cliente_mvs_refresh"] = refresh_result
 
-    refresh_result = run_cliente_mvs_refresh(
-        db_url=args.db_url,
-        execute=True,
-        run_smoke=True,
-    )
-    result["cliente_mvs_refresh"] = refresh_result
+    if args.refresh_cg_v2_mv:
+        try:
+            result["cg_v2_mv_refresh"] = run_cg_v2_mv_refresh(
+                db_url=args.db_url,
+                validate=args.validate_cg_v2_mv,
+            )
+        except Exception as exc:
+            result["status"] = "error"
+            result["cg_v2_mv_refresh"] = {
+                "status": "error",
+                "error": str(exc),
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            raise SystemExit(1)
+
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
