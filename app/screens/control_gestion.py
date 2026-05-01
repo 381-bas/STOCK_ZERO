@@ -591,11 +591,6 @@ def render_control_gestion(
                 st.markdown("#### Validación diaria")
                 st.markdown("1 = visita exigida; &#10003; = evidencia registrada", unsafe_allow_html=True)
 
-                st.caption(
-                    f"Gestor: {gestor_sel} | Vista: {vista_label} | "
-                    f"Foco: {rutero_sel or local_sel or cliente_sel or 'Pendiente'}"
-                )
-
                 if vista_sel == "RUTERO" and rutero_sel is not None and df_scope_v2 is not None and not df_scope_v2.empty:
                     rep_series = df_scope_v2["REPONEDOR"] if "REPONEDOR" in df_scope_v2.columns else pd.Series(dtype=object)
                     reponedores = sorted({str(v).strip() for v in rep_series.tolist() if str(v or "").strip()})
