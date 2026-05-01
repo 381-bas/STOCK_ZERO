@@ -157,7 +157,25 @@ def _cg_v2_day_html(value: object) -> str:
     return ""
 
 
+def _cg_v2_badge_html(value: object, *, kind: str) -> str:
+    raw = "" if pd.isna(value) else str(value).strip()
+    if not raw:
+        return ""
+    safe = html.escape(raw)
+    norm = raw.upper()
+    tone = "muted"
+    if kind == "alerta":
+        tone = "ok" if norm == "CUMPLE" else "warn"
+    elif kind == "shared":
+        tone = "shared-yes" if norm == "SI" else "shared-no"
+    return f'<span class="cg-chip cg-chip-{tone}">{safe}</span>'
+
+
 def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
+    if df is None or df.empty:
+        st.info("Sin filas para el filtro aplicado.")
+        return
+
     columns = [
         "COD_RT",
         "LOCAL",
@@ -184,9 +202,24 @@ def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
             if col in day_cols:
                 rendered = _cg_v2_day_html(raw_value)
                 cell_html.append(f'<td class="cg-day-cell">{rendered}</td>')
+            elif col == "ALERTA":
+                rendered = _cg_v2_badge_html(raw_value, kind="alerta")
+                cell_html.append(f'<td class="cg-nowrap-cell">{rendered}</td>')
+            elif col == "GESTION COMPARTIDA":
+                rendered = _cg_v2_badge_html(raw_value, kind="shared")
+                cell_html.append(f'<td class="cg-nowrap-cell">{rendered}</td>')
             else:
                 safe_value = html.escape("" if pd.isna(raw_value) else str(raw_value))
-                cell_html.append(f"<td>{safe_value}</td>")
+                if col == "COD_RT":
+                    cell_html.append(f'<td class="cg-code-cell">{safe_value}</td>')
+                elif col in {"VISITAS EXIGIDAS", "PENDIENTE"}:
+                    cell_html.append(f'<td class="cg-num-cell">{safe_value}</td>')
+                elif col == "LOCAL":
+                    cell_html.append(f'<td class="cg-local-cell">{safe_value}</td>')
+                elif col == "CLIENTE":
+                    cell_html.append(f'<td class="cg-client-cell">{safe_value}</td>')
+                else:
+                    cell_html.append(f"<td>{safe_value}</td>")
         rows_html.append("<tr>" + "".join(cell_html) + "</tr>")
 
     header_html = "".join(f"<th>{html.escape(col)}</th>" for col in columns)
@@ -207,15 +240,57 @@ def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
         vertical-align: middle;
       }}
       .cg-validation-table th {{
-        position: sticky;
-        top: 0;
         background: #f7f8fb;
-        z-index: 1;
+        font-size: 0.84rem;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
       }}
       .cg-validation-table td.cg-day-cell {{
         min-width: 3.25rem;
         text-align: center;
         white-space: nowrap;
+      }}
+      .cg-validation-table td.cg-num-cell {{
+        min-width: 5.5rem;
+        text-align: center;
+        white-space: nowrap;
+      }}
+      .cg-validation-table td.cg-code-cell,
+      .cg-validation-table td.cg-nowrap-cell {{
+        white-space: nowrap;
+      }}
+      .cg-validation-table td.cg-code-cell {{
+        font-weight: 600;
+      }}
+      .cg-validation-table td.cg-local-cell {{
+        min-width: 16rem;
+      }}
+      .cg-validation-table td.cg-client-cell {{
+        min-width: 12rem;
+      }}
+      .cg-chip {{
+        display: inline-block;
+        border-radius: 999px;
+        padding: 0.16rem 0.48rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.2;
+      }}
+      .cg-chip-ok {{
+        color: #0f6b3c;
+        background: #e8f5ed;
+      }}
+      .cg-chip-warn {{
+        color: #9a3412;
+        background: #fff1e8;
+      }}
+      .cg-chip-shared-yes {{
+        color: #92400e;
+        background: #fef3c7;
+      }}
+      .cg-chip-shared-no {{
+        color: #475569;
+        background: #eef2f7;
       }}
       .cg-ok-check {{
         color: #14804a;
@@ -378,48 +453,59 @@ def render_control_gestion(
                 vista_key = "sel_cg_v2_analysis_view"
                 _cg_ensure_option_state(vista_key, vista_opts, vista_opts[0])
 
+                st.markdown("#### Filtros operativos")
                 f1, f2, f3 = st.columns(3)
                 with f1:
-                    semana_label = st.selectbox("SEMANA", semana_opts, key=semana_key)
+                    semana_label = st.selectbox("Semana operativa", semana_opts, key=semana_key)
                     semana_inicio = semanas_map.get(semana_label)
                 with f2:
                     gestores_v2 = [cg_all_token] + list(db.get_cg_v2_gestores(semana_inicio=semana_inicio) or [])
                     gestor_key = "sel_cg_v2_gestor"
                     _cg_ensure_option_state(gestor_key, gestores_v2, cg_all_token)
-                    gestor_label = st.selectbox("GESTOR", gestores_v2, key=gestor_key)
+                    gestor_label = st.selectbox("Gestor", gestores_v2, key=gestor_key)
                     gestor_sel = None if gestor_label == cg_all_token else gestor_label
                 with f3:
-                    vista_label = st.selectbox("VISTA DE ANALISIS", vista_opts, key=vista_key)
+                    vista_label = st.selectbox("Vista de analisis", vista_opts, key=vista_key)
                     vista_sel = vista_map.get(vista_label, "RUTERO")
 
-                target_label = "RUTERO"
+                target_label = "Rutero"
                 target_key = "sel_cg_v2_target_rutero"
                 target_opts = [cg_all_token]
+                target_disabled = gestor_sel is None
                 if gestor_sel is not None:
                     if vista_sel == "RUTERO":
-                        target_label = "RUTERO"
+                        target_label = "Rutero"
                         target_key = "sel_cg_v2_target_rutero"
                         target_opts = [cg_all_token] + list(
                             db.get_cg_v2_ruteros(semana_inicio=semana_inicio, gestor=gestor_sel) or []
                         )
                     elif vista_sel == "LOCAL":
-                        target_label = "LOCAL"
+                        target_label = "Local"
                         target_key = "sel_cg_v2_target_local"
                         target_opts = [cg_all_token] + list(
                             db.get_cg_v2_locales(semana_inicio=semana_inicio, gestor=gestor_sel) or []
                         )
                     else:
-                        target_label = "CLIENTE"
+                        target_label = "Cliente"
                         target_key = "sel_cg_v2_target_cliente"
                         target_opts = [cg_all_token] + list(
                             db.get_cg_v2_clientes(semana_inicio=semana_inicio, gestor=gestor_sel) or []
                         )
+                else:
+                    target_opts = ["Selecciona un gestor primero"]
 
-                _cg_ensure_option_state(target_key, target_opts, cg_all_token)
+                _cg_ensure_option_state(target_key, target_opts, target_opts[0])
 
                 g1, g2 = st.columns([1.4, 1.0])
                 with g1:
-                    target_value = st.selectbox(target_label, target_opts, key=target_key)
+                    target_value = st.selectbox(
+                        f"{target_label} foco",
+                        target_opts,
+                        key=target_key,
+                        disabled=target_disabled,
+                    )
+                    if target_disabled:
+                        target_value = cg_all_token
                 with g2:
                     alerta_opts = ["Todas"] + list(
                         db.get_cg_v2_alertas(
@@ -432,7 +518,7 @@ def render_control_gestion(
                     )
                     alerta_key = "sel_cg_v2_alerta"
                     _cg_ensure_option_state(alerta_key, alerta_opts, "Todas")
-                    alerta_label = st.selectbox("ALERTA", alerta_opts, key=alerta_key)
+                    alerta_label = st.selectbox("Alerta", alerta_opts, key=alerta_key)
                     alerta_sel = None if alerta_label == "Todas" else alerta_label
 
                 rutero_sel = None
@@ -452,7 +538,23 @@ def render_control_gestion(
                     or (vista_sel == "CLIENTE" and cliente_sel is not None)
                 )
 
-                st.caption("Semanas visibles: actual, S-1 y S-2.")
+                context_cols = st.columns(3)
+                with context_cols[0]:
+                    st.caption(f"Semana: {semana_inicio}")
+                with context_cols[1]:
+                    st.caption(f"Gestor seleccionado: {gestor_sel or 'Pendiente'}")
+                with context_cols[2]:
+                    st.caption(f"Vista activa: {vista_label}")
+
+                if vista_sel == "RUTERO":
+                    focus_value = rutero_sel or "Pendiente"
+                    st.caption(f"Rutero foco: {focus_value}")
+                elif vista_sel == "LOCAL":
+                    focus_value = local_sel or "Pendiente"
+                    st.caption(f"Local foco: {focus_value}")
+                else:
+                    focus_value = cliente_sel or "Pendiente"
+                    st.caption(f"Cliente foco: {focus_value}")
 
                 kpi_df = db.get_cg_v2_scope_kpis(
                     semana_inicio=semana_inicio,
@@ -463,6 +565,12 @@ def render_control_gestion(
                     local=local_sel,
                 )
                 kpi_row = kpi_df.iloc[0].to_dict() if kpi_df is not None and not kpi_df.empty else {}
+                if not gestor_ready:
+                    st.markdown("#### KPIs globales de la semana")
+                elif not detail_ready:
+                    st.markdown("#### KPIs del gestor")
+                else:
+                    st.markdown("#### KPIs del universo filtrado")
                 _cg_v2_metric_cards(kpi_row)
 
                 if not detail_ready:
@@ -482,6 +590,11 @@ def render_control_gestion(
 
                 st.markdown("#### Validación diaria")
                 st.markdown("1 = visita exigida; &#10003; = evidencia registrada", unsafe_allow_html=True)
+
+                st.caption(
+                    f"Gestor: {gestor_sel} | Vista: {vista_label} | "
+                    f"Foco: {rutero_sel or local_sel or cliente_sel or 'Pendiente'}"
+                )
 
                 if vista_sel == "RUTERO" and rutero_sel is not None and df_scope_v2 is not None and not df_scope_v2.empty:
                     rep_series = df_scope_v2["REPONEDOR"] if "REPONEDOR" in df_scope_v2.columns else pd.Series(dtype=object)
