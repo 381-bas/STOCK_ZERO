@@ -186,7 +186,7 @@ def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
         "COD_RT",
         "LOCAL",
         "CLIENTE",
-        "VISITAS EXIGIDAS",
+        "EXIGIDAS SEM.",
         "LUN",
         "MAR",
         "MIE",
@@ -222,7 +222,7 @@ def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
                 safe_value = html.escape("" if pd.isna(raw_value) else str(raw_value))
                 if col == "COD_RT":
                     cell_html.append(f'<td class="cg-code-cell">{safe_value}</td>')
-                elif col in {"VISITAS EXIGIDAS", "PENDIENTE"}:
+                elif col in {"EXIGIDAS SEM.", "PENDIENTE"}:
                     cell_html.append(f'<td class="cg-num-cell">{safe_value}</td>')
                 elif col == "LOCAL":
                     cell_html.append(f'<td class="cg-local-cell">{safe_value}</td>')
@@ -606,7 +606,7 @@ def render_control_gestion(
                     )
 
                 st.markdown("#### Validación diaria")
-                st.markdown("1 = visita exigida; &#10003; = evidencia registrada", unsafe_allow_html=True)
+                st.markdown("1 = día planificado; &#10003; = evidencia registrada", unsafe_allow_html=True)
 
                 if vista_sel == "RUTERO" and rutero_sel is not None and df_scope_v2 is not None and not df_scope_v2.empty:
                     rep_series = df_scope_v2["REPONEDOR"] if "REPONEDOR" in df_scope_v2.columns else pd.Series(dtype=object)
@@ -626,7 +626,7 @@ def render_control_gestion(
                         "COD_RT": "COD_RT",
                         "LOCAL": "LOCAL",
                         "CLIENTE": "CLIENTE",
-                        "VISITA": "VISITAS EXIGIDAS",
+                        "VISITA": "EXIGIDAS SEM.",
                         "LUN": "LUN",
                         "MAR": "MAR",
                         "MIE": "MIE",
@@ -644,7 +644,7 @@ def render_control_gestion(
                         "COD_RT",
                         "LOCAL",
                         "CLIENTE",
-                        "VISITAS EXIGIDAS",
+                        "EXIGIDAS SEM.",
                         "LUN",
                         "MAR",
                         "MIE",
