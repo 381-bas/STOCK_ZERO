@@ -286,8 +286,8 @@ def _get_db_urls() -> tuple[str, str | None]:
     fallback = os.getenv("DB_URL_FALLBACK", "").strip() or None
     if not primary and not fallback:
         raise AppError(
-            "ConfiguraciÃ³n incompleta: falta DB_URL_APP/DB_URL.\n"
-            "SoluciÃ³n: agrega en tu .env una lÃ­nea:\n"
+            "Configuración incompleta: falta DB_URL_APP/DB_URL.\n"
+            "Solución: agrega en tu .env una línea:\n"
             "DB_URL_APP=postgresql://USER:PASS@HOST:PORT/DB"
         )
     return primary, fallback
@@ -677,7 +677,7 @@ def _build_result_filters(
             f"""
             AND (
                 CAST({pfx}"Sku" AS TEXT) ILIKE :q
-                OR COALESCE({pfx}"DescripciÃ³n del Producto", '') ILIKE :q
+                OR COALESCE({pfx}"Descripción del Producto", '') ILIKE :q
                 OR COALESCE({pfx}"MARCA", '') ILIKE :q
             )
             """
@@ -1037,7 +1037,7 @@ def get_tabla_ux_page_home(
     return qdf(f"""
         SELECT
           v.fecha,
-          v."MARCA", v."Sku", v."DescripciÃ³n del Producto",
+          v."MARCA", v."Sku", v."Descripción del Producto",
           v."Stock", v."Venta(+7)", v."NEGATIVO", v."RIESGO DE QUIEBRE", v."OTROS"
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
@@ -1048,7 +1048,7 @@ def get_tabla_ux_page_home(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."DescripciÃ³n del Producto" ASC
+          v."Descripción del Producto" ASC
         LIMIT :limit OFFSET :offset
     """, {
         "cod_rt": cod_rt,
@@ -1072,7 +1072,7 @@ def get_tabla_ux_export_home(
     return qdf(f"""
         SELECT
           v.fecha,
-          v."MARCA", v."Sku", v."DescripciÃ³n del Producto",
+          v."MARCA", v."Sku", v."Descripción del Producto",
           v."Stock", v."Venta(+7)", v."NEGATIVO", v."RIESGO DE QUIEBRE", v."OTROS"
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
@@ -1083,7 +1083,7 @@ def get_tabla_ux_export_home(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."DescripciÃ³n del Producto" ASC
+          v."Descripción del Producto" ASC
     """, {"cod_rt": cod_rt, **p2, **cliente_params})
 
 
@@ -1137,7 +1137,7 @@ def get_tabla_ux_page(
     return qdf(f"""
         SELECT
           v.fecha,
-          v."MARCA", v."Sku", v."DescripciÃ³n del Producto",
+          v."MARCA", v."Sku", v."Descripción del Producto",
           v."Stock", v."Venta(+7)", v."NEGATIVO", v."RIESGO DE QUIEBRE", v."OTROS"
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
@@ -1149,7 +1149,7 @@ def get_tabla_ux_page(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."DescripciÃ³n del Producto" ASC
+          v."Descripción del Producto" ASC
         LIMIT :limit OFFSET :offset
     """, {
         "rutero": rutero,
@@ -1214,7 +1214,7 @@ def get_tabla_ux_export(
     return qdf(f"""
         SELECT
           v.fecha,
-          v."MARCA", v."Sku", v."DescripciÃ³n del Producto",
+          v."MARCA", v."Sku", v."Descripción del Producto",
           v."Stock", v."Venta(+7)", v."NEGATIVO", v."RIESGO DE QUIEBRE", v."OTROS"
         FROM {RESULT_VIEW} v
         WHERE v.cod_rt = :cod_rt
@@ -1226,7 +1226,7 @@ def get_tabla_ux_export(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."DescripciÃ³n del Producto" ASC
+          v."Descripción del Producto" ASC
     """, {
         "rutero": rutero,
         "reponedor": reponedor,
@@ -2425,7 +2425,7 @@ def get_export_inventario_cliente(
                 COALESCE(NULLIF(b.modalidades, ''), 'SIN ASIGNAR') AS "MODALIDAD",
                 b.marca AS "MARCA",
                 CAST(b.sku AS TEXT) AS "Sku",
-                b.producto AS "DescripciÃ³n del Producto",
+                b.producto AS "Descripción del Producto",
                 b.stock AS "Stock",
                 b.venta_7 AS "Venta(+7)",
                 b.negativo AS "NEGATIVO",
@@ -2543,7 +2543,7 @@ def get_export_inventario_cliente(
             COALESCE(NULLIF(rr_ctx.modalidad, ''), 'SIN ASIGNAR') AS "MODALIDAD",
             bf.marca AS "MARCA",
             bf.sku AS "Sku",
-            bf.producto AS "DescripciÃ³n del Producto",
+            bf.producto AS "Descripción del Producto",
             bf.stock AS "Stock",
             bf.venta_7 AS "Venta(+7)",
             bf.negativo AS "NEGATIVO",
@@ -2609,7 +2609,7 @@ def get_export_inventario_local(
             COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR",
             COALESCE(NULLIF(TRIM(v."MARCA"), ''), '') AS "MARCA",
             CAST(v."Sku" AS TEXT) AS "Sku",
-            COALESCE(v."DescripciÃ³n del Producto", '') AS "DescripciÃ³n del Producto",
+            COALESCE(v."Descripción del Producto", '') AS "Descripción del Producto",
             COALESCE(v."Stock", 0)::int AS "Stock",
             COALESCE(v."Venta(+7)", 0)::int AS "Venta(+7)",
             COALESCE(v."NEGATIVO", '') AS "NEGATIVO",
@@ -2627,7 +2627,7 @@ def get_export_inventario_local(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."DescripciÃ³n del Producto" ASC
+          v."Descripción del Producto" ASC
     """
     return qdf(sql, {"cod_rt": cod_rt, **cliente_params})
 
@@ -2684,7 +2684,7 @@ def get_export_inventario_mercaderista_local(
             COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR",
             COALESCE(NULLIF(TRIM(v."MARCA"), ''), '') AS "MARCA",
             CAST(v."Sku" AS TEXT) AS "Sku",
-            COALESCE(v."DescripciÃ³n del Producto", '') AS "DescripciÃ³n del Producto",
+            COALESCE(v."Descripción del Producto", '') AS "Descripción del Producto",
             COALESCE(v."Stock", 0)::int AS "Stock",
             COALESCE(v."Venta(+7)", 0)::int AS "Venta(+7)",
             COALESCE(v."NEGATIVO", '') AS "NEGATIVO",
@@ -2703,7 +2703,7 @@ def get_export_inventario_mercaderista_local(
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN 0 ELSE 1 END ASC,
           CASE WHEN v."Sku" ~ '^[0-9]+$' THEN (v."Sku")::bigint END ASC NULLS LAST,
           v."Sku" ASC,
-          v."DescripciÃ³n del Producto" ASC
+          v."Descripción del Producto" ASC
     """
     return qdf(sql, {
         "cod_rt": cod_rt,
@@ -2716,7 +2716,7 @@ def get_export_inventario_mercaderista_local(
 
 
 # =========================================================
-# 6) AUDITORÃA DE COBERTURA E INCONSISTENCIAS
+# 6) AUDITORÍA DE COBERTURA E INCONSISTENCIAS
 # =========================================================
 def get_scope_clientes_rr(
     cod_rt: str,
