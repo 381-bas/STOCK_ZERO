@@ -6,14 +6,10 @@ import hashlib
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
+import unicodedata
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-import psycopg2
-from psycopg2.extras import Json, execute_values
-
-from cliente_mvs import run_cliente_mvs_refresh
-from refresh_control_gestion_v2_mv import run_cg_v2_mv_refresh
 
 LOADER_NAME = "load_ruta_rutero_from_excel"
 LOCAL_TZ = ZoneInfo("America/Santiago")
@@ -71,6 +67,120 @@ def ensure_sslmode(db_url: str) -> str:
     if "?" in db_url:
         return db_url + "&sslmode=require"
     return db_url + "?sslmode=require"
+
+
+def normalize_header_key(value: object) -> str:
+    text = str(value or "").replace("\ufeff", "").strip()
+    text = " ".join(text.split())
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return text.upper()
+
+
+def print_source_check(payload: dict) -> None:
+    print(json.dumps({"source_check": payload}, ensure_ascii=False, indent=2))
+
+
+def finalize_source_check(payload: dict, blockers: list[str], warnings: list[str], notes: list[str]) -> dict:
+    payload["blockers"] = blockers
+    payload["warnings"] = warnings
+    payload["notes"] = notes
+    if blockers:
+        payload["final_verdict"] = "block"
+    elif warnings:
+        payload["final_verdict"] = "warn"
+    else:
+        payload["final_verdict"] = "ok"
+    return payload
+
+
+def run_source_check_ruta(*, excel_path: str, sheet: str, strict: bool) -> dict:
+    del strict  # reserved for future parity with other loaders
+    required_keys = [
+        "CADENA",
+        "FORMATO",
+        "REGION",
+        "COMUNA",
+        "COD KPI ONE",
+        "COD B2B",
+        "LOCAL",
+        "DIRECCION",
+        "VECES POR SEMANA",
+        "RUTERO",
+        "JEFE DE OPERACIONES",
+        "GESTORES",
+        "CLIENTE",
+        "SUPERVISOR",
+        "REPONEDOR",
+        "LUNES",
+        "MARTES",
+        "MIERCOLES",
+        "JUEVES",
+        "VIERNES",
+        "SABADO",
+        "DOMINGO",
+        "VISITA MENSUAL",
+        "DIF",
+        "OBS",
+        "AUX",
+        "GG",
+        "MODALIDAD",
+    ]
+    payload = {
+        "loader": "load_ruta_rutero_from_excel.py",
+        "file": str(excel_path),
+        "sheet_scope": [sheet],
+        "final_verdict": "ok",
+        "blockers": [],
+        "warnings": [],
+        "rows_checked": {},
+        "date_ranges": {},
+        "notes": [],
+    }
+    blockers: list[str] = []
+    warnings: list[str] = []
+    notes: list[str] = []
+
+    excel_file = os.path.abspath(excel_path)
+    if not os.path.exists(excel_file):
+        blockers.append(f"missing_workbook:{excel_file}")
+        return finalize_source_check(payload, blockers, warnings, notes)
+
+    try:
+        book = pd.ExcelFile(excel_file)
+    except Exception as exc:
+        blockers.append(f"unreadable_workbook:{type(exc).__name__}")
+        notes.append(str(exc))
+        return finalize_source_check(payload, blockers, warnings, notes)
+
+    if sheet not in book.sheet_names:
+        blockers.append(f"missing_sheet:{sheet}")
+        notes.append("available_sheets=" + ", ".join(book.sheet_names))
+        return finalize_source_check(payload, blockers, warnings, notes)
+
+    try:
+        df = pd.read_excel(excel_file, sheet_name=sheet)
+    except Exception as exc:
+        blockers.append(f"sheet_read_error:{sheet}:{type(exc).__name__}")
+        notes.append(str(exc))
+        return finalize_source_check(payload, blockers, warnings, notes)
+
+    df.columns = [norm_col(c) for c in df.columns]
+    payload["rows_checked"][sheet] = int(len(df))
+
+    normalized_map = {normalize_header_key(col): col for col in df.columns}
+    missing = [key for key in required_keys if key not in normalized_map]
+    if missing:
+        blockers.append("missing_critical_columns:" + ",".join(missing))
+
+    extras = [col for col in df.columns if normalize_header_key(col) not in required_keys]
+    if extras:
+        warnings.append("extra_columns:" + ",".join(extras))
+
+    notes.append("LUNES-DOMINGO treated as structural flags, not dates")
+    notes.append("VECES POR SEMANA treated as frequency field, not date")
+    notes.append("source_check runs before DB")
+    return finalize_source_check(payload, blockers, warnings, notes)
 
 
 def get_effective_week_info(loaded_at: datetime) -> tuple[str, int]:
@@ -135,6 +245,8 @@ def build_cg_history_rows(
     source_sheet: str,
     loaded_at: datetime,
 ) -> list[tuple]:
+    from psycopg2.extras import Json
+
     records = []
     for rec in out.to_dict(orient="records"):
         payload = {
@@ -222,6 +334,8 @@ def build_cg_history_rows(
 def insert_cg_history_rows(cur, rows: list[tuple]) -> None:
     if not rows:
         return
+    from psycopg2.extras import execute_values
+
     execute_values(
         cur,
         """
@@ -325,12 +439,43 @@ def main():
     ap.add_argument("--no-refresh-cliente-mvs", action="store_true")
     ap.add_argument("--refresh-cg-v2-mv", action="store_true")
     ap.add_argument("--validate-cg-v2-mv", action="store_true")
+    ap.add_argument("--skip-source-check", action="store_true")
+    ap.add_argument("--source-check-strict", action="store_true")
+    ap.add_argument("--source-check-only", action="store_true")
     args = ap.parse_args()
+
+    if args.skip_source_check:
+        source_check = {
+            "loader": "load_ruta_rutero_from_excel.py",
+            "file": str(args.excel),
+            "sheet_scope": [args.sheet],
+            "final_verdict": "warn",
+            "blockers": [],
+            "warnings": ["source_check_skipped_by_flag"],
+            "rows_checked": {},
+            "date_ranges": {},
+            "notes": ["source_check disabled by --skip-source-check"],
+        }
+    else:
+        source_check = run_source_check_ruta(
+            excel_path=args.excel,
+            sheet=args.sheet,
+            strict=bool(args.source_check_strict),
+        )
+    print_source_check(source_check)
+
+    if source_check["final_verdict"] == "block":
+        raise SystemExit(1)
+
+    if args.source_check_only:
+        return
 
     if not args.db_url:
         raise SystemExit("Falta DB_URL_LOAD/DB_URL. Setea DB_URL_LOAD o pasa --db_url")
     if args.validate_cg_v2_mv and not args.refresh_cg_v2_mv:
         raise SystemExit("--validate-cg-v2-mv requiere --refresh-cg-v2-mv")
+
+    import psycopg2
 
     db_url = ensure_sslmode(args.db_url)
 
@@ -540,6 +685,8 @@ def main():
     if args.no_refresh_cliente_mvs:
         result["cliente_mvs_refresh"] = {"status": "skipped", "reason": "--no-refresh-cliente-mvs"}
     else:
+        from cliente_mvs import run_cliente_mvs_refresh
+
         refresh_result = run_cliente_mvs_refresh(
             db_url=args.db_url,
             execute=True,
@@ -549,6 +696,8 @@ def main():
 
     if args.refresh_cg_v2_mv:
         try:
+            from refresh_control_gestion_v2_mv import run_cg_v2_mv_refresh
+
             result["cg_v2_mv_refresh"] = run_cg_v2_mv_refresh(
                 db_url=args.db_url,
                 validate=args.validate_cg_v2_mv,

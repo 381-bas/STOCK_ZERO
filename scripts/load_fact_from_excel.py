@@ -23,16 +23,13 @@ Notas:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import time
 from datetime import date, datetime
 from typing import Iterable
 
 import pandas as pd
-import psycopg2
-from psycopg2.extras import execute_values
-
-from cliente_mvs import run_cliente_mvs_refresh
 
 
 # =========================================================
@@ -80,10 +77,116 @@ def chunked(seq: list[tuple], size: int) -> Iterable[list[tuple]]:
         yield seq[i : i + size]
 
 
+def print_source_check(payload: dict) -> None:
+    print(json.dumps({"source_check": payload}, ensure_ascii=False, indent=2))
+
+
+def finalize_source_check(payload: dict, blockers: list[str], warnings: list[str], notes: list[str]) -> dict:
+    payload["blockers"] = blockers
+    payload["warnings"] = warnings
+    payload["notes"] = notes
+    if blockers:
+        payload["final_verdict"] = "block"
+    elif warnings:
+        payload["final_verdict"] = "warn"
+    else:
+        payload["final_verdict"] = "ok"
+    return payload
+
+
+def run_source_check_fact(*, excel_path: str, sheet: str, strict: bool) -> dict:
+    required = [
+        "CADENA",
+        "FECHA",
+        "MARCA",
+        "SKU",
+        "DESCRIPCION_PRODUCTO",
+        "N_LOCAL",
+        "VTA(Un)",
+        "INV(Un)",
+        "COD_RT",
+        "NOMBRE_LOCAL_RR",
+        "OTROS",
+    ]
+    payload = {
+        "loader": "load_fact_from_excel.py",
+        "file": str(excel_path),
+        "sheet_scope": [sheet],
+        "final_verdict": "ok",
+        "blockers": [],
+        "warnings": [],
+        "rows_checked": {},
+        "date_ranges": {},
+        "notes": [],
+    }
+    blockers: list[str] = []
+    warnings: list[str] = []
+    notes: list[str] = []
+
+    excel_file = os.path.abspath(excel_path)
+    if not os.path.exists(excel_file):
+        blockers.append(f"missing_workbook:{excel_file}")
+        return finalize_source_check(payload, blockers, warnings, notes)
+
+    try:
+        book = pd.ExcelFile(excel_file)
+    except Exception as exc:
+        blockers.append(f"unreadable_workbook:{type(exc).__name__}")
+        notes.append(str(exc))
+        return finalize_source_check(payload, blockers, warnings, notes)
+
+    if sheet not in book.sheet_names:
+        blockers.append(f"missing_sheet:{sheet}")
+        notes.append("available_sheets=" + ", ".join(book.sheet_names))
+        return finalize_source_check(payload, blockers, warnings, notes)
+
+    try:
+        df = pd.read_excel(excel_file, sheet_name=sheet)
+    except Exception as exc:
+        blockers.append(f"sheet_read_error:{sheet}:{type(exc).__name__}")
+        notes.append(str(exc))
+        return finalize_source_check(payload, blockers, warnings, notes)
+
+    df.columns = [norm_col(c) for c in df.columns]
+    payload["rows_checked"][sheet] = int(len(df))
+
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        blockers.append("missing_critical_columns:" + ",".join(missing))
+
+    extras = [c for c in df.columns if c not in required]
+    if extras:
+        warnings.append("extra_columns:" + ",".join(extras))
+
+    if "FECHA" in df.columns:
+        raw_dates = df["FECHA"]
+        parsed_dates = pd.to_datetime(raw_dates, errors="coerce", dayfirst=True)
+        non_null_count = int(raw_dates.notna().sum())
+        parse_ok_count = int(parsed_dates.notna().sum())
+        parse_errors = max(non_null_count - parse_ok_count, 0)
+        payload["date_ranges"]["FECHA"] = {
+            "min_date": parsed_dates.min().isoformat() if parse_ok_count else "",
+            "max_date": parsed_dates.max().isoformat() if parse_ok_count else "",
+            "null_date_count": parse_errors,
+            "parse_errors_count": parse_errors,
+        }
+        if parse_errors > 0:
+            if strict or parse_ok_count == 0:
+                blockers.append(f"fecha_parse_error:FECHA:{parse_errors}")
+            else:
+                warnings.append(f"fecha_parse_warning:FECHA:{parse_errors}")
+
+    notes.append("default_sheet=BASE")
+    notes.append("source_check_runs_before_db")
+    return finalize_source_check(payload, blockers, warnings, notes)
+
+
 # =========================================================
 # DB helpers
 # =========================================================
 def connect(db_url: str, connect_timeout: int):
+    import psycopg2
+
     return psycopg2.connect(
         db_url,
         connect_timeout=connect_timeout,
@@ -134,6 +237,8 @@ def insert_rows_batch(
     rows: list[tuple],
     page_size: int,
 ) -> None:
+    from psycopg2.extras import execute_values
+
     execute_values(
         cur,
         sql_insert,
@@ -416,6 +521,9 @@ def main() -> None:
     ap.add_argument("--db_url", default=os.getenv("DB_URL_LOAD", "") or os.getenv("DB_URL", ""))
     ap.add_argument("--source", default="DB_GLOBAL_INVENTARIO.xlsx:BASE")
     ap.add_argument("--no-refresh-cliente-mvs", action="store_true")
+    ap.add_argument("--skip-source-check", action="store_true")
+    ap.add_argument("--source-check-strict", action="store_true")
+    ap.add_argument("--source-check-only", action="store_true")
 
     ap.add_argument(
         "--mode",
@@ -434,6 +542,32 @@ def main() -> None:
     ap.add_argument("--connect-timeout", type=int, default=int(os.getenv("PG_CONNECT_TIMEOUT", "20")))
 
     args = ap.parse_args()
+
+    if args.skip_source_check:
+        source_check = {
+            "loader": "load_fact_from_excel.py",
+            "file": str(args.excel),
+            "sheet_scope": [args.sheet],
+            "final_verdict": "warn",
+            "blockers": [],
+            "warnings": ["source_check_skipped_by_flag"],
+            "rows_checked": {},
+            "date_ranges": {},
+            "notes": ["source_check disabled by --skip-source-check"],
+        }
+    else:
+        source_check = run_source_check_fact(
+            excel_path=args.excel,
+            sheet=args.sheet,
+            strict=bool(args.source_check_strict),
+        )
+    print_source_check(source_check)
+
+    if source_check["final_verdict"] == "block":
+        raise SystemExit(1)
+
+    if args.source_check_only:
+        return
 
     if not args.db_url:
         raise SystemExit("Falta DB_URL. Setea DB_URL_LOAD/DB_URL en .env o pásalo con --db_url")
@@ -545,6 +679,8 @@ def main() -> None:
         print("SKIP: refresh post-carga de MVs CLIENTE omitido por --no-refresh-cliente-mvs")
         print(f"elapsed_ms={round((time.perf_counter() - t0) * 1000)}")
         return
+
+    from cliente_mvs import run_cliente_mvs_refresh
 
     refresh_result = run_cliente_mvs_refresh(
         db_url=args.db_url,
