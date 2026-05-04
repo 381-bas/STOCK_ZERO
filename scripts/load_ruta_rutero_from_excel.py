@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import unicodedata
 from zoneinfo import ZoneInfo
+import psycopg2
+from psycopg2.extras import execute_values
 
 import pandas as pd
 

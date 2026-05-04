@@ -1,7 +1,11 @@
 # app/exports.py
 import io
+import re
+from typing import Any
+
 import pandas as pd
-from openpyxl.styles import PatternFill, Font
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 from reportlab.lib.pagesizes import A4, A3, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -61,6 +65,28 @@ INVENTORY_CLIENTE_EXPORT_COLS = [
     "NEGATIVO",
     "RIESGO DE QUIEBRE",
     "OTROS",
+]
+
+CG_V2_DETAIL_EXPORT_COLS = [
+    "SEMANA",
+    "GESTOR",
+    "RUTERO",
+    "COD_RT",
+    "LOCAL",
+    "CLIENTE",
+    "MODALIDAD",
+    "EXIGIDAS SEM.",
+    "LUN",
+    "MAR",
+    "MIE",
+    "JUE",
+    "VIE",
+    "SAB",
+    "DOM",
+    "PENDIENTE",
+    "ALERTA",
+    "GESTION COMPARTIDA",
+    "RUTA COMPARTIDA",
 ]
 
 
@@ -369,6 +395,302 @@ def build_focus_export_df(df_ux: pd.DataFrame, foco: str | list[str] = "Todo") -
 
     df = _sorted_for_export(df)
     return df[FOCUS_EXPORT_COLS]
+
+
+def _safe_file_token(value: object, *, fallback: str = "scope") -> str:
+    token = str(value or "").strip()
+    token = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", token)
+    token = re.sub(r"\s+", "_", token)
+    token = token.strip("._")
+    return token or fallback
+
+
+def _cg_v2_export_day_value(value: object) -> str:
+    raw = str(value or "").strip().upper()
+    if raw in {"1 ✓", "1 \u2713"}:
+        return "1 \u2713"
+    if raw == "REQ_OK":
+        return "1 \u2713"
+    if raw == "REQ":
+        return "1"
+    if raw in {"OK", "\u2713"}:
+        return "\u2713"
+    return "" if raw in {"", "NAN", "NONE"} else str(value)
+
+
+def _cg_v2_prepare_detail_export_df(detail_df: pd.DataFrame | None) -> pd.DataFrame:
+    if detail_df is None or detail_df.empty:
+        return pd.DataFrame(columns=CG_V2_DETAIL_EXPORT_COLS)
+
+    df = detail_df.copy()
+    for col in CG_V2_DETAIL_EXPORT_COLS:
+        if col not in df.columns:
+            df[col] = ""
+    if "SEMANA" in df.columns:
+        df["SEMANA"] = pd.to_datetime(df["SEMANA"], errors="coerce").dt.strftime("%Y-%m-%d").fillna(df["SEMANA"].astype(str))
+    for col in ["EXIGIDAS SEM.", "PENDIENTE"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+    for day_col in ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"]:
+        df[day_col] = df[day_col].apply(_cg_v2_export_day_value)
+    for col in CG_V2_DETAIL_EXPORT_COLS:
+        if col not in {"EXIGIDAS SEM.", "PENDIENTE"}:
+            df[col] = df[col].fillna("")
+    return df[CG_V2_DETAIL_EXPORT_COLS]
+
+
+def _cg_v2_count_non_blank_unique(series: pd.Series) -> int:
+    values = {
+        str(value).strip()
+        for value in series.tolist()
+        if str(value or "").strip() and str(value).strip().lower() not in {"nan", "none"}
+    }
+    return len(values)
+
+
+def _cg_v2_context_export_df(context: dict[str, Any]) -> pd.DataFrame:
+    rows = [
+        ("Semana operativa", context.get("Semana operativa") or ""),
+        ("Gestor", context.get("Gestor") or "Todos"),
+        ("Vista de analisis", context.get("Vista de analisis") or ""),
+        ("Foco", context.get("Foco") or "scope"),
+        ("Alerta", context.get("Alerta") or "Todas"),
+        ("Fuente weekly", context.get("Fuente weekly") or ""),
+        ("Generado en", context.get("Generado en") or ""),
+    ]
+    return pd.DataFrame(rows, columns=["CAMPO", "VALOR"])
+
+
+def _cg_v2_summary_export_df(summary: dict[str, Any]) -> pd.DataFrame:
+    visita_plan = int(summary.get("visita_plan") or 0)
+    visita_realizada_cap = int(summary.get("visita_realizada_cap") or 0)
+    pct_cumplimiento = round((visita_realizada_cap / visita_plan) * 100, 1) if visita_plan > 0 else 0.0
+    rows = [
+        ("Filas raw weekly", int(summary.get("total_rows") or 0)),
+        ("Visitas exigidas semanales", visita_plan),
+        ("Visitas válidas", visita_realizada_cap),
+        ("% cumplimiento", pct_cumplimiento),
+        ("Visitas pendientes", int(summary.get("visitas_pendientes") or 0)),
+        ("Rutas cumplen", int(summary.get("cumple_rows") or 0)),
+        ("Rutas incumplen", int(summary.get("incumple_rows") or 0)),
+        ("Rutas no aplica", int(summary.get("no_aplica_rows") or 0)),
+        ("Sobrecumplimiento", int(summary.get("sobre_cumplimiento") or 0)),
+        ("Gestión compartida (rows)", int(summary.get("gestion_compartida_rows") or 0)),
+    ]
+    return pd.DataFrame(rows, columns=["METRICA", "VALOR"])
+
+
+def _cg_v2_top_incumplimientos_por_cliente(detail_df: pd.DataFrame) -> pd.DataFrame:
+    columns = [
+        "RANK",
+        "CLIENTE",
+        "LOCALES VISIBLES",
+        "COD_RT VISIBLES",
+        "EXIGIDAS SEM. TOTAL",
+        "PENDIENTE TOTAL",
+        "INCUMPLE ROWS",
+    ]
+    if detail_df is None or detail_df.empty:
+        return pd.DataFrame(columns=columns)
+
+    df = detail_df[detail_df["ALERTA"].astype(str).str.upper() == "INCUMPLE"].copy()
+    if df.empty:
+        return pd.DataFrame(columns=columns)
+
+    grouped = (
+        df.groupby("CLIENTE", dropna=False)
+        .agg(
+            **{
+                "LOCALES VISIBLES": ("LOCAL", _cg_v2_count_non_blank_unique),
+                "COD_RT VISIBLES": ("COD_RT", _cg_v2_count_non_blank_unique),
+                "EXIGIDAS SEM. TOTAL": ("EXIGIDAS SEM.", "sum"),
+                "PENDIENTE TOTAL": ("PENDIENTE", "sum"),
+                "INCUMPLE ROWS": ("ALERTA", "count"),
+            }
+        )
+        .reset_index()
+    )
+    grouped["CLIENTE"] = grouped["CLIENTE"].fillna("").astype(str)
+    grouped = grouped.sort_values(
+        by=["PENDIENTE TOTAL", "INCUMPLE ROWS", "CLIENTE"],
+        ascending=[False, False, True],
+        kind="mergesort",
+    ).head(10)
+    grouped.insert(0, "RANK", range(1, len(grouped) + 1))
+    return grouped[columns]
+
+
+def _cg_v2_top_locales_rutas_pendiente(detail_df: pd.DataFrame) -> pd.DataFrame:
+    columns = [
+        "RANK",
+        "COD_RT",
+        "LOCAL",
+        "CLIENTE",
+        "GESTOR",
+        "RUTERO",
+        "RUTA COMPARTIDA",
+        "EXIGIDAS SEM.",
+        "PENDIENTE",
+        "ALERTA",
+    ]
+    if detail_df is None or detail_df.empty:
+        return pd.DataFrame(columns=columns)
+
+    df = detail_df[detail_df["ALERTA"].astype(str).str.upper() != "NO APLICA"].copy()
+    if df.empty:
+        return pd.DataFrame(columns=columns)
+
+    df = df.sort_values(
+        by=["PENDIENTE", "EXIGIDAS SEM.", "CLIENTE", "LOCAL"],
+        ascending=[False, False, True, True],
+        kind="mergesort",
+    ).head(10)
+    df = df.loc[:, [col for col in columns if col != "RANK"]].copy()
+    df.insert(0, "RANK", range(1, len(df) + 1))
+    return df[columns]
+
+
+def _cg_v2_get_or_create_sheet(writer: pd.ExcelWriter, sheet_name: str):
+    safe_sheet = str(sheet_name or "DATA")[:31]
+    workbook = writer.book
+    if safe_sheet in writer.sheets:
+        return writer.sheets[safe_sheet]
+    ws = workbook.create_sheet(title=safe_sheet)
+    writer.sheets[safe_sheet] = ws
+    return ws
+
+
+def _cg_v2_style_header_row(ws, header_row: int, num_cols: int) -> None:
+    fill = PatternFill(fill_type="solid", fgColor="1F4E78")
+    font = Font(bold=True, color="FFFFFF")
+    for col_idx in range(1, num_cols + 1):
+        cell = ws.cell(row=header_row, column=col_idx)
+        cell.fill = fill
+        cell.font = font
+        cell.alignment = Alignment(vertical="center", horizontal="center", wrap_text=True)
+
+
+def _cg_v2_style_title_row(ws, row_idx: int) -> None:
+    cell = ws.cell(row=row_idx, column=1)
+    cell.font = Font(bold=True, size=12)
+    cell.fill = PatternFill(fill_type="solid", fgColor="D9EAF7")
+
+
+def _cg_v2_write_titled_table(
+    writer: pd.ExcelWriter,
+    sheet_name: str,
+    title: str,
+    df: pd.DataFrame,
+    title_row: int,
+    *,
+    add_filter: bool = False,
+) -> tuple[int, int, int]:
+    ws = _cg_v2_get_or_create_sheet(writer, sheet_name)
+    ws.cell(row=title_row, column=1, value=title)
+    _cg_v2_style_title_row(ws, title_row)
+    startrow = title_row
+    export_df = df.copy()
+    export_df.to_excel(writer, index=False, sheet_name=sheet_name, startrow=startrow)
+    header_row = title_row + 1
+    end_row = header_row + len(export_df)
+    _cg_v2_style_header_row(ws, header_row, len(export_df.columns))
+    if add_filter and export_df.columns.size > 0 and len(export_df) >= 0:
+        ws.auto_filter.ref = f"A{header_row}:{get_column_letter(len(export_df.columns))}{max(end_row, header_row)}"
+    return title_row, header_row, end_row
+
+
+def _cg_v2_autosize_worksheet(ws, *, min_width: int = 10, max_width: int = 38) -> None:
+    for column_cells in ws.columns:
+        col_idx = column_cells[0].column
+        lengths: list[int] = []
+        for cell in column_cells[:400]:
+            if cell.value is not None:
+                lengths.append(len(str(cell.value)))
+        width = min(max(min_width, (max(lengths) + 2) if lengths else min_width), max_width)
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+
+def build_control_gestion_v2_filename(*, semana_inicio: str, vista: str, foco: str | None) -> str:
+    semana_token = _safe_file_token(str(semana_inicio or "")[:10], fallback="semana")
+    vista_token = _safe_file_token(str(vista or "scope").lower(), fallback="scope")
+    foco_token = _safe_file_token(foco, fallback="scope")
+    return f"CONTROL_GESTION_V2_{semana_token}_{vista_token}_{foco_token}.xlsx"
+
+
+def build_control_gestion_v2_workbook(
+    *,
+    context: dict[str, Any],
+    summary: dict[str, Any],
+    detail_df: pd.DataFrame,
+) -> bytes:
+    detail_export_df = _cg_v2_prepare_detail_export_df(detail_df)
+    context_df = _cg_v2_context_export_df(context)
+    summary_df = _cg_v2_summary_export_df(summary)
+    top_clientes_df = _cg_v2_top_incumplimientos_por_cliente(detail_export_df)
+    top_pendientes_df = _cg_v2_top_locales_rutas_pendiente(detail_export_df)
+
+    out = io.BytesIO()
+    with pd.ExcelWriter(out, engine="openpyxl") as writer:
+        resumen_sheet = "Resumen ejecutivo"
+        detalle_sheet = "Detalle operativo"
+
+        _, _, resumen_context_end = _cg_v2_write_titled_table(
+            writer,
+            resumen_sheet,
+            "Contexto exportado",
+            context_df,
+            1,
+        )
+        _, _, resumen_kpi_end = _cg_v2_write_titled_table(
+            writer,
+            resumen_sheet,
+            "KPIs semanales",
+            summary_df,
+            resumen_context_end + 2,
+        )
+        _, _, resumen_top_client_end = _cg_v2_write_titled_table(
+            writer,
+            resumen_sheet,
+            "Top incumplimientos por cliente",
+            top_clientes_df,
+            resumen_kpi_end + 2,
+        )
+        _cg_v2_write_titled_table(
+            writer,
+            resumen_sheet,
+            "Top locales/rutas con mayor pendiente",
+            top_pendientes_df,
+            resumen_top_client_end + 2,
+        )
+
+        _, _, detalle_context_end = _cg_v2_write_titled_table(
+            writer,
+            detalle_sheet,
+            "Contexto exportado",
+            context_df,
+            1,
+        )
+        _, detalle_header_row, _ = _cg_v2_write_titled_table(
+            writer,
+            detalle_sheet,
+            "Detalle operativo",
+            detail_export_df,
+            detalle_context_end + 2,
+            add_filter=True,
+        )
+
+        resumen_ws = writer.sheets[resumen_sheet]
+        detalle_ws = writer.sheets[detalle_sheet]
+        resumen_ws.freeze_panes = "A2"
+        detalle_ws.freeze_panes = f"A{detalle_header_row + 1}"
+
+        for ws in [resumen_ws, detalle_ws]:
+            _cg_v2_autosize_worksheet(ws)
+
+        workbook = writer.book
+        if "Sheet" in workbook.sheetnames and len(workbook.sheetnames) > 2:
+            del workbook["Sheet"]
+
+    return out.getvalue()
 
 
 def export_excel_generic(sheet_name: str, df_export: pd.DataFrame) -> bytes:

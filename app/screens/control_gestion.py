@@ -6,6 +6,8 @@ import traceback
 import pandas as pd
 import streamlit as st
 
+from app.exports import build_control_gestion_v2_filename, build_control_gestion_v2_workbook
+
 
 def _cg_get_page_state(page_key: str, page_size: int = 25) -> tuple[int, int]:
     st.session_state.setdefault(page_key, 1)
@@ -669,6 +671,61 @@ def render_control_gestion(
                     ],
                 )
                 _cg_v2_render_validation_table(df_scope_v2_view)
+
+                try:
+                    export_context = {
+                        "Semana operativa": semana_inicio or "",
+                        "Gestor": gestor_sel or "Todos",
+                        "Vista de analisis": vista_label,
+                        "Foco": focus_value if focus_value != "Pendiente" else "scope",
+                        "Alerta": alerta_sel or "Todas",
+                        "Fuente weekly": str((db.get_cg_v2_contract() or {}).get("views", {}).get("out_weekly") or ""),
+                        "Generado en": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                    export_summary = db.get_cg_v2_export_summary(
+                        semana_inicio=semana_inicio,
+                        gestor=gestor_sel,
+                        cliente=cliente_sel,
+                        alerta=alerta_sel,
+                        rutero=rutero_sel,
+                        local=local_sel,
+                    )
+                    export_detail = db.get_cg_v2_export_detail(
+                        semana_inicio=semana_inicio,
+                        gestor=gestor_sel,
+                        vista=vista_sel,
+                        rutero=rutero_sel,
+                        local=local_sel,
+                        cliente=cliente_sel,
+                        alerta=alerta_sel,
+                    )
+                    workbook_bytes = build_control_gestion_v2_workbook(
+                        context=export_context,
+                        summary=export_summary,
+                        detail_df=export_detail,
+                    )
+                    file_name = build_control_gestion_v2_filename(
+                        semana_inicio=semana_inicio or "semana",
+                        vista=vista_sel.lower(),
+                        foco=None if focus_value == "Pendiente" else focus_value,
+                    )
+                    st.download_button(
+                        "Descargar Excel CONTROL_GESTION v2",
+                        data=workbook_bytes,
+                        file_name=file_name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"cg_v2_export_{vista_sel}_{semana_inicio}_{focus_value}",
+                        use_container_width=True,
+                    )
+                except Exception as export_exc:
+                    _dbg(
+                        "WARN cg_v2_export_button",
+                        err=repr(export_exc),
+                        semana_inicio=semana_inicio,
+                        gestor=gestor_sel,
+                        vista=vista_sel,
+                    )
+                    st.warning("No pude preparar el export CONTROL_GESTION v2 para este filtro.")
 
                 show_audit = st.toggle("Ver auditoría detallada", value=False, key="cg_v2_show_audit")
                 if show_audit:

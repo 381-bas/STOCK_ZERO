@@ -2941,19 +2941,61 @@ def _cg_pipe_token_values(
     return [token_map[key] for key in ordered_keys]
 
 
+def _cg_v2_shared_token_values(
+    raw_value: object,
+    *,
+    preferred_first: str | None = None,
+) -> list[str]:
+    raw_text = str(raw_value or "").strip()
+    if not raw_text:
+        return []
+    raw_values = [part.strip() for part in raw_text.split(" || ") if part.strip()]
+    return _cg_pipe_token_values(raw_values, preferred_first=preferred_first)
+
+
+def _cg_v2_primary_shared_value(
+    raw_value: object,
+    *,
+    preferred_first: str | None = None,
+) -> str:
+    token_values = _cg_v2_shared_token_values(raw_value, preferred_first=preferred_first)
+    return token_values[0] if token_values else ""
+
+
 def _cg_v2_route_shared_display(
     raw_value: object,
     *,
     selected_rutero: str | None = None,
 ) -> str:
-    raw_text = str(raw_value or "").strip()
-    if not raw_text:
-        return "No"
-    raw_values = [part.strip() for part in raw_text.split(" || ") if part.strip()]
-    token_values = _cg_pipe_token_values(raw_values, preferred_first=selected_rutero)
+    token_values = _cg_v2_shared_token_values(raw_value, preferred_first=selected_rutero)
     if len(token_values) <= 1:
         return "No"
     return " | ".join(token_values)
+
+
+def _cg_v2_gestion_shared_display(
+    raw_value: object,
+    *,
+    is_shared: bool,
+    selected_gestor: str | None = None,
+) -> str:
+    if not is_shared:
+        return "No"
+    token_values = _cg_v2_shared_token_values(raw_value, preferred_first=selected_gestor)
+    if not token_values:
+        return "Si: Compartida"
+    return "Si: " + " | ".join(token_values)
+
+
+def _cg_v2_export_day_display(raw_value: object) -> str:
+    raw = str(raw_value or "").strip().upper()
+    if raw == "REQ_OK":
+        return "1 \u2713"
+    if raw == "REQ":
+        return "1"
+    if raw == "OK":
+        return "\u2713"
+    return ""
 
 
 def _cg_v2_out_weekly_filters(
@@ -4129,6 +4171,298 @@ def get_cg_v2_scope_kpis(
         {search_sql}
     """
     return _selector_df("get_cg_v2_scope_kpis", sql, query_params or None)
+
+
+def get_cg_v2_export_summary(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+    rutero: str | None = None,
+    local: str | None = None,
+) -> dict[str, Any]:
+    mv_mode = _cg_v2_out_weekly_is_mv()
+    where_sql, params = _cg_v2_out_weekly_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        alerta=alerta,
+        rutero=rutero,
+        local=local,
+    )
+    alerta_norm_expr = '"ALERTA_NORM_FILTER"' if mv_mode else _cg_text_norm_expr('"ALERTA"')
+    visitas_pendientes_expr = (
+        'COALESCE(SUM(COALESCE("VISITAS_PENDIENTES_CALC", 0)), 0)::int AS visitas_pendientes'
+        if mv_mode
+        else 'COALESCE(SUM(GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)), 0)::int AS visitas_pendientes'
+    )
+    gestion_compartida_expr = (
+        'COALESCE(SUM(COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0)), 0)::int AS gestion_compartida_rows'
+        if mv_mode
+        else """
+            COALESCE(SUM(CASE
+                WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
+                  OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
+                  OR CAST("GESTOR" AS TEXT) LIKE '%|%'
+                  OR CAST("RUTERO" AS TEXT) LIKE '%|%'
+                THEN 1
+                ELSE 0
+            END), 0)::int AS gestion_compartida_rows
+        """
+    )
+    df = _selector_df(
+        "get_cg_v2_export_summary",
+        f"""
+        SELECT
+            COUNT(*)::int AS total_rows,
+            COALESCE(SUM(COALESCE("VISITA", 0)), 0)::int AS visita_plan,
+            COALESCE(SUM(COALESCE("VISITA_REALIZADA_CAP", 0)), 0)::int AS visita_realizada_cap,
+            {visitas_pendientes_expr},
+            COALESCE(SUM(COALESCE("SOBRE_CUMPLIMIENTO", 0)), 0)::int AS sobre_cumplimiento,
+            COALESCE(SUM(CASE
+                WHEN COALESCE("VISITA", 0) <= 0 THEN 1
+                ELSE 0
+            END), 0)::int AS no_aplica_rows,
+            COALESCE(SUM(CASE
+                WHEN COALESCE("VISITA", 0) > 0 AND {alerta_norm_expr} = 'CUMPLE' THEN 1
+                ELSE 0
+            END), 0)::int AS cumple_rows,
+            COALESCE(SUM(CASE
+                WHEN COALESCE("VISITA", 0) > 0 AND {alerta_norm_expr} = 'INCUMPLE' THEN 1
+                ELSE 0
+            END), 0)::int AS incumple_rows,
+            {gestion_compartida_expr}
+        FROM {CG_V2_OUT_WEEKLY_VIEW} v
+        WHERE 1=1
+        {where_sql}
+        """,
+        params or None,
+    )
+    defaults = {
+        "total_rows": 0,
+        "visita_plan": 0,
+        "visita_realizada_cap": 0,
+        "visitas_pendientes": 0,
+        "sobre_cumplimiento": 0,
+        "cumple_rows": 0,
+        "incumple_rows": 0,
+        "no_aplica_rows": 0,
+        "gestion_compartida_rows": 0,
+    }
+    if df is None or df.empty:
+        return defaults
+    row = {**defaults, **df.iloc[0].to_dict()}
+    for key in defaults:
+        try:
+            row[key] = int(row.get(key) or 0)
+        except Exception:
+            row[key] = 0
+    return row
+
+
+def get_cg_v2_export_detail(
+    semana_inicio: str | None = None,
+    gestor: str | None = None,
+    vista: str = "RUTERO",
+    rutero: str | None = None,
+    local: str | None = None,
+    cliente: str | None = None,
+    alerta: str | None = None,
+) -> pd.DataFrame:
+    export_columns = [
+        "SEMANA",
+        "GESTOR",
+        "RUTERO",
+        "COD_RT",
+        "LOCAL",
+        "CLIENTE",
+        "MODALIDAD",
+        "EXIGIDAS SEM.",
+        "LUN",
+        "MAR",
+        "MIE",
+        "JUE",
+        "VIE",
+        "SAB",
+        "DOM",
+        "PENDIENTE",
+        "ALERTA",
+        "GESTION COMPARTIDA",
+        "RUTA COMPARTIDA",
+    ]
+    vista_key = str(vista or "RUTERO").strip().upper()
+    if vista_key not in {"RUTERO", "LOCAL", "CLIENTE"}:
+        vista_key = "RUTERO"
+    export_order_sql_map = {
+        "RUTERO": """
+            ORDER BY
+                "SEMANA_INICIO" DESC,
+                "GESTOR_SHARED_RAW" ASC,
+                "RUTERO_SHARED_RAW" ASC,
+                "LOCAL" ASC,
+                "CLIENTE" ASC,
+                "COD_RT" ASC
+        """,
+        "LOCAL": """
+            ORDER BY
+                "SEMANA_INICIO" DESC,
+                "GESTOR_SHARED_RAW" ASC,
+                "LOCAL" ASC,
+                "CLIENTE" ASC,
+                "RUTERO_SHARED_RAW" ASC,
+                "COD_RT" ASC
+        """,
+        "CLIENTE": """
+            ORDER BY
+                "SEMANA_INICIO" DESC,
+                "GESTOR_SHARED_RAW" ASC,
+                "CLIENTE" ASC,
+                "LOCAL" ASC,
+                "RUTERO_SHARED_RAW" ASC,
+                "COD_RT" ASC
+        """,
+    }
+
+    mv_mode = _cg_v2_out_weekly_is_mv()
+    where_sql, params = _cg_v2_out_weekly_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        cliente=cliente,
+        alerta=alerta,
+        rutero=rutero,
+        local=local,
+    )
+    base_derived_cols = """
+                UPPER(TRIM(COALESCE("ALERTA", ''))) AS "ALERTA_NORM_FILTER",
+                CASE
+                    WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
+                      OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
+                      OR CAST("GESTOR" AS TEXT) LIKE '%|%'
+                      OR CAST("RUTERO" AS TEXT) LIKE '%|%'
+                    THEN 1
+                    ELSE 0
+                END::int AS "GESTION_COMPARTIDA_FLAG_CALC",
+                GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)::int AS "VISITAS_PENDIENTES_CALC",
+    """
+    if mv_mode:
+        base_derived_cols = """
+                COALESCE("ALERTA_NORM_FILTER", UPPER(TRIM(COALESCE("ALERTA", '')))) AS "ALERTA_NORM_FILTER",
+                COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0)::int AS "GESTION_COMPARTIDA_FLAG_CALC",
+                COALESCE("VISITAS_PENDIENTES_CALC", 0)::int AS "VISITAS_PENDIENTES_CALC",
+        """
+    df = _selector_df(
+        "get_cg_v2_export_detail",
+        f"""
+        WITH base AS (
+            SELECT
+                "SEMANA_INICIO",
+                "GESTOR",
+                "RUTERO",
+                "COD_RT",
+                "LOCAL",
+                "CLIENTE",
+                "MODALIDAD",
+                "VISITA",
+                "ALERTA",
+                {base_derived_cols}
+                "LUNES_PLAN",
+                "LUNES_FLAG",
+                "MARTES_PLAN",
+                "MARTES_FLAG",
+                "MIERCOLES_PLAN",
+                "MIERCOLES_FLAG",
+                "JUEVES_PLAN",
+                "JUEVES_FLAG",
+                "VIERNES_PLAN",
+                "VIERNES_FLAG",
+                "SABADO_PLAN",
+                "SABADO_FLAG",
+                "DOMINGO_PLAN",
+                "DOMINGO_FLAG"
+            FROM {CG_V2_OUT_WEEKLY_VIEW} v
+            WHERE 1=1
+            {where_sql}
+        )
+        SELECT
+            "SEMANA_INICIO",
+            COALESCE(
+                NULLIF(STRING_AGG(DISTINCT NULLIF(CAST("GESTOR" AS TEXT), ''), ' || '), ''),
+                MAX(COALESCE("GESTOR", ''))
+            ) AS "GESTOR_SHARED_RAW",
+            COALESCE(
+                NULLIF(STRING_AGG(DISTINCT NULLIF(CAST("RUTERO" AS TEXT), ''), ' || '), ''),
+                MAX(COALESCE("RUTERO", ''))
+            ) AS "RUTERO_SHARED_RAW",
+            "COD_RT",
+            "LOCAL",
+            "CLIENTE",
+            "MODALIDAD",
+            MAX(COALESCE("VISITA", 0))::int AS "VISITA",
+            MAX(COALESCE("VISITAS_PENDIENTES_CALC", 0))::int AS "VISITAS_PENDIENTES",
+            CASE
+                WHEN MAX(COALESCE("VISITA", 0)) <= 0 THEN 'NO APLICA'
+                WHEN SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'INCUMPLE' THEN 1 ELSE 0 END) > 0 THEN 'INCUMPLE'
+                ELSE 'CUMPLE'
+            END AS "ALERTA",
+            MAX(COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0))::int AS "GESTION_COMPARTIDA_FLAG",
+            {_cg_v2_checklist_case('MAX(COALESCE("LUNES_PLAN", 0))', 'MAX(COALESCE("LUNES_FLAG", 0))')} AS "LUN",
+            {_cg_v2_checklist_case('MAX(COALESCE("MARTES_PLAN", 0))', 'MAX(COALESCE("MARTES_FLAG", 0))')} AS "MAR",
+            {_cg_v2_checklist_case('MAX(COALESCE("MIERCOLES_PLAN", 0))', 'MAX(COALESCE("MIERCOLES_FLAG", 0))')} AS "MIE",
+            {_cg_v2_checklist_case('MAX(COALESCE("JUEVES_PLAN", 0))', 'MAX(COALESCE("JUEVES_FLAG", 0))')} AS "JUE",
+            {_cg_v2_checklist_case('MAX(COALESCE("VIERNES_PLAN", 0))', 'MAX(COALESCE("VIERNES_FLAG", 0))')} AS "VIE",
+            {_cg_v2_checklist_case('MAX(COALESCE("SABADO_PLAN", 0))', 'MAX(COALESCE("SABADO_FLAG", 0))')} AS "SAB",
+            {_cg_v2_checklist_case('MAX(COALESCE("DOMINGO_PLAN", 0))', 'MAX(COALESCE("DOMINGO_FLAG", 0))')} AS "DOM"
+        FROM base
+        GROUP BY
+            "SEMANA_INICIO",
+            "COD_RT",
+            "LOCAL",
+            "CLIENTE",
+            "MODALIDAD"
+        {export_order_sql_map[vista_key]}
+        """,
+        params or None,
+    )
+    if df is None or df.empty:
+        return pd.DataFrame(columns=export_columns)
+
+    df = df.copy()
+
+    def _is_shared_flag(value: object) -> bool:
+        numeric = pd.to_numeric(value, errors="coerce")
+        if pd.isna(numeric):
+            return False
+        return bool(int(numeric))
+
+    if "SEMANA_INICIO" in df.columns:
+        df["SEMANA"] = pd.to_datetime(df["SEMANA_INICIO"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
+    else:
+        df["SEMANA"] = ""
+    df["GESTOR"] = df.get("GESTOR_SHARED_RAW", "").apply(
+        lambda raw: _cg_v2_primary_shared_value(raw, preferred_first=gestor)
+    )
+    df["RUTERO"] = df.get("RUTERO_SHARED_RAW", "").apply(
+        lambda raw: _cg_v2_primary_shared_value(raw, preferred_first=rutero)
+    )
+    df["EXIGIDAS SEM."] = pd.to_numeric(df.get("VISITA"), errors="coerce").fillna(0).astype(int)
+    df["PENDIENTE"] = pd.to_numeric(df.get("VISITAS_PENDIENTES"), errors="coerce").fillna(0).astype(int)
+    df["GESTION COMPARTIDA"] = df.apply(
+        lambda row: _cg_v2_gestion_shared_display(
+            row.get("GESTOR_SHARED_RAW"),
+            is_shared=_is_shared_flag(row.get("GESTION_COMPARTIDA_FLAG")),
+            selected_gestor=gestor,
+        ),
+        axis=1,
+    )
+    df["RUTA COMPARTIDA"] = df.get("RUTERO_SHARED_RAW", "").apply(
+        lambda raw: _cg_v2_route_shared_display(raw, selected_rutero=rutero)
+    )
+    for day_col in ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"]:
+        if day_col in df.columns:
+            df[day_col] = df[day_col].apply(_cg_v2_export_day_display)
+    return df.reindex(columns=export_columns).fillna("")
 
 
 def get_cg_v2_daily_matrix_page(
