@@ -466,6 +466,7 @@ def render_control_gestion(
                     "Por local": "LOCAL",
                     "Por cliente": "CLIENTE",
                 }
+                cliente_placeholder = "— Selecciona cliente —"
                 vista_opts = list(vista_map.keys())
                 vista_key = "sel_cg_v2_analysis_view"
                 _cg_ensure_option_state(vista_key, vista_opts, vista_opts[0])
@@ -489,7 +490,14 @@ def render_control_gestion(
                 target_key = "sel_cg_v2_target_rutero"
                 target_opts = [cg_all_token]
                 target_disabled = gestor_sel is None
-                if gestor_sel is not None:
+                if vista_sel == "CLIENTE":
+                    target_label = "Cliente"
+                    target_key = "sel_cg_v2_target_cliente"
+                    target_opts = [cliente_placeholder] + list(
+                        db.get_cg_v2_clientes(semana_inicio=semana_inicio, gestor=gestor_sel) or []
+                    )
+                    target_disabled = False
+                elif gestor_sel is not None:
                     if vista_sel == "RUTERO":
                         target_label = "Rutero"
                         target_key = "sel_cg_v2_target_rutero"
@@ -501,12 +509,6 @@ def render_control_gestion(
                         target_key = "sel_cg_v2_target_local"
                         target_opts = [cg_all_token] + list(
                             db.get_cg_v2_locales(semana_inicio=semana_inicio, gestor=gestor_sel) or []
-                        )
-                    else:
-                        target_label = "Cliente"
-                        target_key = "sel_cg_v2_target_cliente"
-                        target_opts = [cg_all_token] + list(
-                            db.get_cg_v2_clientes(semana_inicio=semana_inicio, gestor=gestor_sel) or []
                         )
                 else:
                     target_opts = ["Selecciona un gestor primero"]
@@ -528,7 +530,11 @@ def render_control_gestion(
                         db.get_cg_v2_alertas(
                             semana_inicio=semana_inicio,
                             gestor=gestor_sel,
-                            cliente=(None if vista_sel != "CLIENTE" or target_value == cg_all_token else target_value),
+                            cliente=(
+                                None
+                                if vista_sel != "CLIENTE" or target_value in {cg_all_token, cliente_placeholder}
+                                else target_value
+                            ),
                             rutero=(None if vista_sel != "RUTERO" or target_value == cg_all_token else target_value),
                             local=(None if vista_sel != "LOCAL" or target_value == cg_all_token else target_value),
                         ) or []
@@ -545,13 +551,13 @@ def render_control_gestion(
                     rutero_sel = target_value
                 elif vista_sel == "LOCAL" and target_value != cg_all_token:
                     local_sel = target_value
-                elif vista_sel == "CLIENTE" and target_value != cg_all_token:
+                elif vista_sel == "CLIENTE" and target_value not in {cg_all_token, cliente_placeholder}:
                     cliente_sel = target_value
 
                 gestor_ready = gestor_sel is not None
-                detail_ready = gestor_ready and (
-                    (vista_sel == "RUTERO" and rutero_sel is not None)
-                    or (vista_sel == "LOCAL" and local_sel is not None)
+                detail_ready = (
+                    (vista_sel == "RUTERO" and gestor_ready and rutero_sel is not None)
+                    or (vista_sel == "LOCAL" and gestor_ready and local_sel is not None)
                     or (vista_sel == "CLIENTE" and cliente_sel is not None)
                 )
 
@@ -582,16 +588,19 @@ def render_control_gestion(
                     local=local_sel,
                 )
                 kpi_row = kpi_df.iloc[0].to_dict() if kpi_df is not None and not kpi_df.empty else {}
-                if not gestor_ready:
-                    st.markdown("#### KPIs globales de la semana")
-                elif not detail_ready:
-                    st.markdown("#### KPIs del gestor")
-                else:
+                if detail_ready:
                     st.markdown("#### KPIs del universo filtrado")
+                elif not gestor_ready:
+                    st.markdown("#### KPIs globales de la semana")
+                else:
+                    st.markdown("#### KPIs del gestor")
                 _cg_v2_metric_cards(kpi_row)
 
                 if not detail_ready:
-                    st.info("Selecciona gestor y luego rutero/local/cliente para cargar la validación.")
+                    if vista_sel == "CLIENTE":
+                        st.info("Selecciona cliente para cargar la validación.")
+                    else:
+                        st.info("Selecciona gestor y luego rutero/local para cargar la validación.")
                     st.stop()
 
                 with _timed("PAGE cg_v2_daily_matrix_full", tag="PAGE"):
