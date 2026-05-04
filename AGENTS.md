@@ -79,15 +79,45 @@ Typical warnings:
 - Do not touch Supabase SQL unless the task explicitly allows it.
 - Do not commit or push unless the user explicitly asks.
 
-## Required Codex output
+## Output discipline
 
-For implementation work, Codex should report:
-- preflight phase used
-- whether DB was skipped or executed
-- final verdict
-- blockers
-- warnings
-- next safe action
-- git status before and after
+Report results in a compact structured block in the Codex response.
 
-Keep the report concise and auditable.
+Do not create persistent JSON, TXT, log, report or artifact files unless explicitly requested.
+
+Temporary validation outputs must go to `%TEMP%` and may be overwritten.
+
+Use `scripts/sz_preflight.py` as an internal validation tool before and after relevant changes.
+
+The deliverable to the user is the structured screen report, not the temporary file.
+
+If a blocker appears, stop and report it.
+
+If warnings are expected and non-blocking, Codex may continue but must declare them.
+
+For implementation work, report:
+
+```json
+{
+  "phase": "",
+  "task_type": "investigation|implementation|smoke|review",
+  "preflight": {
+    "executed": false,
+    "phase": "",
+    "final_verdict": "ok|warn|block|not_run",
+    "blockers": [],
+    "warnings": []
+  },
+  "files_modified": [],
+  "db_access": {
+    "used": false,
+    "mode": "none|DB_URL_CODEX_RO",
+    "writes_attempted": false,
+    "dsn_printed": false
+  },
+  "commands_run": [],
+  "smoke_results": {},
+  "git_status_after": "",
+  "final_verdict": "READY_FOR_CHAT_REVIEW|BLOCKED"
+}
+```
