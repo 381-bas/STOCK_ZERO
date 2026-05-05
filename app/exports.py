@@ -44,28 +44,27 @@ FOCUS_EXPORT_COLS = [
     "OTROS",
 ]
 
-INVENTORY_CLIENTE_EXPORT_COLS = [
+INVENTORY_STANDARD_EXPORT_COLS = [
     "Fecha stock",
     "COD_RT",
     "LOCAL",
     "CLIENTE",
+    "Sku",
+    "Descripción del Producto",
+    "Stock",
+    "VENTA 0",
+    "NEGATIVO",
+    "RIESGO DE QUIEBRE",
+    "OTROS",
+    "ACCIÓN SUGERIDA",
     "GESTOR",
     "SUPERVISOR",
     "RUTERO",
     "REPONEDOR",
     "MODALIDAD",
-    "MARCA",
-    "Sku",
-    "Descripción del Producto",
-    "Stock",
-    "Venta(+7)",
-    "VENTA 0",
-    "FOCO PRINCIPAL",
-    "ACCIÓN SUGERIDA",
-    "NEGATIVO",
-    "RIESGO DE QUIEBRE",
-    "OTROS",
 ]
+
+INVENTORY_CLIENTE_EXPORT_COLS = INVENTORY_STANDARD_EXPORT_COLS
 
 CG_V2_DETAIL_EXPORT_COLS = [
     "SEMANA",
@@ -150,6 +149,15 @@ def _venta_0_flag(v) -> str:
         return ""
 
 
+def _coalesce_export_operational_column(df: pd.DataFrame, target: str, sources: list[str]) -> None:
+    present = [c for c in sources if c in df.columns]
+    if not present:
+        if target not in df.columns:
+            df[target] = ""
+        return
+    df[target] = df[present].apply(lambda row: _collapse_pipe_values(row.tolist()), axis=1)
+
+
 def build_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
     df = df_ux.copy()
 
@@ -231,6 +239,29 @@ def _sorted_for_export(df_in: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _sorted_inventory_standard_export(df_in: pd.DataFrame) -> pd.DataFrame:
+    if df_in is None or df_in.empty:
+        return df_in
+
+    df = df_in.copy()
+    for c in ["LOCAL", "CLIENTE", "Sku", "Descripción del Producto"]:
+        if c not in df.columns:
+            df[c] = ""
+        df[c] = df[c].astype(str)
+
+    sku_num = pd.to_numeric(df["Sku"], errors="coerce")
+    df["_sku_is_text"] = sku_num.isna().astype(int)
+    df["_sku_num"] = sku_num.fillna(0)
+
+    df = df.sort_values(
+        by=["LOCAL", "CLIENTE", "_sku_is_text", "_sku_num", "Sku", "Descripción del Producto"],
+        ascending=[True, True, True, True, True, True],
+        kind="mergesort",
+    ).drop(columns=["_sku_is_text", "_sku_num"])
+
+    return df
+
+
 def _focus_principal(row) -> str:
     neg = _clean_yes(row.get("NEGATIVO", ""))
     quiebre = _clean_yes(row.get("RIESGO DE QUIEBRE", ""))
@@ -286,12 +317,6 @@ def build_inventory_cliente_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
         "COD_RT",
         "LOCAL",
         "CLIENTE",
-        "GESTOR",
-        "SUPERVISOR",
-        "RUTERO",
-        "REPONEDOR",
-        "MODALIDAD",
-        "MARCA",
         "Sku",
         "Descripción del Producto",
         "Stock",
@@ -309,12 +334,6 @@ def build_inventory_cliente_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
         "COD_RT",
         "LOCAL",
         "CLIENTE",
-        "GESTOR",
-        "SUPERVISOR",
-        "RUTERO",
-        "REPONEDOR",
-        "MODALIDAD",
-        "MARCA",
     ]:
         df[c] = df[c].astype(str).replace({"nan": "", "None": ""}).fillna("")
     df["Sku"] = df["Sku"].astype(str)
@@ -327,11 +346,16 @@ def build_inventory_cliente_export_df(df_ux: pd.DataFrame) -> pd.DataFrame:
     df["OTROS"] = df["OTROS"].apply(_clean_otros)
     df["FOCO PRINCIPAL"] = df.apply(_focus_principal, axis=1)
     df["ACCIÓN SUGERIDA"] = df["FOCO PRINCIPAL"].apply(_accion_sugerida)
+    _coalesce_export_operational_column(df, "GESTOR", ["GESTOR", "GESTOR_CTX"])
+    _coalesce_export_operational_column(df, "SUPERVISOR", ["SUPERVISOR", "SUPERVISOR_CTX"])
+    _coalesce_export_operational_column(df, "RUTERO", ["RUTERO", "RUTERO_CTX"])
+    _coalesce_export_operational_column(df, "REPONEDOR", ["REPONEDOR", "REPONEDOR_CTX"])
+    _coalesce_export_operational_column(df, "MODALIDAD", ["MODALIDAD", "MODALIDAD_CTX"])
 
     if df.empty:
         return pd.DataFrame(columns=INVENTORY_CLIENTE_EXPORT_COLS)
 
-    df = _sorted_for_export(df)
+    df = _sorted_inventory_standard_export(df)
     return df[INVENTORY_CLIENTE_EXPORT_COLS]
 
 
@@ -697,7 +721,10 @@ def export_excel_generic(sheet_name: str, df_export: pd.DataFrame) -> bytes:
     out = io.BytesIO()
     safe_sheet = str(sheet_name or "DATA")[:31]
     df_export = _coalesce_duplicate_rr_columns(df_export)
-    df_export = _sorted_for_export(df_export)
+    if list(df_export.columns) == INVENTORY_STANDARD_EXPORT_COLS:
+        df_export = _sorted_inventory_standard_export(df_export)
+    else:
+        df_export = _sorted_for_export(df_export)
 
     with pd.ExcelWriter(out, engine="openpyxl") as writer:
         df_export.to_excel(writer, index=False, sheet_name=safe_sheet)

@@ -2244,14 +2244,18 @@ def get_tabla_scope_local_total_page(
                 UPPER(TRIM(COALESCE(NULLIF(TRIM(rr.responsable_tipo), ''), '-'))) AS responsable_tipo_match,
                 UPPER(TRIM(COALESCE(NULLIF(TRIM(rr.responsable_norm), ''), NULLIF(TRIM(rr.responsable), ''), ''))) AS responsable_norm_match,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.rutero), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.rutero), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.rutero), ''), '-')
+                    ORDER BY NULLIF(TRIM(rr.rutero), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.rutero, '')), '') IS NOT NULL
                 ) AS rutero,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.reponedor), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-')
+                    ORDER BY NULLIF(TRIM(rr.reponedor), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.reponedor, '')), '') IS NOT NULL
                 ) AS reponedor
             FROM {SCOPE_RR_DISTINCT_VIEW} rr
             WHERE 1=1
@@ -2507,19 +2511,25 @@ def get_export_inventario_cliente(
                       AND NULLIF(TRIM(COALESCE(rr.responsable, rr.responsable_norm, '')), '') IS NOT NULL
                 ) AS supervisor,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.rutero), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.rutero), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.rutero), ''), '-')
+                    ORDER BY NULLIF(TRIM(rr.rutero), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.rutero, '')), '') IS NOT NULL
                 ) AS rutero,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.reponedor), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-')
+                    ORDER BY NULLIF(TRIM(rr.reponedor), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.reponedor, '')), '') IS NOT NULL
                 ) AS reponedor,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.modalidad), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.modalidad), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.modalidad), ''), '-')
+                    ORDER BY NULLIF(TRIM(rr.modalidad), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.modalidad, '')), '') IS NOT NULL
                 ) AS modalidad
             FROM {SCOPE_RR_DISTINCT_VIEW} rr
             WHERE EXISTS (
@@ -2578,20 +2588,40 @@ def get_export_inventario_local(
                 MAX(COALESCE(NULLIF(TRIM(rr.local_nombre), ''), CAST(rr.cod_rt AS TEXT))) AS local_nombre,
                 MAX(COALESCE(NULLIF(TRIM(rr.cliente), ''), '')) AS cliente_display,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.gestores), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.gestores), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.gestores), ''), '-')
+                    ORDER BY NULLIF(TRIM(rr.gestores), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.gestores, '')), '') IS NOT NULL
                 ) AS gestor,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.rutero), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.supervisor), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.rutero), ''), '-')
+                    ORDER BY NULLIF(TRIM(rr.supervisor), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.supervisor, '')), '') IS NOT NULL
+                ) AS supervisor,
+                STRING_AGG(
+                    DISTINCT NULLIF(TRIM(rr.rutero), ''),
+                    ' | '
+                    ORDER BY NULLIF(TRIM(rr.rutero), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.rutero, '')), '') IS NOT NULL
                 ) AS rutero,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.reponedor), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-')
-                ) AS reponedor
+                    ORDER BY NULLIF(TRIM(rr.reponedor), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.reponedor, '')), '') IS NOT NULL
+                ) AS reponedor,
+                STRING_AGG(
+                    DISTINCT NULLIF(TRIM(rr.modalidad), ''),
+                    ' | '
+                    ORDER BY NULLIF(TRIM(rr.modalidad), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.modalidad, '')), '') IS NOT NULL
+                ) AS modalidad
             FROM {RUTA_TABLE} rr
             WHERE rr.cod_rt = :cod_rt
               AND NULLIF(TRIM(COALESCE(rr.cliente, '')), '') IS NOT NULL
@@ -2604,9 +2634,11 @@ def get_export_inventario_local(
             CAST(v.cod_rt AS TEXT) AS "COD_RT",
             COALESCE(rr_ctx.local_nombre, CAST(v.cod_rt AS TEXT)) AS "LOCAL",
             COALESCE(rr_ctx.cliente_display, COALESCE(NULLIF(TRIM(v."MARCA"), ''), '')) AS "CLIENTE",
-            COALESCE(rr_ctx.gestor, '-') AS "GESTOR",
-            COALESCE(rr_ctx.rutero, '-') AS "RUTERO",
-            COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR",
+            COALESCE(rr_ctx.gestor, '-') AS "GESTOR_CTX",
+            COALESCE(rr_ctx.supervisor, '-') AS "SUPERVISOR_CTX",
+            COALESCE(rr_ctx.rutero, '-') AS "RUTERO_CTX",
+            COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR_CTX",
+            COALESCE(rr_ctx.modalidad, '-') AS "MODALIDAD_CTX",
             COALESCE(NULLIF(TRIM(v."MARCA"), ''), '') AS "MARCA",
             CAST(v."Sku" AS TEXT) AS "Sku",
             COALESCE(v."Descripción del Producto", '') AS "Descripción del Producto",
@@ -2650,20 +2682,40 @@ def get_export_inventario_mercaderista_local(
                 MAX(COALESCE(NULLIF(TRIM(rr.local_nombre), ''), CAST(rr.cod_rt AS TEXT))) AS local_nombre,
                 MAX(COALESCE(NULLIF(TRIM(rr.cliente), ''), '')) AS cliente_display,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.gestores), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.gestores), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.gestores), ''), '-')
+                    ORDER BY NULLIF(TRIM(rr.gestores), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.gestores, '')), '') IS NOT NULL
                 ) AS gestor,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.rutero), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.supervisor), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.rutero), ''), '-')
+                    ORDER BY NULLIF(TRIM(rr.supervisor), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.supervisor, '')), '') IS NOT NULL
+                ) AS supervisor,
+                STRING_AGG(
+                    DISTINCT NULLIF(TRIM(rr.rutero), ''),
+                    ' | '
+                    ORDER BY NULLIF(TRIM(rr.rutero), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.rutero, '')), '') IS NOT NULL
                 ) AS rutero,
                 STRING_AGG(
-                    DISTINCT COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-'),
+                    DISTINCT NULLIF(TRIM(rr.reponedor), ''),
                     ' | '
-                    ORDER BY COALESCE(NULLIF(TRIM(rr.reponedor), ''), '-')
-                ) AS reponedor
+                    ORDER BY NULLIF(TRIM(rr.reponedor), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.reponedor, '')), '') IS NOT NULL
+                ) AS reponedor,
+                STRING_AGG(
+                    DISTINCT NULLIF(TRIM(rr.modalidad), ''),
+                    ' | '
+                    ORDER BY NULLIF(TRIM(rr.modalidad), '')
+                ) FILTER (
+                    WHERE NULLIF(TRIM(COALESCE(rr.modalidad, '')), '') IS NOT NULL
+                ) AS modalidad
             FROM {RUTA_TABLE} rr
             WHERE rr.cod_rt = :cod_rt
               AND UPPER(TRIM(COALESCE(rr.rutero, ''))) = UPPER(TRIM(COALESCE(:rutero, '')))
@@ -2679,9 +2731,11 @@ def get_export_inventario_mercaderista_local(
             CAST(v.cod_rt AS TEXT) AS "COD_RT",
             COALESCE(rr_ctx.local_nombre, CAST(v.cod_rt AS TEXT)) AS "LOCAL",
             COALESCE(rr_ctx.cliente_display, COALESCE(NULLIF(TRIM(v."MARCA"), ''), '')) AS "CLIENTE",
-            COALESCE(rr_ctx.gestor, '-') AS "GESTOR",
-            COALESCE(rr_ctx.rutero, '-') AS "RUTERO",
-            COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR",
+            COALESCE(rr_ctx.gestor, '-') AS "GESTOR_CTX",
+            COALESCE(rr_ctx.supervisor, '-') AS "SUPERVISOR_CTX",
+            COALESCE(rr_ctx.rutero, '-') AS "RUTERO_CTX",
+            COALESCE(rr_ctx.reponedor, '-') AS "REPONEDOR_CTX",
+            COALESCE(rr_ctx.modalidad, '-') AS "MODALIDAD_CTX",
             COALESCE(NULLIF(TRIM(v."MARCA"), ''), '') AS "MARCA",
             CAST(v."Sku" AS TEXT) AS "Sku",
             COALESCE(v."Descripción del Producto", '') AS "Descripción del Producto",
