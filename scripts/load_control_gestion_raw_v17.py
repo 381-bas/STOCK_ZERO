@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import date
+import hashlib
 import json
 import os
 import re
@@ -14,6 +15,17 @@ import pandas as pd
 
 DEFAULT_FILE = r"data\CUMPLIMIENTO_FRECUENCIA.xlsx"
 LOADER_NAME = "load_control_gestion_raw_v17"
+LOADER_VERSION = "v17_9C2A"
+SOURCE_ORDER = ["KPIONE", "KPIONE2", "POWER_APP"]
+SOURCE_TO_SHEET = {
+    "KPIONE": "DB (KPIONE)",
+    "KPIONE2": "DB (KPIONE2.0)",
+    "POWER_APP": "DB (POWER_APP)",
+}
+SOURCE_REQUIRED_COLUMNS = {
+    "KPIONE": ["nombre_local", "marca", "trabajador", "Fecha_reg", "estado_foto"],
+    "KPIONE2": ["Codigo Local", "Marca", "Reponedor", "Fecha", "VISITA"],
+}
 
 
 def ensure_sslmode(db_url: str) -> str:
@@ -40,11 +52,103 @@ def to_json_payload(rec: dict[str, Any]) -> dict[str, Any]:
     return {str(k): clean_json_value(v) for k, v in rec.items()}
 
 
+def get_enabled_sources(force_source: str) -> list[str]:
+    if force_source == "all":
+        return SOURCE_ORDER.copy()
+    return [force_source]
+
+
 def read_excel_sheet(excel_path: Path, sheet: str, **kwargs: Any) -> pd.DataFrame:
     try:
         return pd.read_excel(excel_path, sheet_name=sheet, **kwargs)
     except ValueError as exc:
         raise ValueError(f"No existe la hoja requerida '{sheet}' en {excel_path.name}") from exc
+
+
+def normalize_hash_value(v: Any) -> str:
+    if pd.isna(v) or v is None:
+        return ""
+    return str(v).strip()
+
+
+def compute_sheet_hash(df: pd.DataFrame) -> str:
+    digest = hashlib.sha256()
+    header_payload = {
+        "columns": [normalize_hash_value(col) for col in df.columns.tolist()],
+        "rows": int(len(df)),
+    }
+    digest.update(json.dumps(header_payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+    digest.update(b"\n")
+    for row in df.itertuples(index=False, name=None):
+        digest.update(
+            json.dumps(
+                [normalize_hash_value(value) for value in row],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def parse_incremental_notes(notes: str | None) -> dict[str, Any] | None:
+    text = str(notes or "").strip()
+    if not text:
+        return None
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def build_incremental_notes(
+    *,
+    sheet_hash: str,
+    rows_read: int,
+    dates_detected: dict[str, Any],
+    extra: dict[str, Any] | None = None,
+) -> str:
+    payload: dict[str, Any] = {
+        "incremental": {
+            "sheet_hash": sheet_hash,
+            "rows_read": int(rows_read),
+            "dates_detected": dates_detected,
+            "loader_version": LOADER_VERSION,
+        }
+    }
+    if extra:
+        payload.update(extra)
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+
+def fetch_previous_sheet_hash(cur, *, source_file: str, source_sheet: str) -> tuple[str, dict[str, Any] | None]:
+    cur.execute(
+        """
+        select notes
+          from cg_audit.batch_registry
+         where source_file = %s
+           and source_sheet = %s
+           and loader_name = %s
+           and status = 'ok'
+         order by batch_id desc
+         limit 1
+        """,
+        (source_file, source_sheet, LOADER_NAME),
+    )
+    row = cur.fetchone()
+    if not row:
+        return "", None
+    payload = parse_incremental_notes(row[0])
+    if not payload:
+        return "", None
+    incremental = payload.get("incremental")
+    if not isinstance(incremental, dict):
+        return "", payload
+    sheet_hash = clean_text(incremental.get("sheet_hash"))
+    return sheet_hash, payload
 
 
 def parse_date_value(v: Any) -> date | None:
@@ -320,6 +424,98 @@ def run_source_check_control_gestion(*, excel_path: str, strict: bool) -> dict[s
     return finalize_source_check(payload, blockers, warnings, notes)
 
 
+def read_kpione_df(excel_path: Path) -> pd.DataFrame:
+    df = read_excel_sheet(excel_path, SOURCE_TO_SHEET["KPIONE"], dtype=str)
+    df.columns = [str(c).strip() for c in df.columns]
+    missing = [c for c in SOURCE_REQUIRED_COLUMNS["KPIONE"] if c not in df.columns]
+    if missing:
+        raise ValueError(f"KPIONE missing required columns: {missing}")
+    return df
+
+
+def read_kpione2_df(excel_path: Path) -> pd.DataFrame:
+    df = read_excel_sheet(excel_path, SOURCE_TO_SHEET["KPIONE2"], dtype=str)
+    df.columns = [str(c).strip() for c in df.columns]
+    missing = [c for c in SOURCE_REQUIRED_COLUMNS["KPIONE2"] if c not in df.columns]
+    if missing:
+        raise ValueError(f"KPIONE2 missing required columns: {missing}")
+    return df
+
+
+def collect_dates_detected(source_key: str, df: pd.DataFrame) -> tuple[dict[str, Any], list[str]]:
+    payload: dict[str, Any] = {"date_ranges": {}}
+    warnings: list[str] = []
+    blockers: list[str] = []
+    if source_key == "KPIONE":
+        _record_date_range(
+            payload,
+            key="DB (KPIONE).Fecha_reg",
+            series=df["Fecha_reg"],
+            dayfirst=False,
+            critical=False,
+            strict=False,
+            blockers=blockers,
+            warnings=warnings,
+        )
+        if "FECHA" in df.columns:
+            _record_date_range(
+                payload,
+                key="DB (KPIONE).FECHA",
+                series=df["FECHA"],
+                dayfirst=True,
+                critical=False,
+                strict=False,
+                blockers=blockers,
+                warnings=warnings,
+            )
+    elif source_key == "KPIONE2":
+        _record_date_range(
+            payload,
+            key="DB (KPIONE2.0).Fecha",
+            series=df["Fecha"],
+            dayfirst=False,
+            critical=False,
+            strict=False,
+            blockers=blockers,
+            warnings=warnings,
+            parser=parse_date_value,
+            mixed_type_warning_key="mixed_date_types:DB (KPIONE2.0).Fecha",
+        )
+    elif source_key == "POWER_APP":
+        _record_date_range(
+            payload,
+            key="DB (POWER_APP).Creado",
+            series=df["Creado"],
+            dayfirst=False,
+            critical=False,
+            strict=False,
+            blockers=blockers,
+            warnings=warnings,
+        )
+        if "FECHA" in df.columns:
+            _record_date_range(
+                payload,
+                key="DB (POWER_APP).FECHA",
+                series=df["FECHA"],
+                dayfirst=True,
+                critical=False,
+                strict=False,
+                blockers=blockers,
+                warnings=warnings,
+            )
+    return payload["date_ranges"], warnings
+
+
+def load_source_dataframe(source_key: str, excel_path: Path) -> pd.DataFrame:
+    if source_key == "KPIONE":
+        return read_kpione_df(excel_path)
+    if source_key == "KPIONE2":
+        return read_kpione2_df(excel_path)
+    if source_key == "POWER_APP":
+        return read_power_app_sheet(excel_path)
+    raise ValueError(f"Unsupported source_key={source_key}")
+
+
 def register_batch(cur, source_file: str, source_sheet: str) -> int:
     cur.execute(
         """
@@ -348,17 +544,16 @@ def finalize_batch(cur, batch_id: int, loaded_rows: int, status: str, notes: str
     )
 
 
-def load_kpione(cur, excel_path: Path) -> dict[str, Any]:
+def load_kpione(
+    cur,
+    excel_path: Path,
+    *,
+    df: pd.DataFrame,
+    incremental_notes: str,
+) -> dict[str, Any]:
     from psycopg2.extras import Json, execute_values
 
-    sheet = "DB (KPIONE)"
-    df = read_excel_sheet(excel_path, sheet, dtype=str)
-    df.columns = [str(c).strip() for c in df.columns]
-
-    required = ["nombre_local", "marca", "trabajador", "Fecha_reg", "estado_foto"]
-    missing = [c for c in required if c not in df.columns]
-    if missing:
-        raise ValueError(f"KPIONE missing required columns: {missing}")
+    sheet = SOURCE_TO_SHEET["KPIONE"]
 
     batch_id = register_batch(cur, excel_path.name, sheet)
 
@@ -407,7 +602,7 @@ def load_kpione(cur, excel_path: Path) -> dict[str, Any]:
         page_size=5000,
     )
 
-    finalize_batch(cur, batch_id, len(rows), "ok", f"rows={len(rows)}")
+    finalize_batch(cur, batch_id, len(rows), "ok", incremental_notes)
     return {
         "sheet": sheet,
         "batch_id": batch_id,
@@ -416,17 +611,16 @@ def load_kpione(cur, excel_path: Path) -> dict[str, Any]:
     }
 
 
-def load_kpione2(cur, excel_path: Path) -> dict[str, Any]:
+def load_kpione2(
+    cur,
+    excel_path: Path,
+    *,
+    df: pd.DataFrame,
+    incremental_notes: str,
+) -> dict[str, Any]:
     from psycopg2.extras import Json, execute_values
 
-    sheet = "DB (KPIONE2.0)"
-    df = read_excel_sheet(excel_path, sheet, dtype=str)
-    df.columns = [str(c).strip() for c in df.columns]
-
-    required = ["Codigo Local", "Marca", "Reponedor", "Fecha", "VISITA"]
-    missing = [c for c in required if c not in df.columns]
-    if missing:
-        raise ValueError(f"KPIONE2 missing required columns: {missing}")
+    sheet = SOURCE_TO_SHEET["KPIONE2"]
 
     batch_id = register_batch(cur, excel_path.name, sheet)
 
@@ -499,7 +693,7 @@ def load_kpione2(cur, excel_path: Path) -> dict[str, Any]:
         finalize_batch(cur, batch_id, 0, "cancelled", f"error={exc}")
         raise
 
-    finalize_batch(cur, batch_id, len(rows), "ok", f"rows={len(rows)}")
+    finalize_batch(cur, batch_id, len(rows), "ok", incremental_notes)
     return {
         "sheet": sheet,
         "batch_id": batch_id,
@@ -573,11 +767,16 @@ def read_power_app_sheet(excel_path: Path) -> pd.DataFrame:
     return df
 
 
-def load_power_app(cur, excel_path: Path) -> dict[str, Any]:
+def load_power_app(
+    cur,
+    excel_path: Path,
+    *,
+    df: pd.DataFrame,
+    incremental_notes: str,
+) -> dict[str, Any]:
     from psycopg2.extras import Json, execute_values
 
-    sheet = "DB (POWER_APP)"
-    df = read_power_app_sheet(excel_path)
+    sheet = SOURCE_TO_SHEET["POWER_APP"]
 
     batch_id = register_batch(cur, excel_path.name, sheet)
 
@@ -626,20 +825,40 @@ def load_power_app(cur, excel_path: Path) -> dict[str, Any]:
         page_size=5000,
     )
 
-    finalize_batch(cur, batch_id, len(rows), "ok", f"rows={len(rows)} | header_sanitized=true")
+    finalize_batch(cur, batch_id, len(rows), "ok", incremental_notes)
     return {
         "sheet": sheet,
         "batch_id": batch_id,
         "rows_read": int(len(df)),
         "rows_loaded": int(len(rows)),
-        "notes": "header_sanitized=true",
     }
+
+
+def load_source_to_db(
+    source_key: str,
+    *,
+    cur,
+    excel_path: Path,
+    df: pd.DataFrame,
+    incremental_notes: str,
+) -> dict[str, Any]:
+    if source_key == "KPIONE":
+        return load_kpione(cur, excel_path, df=df, incremental_notes=incremental_notes)
+    if source_key == "KPIONE2":
+        return load_kpione2(cur, excel_path, df=df, incremental_notes=incremental_notes)
+    if source_key == "POWER_APP":
+        return load_power_app(cur, excel_path, df=df, incremental_notes=incremental_notes)
+    raise ValueError(f"Unsupported source_key={source_key}")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--excel", default=DEFAULT_FILE)
     ap.add_argument("--db_url", default=os.getenv("DB_URL_LOAD", "") or os.getenv("DB_URL", ""))
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--force-source", choices=["KPIONE", "KPIONE2", "POWER_APP", "all"], default="all")
+    ap.add_argument("--skip-unchanged-sheets", action="store_true")
+    ap.add_argument("--skip-mv-refresh-if-no-change", action="store_true")
     ap.add_argument("--refresh-cg-v2-mv", action="store_true")
     ap.add_argument("--validate-cg-v2-mv", action="store_true")
     ap.add_argument("--skip-source-check", action="store_true")
@@ -648,11 +867,13 @@ def main() -> None:
     args = ap.parse_args()
 
     excel_path = Path(args.excel)
+    enabled_sources = get_enabled_sources(args.force_source)
+    enabled_sheets = [SOURCE_TO_SHEET[source] for source in enabled_sources]
     if args.skip_source_check:
         source_check = {
             "loader": LOADER_NAME,
             "file": str(excel_path),
-            "sheet_scope": ["DB (KPIONE)", "DB (KPIONE2.0)", "DB (POWER_APP)"],
+            "sheet_scope": enabled_sheets,
             "final_verdict": "warn",
             "blockers": [],
             "warnings": ["source_check_skipped_by_flag"],
@@ -675,32 +896,162 @@ def main() -> None:
 
     if not excel_path.exists():
         raise SystemExit(f"No existe el archivo: {excel_path}")
-    if not args.db_url:
-        raise SystemExit("Falta DB_URL_LOAD/DB_URL")
     if args.validate_cg_v2_mv and not args.refresh_cg_v2_mv:
         raise SystemExit("--validate-cg-v2-mv requiere --refresh-cg-v2-mv")
 
-    import psycopg2
-
     db_url = ensure_sslmode(args.db_url)
+    if not args.dry_run and not db_url:
+        raise SystemExit("Falta DB_URL_LOAD/DB_URL")
 
     result: dict[str, Any] = {
         "loader": LOADER_NAME,
+        "mode": "sheet-hash-skip" if args.skip_unchanged_sheets else "full-replace-all",
+        "dry_run": bool(args.dry_run),
+        "force_source": args.force_source,
         "source_file": excel_path.name,
+        "sources": {},
+        "sources_changed": [],
+        "should_refresh_mv": False,
+        "mv_refresh_skipped_reason": "",
+        "incremental_warnings": [],
         "status": "ok",
     }
 
-    with psycopg2.connect(db_url) as conn:
-        with conn.cursor() as cur:
-            kpione_info = load_kpione(cur, excel_path)
-            kpione2_info = load_kpione2(cur, excel_path)
-            power_info = load_power_app(cur, excel_path)
-        conn.commit()
+    conn = None
+    cur = None
+    try:
+        if db_url and (args.skip_unchanged_sheets or not args.dry_run):
+            import psycopg2
+            try:
+                conn = psycopg2.connect(db_url)
+                if args.dry_run:
+                    conn.set_session(readonly=True, autocommit=False)
+                cur = conn.cursor()
+            except Exception:
+                if args.dry_run:
+                    conn = None
+                    cur = None
+                else:
+                    raise
 
-    result["kpione"] = kpione_info
-    result["kpione2"] = kpione2_info
-    result["power_app"] = power_info
-    if args.refresh_cg_v2_mv:
+        for source_key in SOURCE_ORDER:
+            source_result: dict[str, Any] = {
+                "enabled": source_key in enabled_sources,
+                "sheet": SOURCE_TO_SHEET[source_key],
+                "rows_read": 0,
+                "sheet_hash": "",
+                "previous_sheet_hash": "",
+                "changed": False,
+                "rows_skipped_existing": 0,
+                "rows_loaded": 0,
+                "would_load": 0,
+                "dates_detected": {},
+            }
+            result["sources"][source_key] = source_result
+            if source_key not in enabled_sources:
+                continue
+
+            df = load_source_dataframe(source_key, excel_path)
+            dates_detected, date_warnings = collect_dates_detected(source_key, df)
+            source_result["rows_read"] = int(len(df))
+            source_result["dates_detected"] = dates_detected
+            source_result["sheet_hash"] = compute_sheet_hash(df)
+            for warning in date_warnings:
+                if warning not in result["incremental_warnings"]:
+                    result["incremental_warnings"].append(warning)
+
+            changed = True
+            previous_hash = ""
+            if args.skip_unchanged_sheets:
+                if cur is None:
+                    warning_key = f"incremental_metadata_unavailable:{source_key}"
+                    if warning_key not in result["incremental_warnings"]:
+                        result["incremental_warnings"].append(warning_key)
+                else:
+                    try:
+                        previous_hash, previous_payload = fetch_previous_sheet_hash(
+                            cur,
+                            source_file=excel_path.name,
+                            source_sheet=SOURCE_TO_SHEET[source_key],
+                        )
+                        source_result["previous_sheet_hash"] = previous_hash
+                        if previous_payload is None and previous_hash == "":
+                            cur.execute(
+                                """
+                                select 1
+                                  from cg_audit.batch_registry
+                                 where source_file = %s
+                                   and source_sheet = %s
+                                   and loader_name = %s
+                                   and status = 'ok'
+                                 limit 1
+                                """,
+                                (excel_path.name, SOURCE_TO_SHEET[source_key], LOADER_NAME),
+                            )
+                            if cur.fetchone() is not None:
+                                warning_key = f"incremental_metadata_unavailable:{source_key}"
+                                if warning_key not in result["incremental_warnings"]:
+                                    result["incremental_warnings"].append(warning_key)
+                        changed = not bool(previous_hash and previous_hash == source_result["sheet_hash"])
+                    except Exception:
+                        changed = True
+                        warning_key = f"incremental_metadata_unavailable:{source_key}"
+                        if warning_key not in result["incremental_warnings"]:
+                            result["incremental_warnings"].append(warning_key)
+
+                if not changed:
+                    source_result["rows_skipped_existing"] = source_result["rows_read"]
+
+            else:
+                changed = True
+
+            source_result["changed"] = changed
+            if changed:
+                result["sources_changed"].append(source_key)
+
+            if args.dry_run:
+                source_result["would_load"] = source_result["rows_read"] if changed else 0
+                continue
+
+            if args.skip_unchanged_sheets and not changed:
+                continue
+
+            if cur is None:
+                raise RuntimeError("NO_DB_CURSOR_AVAILABLE")
+
+            incremental_notes = build_incremental_notes(
+                sheet_hash=source_result["sheet_hash"],
+                rows_read=source_result["rows_read"],
+                dates_detected=source_result["dates_detected"],
+            )
+            load_info = load_source_to_db(
+                source_key,
+                cur=cur,
+                excel_path=excel_path,
+                df=df,
+                incremental_notes=incremental_notes,
+            )
+            source_result["rows_loaded"] = int(load_info["rows_loaded"])
+            source_result["batch_id"] = int(load_info["batch_id"])
+
+        if conn is not None and not args.dry_run:
+            conn.commit()
+    finally:
+        if cur is not None:
+            cur.close()
+        if conn is not None:
+            conn.close()
+
+    if args.dry_run:
+        result["mv_refresh_skipped_reason"] = "dry_run"
+    elif args.skip_mv_refresh_if_no_change and not result["sources_changed"]:
+        result["mv_refresh_skipped_reason"] = "no_source_change"
+    elif not args.refresh_cg_v2_mv:
+        result["mv_refresh_skipped_reason"] = "refresh_flag_not_requested"
+    else:
+        result["should_refresh_mv"] = True
+
+    if result["should_refresh_mv"]:
         try:
             from refresh_control_gestion_v2_mv import run_cg_v2_mv_refresh
 
