@@ -4227,6 +4227,124 @@ def get_cg_v2_scope_kpis(
     return _selector_df("get_cg_v2_scope_kpis", sql, query_params or None)
 
 
+def get_cg_v2_competitive_summary(
+    semana_inicio: str | None = None,
+    vista: str = "RUTERO",
+    gestor: str | None = None,
+    alerta: str | None = None,
+    limit: int = 50,
+) -> pd.DataFrame:
+    output_columns = [
+        "DIMENSION",
+        "% cumplimiento",
+        "Visitas exigidas",
+        "Visitas válidas",
+        "Visitas pendientes",
+        "Rutas cumplen",
+        "Rutas incumplen",
+        "Sobrecumplimiento",
+        "Gestión compartida",
+        "Visitas reportadas",
+    ]
+    vista_key = str(vista or "RUTERO").strip().upper()
+    if vista_key == "LOCAL":
+        return pd.DataFrame(columns=output_columns)
+    if vista_key not in {"RUTERO", "CLIENTE"}:
+        vista_key = "RUTERO"
+
+    gestor_value = str(gestor or "").strip()
+    has_gestor = bool(gestor_value and gestor_value.upper() != "TODOS")
+    if vista_key == "RUTERO" and not has_gestor:
+        dimension_expr = 'COALESCE(NULLIF(TRIM(CAST(v."GESTOR" AS TEXT)), \'\'), \'SIN DATO\')'
+    elif vista_key == "RUTERO":
+        dimension_expr = 'COALESCE(NULLIF(TRIM(CAST(v."RUTERO" AS TEXT)), \'\'), \'SIN DATO\')'
+    else:
+        dimension_expr = 'COALESCE(NULLIF(TRIM(CAST(v."CLIENTE" AS TEXT)), \'\'), \'SIN DATO\')'
+
+    mv_mode = _cg_v2_out_weekly_is_mv()
+    where_sql, params = _cg_v2_out_weekly_filters(
+        alias="v",
+        semana_inicio=semana_inicio,
+        gestor=gestor,
+        alerta=alerta,
+    )
+    alerta_norm_expr = '"ALERTA_NORM_FILTER"' if mv_mode else _cg_text_norm_expr('"ALERTA"')
+    visitas_pendientes_col_expr = (
+        'COALESCE("VISITAS_PENDIENTES_CALC", 0)'
+        if mv_mode
+        else 'GREATEST(COALESCE("VISITA", 0) - COALESCE("VISITA_REALIZADA_CAP", 0), 0)'
+    )
+    gestion_compartida_col_expr = (
+        'COALESCE("GESTION_COMPARTIDA_FLAG_CALC", 0)'
+        if mv_mode
+        else """CASE
+            WHEN COALESCE("RUTA_DUPLICADA_FLAG", 0) = 1
+              OR COALESCE("RUTA_DUPLICADA_ROWS", 0) > 1
+              OR CAST("GESTOR" AS TEXT) LIKE '%|%'
+              OR CAST("RUTERO" AS TEXT) LIKE '%|%'
+            THEN 1
+            ELSE 0
+        END"""
+    )
+    row_limit = max(1, int(limit or 50))
+    sql = f"""
+        WITH base AS (
+            SELECT
+                {dimension_expr} AS "DIMENSION",
+                COALESCE("VISITA", 0) AS "VISITA",
+                COALESCE("VISITA_REALIZADA_CAP", 0) AS "VISITA_REALIZADA_CAP",
+                COALESCE("VISITA_REALIZADA_RAW", 0) AS "VISITA_REALIZADA_RAW",
+                COALESCE("SOBRE_CUMPLIMIENTO", 0) AS "SOBRE_CUMPLIMIENTO",
+                {alerta_norm_expr} AS "ALERTA_NORM_FILTER",
+                {visitas_pendientes_col_expr} AS "VISITAS_PENDIENTES_CALC",
+                {gestion_compartida_col_expr} AS "GESTION_COMPARTIDA_FLAG_CALC"
+            FROM {CG_V2_OUT_WEEKLY_VIEW} v
+            WHERE 1=1
+            {where_sql}
+        ),
+        grouped AS (
+            SELECT
+                "DIMENSION",
+                COALESCE(SUM("VISITA"), 0)::int AS "Visitas exigidas",
+                COALESCE(SUM("VISITA_REALIZADA_CAP"), 0)::int AS "Visitas válidas",
+                COALESCE(SUM("VISITA_REALIZADA_RAW"), 0)::int AS "Visitas reportadas",
+                COALESCE(SUM("VISITAS_PENDIENTES_CALC"), 0)::int AS "Visitas pendientes",
+                COALESCE(SUM("SOBRE_CUMPLIMIENTO"), 0)::int AS "Sobrecumplimiento",
+                COALESCE(SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'CUMPLE' THEN 1 ELSE 0 END), 0)::int AS "Rutas cumplen",
+                COALESCE(SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'INCUMPLE' THEN 1 ELSE 0 END), 0)::int AS "Rutas incumplen",
+                COALESCE(SUM("GESTION_COMPARTIDA_FLAG_CALC"), 0)::int AS "Gestión compartida"
+            FROM base
+            GROUP BY "DIMENSION"
+        )
+        SELECT
+            "DIMENSION",
+            CASE
+                WHEN "Visitas exigidas" > 0
+                THEN ROUND(("Visitas válidas"::numeric / NULLIF("Visitas exigidas", 0)) * 100, 1)
+                ELSE 0::numeric
+            END AS "% cumplimiento",
+            "Visitas exigidas",
+            "Visitas válidas",
+            "Visitas pendientes",
+            "Rutas cumplen",
+            "Rutas incumplen",
+            "Sobrecumplimiento",
+            "Gestión compartida",
+            "Visitas reportadas"
+        FROM grouped
+        ORDER BY
+            "Visitas pendientes" DESC,
+            "% cumplimiento" ASC,
+            "Visitas exigidas" DESC
+        LIMIT :limit
+    """
+    query_params = {**params, "limit": row_limit}
+    df = _selector_df("get_cg_v2_competitive_summary", sql, query_params)
+    if df is None or df.empty:
+        return pd.DataFrame(columns=output_columns)
+    return df.reindex(columns=output_columns).fillna("")
+
+
 def get_cg_v2_export_summary(
     semana_inicio: str | None = None,
     gestor: str | None = None,

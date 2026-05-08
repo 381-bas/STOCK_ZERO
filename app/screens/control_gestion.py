@@ -598,6 +598,69 @@ def render_control_gestion(
                     st.markdown("#### KPIs del gestor")
                 _cg_v2_metric_cards(kpi_row)
 
+                if vista_sel in {"RUTERO", "CLIENTE"}:
+                    if vista_sel == "RUTERO" and gestor_sel is None:
+                        summary_title = "Resumen por gestor"
+                    elif vista_sel == "RUTERO":
+                        summary_title = "Resumen por rutero del gestor"
+                    elif gestor_sel is None:
+                        summary_title = "Resumen por cliente"
+                    else:
+                        summary_title = "Resumen por cliente del gestor"
+
+                    st.markdown("#### Resumen competitivo de cumplimiento · Prototipo")
+                    st.caption(
+                        "Vista preliminar para revisión operativa. "
+                        "Métricas sujetas a ajuste por contrato de precedencia de fuentes "
+                        "KPIONE2 / POWER_APP / KPIONE1."
+                    )
+                    st.markdown(f"##### {summary_title}")
+                    competitive_error = False
+                    try:
+                        competitive_df = db.get_cg_v2_competitive_summary(
+                            semana_inicio=semana_inicio,
+                            vista=vista_sel,
+                            gestor=gestor_sel,
+                            alerta=alerta_sel,
+                            limit=50,
+                        )
+                    except Exception as competitive_exc:
+                        competitive_error = True
+                        _dbg(
+                            "cg_v2_competitive_summary_error",
+                            err=repr(competitive_exc),
+                            semana_inicio=semana_inicio,
+                            gestor=gestor_sel,
+                            vista=vista_sel,
+                        )
+                        competitive_df = pd.DataFrame()
+                        st.caption("No pude cargar el resumen competitivo para estos filtros.")
+                    if not competitive_error and (competitive_df is None or competitive_df.empty):
+                        st.caption("Sin datos para el resumen competitivo con estos filtros.")
+                    elif not competitive_error:
+                        competitive_view = competitive_df.copy()
+                        if "% cumplimiento" in competitive_view.columns:
+                            pct_values = pd.to_numeric(competitive_view["% cumplimiento"], errors="coerce").fillna(0)
+                            competitive_view["% cumplimiento"] = pct_values.map(lambda value: f"{value:.1f}%")
+                        int_columns = [
+                            "Visitas exigidas",
+                            "Visitas válidas",
+                            "Visitas pendientes",
+                            "Rutas cumplen",
+                            "Rutas incumplen",
+                            "Sobrecumplimiento",
+                            "Gestión compartida",
+                            "Visitas reportadas",
+                        ]
+                        for col in int_columns:
+                            if col in competitive_view.columns:
+                                competitive_view[col] = (
+                                    pd.to_numeric(competitive_view[col], errors="coerce")
+                                    .fillna(0)
+                                    .astype(int)
+                                )
+                        st.dataframe(competitive_view, use_container_width=True, hide_index=True)
+
                 if not detail_ready:
                     if vista_sel == "CLIENTE":
                         st.info("Selecciona cliente para cargar la validación.")
