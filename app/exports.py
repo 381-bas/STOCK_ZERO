@@ -88,6 +88,43 @@ CG_V2_DETAIL_EXPORT_COLS = [
     "RUTA COMPARTIDA",
 ]
 
+CG_V2_GLOBAL_CLIENTE_DETAIL_COLS = [
+    "SEMANA",
+    "CLIENTE",
+    "COD_RT",
+    "LOCAL",
+    "GESTOR",
+    "RUTERO",
+    "MODALIDAD",
+    "EXIGIDAS SEM.",
+    "LUN",
+    "MAR",
+    "MIE",
+    "JUE",
+    "VIE",
+    "SAB",
+    "DOM",
+    "PENDIENTE",
+    "ALERTA",
+    "GESTION COMPARTIDA",
+    "RUTA COMPARTIDA",
+]
+
+CG_V2_GLOBAL_SHEETS = [
+    "01_Resumen_global",
+    "02_Ranking_gestores",
+    "03_Ranking_ruteros",
+    "04_Ranking_clientes",
+    "05_Detalle_rutero_calendario",
+    "06_Detalle_cliente_calendario",
+    "07_Casos_compartidos",
+]
+
+CG_V2_GLOBAL_PROTOTYPE_WARNING = (
+    "Export global preliminar para revisión operativa. Métricas sujetas a ajuste por contrato "
+    "de precedencia de fuentes KPIONE2 / POWER_APP / KPIONE1."
+)
+
 
 def _collapse_pipe_values(values) -> str:
     parts: list[str] = []
@@ -633,11 +670,239 @@ def _cg_v2_autosize_worksheet(ws, *, min_width: int = 10, max_width: int = 38) -
         ws.column_dimensions[get_column_letter(col_idx)].width = width
 
 
+def _cg_v2_sort_by_text(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    sort_cols = [col for col in columns if col in df.columns]
+    if not sort_cols or df.empty:
+        return df
+    return df.sort_values(
+        by=sort_cols,
+        ascending=[True] * len(sort_cols),
+        kind="mergesort",
+        key=lambda series: series.fillna("").astype(str).str.upper(),
+    )
+
+
+def _cg_v2_prepare_global_ranking_df(df_in: pd.DataFrame | None, columns: list[str]) -> pd.DataFrame:
+    if df_in is None or df_in.empty:
+        return pd.DataFrame(columns=columns)
+    df = df_in.copy()
+    for col in columns:
+        if col not in df.columns:
+            df[col] = ""
+    if "% cumplimiento" in df.columns:
+        df["% cumplimiento"] = pd.to_numeric(df["% cumplimiento"], errors="coerce").fillna(0) / 100.0
+    integer_cols = [
+        "Visitas exigidas",
+        "Visitas válidas",
+        "Visitas pendientes",
+        "Rutas cumplen",
+        "Rutas incumplen",
+        "Sobrecumplimiento",
+        "Gestión compartida",
+        "Visitas reportadas",
+        "Clientes atendidos",
+        "Locales atendidos",
+        "Locales asociados",
+    ]
+    for col in integer_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+    for col in columns:
+        if col not in integer_cols and col != "% cumplimiento":
+            df[col] = df[col].fillna("")
+    return df[columns]
+
+
+def _cg_v2_global_summary_export_df(context: dict[str, Any], summary: dict[str, Any]) -> pd.DataFrame:
+    visita_plan = int(summary.get("visita_plan") or 0)
+    visita_realizada_cap = int(summary.get("visita_realizada_cap") or 0)
+    pct_cumplimiento = round((visita_realizada_cap / visita_plan) * 100, 1) if visita_plan > 0 else 0.0
+    rows = [
+        ("Semana", context.get("Semana") or context.get("Semana operativa") or ""),
+        ("Fuente weekly", context.get("Fuente weekly") or ""),
+        ("Fecha generación", context.get("Fecha generación") or context.get("Generado en") or ""),
+        ("% cumplimiento", f"{pct_cumplimiento:.1f}%"),
+        ("Visitas exigidas", visita_plan),
+        ("Visitas válidas", visita_realizada_cap),
+        ("Visitas pendientes", int(summary.get("visitas_pendientes") or 0)),
+        ("Rutas cumplen", int(summary.get("cumple_rows") or 0)),
+        ("Rutas incumplen", int(summary.get("incumple_rows") or 0)),
+        ("Sobrecumplimiento", int(summary.get("sobre_cumplimiento") or 0)),
+        ("Gestión compartida", int(summary.get("gestion_compartida_rows") or 0)),
+        ("Visitas reportadas", int(summary.get("visita_realizada_raw") or 0)),
+        ("Nota prototipo", context.get("Nota prototipo") or CG_V2_GLOBAL_PROTOTYPE_WARNING),
+    ]
+    return pd.DataFrame(rows, columns=["CAMPO", "VALOR"])
+
+
+def _cg_v2_prepare_global_detail_rutero_df(detail_df: pd.DataFrame | None) -> pd.DataFrame:
+    df = _cg_v2_prepare_detail_export_df(detail_df)
+    df = _cg_v2_sort_by_text(df, ["GESTOR", "RUTERO", "LOCAL", "CLIENTE"])
+    return df[CG_V2_DETAIL_EXPORT_COLS]
+
+
+def _cg_v2_prepare_global_detail_cliente_df(detail_df: pd.DataFrame | None) -> pd.DataFrame:
+    df = _cg_v2_prepare_detail_export_df(detail_df)
+    for col in CG_V2_GLOBAL_CLIENTE_DETAIL_COLS:
+        if col not in df.columns:
+            df[col] = ""
+    df = _cg_v2_sort_by_text(df[CG_V2_GLOBAL_CLIENTE_DETAIL_COLS], ["CLIENTE", "LOCAL", "GESTOR", "RUTERO"])
+    return df[CG_V2_GLOBAL_CLIENTE_DETAIL_COLS]
+
+
+def _cg_v2_prepare_global_shared_cases_df(casos_df: pd.DataFrame | None) -> pd.DataFrame:
+    df = _cg_v2_prepare_detail_export_df(casos_df)
+    if df.empty:
+        return df
+
+    def _shared_mask(col: str) -> pd.Series:
+        values = df[col].fillna("").astype(str).str.strip()
+        upper = values.str.upper()
+        return (values != "") & ((~upper.isin({"NO", "NAN", "NONE"})) | values.str.contains("|", regex=False))
+
+    mask = _shared_mask("GESTION COMPARTIDA") | _shared_mask("RUTA COMPARTIDA")
+    df = df.loc[mask].copy()
+    df = _cg_v2_sort_by_text(df, ["GESTOR", "RUTERO", "LOCAL", "CLIENTE"])
+    return df[CG_V2_DETAIL_EXPORT_COLS]
+
+
+def _cg_v2_format_table_columns(ws, header_row: int, end_row: int) -> None:
+    if end_row <= header_row:
+        return
+    for col_idx in range(1, ws.max_column + 1):
+        header = str(ws.cell(row=header_row, column=col_idx).value or "")
+        if header == "% cumplimiento":
+            number_format = "0.0%"
+        elif header in {
+            "Visitas exigidas",
+            "Visitas válidas",
+            "Visitas pendientes",
+            "Rutas cumplen",
+            "Rutas incumplen",
+            "Sobrecumplimiento",
+            "Gestión compartida",
+            "Visitas reportadas",
+            "Clientes atendidos",
+            "Locales atendidos",
+            "Locales asociados",
+            "EXIGIDAS SEM.",
+            "PENDIENTE",
+        }:
+            number_format = "#,##0"
+        else:
+            continue
+        for row_idx in range(header_row + 1, end_row + 1):
+            ws.cell(row=row_idx, column=col_idx).number_format = number_format
+
+
 def build_control_gestion_v2_filename(*, semana_inicio: str, vista: str, foco: str | None) -> str:
     semana_token = _safe_file_token(str(semana_inicio or "")[:10], fallback="semana")
     vista_token = _safe_file_token(str(vista or "scope").lower(), fallback="scope")
     foco_token = _safe_file_token(foco, fallback="scope")
     return f"CONTROL_GESTION_V2_{semana_token}_{vista_token}_{foco_token}.xlsx"
+
+
+def build_control_gestion_global_filename(semana_inicio: str) -> str:
+    semana_token = _safe_file_token(str(semana_inicio or "")[:10], fallback="semana")
+    return f"CONTROL_GESTION_GLOBAL_{semana_token}_PROTOTIPO.xlsx"
+
+
+def build_control_gestion_global_workbook(
+    *,
+    context: dict[str, Any],
+    summary: dict[str, Any],
+    ranking_gestores: pd.DataFrame,
+    ranking_ruteros: pd.DataFrame,
+    ranking_clientes: pd.DataFrame,
+    detalle_rutero_df: pd.DataFrame,
+    detalle_cliente_df: pd.DataFrame,
+    casos_compartidos_df: pd.DataFrame,
+) -> bytes:
+    ranking_gestores_df = _cg_v2_prepare_global_ranking_df(
+        ranking_gestores,
+        [
+            "GESTOR",
+            "% cumplimiento",
+            "Visitas exigidas",
+            "Visitas válidas",
+            "Visitas pendientes",
+            "Rutas cumplen",
+            "Rutas incumplen",
+            "Sobrecumplimiento",
+            "Gestión compartida",
+            "Visitas reportadas",
+        ],
+    )
+    ranking_ruteros_df = _cg_v2_prepare_global_ranking_df(
+        ranking_ruteros,
+        [
+            "GESTOR",
+            "RUTERO",
+            "% cumplimiento",
+            "Visitas exigidas",
+            "Visitas válidas",
+            "Visitas pendientes",
+            "Rutas cumplen",
+            "Rutas incumplen",
+            "Clientes atendidos",
+            "Locales atendidos",
+            "Gestión compartida",
+            "Visitas reportadas",
+        ],
+    )
+    ranking_clientes_df = _cg_v2_prepare_global_ranking_df(
+        ranking_clientes,
+        [
+            "CLIENTE",
+            "% cumplimiento",
+            "Visitas exigidas",
+            "Visitas válidas",
+            "Visitas pendientes",
+            "Rutas cumplen",
+            "Rutas incumplen",
+            "Gestores asociados",
+            "Ruteros asociados",
+            "Locales asociados",
+            "Gestión compartida",
+            "Visitas reportadas",
+        ],
+    )
+    resumen_df = _cg_v2_global_summary_export_df(context, summary)
+    detalle_rutero_export_df = _cg_v2_prepare_global_detail_rutero_df(detalle_rutero_df)
+    detalle_cliente_export_df = _cg_v2_prepare_global_detail_cliente_df(detalle_cliente_df)
+    casos_compartidos_export_df = _cg_v2_prepare_global_shared_cases_df(casos_compartidos_df)
+
+    out = io.BytesIO()
+    with pd.ExcelWriter(out, engine="openpyxl") as writer:
+        sheet_defs = [
+            ("01_Resumen_global", "Resumen global", resumen_df, False),
+            ("02_Ranking_gestores", "Ranking gestores", ranking_gestores_df, True),
+            ("03_Ranking_ruteros", "Ranking ruteros", ranking_ruteros_df, True),
+            ("04_Ranking_clientes", "Ranking clientes", ranking_clientes_df, True),
+            ("05_Detalle_rutero_calendario", "Detalle rutero calendario", detalle_rutero_export_df, True),
+            ("06_Detalle_cliente_calendario", "Detalle cliente calendario", detalle_cliente_export_df, True),
+            ("07_Casos_compartidos", "Casos compartidos", casos_compartidos_export_df, True),
+        ]
+
+        for sheet_name, title, df, add_filter in sheet_defs:
+            _, header_row, end_row = _cg_v2_write_titled_table(
+                writer,
+                sheet_name,
+                title,
+                df,
+                1,
+                add_filter=add_filter,
+            )
+            ws = writer.sheets[sheet_name]
+            ws.freeze_panes = f"A{header_row + 1}"
+            _cg_v2_format_table_columns(ws, header_row, end_row)
+            _cg_v2_autosize_worksheet(ws)
+
+        workbook = writer.book
+        if "Sheet" in workbook.sheetnames and len(workbook.sheetnames) > len(CG_V2_GLOBAL_SHEETS):
+            del workbook["Sheet"]
+
+    return out.getvalue()
 
 
 def build_control_gestion_v2_workbook(

@@ -6,7 +6,13 @@ import traceback
 import pandas as pd
 import streamlit as st
 
-from app.exports import build_control_gestion_v2_filename, build_control_gestion_v2_workbook
+from app.exports import (
+    CG_V2_GLOBAL_PROTOTYPE_WARNING,
+    build_control_gestion_global_filename,
+    build_control_gestion_global_workbook,
+    build_control_gestion_v2_filename,
+    build_control_gestion_v2_workbook,
+)
 
 
 def _cg_get_page_state(page_key: str, page_size: int = 25) -> tuple[int, int]:
@@ -660,6 +666,67 @@ def render_control_gestion(
                                     .astype(int)
                                 )
                         st.dataframe(competitive_view, use_container_width=True, hide_index=True)
+
+                try:
+                    with st.spinner("Preparando export global de cumplimiento..."):
+                        global_summary = db.get_cg_v2_export_summary(semana_inicio=semana_inicio)
+                        ranking_gestores = db.get_cg_v2_global_ranking_gestores(semana_inicio=semana_inicio)
+                        ranking_ruteros = db.get_cg_v2_global_ranking_ruteros(semana_inicio=semana_inicio)
+                        ranking_clientes = db.get_cg_v2_global_ranking_clientes(semana_inicio=semana_inicio)
+                        detalle_global = db.get_cg_v2_global_export_detail(semana_inicio=semana_inicio)
+
+                        def _shared_global_mask(df_in: pd.DataFrame) -> pd.Series:
+                            if df_in is None or df_in.empty:
+                                return pd.Series(dtype=bool)
+                            mask = pd.Series(False, index=df_in.index)
+                            for col in ["GESTION COMPARTIDA", "RUTA COMPARTIDA"]:
+                                if col not in df_in.columns:
+                                    continue
+                                values = df_in[col].fillna("").astype(str).str.strip()
+                                upper = values.str.upper()
+                                mask = mask | (
+                                    (values != "")
+                                    & ((~upper.isin({"NO", "NAN", "NONE"})) | values.str.contains("|", regex=False))
+                                )
+                            return mask
+
+                        casos_compartidos = (
+                            detalle_global.loc[_shared_global_mask(detalle_global)].copy()
+                            if detalle_global is not None and not detalle_global.empty
+                            else pd.DataFrame()
+                        )
+                        global_context = {
+                            "Semana": semana_inicio or "",
+                            "Fuente weekly": str((db.get_cg_v2_contract() or {}).get("views", {}).get("out_weekly") or ""),
+                            "Fecha generación": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Nota prototipo": CG_V2_GLOBAL_PROTOTYPE_WARNING,
+                        }
+                        global_workbook_bytes = build_control_gestion_global_workbook(
+                            context=global_context,
+                            summary=global_summary,
+                            ranking_gestores=ranking_gestores,
+                            ranking_ruteros=ranking_ruteros,
+                            ranking_clientes=ranking_clientes,
+                            detalle_rutero_df=detalle_global,
+                            detalle_cliente_df=detalle_global,
+                            casos_compartidos_df=casos_compartidos,
+                        )
+                        global_file_name = build_control_gestion_global_filename(semana_inicio or "semana")
+                    st.download_button(
+                        "Descargar global cumplimiento",
+                        data=global_workbook_bytes,
+                        file_name=global_file_name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"cg_v2_global_export_{semana_inicio}",
+                        use_container_width=True,
+                    )
+                except Exception as global_export_exc:
+                    _dbg(
+                        "WARN cg_v2_global_export_button",
+                        err=repr(global_export_exc),
+                        semana_inicio=semana_inicio,
+                    )
+                    st.warning("No pude preparar el export global de cumplimiento para esta semana.")
 
                 if not detail_ready:
                     if vista_sel == "CLIENTE":

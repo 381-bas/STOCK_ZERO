@@ -4345,6 +4345,274 @@ def get_cg_v2_competitive_summary(
     return df.reindex(columns=output_columns).fillna("")
 
 
+def _cg_v2_global_ranking_parts() -> dict[str, str]:
+    mv_mode = _cg_v2_out_weekly_is_mv()
+    alerta_norm_expr = (
+        'COALESCE(v."ALERTA_NORM_FILTER", UPPER(TRIM(COALESCE(v."ALERTA", \'\'))))'
+        if mv_mode
+        else _cg_text_norm_expr('v."ALERTA"')
+    )
+    visitas_pendientes_expr = (
+        'COALESCE(v."VISITAS_PENDIENTES_CALC", 0)'
+        if mv_mode
+        else 'GREATEST(COALESCE(v."VISITA", 0) - COALESCE(v."VISITA_REALIZADA_CAP", 0), 0)'
+    )
+    gestion_compartida_expr = (
+        'COALESCE(v."GESTION_COMPARTIDA_FLAG_CALC", 0)'
+        if mv_mode
+        else """CASE
+            WHEN COALESCE(v."RUTA_DUPLICADA_FLAG", 0) = 1
+              OR COALESCE(v."RUTA_DUPLICADA_ROWS", 0) > 1
+              OR CAST(v."GESTOR" AS TEXT) LIKE '%|%'
+              OR CAST(v."RUTERO" AS TEXT) LIKE '%|%'
+            THEN 1
+            ELSE 0
+        END"""
+    )
+    return {
+        "alerta_norm": alerta_norm_expr,
+        "visitas_pendientes": visitas_pendientes_expr,
+        "gestion_compartida": gestion_compartida_expr,
+    }
+
+
+def _cg_v2_global_ranking_empty(columns: list[str]) -> pd.DataFrame:
+    return pd.DataFrame(columns=columns)
+
+
+def get_cg_v2_global_ranking_gestores(semana_inicio: str | None = None) -> pd.DataFrame:
+    output_columns = [
+        "GESTOR",
+        "% cumplimiento",
+        "Visitas exigidas",
+        "Visitas válidas",
+        "Visitas pendientes",
+        "Rutas cumplen",
+        "Rutas incumplen",
+        "Sobrecumplimiento",
+        "Gestión compartida",
+        "Visitas reportadas",
+    ]
+    where_sql, params = _cg_v2_out_weekly_filters(alias="v", semana_inicio=semana_inicio)
+    parts = _cg_v2_global_ranking_parts()
+    sql = f"""
+        WITH base AS (
+            SELECT
+                COALESCE(NULLIF(TRIM(CAST(v."GESTOR" AS TEXT)), ''), 'SIN DATO') AS "GESTOR",
+                COALESCE(v."VISITA", 0) AS "VISITA",
+                COALESCE(v."VISITA_REALIZADA_CAP", 0) AS "VISITA_REALIZADA_CAP",
+                COALESCE(v."VISITA_REALIZADA_RAW", 0) AS "VISITA_REALIZADA_RAW",
+                COALESCE(v."SOBRE_CUMPLIMIENTO", 0) AS "SOBRE_CUMPLIMIENTO",
+                {parts["alerta_norm"]} AS "ALERTA_NORM_FILTER",
+                {parts["visitas_pendientes"]} AS "VISITAS_PENDIENTES_CALC",
+                {parts["gestion_compartida"]} AS "GESTION_COMPARTIDA_FLAG_CALC"
+            FROM {CG_V2_OUT_WEEKLY_VIEW} v
+            WHERE 1=1
+            {where_sql}
+        ),
+        grouped AS (
+            SELECT
+                "GESTOR",
+                COALESCE(SUM("VISITA"), 0)::int AS "Visitas exigidas",
+                COALESCE(SUM("VISITA_REALIZADA_CAP"), 0)::int AS "Visitas válidas",
+                COALESCE(SUM("VISITA_REALIZADA_RAW"), 0)::int AS "Visitas reportadas",
+                COALESCE(SUM("VISITAS_PENDIENTES_CALC"), 0)::int AS "Visitas pendientes",
+                COALESCE(SUM("SOBRE_CUMPLIMIENTO"), 0)::int AS "Sobrecumplimiento",
+                COALESCE(SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'CUMPLE' THEN 1 ELSE 0 END), 0)::int AS "Rutas cumplen",
+                COALESCE(SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'INCUMPLE' THEN 1 ELSE 0 END), 0)::int AS "Rutas incumplen",
+                COALESCE(SUM("GESTION_COMPARTIDA_FLAG_CALC"), 0)::int AS "Gestión compartida"
+            FROM base
+            GROUP BY "GESTOR"
+        )
+        SELECT
+            "GESTOR",
+            CASE
+                WHEN "Visitas exigidas" > 0
+                THEN ROUND(("Visitas válidas"::numeric / NULLIF("Visitas exigidas", 0)) * 100, 1)
+                ELSE 0::numeric
+            END AS "% cumplimiento",
+            "Visitas exigidas",
+            "Visitas válidas",
+            "Visitas pendientes",
+            "Rutas cumplen",
+            "Rutas incumplen",
+            "Sobrecumplimiento",
+            "Gestión compartida",
+            "Visitas reportadas"
+        FROM grouped
+        ORDER BY
+            "Visitas pendientes" DESC,
+            "% cumplimiento" ASC,
+            "Visitas exigidas" DESC
+    """
+    df = _selector_df("get_cg_v2_global_ranking_gestores", sql, params or None)
+    if df is None or df.empty:
+        return _cg_v2_global_ranking_empty(output_columns)
+    return df.reindex(columns=output_columns).fillna("")
+
+
+def get_cg_v2_global_ranking_ruteros(semana_inicio: str | None = None) -> pd.DataFrame:
+    output_columns = [
+        "GESTOR",
+        "RUTERO",
+        "% cumplimiento",
+        "Visitas exigidas",
+        "Visitas válidas",
+        "Visitas pendientes",
+        "Rutas cumplen",
+        "Rutas incumplen",
+        "Clientes atendidos",
+        "Locales atendidos",
+        "Gestión compartida",
+        "Visitas reportadas",
+    ]
+    where_sql, params = _cg_v2_out_weekly_filters(alias="v", semana_inicio=semana_inicio)
+    parts = _cg_v2_global_ranking_parts()
+    sql = f"""
+        WITH base AS (
+            SELECT
+                COALESCE(NULLIF(TRIM(CAST(v."GESTOR" AS TEXT)), ''), 'SIN DATO') AS "GESTOR",
+                COALESCE(NULLIF(TRIM(CAST(v."RUTERO" AS TEXT)), ''), 'SIN DATO') AS "RUTERO",
+                NULLIF(TRIM(CAST(v."CLIENTE" AS TEXT)), '') AS "CLIENTE_LABEL",
+                NULLIF(TRIM(CAST(v."LOCAL" AS TEXT)), '') AS "LOCAL_LABEL",
+                COALESCE(v."VISITA", 0) AS "VISITA",
+                COALESCE(v."VISITA_REALIZADA_CAP", 0) AS "VISITA_REALIZADA_CAP",
+                COALESCE(v."VISITA_REALIZADA_RAW", 0) AS "VISITA_REALIZADA_RAW",
+                COALESCE(v."SOBRE_CUMPLIMIENTO", 0) AS "SOBRE_CUMPLIMIENTO",
+                {parts["alerta_norm"]} AS "ALERTA_NORM_FILTER",
+                {parts["visitas_pendientes"]} AS "VISITAS_PENDIENTES_CALC",
+                {parts["gestion_compartida"]} AS "GESTION_COMPARTIDA_FLAG_CALC"
+            FROM {CG_V2_OUT_WEEKLY_VIEW} v
+            WHERE 1=1
+            {where_sql}
+        ),
+        grouped AS (
+            SELECT
+                "GESTOR",
+                "RUTERO",
+                COALESCE(SUM("VISITA"), 0)::int AS "Visitas exigidas",
+                COALESCE(SUM("VISITA_REALIZADA_CAP"), 0)::int AS "Visitas válidas",
+                COALESCE(SUM("VISITA_REALIZADA_RAW"), 0)::int AS "Visitas reportadas",
+                COALESCE(SUM("VISITAS_PENDIENTES_CALC"), 0)::int AS "Visitas pendientes",
+                COALESCE(SUM("SOBRE_CUMPLIMIENTO"), 0)::int AS "Sobrecumplimiento",
+                COALESCE(SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'CUMPLE' THEN 1 ELSE 0 END), 0)::int AS "Rutas cumplen",
+                COALESCE(SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'INCUMPLE' THEN 1 ELSE 0 END), 0)::int AS "Rutas incumplen",
+                COUNT(DISTINCT "CLIENTE_LABEL") FILTER (WHERE "CLIENTE_LABEL" IS NOT NULL)::int AS "Clientes atendidos",
+                COUNT(DISTINCT "LOCAL_LABEL") FILTER (WHERE "LOCAL_LABEL" IS NOT NULL)::int AS "Locales atendidos",
+                COALESCE(SUM("GESTION_COMPARTIDA_FLAG_CALC"), 0)::int AS "Gestión compartida"
+            FROM base
+            GROUP BY "GESTOR", "RUTERO"
+        )
+        SELECT
+            "GESTOR",
+            "RUTERO",
+            CASE
+                WHEN "Visitas exigidas" > 0
+                THEN ROUND(("Visitas válidas"::numeric / NULLIF("Visitas exigidas", 0)) * 100, 1)
+                ELSE 0::numeric
+            END AS "% cumplimiento",
+            "Visitas exigidas",
+            "Visitas válidas",
+            "Visitas pendientes",
+            "Rutas cumplen",
+            "Rutas incumplen",
+            "Clientes atendidos",
+            "Locales atendidos",
+            "Gestión compartida",
+            "Visitas reportadas"
+        FROM grouped
+        ORDER BY
+            "Visitas pendientes" DESC,
+            "% cumplimiento" ASC,
+            "Visitas exigidas" DESC
+    """
+    df = _selector_df("get_cg_v2_global_ranking_ruteros", sql, params or None)
+    if df is None or df.empty:
+        return _cg_v2_global_ranking_empty(output_columns)
+    return df.reindex(columns=output_columns).fillna("")
+
+
+def get_cg_v2_global_ranking_clientes(semana_inicio: str | None = None) -> pd.DataFrame:
+    output_columns = [
+        "CLIENTE",
+        "% cumplimiento",
+        "Visitas exigidas",
+        "Visitas válidas",
+        "Visitas pendientes",
+        "Rutas cumplen",
+        "Rutas incumplen",
+        "Gestores asociados",
+        "Ruteros asociados",
+        "Locales asociados",
+        "Gestión compartida",
+        "Visitas reportadas",
+    ]
+    where_sql, params = _cg_v2_out_weekly_filters(alias="v", semana_inicio=semana_inicio)
+    parts = _cg_v2_global_ranking_parts()
+    sql = f"""
+        WITH base AS (
+            SELECT
+                COALESCE(NULLIF(TRIM(CAST(v."CLIENTE" AS TEXT)), ''), 'SIN DATO') AS "CLIENTE",
+                NULLIF(TRIM(CAST(v."GESTOR" AS TEXT)), '') AS "GESTOR_LABEL",
+                NULLIF(TRIM(CAST(v."RUTERO" AS TEXT)), '') AS "RUTERO_LABEL",
+                NULLIF(TRIM(CAST(v."LOCAL" AS TEXT)), '') AS "LOCAL_LABEL",
+                COALESCE(v."VISITA", 0) AS "VISITA",
+                COALESCE(v."VISITA_REALIZADA_CAP", 0) AS "VISITA_REALIZADA_CAP",
+                COALESCE(v."VISITA_REALIZADA_RAW", 0) AS "VISITA_REALIZADA_RAW",
+                COALESCE(v."SOBRE_CUMPLIMIENTO", 0) AS "SOBRE_CUMPLIMIENTO",
+                {parts["alerta_norm"]} AS "ALERTA_NORM_FILTER",
+                {parts["visitas_pendientes"]} AS "VISITAS_PENDIENTES_CALC",
+                {parts["gestion_compartida"]} AS "GESTION_COMPARTIDA_FLAG_CALC"
+            FROM {CG_V2_OUT_WEEKLY_VIEW} v
+            WHERE 1=1
+            {where_sql}
+        ),
+        grouped AS (
+            SELECT
+                "CLIENTE",
+                COALESCE(SUM("VISITA"), 0)::int AS "Visitas exigidas",
+                COALESCE(SUM("VISITA_REALIZADA_CAP"), 0)::int AS "Visitas válidas",
+                COALESCE(SUM("VISITA_REALIZADA_RAW"), 0)::int AS "Visitas reportadas",
+                COALESCE(SUM("VISITAS_PENDIENTES_CALC"), 0)::int AS "Visitas pendientes",
+                COALESCE(SUM("SOBRE_CUMPLIMIENTO"), 0)::int AS "Sobrecumplimiento",
+                COALESCE(SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'CUMPLE' THEN 1 ELSE 0 END), 0)::int AS "Rutas cumplen",
+                COALESCE(SUM(CASE WHEN "ALERTA_NORM_FILTER" = 'INCUMPLE' THEN 1 ELSE 0 END), 0)::int AS "Rutas incumplen",
+                COALESCE(STRING_AGG(DISTINCT "GESTOR_LABEL", ' | ' ORDER BY "GESTOR_LABEL") FILTER (WHERE "GESTOR_LABEL" IS NOT NULL), 'SIN DATO') AS "Gestores asociados",
+                COALESCE(STRING_AGG(DISTINCT "RUTERO_LABEL", ' | ' ORDER BY "RUTERO_LABEL") FILTER (WHERE "RUTERO_LABEL" IS NOT NULL), 'SIN DATO') AS "Ruteros asociados",
+                COUNT(DISTINCT "LOCAL_LABEL") FILTER (WHERE "LOCAL_LABEL" IS NOT NULL)::int AS "Locales asociados",
+                COALESCE(SUM("GESTION_COMPARTIDA_FLAG_CALC"), 0)::int AS "Gestión compartida"
+            FROM base
+            GROUP BY "CLIENTE"
+        )
+        SELECT
+            "CLIENTE",
+            CASE
+                WHEN "Visitas exigidas" > 0
+                THEN ROUND(("Visitas válidas"::numeric / NULLIF("Visitas exigidas", 0)) * 100, 1)
+                ELSE 0::numeric
+            END AS "% cumplimiento",
+            "Visitas exigidas",
+            "Visitas válidas",
+            "Visitas pendientes",
+            "Rutas cumplen",
+            "Rutas incumplen",
+            "Gestores asociados",
+            "Ruteros asociados",
+            "Locales asociados",
+            "Gestión compartida",
+            "Visitas reportadas"
+        FROM grouped
+        ORDER BY
+            "Visitas pendientes" DESC,
+            "% cumplimiento" ASC,
+            "Visitas exigidas" DESC
+    """
+    df = _selector_df("get_cg_v2_global_ranking_clientes", sql, params or None)
+    if df is None or df.empty:
+        return _cg_v2_global_ranking_empty(output_columns)
+    return df.reindex(columns=output_columns).fillna("")
+
+
 def get_cg_v2_export_summary(
     semana_inicio: str | None = None,
     gestor: str | None = None,
@@ -4389,6 +4657,7 @@ def get_cg_v2_export_summary(
         SELECT
             COUNT(*)::int AS total_rows,
             COALESCE(SUM(COALESCE("VISITA", 0)), 0)::int AS visita_plan,
+            COALESCE(SUM(COALESCE("VISITA_REALIZADA_RAW", 0)), 0)::int AS visita_realizada_raw,
             COALESCE(SUM(COALESCE("VISITA_REALIZADA_CAP", 0)), 0)::int AS visita_realizada_cap,
             {visitas_pendientes_expr},
             COALESCE(SUM(COALESCE("SOBRE_CUMPLIMIENTO", 0)), 0)::int AS sobre_cumplimiento,
@@ -4414,6 +4683,7 @@ def get_cg_v2_export_summary(
     defaults = {
         "total_rows": 0,
         "visita_plan": 0,
+        "visita_realizada_raw": 0,
         "visita_realizada_cap": 0,
         "visitas_pendientes": 0,
         "sobre_cumplimiento": 0,
@@ -4635,6 +4905,18 @@ def get_cg_v2_export_detail(
         if day_col in df.columns:
             df[day_col] = df[day_col].apply(_cg_v2_export_day_display)
     return df.reindex(columns=export_columns).fillna("")
+
+
+def get_cg_v2_global_export_detail(semana_inicio: str | None = None) -> pd.DataFrame:
+    return get_cg_v2_export_detail(
+        semana_inicio=semana_inicio,
+        gestor=None,
+        vista="RUTERO",
+        rutero=None,
+        local=None,
+        cliente=None,
+        alerta=None,
+    )
 
 
 def get_cg_v2_daily_matrix_page(
