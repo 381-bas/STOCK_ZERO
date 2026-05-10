@@ -22,7 +22,9 @@ KERNEL_NAMES = (
     "01_kernel_global_v1_4_1.json",
     "02_project_state_stock_zero_v1_6_4.json",
     "03_iterative_ledger_v1_6_3.json",
-    "CONTROL_GESTION_IMPLEMENTATION_KERNEL_V2_2.json",
+    "04_project_direction_kernel_stock_zero_v1_0_2.json",
+    "STOCK_ZERO_3JSON_AUDIT_MATRIX_20260331_v2_2.json",
+    "CONTROL_GESTION_IMPLEMENTATION_KERNEL_V2_4.json",
 )
 ARTIFACT_PATTERNS = (
     "CG_V2_BUSINESS_RULE_EVIDENCE_PACK_9B13_*.json",
