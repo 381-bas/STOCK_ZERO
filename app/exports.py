@@ -111,18 +111,17 @@ CG_V2_GLOBAL_CLIENTE_DETAIL_COLS = [
 ]
 
 CG_V2_GLOBAL_SHEETS = [
-    "01_Resumen_global",
-    "02_Ranking_gestores",
-    "03_Ranking_ruteros",
-    "04_Ranking_clientes",
-    "05_Detalle_rutero_calendario",
-    "06_Detalle_cliente_calendario",
-    "07_Casos_compartidos",
+    "RESUMEN_EJECUTIVO",
+    "RANKING_GESTORES",
+    "RANKING_RUTEROS",
+    "RANKING_CLIENTES",
+    "DETALLE_CALENDARIO",
+    "AUDITORIA_ASOCIADOS",
 ]
 
 CG_V2_GLOBAL_PROTOTYPE_WARNING = (
-    "Export global preliminar para revisión operativa. Métricas sujetas a ajuste por contrato "
-    "de precedencia de fuentes KPIONE2 / POWER_APP / KPIONE1."
+    "Cumplimiento calculado desde weekly mart CONTROL_GESTION v2. Precedencia: KPIONE2 primero; "
+    "POWER_APP solo fallback por día único; KPIONE1 audit-only."
 )
 
 
@@ -713,6 +712,117 @@ def _cg_v2_prepare_global_ranking_df(df_in: pd.DataFrame | None, columns: list[s
     return df[columns]
 
 
+CG_V2_ASSOCIATION_DISPLAY_LIMIT = 3
+
+
+def _cg_v2_pipe_tokens(value: object) -> list[str]:
+    text = str(value or "").strip()
+    if not text or text.lower() in {"nan", "none"}:
+        return []
+
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for raw_token in text.split("|"):
+        token = raw_token.strip()
+        if not token or token.lower() in {"nan", "none"}:
+            continue
+        key = token.upper()
+        if key in seen:
+            continue
+        seen.add(key)
+        tokens.append(token)
+    return sorted(tokens, key=lambda item: item.upper())
+
+
+def _cg_v2_clean_pipe_list(value: object) -> str:
+    return " | ".join(_cg_v2_pipe_tokens(value))
+
+
+def _cg_v2_pipe_token_count(value: object) -> int:
+    return len(_cg_v2_pipe_tokens(value))
+
+
+def _cg_v2_exec_association_display(value: object) -> str:
+    tokens = _cg_v2_pipe_tokens(value)
+    if not tokens:
+        return ""
+    if len(tokens) <= CG_V2_ASSOCIATION_DISPLAY_LIMIT:
+        return " | ".join(tokens)
+    return f"{len(tokens)} asociados"
+
+
+def _cg_v2_alert_summary(row: pd.Series) -> str:
+    exigidas = pd.to_numeric(row.get("Visitas exigidas"), errors="coerce")
+    pendientes = pd.to_numeric(row.get("Visitas pendientes"), errors="coerce")
+    if pd.isna(exigidas) or exigidas <= 0:
+        return "No aplica"
+    if pd.isna(pendientes) or pendientes <= 0:
+        return "Cumple"
+    return "Con pendientes"
+
+
+def _cg_v2_add_alert_summary(df_in: pd.DataFrame) -> pd.DataFrame:
+    df = df_in.copy()
+    df["Alerta resumen"] = df.apply(_cg_v2_alert_summary, axis=1)
+    return df
+
+
+def _cg_v2_prepare_global_clientes_exec_df(df_in: pd.DataFrame) -> pd.DataFrame:
+    columns = [
+        "CLIENTE",
+        "% cumplimiento",
+        "Visitas exigidas",
+        "Visitas válidas",
+        "Visitas pendientes",
+        "Rutas cumplen",
+        "Rutas incumplen",
+        "Locales asociados",
+        "Gestores asociados (n)",
+        "Ruteros asociados (n)",
+        "Gestores asociados",
+        "Ruteros asociados",
+        "Gestión compartida",
+        "Visitas reportadas",
+        "Alerta resumen",
+    ]
+    if df_in is None or df_in.empty:
+        return pd.DataFrame(columns=columns)
+
+    df = _cg_v2_add_alert_summary(df_in)
+    df["Gestores asociados (n)"] = df["Gestores asociados"].apply(_cg_v2_pipe_token_count)
+    df["Ruteros asociados (n)"] = df["Ruteros asociados"].apply(_cg_v2_pipe_token_count)
+    df["Gestores asociados"] = df["Gestores asociados"].apply(_cg_v2_exec_association_display)
+    df["Ruteros asociados"] = df["Ruteros asociados"].apply(_cg_v2_exec_association_display)
+    for col in columns:
+        if col not in df.columns:
+            df[col] = ""
+    return df[columns]
+
+
+def _cg_v2_prepare_global_associations_audit_df(df_in: pd.DataFrame) -> pd.DataFrame:
+    columns = [
+        "CLIENTE",
+        "Gestores asociados",
+        "Gestores asociados (n)",
+        "Ruteros asociados",
+        "Ruteros asociados (n)",
+        "Locales asociados",
+    ]
+    if df_in is None or df_in.empty:
+        return pd.DataFrame(columns=columns)
+
+    df = df_in.copy()
+    for col in ["CLIENTE", "Gestores asociados", "Ruteros asociados", "Locales asociados"]:
+        if col not in df.columns:
+            df[col] = ""
+    df["Gestores asociados"] = df["Gestores asociados"].apply(_cg_v2_clean_pipe_list)
+    df["Ruteros asociados"] = df["Ruteros asociados"].apply(_cg_v2_clean_pipe_list)
+    df["Gestores asociados (n)"] = df["Gestores asociados"].apply(_cg_v2_pipe_token_count)
+    df["Ruteros asociados (n)"] = df["Ruteros asociados"].apply(_cg_v2_pipe_token_count)
+    df = _cg_v2_sort_by_text(df, ["CLIENTE"])
+    return df[columns]
+
+
 def _cg_v2_global_summary_export_df(context: dict[str, Any], summary: dict[str, Any]) -> pd.DataFrame:
     visita_plan = int(summary.get("visita_plan") or 0)
     visita_realizada_cap = int(summary.get("visita_realizada_cap") or 0)
@@ -730,7 +840,10 @@ def _cg_v2_global_summary_export_df(context: dict[str, Any], summary: dict[str, 
         ("Sobrecumplimiento", int(summary.get("sobre_cumplimiento") or 0)),
         ("Gestión compartida", int(summary.get("gestion_compartida_rows") or 0)),
         ("Visitas reportadas", int(summary.get("visita_realizada_raw") or 0)),
-        ("Nota prototipo", context.get("Nota prototipo") or CG_V2_GLOBAL_PROTOTYPE_WARNING),
+        (
+            "Regla de precedencia",
+            context.get("Regla de precedencia") or context.get("Nota prototipo") or CG_V2_GLOBAL_PROTOTYPE_WARNING,
+        ),
     ]
     return pd.DataFrame(rows, columns=["CAMPO", "VALOR"])
 
@@ -785,6 +898,8 @@ def _cg_v2_format_table_columns(ws, header_row: int, end_row: int) -> None:
             "Clientes atendidos",
             "Locales atendidos",
             "Locales asociados",
+            "Gestores asociados (n)",
+            "Ruteros asociados (n)",
             "EXIGIDAS SEM.",
             "PENDIENTE",
         }:
@@ -804,7 +919,7 @@ def build_control_gestion_v2_filename(*, semana_inicio: str, vista: str, foco: s
 
 def build_control_gestion_global_filename(semana_inicio: str) -> str:
     semana_token = _safe_file_token(str(semana_inicio or "")[:10], fallback="semana")
-    return f"CONTROL_GESTION_GLOBAL_{semana_token}_PROTOTIPO.xlsx"
+    return f"CONTROL_GESTION_GLOBAL_{semana_token}.xlsx"
 
 
 def build_control_gestion_global_workbook(
@@ -868,20 +983,21 @@ def build_control_gestion_global_workbook(
         ],
     )
     resumen_df = _cg_v2_global_summary_export_df(context, summary)
+    ranking_gestores_exec_df = _cg_v2_add_alert_summary(ranking_gestores_df)
+    ranking_ruteros_exec_df = _cg_v2_add_alert_summary(ranking_ruteros_df)
+    ranking_clientes_exec_df = _cg_v2_prepare_global_clientes_exec_df(ranking_clientes_df)
+    audit_asociados_df = _cg_v2_prepare_global_associations_audit_df(ranking_clientes_df)
     detalle_rutero_export_df = _cg_v2_prepare_global_detail_rutero_df(detalle_rutero_df)
-    detalle_cliente_export_df = _cg_v2_prepare_global_detail_cliente_df(detalle_cliente_df)
     casos_compartidos_export_df = _cg_v2_prepare_global_shared_cases_df(casos_compartidos_df)
 
     out = io.BytesIO()
     with pd.ExcelWriter(out, engine="openpyxl") as writer:
         sheet_defs = [
-            ("01_Resumen_global", "Resumen global", resumen_df, False),
-            ("02_Ranking_gestores", "Ranking gestores", ranking_gestores_df, True),
-            ("03_Ranking_ruteros", "Ranking ruteros", ranking_ruteros_df, True),
-            ("04_Ranking_clientes", "Ranking clientes", ranking_clientes_df, True),
-            ("05_Detalle_rutero_calendario", "Detalle rutero calendario", detalle_rutero_export_df, True),
-            ("06_Detalle_cliente_calendario", "Detalle cliente calendario", detalle_cliente_export_df, True),
-            ("07_Casos_compartidos", "Casos compartidos", casos_compartidos_export_df, True),
+            ("RESUMEN_EJECUTIVO", "Resumen ejecutivo", resumen_df, False),
+            ("RANKING_GESTORES", "Ranking gestores", ranking_gestores_exec_df, True),
+            ("RANKING_RUTEROS", "Ranking ruteros", ranking_ruteros_exec_df, True),
+            ("RANKING_CLIENTES", "Ranking clientes", ranking_clientes_exec_df, True),
+            ("DETALLE_CALENDARIO", "Detalle calendario", detalle_rutero_export_df, True),
         ]
 
         for sheet_name, title, df, add_filter in sheet_defs:
@@ -897,6 +1013,31 @@ def build_control_gestion_global_workbook(
             ws.freeze_panes = f"A{header_row + 1}"
             _cg_v2_format_table_columns(ws, header_row, end_row)
             _cg_v2_autosize_worksheet(ws)
+
+        audit_sheet = "AUDITORIA_ASOCIADOS"
+        _, audit_header_row, audit_end_row = _cg_v2_write_titled_table(
+            writer,
+            audit_sheet,
+            "Asociados por cliente",
+            audit_asociados_df,
+            1,
+            add_filter=True,
+        )
+        ws = writer.sheets[audit_sheet]
+        ws.freeze_panes = f"A{audit_header_row + 1}"
+        _cg_v2_format_table_columns(ws, audit_header_row, audit_end_row)
+
+        shared_title_row = audit_end_row + 3
+        _, shared_header_row, shared_end_row = _cg_v2_write_titled_table(
+            writer,
+            audit_sheet,
+            "Casos compartidos",
+            casos_compartidos_export_df,
+            shared_title_row,
+            add_filter=False,
+        )
+        _cg_v2_format_table_columns(ws, shared_header_row, shared_end_row)
+        _cg_v2_autosize_worksheet(ws)
 
         workbook = writer.book
         if "Sheet" in workbook.sheetnames and len(workbook.sheetnames) > len(CG_V2_GLOBAL_SHEETS):
