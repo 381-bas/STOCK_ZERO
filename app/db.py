@@ -3938,11 +3938,11 @@ def get_cg_v2_recent_weeks(limit: int = 3) -> list[str]:
     df = _selector_df(
         "get_cg_v2_recent_weeks",
         f"""
-        SELECT CAST(effective_week_start AS TEXT) AS semana_inicio
-        FROM {CG_V2_ROUTE_FREQ_RESUELTA_VIEW}
-        WHERE effective_week_start IS NOT NULL
-        GROUP BY effective_week_start
-        ORDER BY effective_week_start DESC
+        SELECT CAST("SEMANA_INICIO" AS TEXT) AS semana_inicio
+        FROM {CG_V2_OUT_WEEKLY_VIEW}
+        WHERE "SEMANA_INICIO" IS NOT NULL
+        GROUP BY "SEMANA_INICIO"
+        ORDER BY "SEMANA_INICIO" DESC
         LIMIT :limit
         """,
         {"limit": recent_limit},
@@ -4012,22 +4012,28 @@ def _cg_v2_selector_values(
     rutero: str | None = None,
     local: str | None = None,
 ) -> list[str]:
-    where_sql, params = _cg_v2_route_filters(
+    weekly_columns = {
+        "cliente": '"CLIENTE"',
+        "local_nombre": '"LOCAL"',
+    }
+    weekly_column_expr = weekly_columns.get(column_expr, column_expr)
+    where_sql, params = _cg_v2_out_weekly_filters(
         alias="v",
         semana_inicio=semana_inicio,
         gestor=gestor,
         cliente=cliente,
+        alerta=alerta,
         rutero=rutero,
         local=local,
     )
     df = _selector_df(
         selector_name,
         f"""
-        SELECT CAST({column_expr} AS TEXT) AS {result_alias}
-        FROM {CG_V2_ROUTE_FREQ_RESUELTA_VIEW} v
-        WHERE NULLIF(TRIM(COALESCE(CAST({column_expr} AS TEXT), '')), '') IS NOT NULL
+        SELECT CAST(v.{weekly_column_expr} AS TEXT) AS {result_alias}
+        FROM {CG_V2_OUT_WEEKLY_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST(v.{weekly_column_expr} AS TEXT), '')), '') IS NOT NULL
         {where_sql}
-        GROUP BY {column_expr}
+        GROUP BY v.{weekly_column_expr}
         ORDER BY {result_alias}
         """,
         params or None,
@@ -4038,16 +4044,16 @@ def _cg_v2_selector_values(
 def get_cg_v2_gestores(
     semana_inicio: str | None = None,
 ) -> list[str]:
-    where_sql, params = _cg_v2_route_filters(
+    where_sql, params = _cg_v2_out_weekly_filters(
         alias="v",
         semana_inicio=semana_inicio,
     )
     df = _selector_df(
         "get_cg_v2_gestores",
         f"""
-        SELECT DISTINCT CAST(v.gestor AS TEXT) AS gestor
-        FROM {CG_V2_ROUTE_FREQ_RESUELTA_VIEW} v
-        WHERE NULLIF(TRIM(COALESCE(CAST(v.gestor AS TEXT), '')), '') IS NOT NULL
+        SELECT DISTINCT CAST(v."GESTOR" AS TEXT) AS gestor
+        FROM {CG_V2_OUT_WEEKLY_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST(v."GESTOR" AS TEXT), '')), '') IS NOT NULL
         {where_sql}
         ORDER BY gestor
         """,
@@ -4115,7 +4121,7 @@ def get_cg_v2_ruteros(
     semana_inicio: str | None = None,
     gestor: str | None = None,
 ) -> list[str]:
-    where_sql, params = _cg_v2_route_filters(
+    where_sql, params = _cg_v2_out_weekly_filters(
         alias="v",
         semana_inicio=semana_inicio,
         gestor=gestor,
@@ -4123,9 +4129,9 @@ def get_cg_v2_ruteros(
     df = _selector_df(
         "get_cg_v2_ruteros",
         f"""
-        SELECT DISTINCT CAST(v.rutero AS TEXT) AS rutero
-        FROM {CG_V2_ROUTE_FREQ_RESUELTA_VIEW} v
-        WHERE NULLIF(TRIM(COALESCE(CAST(v.rutero AS TEXT), '')), '') IS NOT NULL
+        SELECT DISTINCT CAST(v."RUTERO" AS TEXT) AS rutero
+        FROM {CG_V2_OUT_WEEKLY_VIEW} v
+        WHERE NULLIF(TRIM(COALESCE(CAST(v."RUTERO" AS TEXT), '')), '') IS NOT NULL
         {where_sql}
         ORDER BY rutero
         """,
