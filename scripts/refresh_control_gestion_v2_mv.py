@@ -10,6 +10,7 @@ from typing import Any
 
 MV_NAME = "cg_mart.mv_cg_out_weekly_v2"
 SOURCE_VIEW = "cg_mart.v_cg_out_weekly_v2"
+DEFAULT_STATEMENT_TIMEOUT_SECONDS = 1800
 
 
 def ensure_sslmode(db_url: str) -> str:
@@ -41,6 +42,23 @@ def _print_trace(tag: str, **fields: Any) -> None:
     for key, value in fields.items():
         parts.append(f"{key}={value}")
     print(" ".join(parts))
+
+
+def _statement_timeout_ms(statement_timeout_seconds: int) -> int:
+    seconds = int(statement_timeout_seconds)
+    if seconds <= 0:
+        return 0
+    return seconds * 1000
+
+
+def _is_statement_timeout(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return "statement timeout" in text or "canceling statement due to statement timeout" in text
+
+
+def _stage_failure_status(stage: str, exc: Exception) -> str:
+    suffix = "timeout" if _is_statement_timeout(exc) else "error"
+    return f"{stage}_{suffix}"
 
 
 def _validation_query() -> str:
@@ -120,7 +138,7 @@ def run_cg_v2_mv_refresh(
     db_url: str = "",
     skip_analyze: bool = False,
     validate: bool = False,
-    statement_timeout_seconds: int = 300,
+    statement_timeout_seconds: int = DEFAULT_STATEMENT_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     resolved_db_url = resolve_db_url(db_url)
     if not resolved_db_url:
@@ -129,13 +147,16 @@ def run_cg_v2_mv_refresh(
     import psycopg2
 
     started_ms = _now_ms()
-    timeout_ms = max(int(statement_timeout_seconds), 1) * 1000
+    timeout_ms = _statement_timeout_ms(statement_timeout_seconds)
     result: dict[str, Any] = {
         "mv_name": MV_NAME,
         "source_view": SOURCE_VIEW,
         "skip_analyze": bool(skip_analyze),
         "validate": bool(validate),
         "statement_timeout_seconds": int(statement_timeout_seconds),
+        "refresh_status": "pending",
+        "analyze_status": "skipped" if skip_analyze else "pending",
+        "validation_status": "pending" if validate else "not_requested",
         "status": "started",
     }
 
@@ -152,18 +173,49 @@ def run_cg_v2_mv_refresh(
             cur.execute(f"SET statement_timeout TO {timeout_ms}")
 
             refresh_started_ms = _now_ms()
-            cur.execute(f"REFRESH MATERIALIZED VIEW {MV_NAME};")
-            conn.commit()
+            try:
+                cur.execute(f"REFRESH MATERIALIZED VIEW {MV_NAME};")
+                conn.commit()
+            except Exception as exc:
+                conn.rollback()
+                result["refresh_status"] = _stage_failure_status("failed", exc)
+                result["status"] = _stage_failure_status("refresh", exc)
+                result["error"] = str(exc)
+                result["elapsed_ms"] = _now_ms() - started_ms
+                _print_trace(
+                    "MV_REFRESH_FAIL",
+                    mv=MV_NAME,
+                    elapsed_ms=_now_ms() - refresh_started_ms,
+                    status=result["refresh_status"],
+                    error=str(exc),
+                )
+                return result
             refresh_elapsed_ms = _now_ms() - refresh_started_ms
             result["refresh_elapsed_ms"] = refresh_elapsed_ms
+            result["refresh_status"] = "ok"
             _print_trace("MV_REFRESH_OK", mv=MV_NAME, elapsed_ms=refresh_elapsed_ms)
 
             if skip_analyze:
                 result["analyze_status"] = "skipped"
             else:
                 analyze_started_ms = _now_ms()
-                cur.execute(f"ANALYZE {MV_NAME};")
-                conn.commit()
+                try:
+                    cur.execute(f"ANALYZE {MV_NAME};")
+                    conn.commit()
+                except Exception as exc:
+                    conn.rollback()
+                    result["analyze_status"] = _stage_failure_status("failed", exc)
+                    result["status"] = _stage_failure_status("analyze", exc)
+                    result["error"] = str(exc)
+                    result["elapsed_ms"] = _now_ms() - started_ms
+                    _print_trace(
+                        "MV_ANALYZE_FAIL",
+                        mv=MV_NAME,
+                        elapsed_ms=_now_ms() - analyze_started_ms,
+                        status=result["analyze_status"],
+                        error=str(exc),
+                    )
+                    return result
                 analyze_elapsed_ms = _now_ms() - analyze_started_ms
                 result["analyze_status"] = "ok"
                 result["analyze_elapsed_ms"] = analyze_elapsed_ms
@@ -171,10 +223,26 @@ def run_cg_v2_mv_refresh(
 
             if validate:
                 validation_started_ms = _now_ms()
-                validation = _run_validation(cur)
+                try:
+                    validation = _run_validation(cur)
+                except Exception as exc:
+                    conn.rollback()
+                    result["validation_status"] = _stage_failure_status("failed", exc)
+                    result["status"] = _stage_failure_status("validate", exc)
+                    result["error"] = str(exc)
+                    result["elapsed_ms"] = _now_ms() - started_ms
+                    _print_trace(
+                        "MV_VALIDATE_FAIL",
+                        mv=MV_NAME,
+                        elapsed_ms=_now_ms() - validation_started_ms,
+                        status=result["validation_status"],
+                        error=str(exc),
+                    )
+                    return result
                 validation["elapsed_ms"] = _now_ms() - validation_started_ms
                 result["validation"] = validation
                 if validation["ok"]:
+                    result["validation_status"] = "ok"
                     _print_trace("MV_VALIDATE_OK", mv=MV_NAME, elapsed_ms=validation["elapsed_ms"])
                 else:
                     _print_trace(
@@ -183,9 +251,10 @@ def run_cg_v2_mv_refresh(
                         elapsed_ms=validation["elapsed_ms"],
                         diffs=json.dumps(validation["diffs"], ensure_ascii=False, sort_keys=True),
                     )
-                    result["status"] = "error"
+                    result["validation_status"] = "failed"
+                    result["status"] = "validate_failed"
                     result["elapsed_ms"] = _now_ms() - started_ms
-                    raise RuntimeError(f"MV_VALIDATE_FAIL {json.dumps(validation['diffs'], ensure_ascii=False, sort_keys=True)}")
+                    return result
 
     result["status"] = "ok"
     result["elapsed_ms"] = _now_ms() - started_ms
@@ -197,7 +266,7 @@ def main() -> int:
     ap.add_argument("--db-url", default="")
     ap.add_argument("--skip-analyze", action="store_true")
     ap.add_argument("--validate", action="store_true")
-    ap.add_argument("--statement-timeout-seconds", type=int, default=300)
+    ap.add_argument("--statement-timeout-seconds", type=int, default=DEFAULT_STATEMENT_TIMEOUT_SECONDS)
     args = ap.parse_args()
 
     try:
@@ -208,7 +277,7 @@ def main() -> int:
             statement_timeout_seconds=args.statement_timeout_seconds,
         )
         print(json.dumps(result, indent=2, ensure_ascii=False))
-        return 0
+        return 0 if result.get("status") == "ok" else 1
     except Exception as exc:
         if str(exc) == "NO_DB_URL_AVAILABLE":
             print("NO_DB_URL_AVAILABLE")

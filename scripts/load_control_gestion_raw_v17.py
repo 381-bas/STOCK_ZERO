@@ -16,6 +16,7 @@ import pandas as pd
 DEFAULT_FILE = r"data\CUMPLIMIENTO_FRECUENCIA.xlsx"
 LOADER_NAME = "load_control_gestion_raw_v17"
 LOADER_VERSION = "v17_9C2A"
+DEFAULT_CG_V2_REFRESH_TIMEOUT_SECONDS = 1800
 SOURCE_ORDER = ["KPIONE", "KPIONE2", "POWER_APP"]
 SOURCE_TO_SHEET = {
     "KPIONE": "DB (KPIONE)",
@@ -851,6 +852,20 @@ def load_source_to_db(
     raise ValueError(f"Unsupported source_key={source_key}")
 
 
+def _mv_refresh_final_status(refresh_result: dict[str, Any]) -> tuple[str, str, str, bool]:
+    refresh_status = str(refresh_result.get("refresh_status") or refresh_result.get("status") or "unknown")
+    validation_status = str(refresh_result.get("validation_status") or "not_requested")
+    overall_status = str(refresh_result.get("status") or "")
+
+    if overall_status == "ok":
+        return "ok", validation_status, "load_ok_refresh_ok", False
+    if overall_status.startswith("validate") or validation_status in {"failed", "failed_timeout", "failed_error"}:
+        return "ok", validation_status, "load_ok_refresh_ok_validate_failed", False
+    if overall_status.startswith("analyze"):
+        return refresh_status, validation_status, "load_ok_refresh_ok_analyze_failed", False
+    return refresh_status, validation_status, "load_ok_refresh_failed", True
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--excel", default=DEFAULT_FILE)
@@ -861,6 +876,7 @@ def main() -> None:
     ap.add_argument("--skip-mv-refresh-if-no-change", action="store_true")
     ap.add_argument("--refresh-cg-v2-mv", action="store_true")
     ap.add_argument("--validate-cg-v2-mv", action="store_true")
+    ap.add_argument("--cg-v2-refresh-timeout-seconds", type=int, default=DEFAULT_CG_V2_REFRESH_TIMEOUT_SECONDS)
     ap.add_argument("--skip-source-check", action="store_true")
     ap.add_argument("--source-check-strict", action="store_true")
     ap.add_argument("--source-check-only", action="store_true")
@@ -910,9 +926,18 @@ def main() -> None:
         "force_source": args.force_source,
         "source_file": excel_path.name,
         "sources": {},
+        "source_check_status": source_check["final_verdict"],
+        "load_status": "pending",
         "sources_changed": [],
         "should_refresh_mv": False,
         "mv_refresh_skipped_reason": "",
+        "mv_refresh_status": "not_requested",
+        "mv_validation_status": "not_requested" if not args.validate_cg_v2_mv else "pending",
+        "web_data_status": "unknown",
+        "pending_refresh": False,
+        "mv_stale": False,
+        "cg_v2_refresh_timeout_seconds": int(args.cg_v2_refresh_timeout_seconds),
+        "final_status": "started",
         "incremental_warnings": [],
         "status": "ok",
     }
@@ -1036,6 +1061,7 @@ def main() -> None:
 
         if conn is not None and not args.dry_run:
             conn.commit()
+        result["load_status"] = "ok"
     finally:
         if cur is not None:
             cur.close()
@@ -1044,10 +1070,24 @@ def main() -> None:
 
     if args.dry_run:
         result["mv_refresh_skipped_reason"] = "dry_run"
+        result["mv_refresh_status"] = "skipped"
+        result["mv_validation_status"] = "not_requested"
+        result["web_data_status"] = "dry_run_no_change"
+        result["final_status"] = "dry_run_ok"
     elif args.skip_mv_refresh_if_no_change and not result["sources_changed"]:
         result["mv_refresh_skipped_reason"] = "no_source_change"
+        result["mv_refresh_status"] = "skipped"
+        result["mv_validation_status"] = "not_requested"
+        result["web_data_status"] = "fresh_no_source_change"
+        result["final_status"] = "load_ok_no_source_change"
     elif not args.refresh_cg_v2_mv:
         result["mv_refresh_skipped_reason"] = "refresh_flag_not_requested"
+        result["mv_refresh_status"] = "deferred" if result["sources_changed"] else "not_requested"
+        result["mv_validation_status"] = "not_requested"
+        result["pending_refresh"] = bool(result["sources_changed"])
+        result["mv_stale"] = bool(result["sources_changed"])
+        result["web_data_status"] = "stale_pending_refresh" if result["sources_changed"] else "fresh_no_source_change"
+        result["final_status"] = "load_ok_refresh_deferred" if result["sources_changed"] else "load_ok_refresh_not_requested"
     else:
         result["should_refresh_mv"] = True
 
@@ -1058,11 +1098,40 @@ def main() -> None:
             result["cg_v2_mv_refresh"] = run_cg_v2_mv_refresh(
                 db_url=args.db_url,
                 validate=args.validate_cg_v2_mv,
+                statement_timeout_seconds=args.cg_v2_refresh_timeout_seconds,
             )
+            (
+                result["mv_refresh_status"],
+                result["mv_validation_status"],
+                result["final_status"],
+                result["mv_stale"],
+            ) = _mv_refresh_final_status(result["cg_v2_mv_refresh"])
+            if result["final_status"] == "load_ok_refresh_ok":
+                result["web_data_status"] = "fresh"
+                result["pending_refresh"] = False
+            elif result["final_status"] == "load_ok_refresh_ok_validate_failed":
+                result["web_data_status"] = "unverified_after_refresh"
+                result["pending_refresh"] = False
+            elif result["final_status"] == "load_ok_refresh_ok_analyze_failed":
+                result["web_data_status"] = "fresh_analyze_failed"
+                result["pending_refresh"] = False
+            else:
+                result["web_data_status"] = "stale"
+                result["pending_refresh"] = True
+            result["status"] = "ok" if result["final_status"] == "load_ok_refresh_ok" else result["final_status"]
+            if result["final_status"] != "load_ok_refresh_ok":
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+                raise SystemExit(1)
         except Exception as exc:
-            result["status"] = "error"
+            result["status"] = "load_ok_refresh_failed"
+            result["final_status"] = "load_ok_refresh_failed"
+            result["mv_refresh_status"] = "failed_timeout" if "statement timeout" in str(exc).lower() else "failed"
+            result["mv_validation_status"] = "unknown"
+            result["web_data_status"] = "stale"
+            result["pending_refresh"] = True
+            result["mv_stale"] = True
             result["cg_v2_mv_refresh"] = {
-                "status": "error",
+                "status": result["mv_refresh_status"],
                 "error": str(exc),
             }
             print(json.dumps(result, ensure_ascii=False, indent=2))
