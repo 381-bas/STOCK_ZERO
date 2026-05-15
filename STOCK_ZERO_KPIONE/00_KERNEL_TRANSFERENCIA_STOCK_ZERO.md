@@ -32,7 +32,6 @@ Informatica debe preservar reglas, contratos y flujos. Puede adaptar interfaz, f
 ## Fuentes incluidas
 
 - Codigo activo vigente: `reference_app/app_active_only`.
-- Codigo historico opcional: `reference_app/app_historical_optional/v_i`.
 - Evidence packet SQL: `evidence/STOCK_ZERO_SUPABASE_EVIDENCE_PACKET_V3_1_B3_CONTROL_GESTION_SQL_20260514_1605.json`.
 
-El contenido historico/checkpoint no es contrato vigente.
+`reference_app/app_active_only` contiene una copia de referencia de la app vigente. Esta carpeta es respaldo tecnico para entender UX, consultas, consumo de datos y exportaciones; no representa una arquitectura obligatoria ni un clon a implementar.

@@ -6,8 +6,9 @@ Paquete de handoff tecnico-funcional para transferir la logica de STOCK_ZERO / G
 
 - Documentacion funcional y tecnica para replicar reglas, flujos y contratos.
 - Codigo activo como referencia tecnica en `reference_app/app_active_only`.
-- Codigo historico opcional en `reference_app/app_historical_optional/v_i`.
 - Evidence packet SQL en `evidence`.
+
+`reference_app/app_active_only` contiene una copia de referencia de la app vigente. Esta carpeta es respaldo tecnico para entender UX, consultas, consumo de datos y exportaciones; no representa una arquitectura obligatoria ni un clon a implementar.
 
 ## Como leerlo
 
@@ -32,8 +33,3 @@ Replicar la logica funcional en su propia arquitectura, preservando reglas, norm
 - No imponer Supabase por este paquete.
 - No mover reglas criticas al frontend.
 - No inventar SQL faltante sin evidencia y pruebas.
-- No usar `app_historical_optional/v_i` como contrato vigente.
-
-## Advertencia historica
-
-`reference_app/app_historical_optional/v_i` contiene contenido historico/checkpoint, no contrato vigente.

@@ -30,13 +30,7 @@ Directorio: `reference_app/app_active_only`.
 - `services/__init__.py`.
 - `services/stock.py`.
 
-Este directorio es vigente como referencia tecnica de consumo y UX, no como arquitectura obligatoria.
-
-## Codigo historico copiado
-
-Directorio: `reference_app/app_historical_optional/v_i`.
-
-Contiene checkpoints/versiones historicas disponibles desde `app/v_i`. Es contenido historico/checkpoint, no contrato vigente. No debe usarse como fuente principal de implementacion salvo para auditoria evolutiva.
+Este directorio contiene una copia de referencia de la app vigente. Es respaldo tecnico para entender UX, consultas, consumo de datos y exportaciones; no representa una arquitectura obligatoria ni un clon a implementar.
 
 ## Evidencia copiada
 
@@ -50,6 +44,5 @@ Contiene checkpoints/versiones historicas disponibles desde `app/v_i`. Es conten
 
 ## Que no debe usarse como contrato
 
-- `reference_app/app_historical_optional/v_i`.
 - Detalles Streamlit como obligacion de stack.
 - Objetos SQL listados como brecha sin definicion completa.
