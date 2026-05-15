@@ -1,0 +1,1119 @@
+import html
+import os
+import math
+import traceback
+
+import pandas as pd
+import streamlit as st
+
+from app.exports import (
+    CG_V2_GLOBAL_PROTOTYPE_WARNING,
+    build_control_gestion_global_filename,
+    build_control_gestion_global_workbook,
+    build_control_gestion_v2_filename,
+    build_control_gestion_v2_workbook,
+)
+
+
+def _cg_get_page_state(page_key: str, page_size: int = 25) -> tuple[int, int]:
+    st.session_state.setdefault(page_key, 1)
+    try:
+        current_page = int(st.session_state.get(page_key, 1))
+    except Exception:
+        current_page = 1
+    current_page = max(1, current_page)
+    st.session_state[page_key] = current_page
+    return current_page, (current_page - 1) * page_size
+
+
+def _cg_render_pager(page_key: str, total_rows: int, page_size: int = 25) -> None:
+    total_pages = max(1, int(math.ceil(total_rows / page_size))) if total_rows > 0 else 1
+    if int(st.session_state.get(page_key, 1)) > total_pages:
+        st.session_state[page_key] = total_pages
+    if int(st.session_state.get(page_key, 1)) < 1:
+        st.session_state[page_key] = 1
+
+    current_page = int(st.session_state.get(page_key, 1))
+
+    def _page_prev():
+        st.session_state[page_key] = max(1, int(st.session_state.get(page_key, 1)) - 1)
+
+    def _page_next():
+        st.session_state[page_key] = min(total_pages, int(st.session_state.get(page_key, 1)) + 1)
+
+    p1, p2, p3 = st.columns([0.9, 1.8, 2.5], gap="small")
+    with p1:
+        st.button(
+            "◀",
+            key=f"{page_key}_prev_btn",
+            disabled=(current_page <= 1),
+            on_click=_page_prev,
+            use_container_width=True,
+        )
+    with p2:
+            st.selectbox(
+            "Página",
+            options=list(range(1, total_pages + 1)),
+            index=max(0, current_page - 1),
+            key=f"{page_key}_selectbox",
+            on_change=lambda: st.session_state.update({page_key: st.session_state[f"{page_key}_selectbox"]}),
+            label_visibility="collapsed",
+        )
+    with p3:
+        st.button(
+            "▶",
+            key=f"{page_key}_next_btn",
+            disabled=(current_page >= total_pages),
+            on_click=_page_next,
+            use_container_width=True,
+        )
+    if total_rows:
+        start = (current_page - 1) * page_size + 1
+        end = min(current_page * page_size, total_rows)
+        st.caption(f"{start}-{end} de {total_rows} registros")
+    else:
+        st.caption("Sin filas para el filtro aplicado.")
+
+
+def _cg_show_df(title: str, df: pd.DataFrame | None) -> None:
+    st.markdown(f"#### {title}")
+    if df is None or df.empty:
+        st.info("Sin filas para esta superficie del contrato B3.")
+        return
+    st.dataframe(df, width="stretch", hide_index=True)
+
+
+def _cg_metric_cards(metrics: dict[str, int | float]) -> None:
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Cumple", int(metrics.get("cumple") or 0))
+    c2.metric("Incumple", int(metrics.get("incumple") or 0))
+    c3.metric("Cumple c/doble", int(metrics.get("cumple_con_doble_marcaje") or 0))
+    c4.metric("Locales", int(metrics.get("locales_scope") or 0))
+    c5, c6 = st.columns(2)
+    c5.caption(f'Visitas plan: {int(metrics.get("visitas_plan") or 0)}')
+    c6.caption(f'Visitas realizadas: {int(metrics.get("visitas_realizadas") or 0)}')
+
+
+def _cg_ensure_option_state(state_key: str, options: list[str], default: str) -> str:
+    if st.session_state.get(state_key) not in options:
+        st.session_state[state_key] = default
+    return str(st.session_state.get(state_key) or default)
+
+
+def _cg_reset_page_on_filter_change(filter_key: str, page_key: str, values: tuple[object, ...]) -> None:
+    if st.session_state.get(filter_key) != values:
+        st.session_state[filter_key] = values
+        st.session_state[page_key] = 1
+
+
+def _cg_v2_metric_cards(
+    scope_metrics: dict[str, int | float],
+) -> None:
+    visita_plan = int(scope_metrics.get("visita_plan") or 0)
+    visita_realizada_raw = int(scope_metrics.get("visita_realizada_raw") or 0)
+    visita_realizada_cap = int(scope_metrics.get("visita_realizada_cap") or 0)
+    visitas_pendientes = int(scope_metrics.get("visitas_pendientes") or 0)
+    sobre_cumplimiento = int(scope_metrics.get("sobre_cumplimiento") or 0)
+    cumple_rows = int(scope_metrics.get("cumple_rows") or 0)
+    incumple_rows = int(scope_metrics.get("incumple_rows") or 0)
+    gestion_compartida_rows = int(scope_metrics.get("gestion_compartida_rows") or 0)
+    pct_cumplimiento = round((visita_realizada_cap / visita_plan) * 100, 1) if visita_plan > 0 else 0.0
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("% cumplimiento", f"{pct_cumplimiento}%")
+    c2.metric("Visitas exigidas", visita_plan)
+    c3.metric("Visitas validas", visita_realizada_cap)
+    c4.metric("Visitas pendientes", visitas_pendientes)
+
+    c5, c6, c7, c8 = st.columns(4)
+    c5.metric("Rutas cumplen", cumple_rows)
+    c6.metric("Rutas incumplen", incumple_rows)
+    c7.metric("Sobrecumplimiento", sobre_cumplimiento)
+    c8.metric("Gestion compartida", gestion_compartida_rows)
+
+    st.caption(f"Visitas reportadas: {visita_realizada_raw}")
+
+
+def _cg_v2_audit_cards(audit_metrics: dict[str, int | float]) -> None:
+    st.markdown("#### Auditorias y contexto V2")
+    a1, a2, a3, a4 = st.columns(4)
+    a1.metric("Ruta duplicada", int(audit_metrics.get("ruta_duplicada_rows") or 0))
+    a2.metric("Fuera cruce real", int(audit_metrics.get("fuera_cruce_real_rows") or 0))
+    a3.metric("Doble/triple", int(audit_metrics.get("doble_triple_rows") or 0))
+    a4.metric("Sin batch ruta semana", int(audit_metrics.get("sin_batch_ruta_semana_rows") or 0))
+
+    st.caption("Sin batch ruta semana se muestra como contexto historico, no como KPI operativo principal.")
+    with st.expander("Ayuda auditoria v2", expanded=False):
+        st.caption("Fuera cruce real: registros que no calzan con ruta vigente.")
+        st.caption(
+            "Sin batch ruta semana: evidencia historica sin snapshot semanal de RUTA_RUTERO; "
+            "no necesariamente error operativo actual."
+        )
+        st.caption("Doble/triple: misma visita detectada en mas de una fuente.")
+        st.caption("Ruta duplicada: combinacion ruta/cliente duplicada en la base operativa versionada.")
+
+
+def _cg_v2_day_html(value: object) -> str:
+    raw = str(value or "").strip().upper()
+    check = '<span class="cg-ok-check">&#10003;</span>'
+    if raw == "REQ_OK":
+        return f'1 {check}'
+    if raw == "REQ":
+        return "1"
+    if raw == "OK":
+        return check
+    return ""
+
+
+def _cg_v2_badge_html(value: object, *, kind: str) -> str:
+    raw = "" if pd.isna(value) else str(value).strip()
+    if not raw:
+        return ""
+    safe = html.escape(raw)
+    norm = raw.upper()
+    tone = "muted"
+    if kind == "alerta":
+        tone = "ok" if norm == "CUMPLE" else "warn"
+    elif kind == "shared":
+        tone = "shared-yes" if norm.startswith("SI") else "shared-no"
+        if norm.startswith("SI |"):
+            _, _, detail = raw.partition("|")
+            safe_detail = html.escape(detail.strip())
+            safe = f"S&iacute; &middot; {safe_detail}" if safe_detail else "S&iacute;"
+    elif kind == "route_shared":
+        tone = "shared-no" if norm == "NO" else "shared-yes"
+    return f'<span class="cg-chip cg-chip-{tone}">{safe}</span>'
+
+
+def _cg_v2_render_validation_table(df: pd.DataFrame) -> None:
+    if df is None or df.empty:
+        st.info("Sin filas para el filtro aplicado.")
+        return
+
+    columns = [
+        "COD_RT",
+        "LOCAL",
+        "CLIENTE",
+        "EXIGIDAS SEM.",
+        "LUN",
+        "MAR",
+        "MIE",
+        "JUE",
+        "VIE",
+        "SAB",
+        "DOM",
+        "PENDIENTE",
+        "ALERTA",
+        "MODALIDAD",
+        "GESTION COMPARTIDA",
+        "RUTA COMPARTIDA",
+    ]
+    day_cols = {"LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"}
+    rows_html: list[str] = []
+    for _, row in df.iterrows():
+        cell_html: list[str] = []
+        for col in columns:
+            raw_value = row.get(col, "")
+            if col in day_cols:
+                rendered = _cg_v2_day_html(raw_value)
+                cell_html.append(f'<td class="cg-day-cell">{rendered}</td>')
+            elif col == "ALERTA":
+                rendered = _cg_v2_badge_html(raw_value, kind="alerta")
+                cell_html.append(f'<td class="cg-nowrap-cell">{rendered}</td>')
+            elif col == "GESTION COMPARTIDA":
+                rendered = _cg_v2_badge_html(raw_value, kind="shared")
+                cell_html.append(f'<td class="cg-shared-cell">{rendered}</td>')
+            elif col == "RUTA COMPARTIDA":
+                rendered = _cg_v2_badge_html(raw_value, kind="route_shared")
+                cell_html.append(f'<td class="cg-shared-cell">{rendered}</td>')
+            else:
+                safe_value = html.escape("" if pd.isna(raw_value) else str(raw_value))
+                if col == "COD_RT":
+                    cell_html.append(f'<td class="cg-code-cell">{safe_value}</td>')
+                elif col in {"EXIGIDAS SEM.", "PENDIENTE"}:
+                    cell_html.append(f'<td class="cg-num-cell">{safe_value}</td>')
+                elif col == "LOCAL":
+                    cell_html.append(f'<td class="cg-local-cell">{safe_value}</td>')
+                elif col == "CLIENTE":
+                    cell_html.append(f'<td class="cg-client-cell">{safe_value}</td>')
+                else:
+                    cell_html.append(f"<td>{safe_value}</td>")
+        rows_html.append("<tr>" + "".join(cell_html) + "</tr>")
+
+    header_html = "".join(f"<th>{html.escape(col)}</th>" for col in columns)
+    table_html = f"""
+    <style>
+      .cg-validation-wrap {{ overflow-x: auto; }}
+      table.cg-validation-table {{
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.5rem 0 1rem 0;
+        font-size: 0.92rem;
+      }}
+      .cg-validation-table th,
+      .cg-validation-table td {{
+        border-bottom: 1px solid rgba(49, 51, 63, 0.18);
+        padding: 0.26rem 0.45rem;
+        text-align: left;
+        vertical-align: middle;
+        line-height: 1.12;
+      }}
+      .cg-validation-table th {{
+        background: #f7f8fb;
+        font-size: 0.8rem;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+      }}
+      .cg-validation-table td.cg-day-cell {{
+        min-width: 3rem;
+        text-align: center;
+        white-space: nowrap;
+      }}
+      .cg-validation-table td.cg-num-cell {{
+        min-width: 5rem;
+        text-align: center;
+        white-space: nowrap;
+      }}
+      .cg-validation-table td.cg-code-cell,
+      .cg-validation-table td.cg-nowrap-cell {{
+        white-space: nowrap;
+      }}
+      .cg-validation-table td.cg-shared-cell {{
+        min-width: 10rem;
+      }}
+      .cg-validation-table td.cg-shared-cell .cg-chip {{
+        white-space: normal;
+      }}
+      .cg-validation-table td.cg-code-cell {{
+        font-weight: 600;
+      }}
+      .cg-validation-table td.cg-local-cell {{
+        min-width: 14rem;
+      }}
+      .cg-validation-table td.cg-client-cell {{
+        min-width: 10rem;
+      }}
+      .cg-chip {{
+        display: inline-block;
+        border-radius: 999px;
+        padding: 0.1rem 0.38rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        line-height: 1.1;
+      }}
+      .cg-chip-ok {{
+        color: #0f6b3c;
+        background: #e8f5ed;
+      }}
+      .cg-chip-warn {{
+        color: #9a3412;
+        background: #fff1e8;
+      }}
+      .cg-chip-shared-yes {{
+        color: #92400e;
+        background: #fef3c7;
+      }}
+      .cg-chip-shared-no {{
+        color: #475569;
+        background: #eef2f7;
+      }}
+      .cg-ok-check {{
+        color: #14804a;
+        font-weight: 700;
+      }}
+    </style>
+    <div class="cg-validation-wrap">
+      <table class="cg-validation-table">
+        <thead><tr>{header_html}</tr></thead>
+        <tbody>{''.join(rows_html)}</tbody>
+      </table>
+    </div>
+    """
+    st.markdown(table_html, unsafe_allow_html=True)
+
+
+def render_control_gestion(
+    *,
+    db,
+    DEBUG,
+    top2,
+    top3,
+    show_top_selectors=True,
+    _dbg,
+    _timed,
+    _df_total_rows,
+    _rename_and_pick
+):
+    cg_role_opts = ["JEFE OPERACIONES", "GESTOR"]
+    cg_module_opts = ["Inicio", "Cumplimiento"]
+    cg_all_token = "Todos"
+
+    if show_top_selectors:
+        with top2:
+            st.selectbox(
+                "ROL",
+                cg_role_opts,
+                key="sel_cg_role",
+            )
+
+        with top3:
+            st.selectbox(
+            "MÓDULO",
+            cg_module_opts,
+            key="sel_cg_module",
+            )
+    else:
+        st.session_state["sel_cg_role"] = st.session_state.get("sel_cg_role") or "JEFE OPERACIONES"
+        st.session_state["sel_cg_module"] = "Cumplimiento"
+
+    role_sel = (st.session_state.get("sel_cg_role") or "JEFE OPERACIONES").strip().upper()
+    module_sel = (st.session_state.get("sel_cg_module") or "Inicio").strip()
+    use_cg_v2_requested = module_sel == "Cumplimiento" and os.getenv("USE_CG_V2", "1") == "1"
+    cg_mode = "legacy"
+    cg_caption = "B3 contrato publico"
+    cg_fallback_notice: str | None = None
+
+    smoke = None
+    smoke_status = "DEFERRED"
+    if use_cg_v2_requested:
+        cg_mode = "v2"
+        cg_caption = "CONTROL_GESTION v2"
+        if show_top_selectors:
+            st.caption(f"{cg_caption} | modo={cg_mode.upper()} | rol={role_sel} | modulo={module_sel}")
+        else:
+            st.caption(f"{cg_caption} | modo={cg_mode.upper()}")
+    else:
+        try:
+            smoke = db.get_cg_contract_smoke()
+            smoke_status = str(smoke.get("smoke_status") or "unknown").upper()
+        except Exception as e:
+            _dbg("FAIL cg_contract_smoke", err=repr(e))
+            st.error("No pude validar el contrato B3 en db.py.")
+            with st.expander("Detalles técnicos"):
+                st.code(repr(e))
+                if DEBUG:
+                    st.code(traceback.format_exc())
+            st.stop()
+
+        if show_top_selectors:
+            st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()} | rol={role_sel} | modulo={module_sel}")
+        else:
+            st.caption(f"{cg_caption} | smoke={smoke_status} | modo={cg_mode.upper()}")
+
+        with st.expander("Estado contrato B3", expanded=(smoke_status != "OK")):
+            smoke_rows = pd.DataFrame(smoke.get("results") or [])
+            if smoke_rows.empty:
+                st.warning("Smoke sin resultados. Revisa visibilidad de views public.v_cg_*.")
+            else:
+                st.dataframe(smoke_rows, width="stretch", hide_index=True)
+
+    if cg_fallback_notice:
+        st.warning(cg_fallback_notice)
+
+    try:
+        if module_sel == "Inicio":
+            if role_sel == "JEFE OPERACIONES":
+                with _timed("PAGE cg_inicio_jefe", tag="PAGE"):
+                    df_inicio = db.get_cg_inicio_jefe(limit=50, offset=0)
+            else:
+                with _timed("PAGE cg_inicio_gestor", tag="PAGE"):
+                    df_inicio = db.get_cg_inicio_gestor(limit=50, offset=0)
+
+            with _timed("PAGE cg_alertas_control_gestion", tag="PAGE"):
+                df_alertas = db.get_cg_alertas_page(limit=100, offset=0)
+
+            inicio_row = df_inicio.iloc[0].to_dict() if df_inicio is not None and not df_inicio.empty else {}
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Locales", int(inicio_row.get("locales_scope") or 0))
+            c2.metric("Clientes", int(inicio_row.get("clientes_scope") or 0))
+            c3.metric("Reponedores", int(inicio_row.get("reponedores_scope") or 0))
+            c4.metric("Cobertura", f'{round(float(inicio_row.get("pct_cobertura") or 0) * 100, 1)}%')
+
+            c5, c6, c7 = st.columns(3)
+            c5.caption(f'Eventos total: {int(inicio_row.get("eventos_total") or 0)}')
+            c6.caption(f'Con evidencia: {int(inicio_row.get("eventos_con_evidencia") or 0)}')
+            c7.caption(f'Sin evidencia: {int(inicio_row.get("eventos_sin_evidencia") or 0)}')
+
+            df_alertas_view = _rename_and_pick(
+                df_alertas,
+                {
+                    "alerta_tipo": "ALERTA",
+                    "fuente": "FUENTE",
+                    "cod_rt": "COD_RT",
+                    "cliente": "CLIENTE",
+                    "persona": "PERSONA",
+                    "fecha_visita": "FECHA VISITA",
+                    "detalle": "DETALLE",
+                    "prioridad": "PRIORIDAD",
+                },
+                ["ALERTA", "FUENTE", "COD_RT", "CLIENTE", "PERSONA", "FECHA VISITA", "DETALLE", "PRIORIDAD"],
+            )
+            _cg_show_df("Alertas prioritarias", df_alertas_view)
+            st.info("Supervisión queda reservada fuera del contrato público B3 actual.")
+            st.stop()
+
+        if cg_mode == "v2":
+            try:
+                recent_weeks = list(db.get_cg_v2_recent_weeks(limit=3) or [])
+                if not recent_weeks:
+                    raise RuntimeError("CONTROL_GESTION v2 no devolvio semanas recientes.")
+
+                semanas_map: dict[str, str] = {}
+                for idx, raw_value in enumerate(recent_weeks):
+                    semana_value = pd.to_datetime(raw_value).strftime("%Y-%m-%d")
+                    prefix = "Actual" if idx == 0 else f"S-{idx}"
+                    semanas_map[f"{prefix} | {semana_value}"] = semana_value
+
+                semana_opts = list(semanas_map.keys())
+                semana_key = "sel_cg_v2_semana_recent"
+                semana_default = semana_opts[0]
+                _cg_ensure_option_state(semana_key, semana_opts, semana_default)
+
+                vista_map = {
+                    "Por rutero": "RUTERO",
+                    "Por local": "LOCAL",
+                    "Por cliente": "CLIENTE",
+                }
+                cliente_placeholder = "— Selecciona cliente —"
+                vista_opts = list(vista_map.keys())
+                vista_key = "sel_cg_v2_analysis_view"
+                _cg_ensure_option_state(vista_key, vista_opts, vista_opts[0])
+
+                st.markdown("#### Filtros operativos")
+                f1, f2, f3 = st.columns(3)
+                with f1:
+                    semana_label = st.selectbox("Semana operativa", semana_opts, key=semana_key)
+                    semana_inicio = semanas_map.get(semana_label)
+                with f2:
+                    gestores_v2 = [cg_all_token] + list(db.get_cg_v2_gestores(semana_inicio=semana_inicio) or [])
+                    gestor_key = "sel_cg_v2_gestor"
+                    _cg_ensure_option_state(gestor_key, gestores_v2, cg_all_token)
+                    gestor_label = st.selectbox("Gestor", gestores_v2, key=gestor_key)
+                    gestor_sel = None if gestor_label == cg_all_token else gestor_label
+                with f3:
+                    vista_label = st.selectbox("Vista de analisis", vista_opts, key=vista_key)
+                    vista_sel = vista_map.get(vista_label, "RUTERO")
+
+                target_label = "Rutero"
+                target_key = "sel_cg_v2_target_rutero"
+                target_opts = [cg_all_token]
+                target_disabled = gestor_sel is None
+                if vista_sel == "CLIENTE":
+                    target_label = "Cliente"
+                    target_key = "sel_cg_v2_target_cliente"
+                    target_opts = [cliente_placeholder] + list(
+                        db.get_cg_v2_clientes(semana_inicio=semana_inicio, gestor=gestor_sel) or []
+                    )
+                    target_disabled = False
+                elif gestor_sel is not None:
+                    if vista_sel == "RUTERO":
+                        target_label = "Rutero"
+                        target_key = "sel_cg_v2_target_rutero"
+                        target_opts = [cg_all_token] + list(
+                            db.get_cg_v2_ruteros(semana_inicio=semana_inicio, gestor=gestor_sel) or []
+                        )
+                    elif vista_sel == "LOCAL":
+                        target_label = "Local"
+                        target_key = "sel_cg_v2_target_local"
+                        target_opts = [cg_all_token] + list(
+                            db.get_cg_v2_locales(semana_inicio=semana_inicio, gestor=gestor_sel) or []
+                        )
+                else:
+                    target_opts = ["Selecciona un gestor primero"]
+
+                _cg_ensure_option_state(target_key, target_opts, target_opts[0])
+
+                g1, g2 = st.columns([1.4, 1.0])
+                with g1:
+                    target_value = st.selectbox(
+                        f"{target_label} foco",
+                        target_opts,
+                        key=target_key,
+                        disabled=target_disabled,
+                    )
+                    if target_disabled:
+                        target_value = cg_all_token
+                with g2:
+                    alerta_opts = ["Todas"] + list(
+                        db.get_cg_v2_alertas(
+                            semana_inicio=semana_inicio,
+                            gestor=gestor_sel,
+                            cliente=(
+                                None
+                                if vista_sel != "CLIENTE" or target_value in {cg_all_token, cliente_placeholder}
+                                else target_value
+                            ),
+                            rutero=(None if vista_sel != "RUTERO" or target_value == cg_all_token else target_value),
+                            local=(None if vista_sel != "LOCAL" or target_value == cg_all_token else target_value),
+                        ) or []
+                    )
+                    alerta_key = "sel_cg_v2_alerta"
+                    _cg_ensure_option_state(alerta_key, alerta_opts, "Todas")
+                    alerta_label = st.selectbox("Alerta", alerta_opts, key=alerta_key)
+                    alerta_sel = None if alerta_label == "Todas" else alerta_label
+
+                rutero_sel = None
+                local_sel = None
+                cliente_sel = None
+                if vista_sel == "RUTERO" and target_value != cg_all_token:
+                    rutero_sel = target_value
+                elif vista_sel == "LOCAL" and target_value != cg_all_token:
+                    local_sel = target_value
+                elif vista_sel == "CLIENTE" and target_value not in {cg_all_token, cliente_placeholder}:
+                    cliente_sel = target_value
+
+                gestor_ready = gestor_sel is not None
+                detail_ready = (
+                    (vista_sel == "RUTERO" and gestor_ready and rutero_sel is not None)
+                    or (vista_sel == "LOCAL" and gestor_ready and local_sel is not None)
+                    or (vista_sel == "CLIENTE" and cliente_sel is not None)
+                )
+
+                context_cols = st.columns(3)
+                with context_cols[0]:
+                    st.caption(f"Semana: {semana_inicio}")
+                with context_cols[1]:
+                    st.caption(f"Gestor seleccionado: {gestor_sel or 'Pendiente'}")
+                with context_cols[2]:
+                    st.caption(f"Vista activa: {vista_label}")
+
+                if vista_sel == "RUTERO":
+                    focus_value = rutero_sel or "Pendiente"
+                    st.caption(f"Rutero foco: {focus_value}")
+                elif vista_sel == "LOCAL":
+                    focus_value = local_sel or "Pendiente"
+                    st.caption(f"Local foco: {focus_value}")
+                else:
+                    focus_value = cliente_sel or "Pendiente"
+                    st.caption(f"Cliente foco: {focus_value}")
+
+                kpi_df = db.get_cg_v2_scope_kpis(
+                    semana_inicio=semana_inicio,
+                    gestor=gestor_sel,
+                    cliente=cliente_sel,
+                    alerta=alerta_sel,
+                    rutero=rutero_sel,
+                    local=local_sel,
+                )
+                kpi_row = kpi_df.iloc[0].to_dict() if kpi_df is not None and not kpi_df.empty else {}
+                if detail_ready:
+                    st.markdown("#### KPIs del universo filtrado")
+                elif not gestor_ready:
+                    st.markdown("#### KPIs globales de la semana")
+                else:
+                    st.markdown("#### KPIs del gestor")
+                _cg_v2_metric_cards(kpi_row)
+
+                if vista_sel in {"RUTERO", "CLIENTE"}:
+                    if vista_sel == "RUTERO" and gestor_sel is None:
+                        summary_title = "Resumen por gestor"
+                    elif vista_sel == "RUTERO":
+                        summary_title = "Resumen por rutero del gestor"
+                    elif gestor_sel is None:
+                        summary_title = "Resumen por cliente"
+                    else:
+                        summary_title = "Resumen por cliente del gestor"
+
+                    st.markdown("#### Resumen competitivo de cumplimiento · Prototipo")
+                    st.caption(
+                        "Vista preliminar para revisión operativa. "
+                        "Métricas sujetas a ajuste por contrato de precedencia de fuentes "
+                        "KPIONE2 / POWER_APP / KPIONE1."
+                    )
+                    st.markdown(f"##### {summary_title}")
+                    competitive_error = False
+                    try:
+                        competitive_df = db.get_cg_v2_competitive_summary(
+                            semana_inicio=semana_inicio,
+                            vista=vista_sel,
+                            gestor=gestor_sel,
+                            alerta=alerta_sel,
+                            limit=50,
+                        )
+                    except Exception as competitive_exc:
+                        competitive_error = True
+                        _dbg(
+                            "cg_v2_competitive_summary_error",
+                            err=repr(competitive_exc),
+                            semana_inicio=semana_inicio,
+                            gestor=gestor_sel,
+                            vista=vista_sel,
+                        )
+                        competitive_df = pd.DataFrame()
+                        st.caption("No pude cargar el resumen competitivo para estos filtros.")
+                    if not competitive_error and (competitive_df is None or competitive_df.empty):
+                        st.caption("Sin datos para el resumen competitivo con estos filtros.")
+                    elif not competitive_error:
+                        competitive_view = competitive_df.copy()
+                        if "% cumplimiento" in competitive_view.columns:
+                            pct_values = pd.to_numeric(competitive_view["% cumplimiento"], errors="coerce").fillna(0)
+                            competitive_view["% cumplimiento"] = pct_values.map(lambda value: f"{value:.1f}%")
+                        int_columns = [
+                            "Visitas exigidas",
+                            "Visitas válidas",
+                            "Visitas pendientes",
+                            "Rutas cumplen",
+                            "Rutas incumplen",
+                            "Sobrecumplimiento",
+                            "Gestión compartida",
+                            "Visitas reportadas",
+                        ]
+                        for col in int_columns:
+                            if col in competitive_view.columns:
+                                competitive_view[col] = (
+                                    pd.to_numeric(competitive_view[col], errors="coerce")
+                                    .fillna(0)
+                                    .astype(int)
+                                )
+                        st.dataframe(competitive_view, use_container_width=True, hide_index=True)
+
+                try:
+                    with st.spinner("Preparando export global de cumplimiento..."):
+                        global_summary = db.get_cg_v2_export_summary(semana_inicio=semana_inicio)
+                        ranking_gestores = db.get_cg_v2_global_ranking_gestores(semana_inicio=semana_inicio)
+                        ranking_ruteros = db.get_cg_v2_global_ranking_ruteros(semana_inicio=semana_inicio)
+                        ranking_clientes = db.get_cg_v2_global_ranking_clientes(semana_inicio=semana_inicio)
+                        detalle_global = db.get_cg_v2_global_export_detail(semana_inicio=semana_inicio)
+
+                        def _shared_global_mask(df_in: pd.DataFrame) -> pd.Series:
+                            if df_in is None or df_in.empty:
+                                return pd.Series(dtype=bool)
+                            mask = pd.Series(False, index=df_in.index)
+                            for col in ["GESTION COMPARTIDA", "RUTA COMPARTIDA"]:
+                                if col not in df_in.columns:
+                                    continue
+                                values = df_in[col].fillna("").astype(str).str.strip()
+                                upper = values.str.upper()
+                                mask = mask | (
+                                    (values != "")
+                                    & ((~upper.isin({"NO", "NAN", "NONE"})) | values.str.contains("|", regex=False))
+                                )
+                            return mask
+
+                        casos_compartidos = (
+                            detalle_global.loc[_shared_global_mask(detalle_global)].copy()
+                            if detalle_global is not None and not detalle_global.empty
+                            else pd.DataFrame()
+                        )
+                        global_context = {
+                            "Semana": semana_inicio or "",
+                            "Fuente weekly": str((db.get_cg_v2_contract() or {}).get("views", {}).get("out_weekly") or ""),
+                            "Fecha generación": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Nota prototipo": CG_V2_GLOBAL_PROTOTYPE_WARNING,
+                        }
+                        global_workbook_bytes = build_control_gestion_global_workbook(
+                            context=global_context,
+                            summary=global_summary,
+                            ranking_gestores=ranking_gestores,
+                            ranking_ruteros=ranking_ruteros,
+                            ranking_clientes=ranking_clientes,
+                            detalle_rutero_df=detalle_global,
+                            detalle_cliente_df=detalle_global,
+                            casos_compartidos_df=casos_compartidos,
+                        )
+                        global_file_name = build_control_gestion_global_filename(semana_inicio or "semana")
+                    st.download_button(
+                        "Descargar global cumplimiento",
+                        data=global_workbook_bytes,
+                        file_name=global_file_name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"cg_v2_global_export_{semana_inicio}",
+                        use_container_width=True,
+                    )
+                except Exception as global_export_exc:
+                    _dbg(
+                        "WARN cg_v2_global_export_button",
+                        err=repr(global_export_exc),
+                        semana_inicio=semana_inicio,
+                    )
+                    st.warning("No pude preparar el export global de cumplimiento para esta semana.")
+
+                if not detail_ready:
+                    if vista_sel == "CLIENTE":
+                        st.info("Selecciona cliente para cargar la validación.")
+                    else:
+                        st.info("Selecciona gestor y luego rutero/local para cargar la validación.")
+                    st.stop()
+
+                with _timed("PAGE cg_v2_daily_matrix_full", tag="PAGE"):
+                    df_scope_v2 = db.get_cg_v2_daily_matrix_full(
+                        semana_inicio=semana_inicio,
+                        gestor=gestor_sel,
+                        vista=vista_sel,
+                        rutero=rutero_sel,
+                        local=local_sel,
+                        cliente=cliente_sel,
+                        alerta=alerta_sel,
+                    )
+
+                st.markdown("#### Validación diaria")
+                st.markdown("1 = día planificado; &#10003; = evidencia registrada", unsafe_allow_html=True)
+
+                if vista_sel == "RUTERO" and rutero_sel is not None and df_scope_v2 is not None and not df_scope_v2.empty:
+                    rep_series = df_scope_v2["REPONEDOR"] if "REPONEDOR" in df_scope_v2.columns else pd.Series(dtype=object)
+                    reponedores = sorted({str(v).strip() for v in rep_series.tolist() if str(v or "").strip()})
+                    if len(reponedores) == 1:
+                        st.caption(f"Rutero / Reponedor: {rutero_sel} / {reponedores[0]}")
+                    elif len(reponedores) > 1:
+                        preview = " | ".join(reponedores[:3])
+                        suffix = " | ..." if len(reponedores) > 3 else ""
+                        st.caption(f"Rutero / Reponedor: {rutero_sel} / {preview}{suffix}")
+                    else:
+                        st.caption(f"Rutero: {rutero_sel}")
+
+                df_scope_v2_view = _rename_and_pick(
+                    df_scope_v2,
+                    {
+                        "COD_RT": "COD_RT",
+                        "LOCAL": "LOCAL",
+                        "CLIENTE": "CLIENTE",
+                        "VISITA": "EXIGIDAS SEM.",
+                        "LUN": "LUN",
+                        "MAR": "MAR",
+                        "MIE": "MIE",
+                        "JUE": "JUE",
+                        "VIE": "VIE",
+                        "SAB": "SAB",
+                        "DOM": "DOM",
+                        "VISITAS_PENDIENTES": "PENDIENTE",
+                        "ALERTA": "ALERTA",
+                        "MODALIDAD": "MODALIDAD",
+                        "GESTION_COMPARTIDA": "GESTION COMPARTIDA",
+                        "RUTA_COMPARTIDA": "RUTA COMPARTIDA",
+                    },
+                    [
+                        "COD_RT",
+                        "LOCAL",
+                        "CLIENTE",
+                        "EXIGIDAS SEM.",
+                        "LUN",
+                        "MAR",
+                        "MIE",
+                        "JUE",
+                        "VIE",
+                        "SAB",
+                        "DOM",
+                        "PENDIENTE",
+                        "ALERTA",
+                        "MODALIDAD",
+                        "GESTION COMPARTIDA",
+                        "RUTA COMPARTIDA",
+                    ],
+                )
+                _cg_v2_render_validation_table(df_scope_v2_view)
+
+                try:
+                    export_context = {
+                        "Semana operativa": semana_inicio or "",
+                        "Gestor": gestor_sel or "Todos",
+                        "Vista de analisis": vista_label,
+                        "Foco": focus_value if focus_value != "Pendiente" else "scope",
+                        "Alerta": alerta_sel or "Todas",
+                        "Fuente weekly": str((db.get_cg_v2_contract() or {}).get("views", {}).get("out_weekly") or ""),
+                        "Generado en": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                    export_summary = db.get_cg_v2_export_summary(
+                        semana_inicio=semana_inicio,
+                        gestor=gestor_sel,
+                        cliente=cliente_sel,
+                        alerta=alerta_sel,
+                        rutero=rutero_sel,
+                        local=local_sel,
+                    )
+                    export_detail = db.get_cg_v2_export_detail(
+                        semana_inicio=semana_inicio,
+                        gestor=gestor_sel,
+                        vista=vista_sel,
+                        rutero=rutero_sel,
+                        local=local_sel,
+                        cliente=cliente_sel,
+                        alerta=alerta_sel,
+                    )
+                    workbook_bytes = build_control_gestion_v2_workbook(
+                        context=export_context,
+                        summary=export_summary,
+                        detail_df=export_detail,
+                    )
+                    file_name = build_control_gestion_v2_filename(
+                        semana_inicio=semana_inicio or "semana",
+                        vista=vista_sel.lower(),
+                        foco=None if focus_value == "Pendiente" else focus_value,
+                    )
+                    st.download_button(
+                        "Descargar Excel CONTROL_GESTION v2",
+                        data=workbook_bytes,
+                        file_name=file_name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"cg_v2_export_{vista_sel}_{semana_inicio}_{focus_value}",
+                        use_container_width=True,
+                    )
+                except Exception as export_exc:
+                    _dbg(
+                        "WARN cg_v2_export_button",
+                        err=repr(export_exc),
+                        semana_inicio=semana_inicio,
+                        gestor=gestor_sel,
+                        vista=vista_sel,
+                    )
+                    st.warning("No pude preparar el export CONTROL_GESTION v2 para este filtro.")
+
+                show_audit = st.toggle("Ver auditoría detallada", value=False, key="cg_v2_show_audit")
+                if show_audit:
+                    audit_summary = db.get_cg_v2_audit_summary() or {}
+                    _cg_v2_audit_cards(audit_summary)
+                st.stop()
+            except Exception as v2_exc:
+                _dbg("WARN control_gestion_v2_fallback", err=repr(v2_exc), role=role_sel, module=module_sel)
+                st.warning("CONTROL_GESTION v2 no pudo leerse completamente; uso fallback legacy.")
+                with st.expander("Detalles tecnicos V2", expanded=False):
+                    st.code(repr(v2_exc))
+                    if DEBUG:
+                        st.code(traceback.format_exc())
+
+        semanas_raw = db.get_cg_scope_semanas()
+        semanas_map: dict[str, str | None] = {cg_all_token: None}
+        for value in semanas_raw:
+            if pd.isna(value):
+                continue
+            label = pd.to_datetime(value).strftime("%Y-%m-%d")
+            semanas_map[label] = label
+
+        semana_opts = list(semanas_map.keys())
+        semana_key = "sel_cg_semana"
+        if st.session_state.get(semana_key) not in semana_opts:
+            st.session_state[semana_key] = cg_all_token
+
+        semana_inicio = None
+        gestor_sel = None
+        cliente_sel = None
+        alerta_sel = None
+
+        f1, f2, f3, f4 = st.columns(4)
+        with f1:
+            semana_label = st.selectbox("SEMANA", semana_opts, key=semana_key)
+            semana_inicio = semanas_map.get(semana_label)
+
+        gestores = db.get_cg_scope_gestores(semana_inicio=semana_inicio)
+        gestor_opts = [cg_all_token] + gestores
+        gestor_key = "sel_cg_gestor"
+        if st.session_state.get(gestor_key) not in gestor_opts:
+            st.session_state[gestor_key] = cg_all_token
+        with f2:
+            gestor_label = st.selectbox("GESTOR", gestor_opts, key=gestor_key)
+            gestor_sel = None if gestor_label == cg_all_token else gestor_label
+
+        clientes = db.get_cg_scope_clientes(semana_inicio=semana_inicio, gestor=gestor_sel)
+        cliente_opts = [cg_all_token] + clientes
+        cliente_key = "sel_cg_cliente"
+        if st.session_state.get(cliente_key) not in cliente_opts:
+            st.session_state[cliente_key] = cg_all_token
+        with f3:
+            cliente_label = st.selectbox("CLIENTE", cliente_opts, key=cliente_key)
+            cliente_sel = None if cliente_label == cg_all_token else cliente_label
+
+        alertas = db.get_cg_scope_alertas(
+            semana_inicio=semana_inicio,
+            gestor=gestor_sel,
+            cliente=cliente_sel,
+        )
+        alerta_opts = ["Todas"] + alertas
+        alerta_key = "sel_cg_alerta"
+        if st.session_state.get(alerta_key) not in alerta_opts:
+            st.session_state[alerta_key] = "Todas"
+        with f4:
+            alerta_label = st.selectbox("ALERTA", alerta_opts, key=alerta_key)
+            alerta_sel = None if alerta_label == "Todas" else alerta_label
+
+        kpi_df = db.get_cg_scope_kpis(
+            semana_inicio=semana_inicio,
+            gestor=gestor_sel,
+            cliente=cliente_sel,
+            alerta=alerta_sel,
+        )
+        kpi_row = kpi_df.iloc[0].to_dict() if kpi_df is not None and not kpi_df.empty else {}
+        _cg_metric_cards(kpi_row)
+
+        _, scope_offset = _cg_get_page_state("page_cg_scope", page_size=25)
+        with _timed("PAGE cg_scope_page", tag="PAGE"):
+            df_scope = db.get_cg_scope_page(
+                semana_inicio=semana_inicio,
+                gestor=gestor_sel,
+                cliente=cliente_sel,
+                alerta=alerta_sel,
+                limit=25,
+                offset=scope_offset,
+            )
+
+        st.markdown("#### Cumplimiento semanal")
+        _cg_render_pager("page_cg_scope", _df_total_rows(df_scope), page_size=25)
+        df_scope_view = _rename_and_pick(
+            df_scope,
+            {
+                "COD_RT": "COD_RT",
+                "CLIENTE": "CLIENTE",
+                "LOCAL": "LOCAL",
+                "GESTOR": "GESTOR",
+                "REPONEDOR_SCOPE": "REPONEDOR",
+                "MODALIDAD": "MODALIDAD",
+                "SEMANA_INICIO": "SEMANA",
+                "VISITA": "VISITA",
+                "VISITA_REALIZADA": "VISITA REALIZADA",
+                "DIFERENCIA": "DIFERENCIA",
+                "DIAS_DOBLE_MARCAJE": "DOBLE MARCAJE",
+                "DIAS_KPIONE": "DÍAS KPIONE",
+                "DIAS_POWER_APP": "DÍAS POWER APP",
+                "PERSONA_CONFLICTO_ROWS": "CONFLICTOS PERSONA",
+                "ALERTA": "ALERTA",
+            },
+            [
+                "SEMANA",
+                "COD_RT",
+                "LOCAL",
+                "CLIENTE",
+                "GESTOR",
+                "REPONEDOR",
+                "MODALIDAD",
+                "VISITA",
+                "VISITA REALIZADA",
+                "DIFERENCIA",
+                "DOBLE MARCAJE",
+                "DÍAS KPIONE",
+                "DÍAS POWER APP",
+                "CONFLICTOS PERSONA",
+                "ALERTA",
+            ],
+        )
+        st.dataframe(df_scope_view, width="stretch", hide_index=True)
+
+        with st.expander("Alertas", expanded=False):
+            _, offset_alertas = _cg_get_page_state("page_cg_alertas", page_size=25)
+            df_alertas = db.get_cg_alertas_page(
+                semana_inicio=semana_inicio,
+                cliente=cliente_sel,
+                persona=gestor_sel,
+                limit=25,
+                offset=offset_alertas,
+            )
+            _cg_render_pager("page_cg_alertas", _df_total_rows(df_alertas), page_size=25)
+            df_alertas_view = _rename_and_pick(
+                df_alertas,
+                {
+                    "alerta_tipo": "ALERTA",
+                    "fuente": "FUENTE",
+                    "cod_rt": "COD_RT",
+                    "cliente": "CLIENTE",
+                    "persona": "PERSONA",
+                    "fecha_visita": "FECHA VISITA",
+                    "detalle": "DETALLE",
+                    "prioridad": "PRIORIDAD",
+                },
+                ["ALERTA", "FUENTE", "COD_RT", "CLIENTE", "PERSONA", "FECHA VISITA", "DETALLE", "PRIORIDAD"],
+            )
+            _cg_show_df("Alertas", df_alertas_view)
+
+        with st.expander("Detalle evidencia", expanded=False):
+            _, offset_det = _cg_get_page_state("page_cg_detalle", page_size=25)
+            df_detalle = db.get_cg_detalle_page(
+                semana_inicio=semana_inicio,
+                gestor=gestor_sel,
+                cliente=cliente_sel,
+                limit=25,
+                offset=offset_det,
+            )
+            _cg_render_pager("page_cg_detalle", _df_total_rows(df_detalle), page_size=25)
+            df_detalle_view = _rename_and_pick(
+                df_detalle,
+                {
+                    "fuente": "FUENTE",
+                    "gestor": "GESTOR",
+                    "cliente": "CLIENTE",
+                    "cod_rt": "COD_RT",
+                    "local_nombre": "LOCAL",
+                    "reponedor": "REPONEDOR",
+                    "modalidad": "MODALIDAD",
+                    "fecha_visita": "FECHA VISITA",
+                    "has_evidence": "EVIDENCIA",
+                    "match_status": "MATCH",
+                    "brecha_tipo": "BRECHA",
+                    "match_quality": "CALIDAD MATCH",
+                    "persona_match_exacta": "MATCH PERSONA",
+                },
+                [
+                    "FUENTE",
+                    "GESTOR",
+                    "CLIENTE",
+                    "COD_RT",
+                    "LOCAL",
+                    "REPONEDOR",
+                    "MODALIDAD",
+                    "FECHA VISITA",
+                    "EVIDENCIA",
+                    "MATCH",
+                    "BRECHA",
+                    "CALIDAD MATCH",
+                    "MATCH PERSONA",
+                ],
+            )
+            _cg_show_df("Detalle evidencia", df_detalle_view)
+
+        with st.expander("Parity", expanded=False):
+            _, offset_parity = _cg_get_page_state("page_cg_parity", page_size=25)
+            df_parity = db.get_cg_parity_page(
+                semana_inicio=semana_inicio,
+                gestor=gestor_sel,
+                cliente=cliente_sel,
+                alerta=alerta_sel,
+                limit=25,
+                offset=offset_parity,
+            )
+            _cg_render_pager("page_cg_parity", _df_total_rows(df_parity), page_size=25)
+            df_parity_view = _rename_and_pick(
+                df_parity,
+                {
+                    "COD_RT": "COD_RT",
+                    "CLIENTE": "CLIENTE",
+                    "LOCAL": "LOCAL",
+                    "GESTOR": "GESTOR",
+                    "REPONEDOR_SCOPE": "REPONEDOR",
+                    "MODALIDAD": "MODALIDAD",
+                    "SEMANA_INICIO": "SEMANA",
+                    "VISITA": "VISITA",
+                    "VISITA_REALIZADA": "VISITA REALIZADA",
+                    "DIFERENCIA": "DIFERENCIA",
+                    "DIAS_DOBLE_MARCAJE": "DOBLE MARCAJE",
+                    "DIAS_KPIONE": "DÍAS KPIONE",
+                    "DIAS_POWER_APP": "DÍAS POWER APP",
+                    "PERSONA_CONFLICTO_ROWS": "CONFLICTOS PERSONA",
+                    "ALERTA": "ALERTA",
+                },
+                [
+                    "SEMANA",
+                    "COD_RT",
+                    "LOCAL",
+                    "CLIENTE",
+                    "GESTOR",
+                    "REPONEDOR",
+                    "MODALIDAD",
+                    "VISITA",
+                    "VISITA REALIZADA",
+                    "DIFERENCIA",
+                    "DOBLE MARCAJE",
+                    "DÍAS KPIONE",
+                    "DÍAS POWER APP",
+                    "CONFLICTOS PERSONA",
+                    "ALERTA",
+                ],
+            )
+            _cg_show_df("Cumplimiento parity", df_parity_view)
+
+    except Exception as e:
+        _dbg("FAIL control_gestion_branch", err=repr(e), role=role_sel, module=module_sel)
+        st.error("No pude leer una o más superficies del contrato B3.")
+        with st.expander("Detalles técnicos"):
+            st.code(repr(e))
+            if DEBUG:
+                st.code(traceback.format_exc())
+        st.stop()
+
+    st.info("Supervisión queda reservada fuera del contrato público B3 actual.")
+    st.stop()

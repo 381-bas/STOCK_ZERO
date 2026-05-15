@@ -1,0 +1,4692 @@
+{
+  "packet_id": "SZEP3_1_B3_CONTROL_GESTION_SQL_20260514_1605",
+  "project": "STOCK_ZERO/GESTIONZERO",
+  "branch_id": "B3_CONTROL_GESTION_SQL",
+  "intent": "congelar_evidencia_de_consulta_real_para_abrir_contrato_db.py_sin_recalculo_python",
+  "date_factual": {
+    "generated_at_local": "2026-05-14T16:05:49.243836-03:00",
+    "generated_at_utc": "2026-05-14T19:05:49.244226Z",
+    "timezone": "America/Sao_Paulo"
+  },
+  "env": {
+    "platform": "supabase",
+    "workspace": "prod_or_staging",
+    "db_role": "app_or_admin",
+    "source_mode": "python_runner_bundle",
+    "db_url_source": "env:DB_URL_APP|DB_URL"
+  },
+  "data_version": {
+    "fecha_datos": "2026-05-12",
+    "ingested_at": "2026-05-13T16:57:32.222443+00:00",
+    "source_object": "public.v_data_version",
+    "comparison_vs_previous": "unknown"
+  },
+  "query_bundle_name": "control_gestion_contract_v3_1_exact_contract",
+  "execution_context": {
+    "driver": "export_supabase_evidence_packet_v3_1_READY_V2.py",
+    "bundle_version": "v3_1",
+    "operator": "basti",
+    "branch_gate_target": "G3_open_B3_app_query_contract",
+    "bundle_path": "C:\\Users\\basti\\Desktop\\STOCK_ZERO\\Supabase\\STOCK_ZERO_SUPABASE_QUERY_BUNDLE_V3_1.json",
+    "evidence_standard_path": "C:\\Users\\basti\\Desktop\\STOCK_ZERO\\Supabase\\STOCK_ZERO_SUPABASE_EVIDENCE_PACKET_V3.json",
+    "script_path": "C:\\Users\\basti\\Desktop\\STOCK_ZERO\\export_supabase_evidence_packet_v3_1_READY_V2.py",
+    "bundle_sha256": "7aac015eb7156fc48037382c6bddbd04a69e6f095ff8e15d2fc2b0e72b1cd765",
+    "evidence_standard_sha256": "62c156f3fe94a38efff833c2d10d3664e2f206fba2de1ff3389ca2badcb8bbbc",
+    "script_sha256": "140f40dc02b5d39566759673125c454280af730f03046c70df4ed52077e4d0c7",
+    "params_used": {},
+    "sample_probe_policy": "only_if_sample_cod_rt_provided",
+    "exporter_role": "sql_evidence_canonical_not_project_orchestrator"
+  },
+  "project_stage": {
+    "requested_stage": "auto",
+    "resolved_stage": "app_runtime",
+    "stage_source": "auto:target_contract_ready",
+    "exporter_scope": "exporta_evidencia_sql_y_contexto_de_etapa_sin_definir_por_si_solo_toda_la_orquestacion_del_proyecto",
+    "stage_message": "el_exporter_confirma_sql; el_siguiente_cierre_es_consumo_runtime_desde_app",
+    "next_action_source": "stage_policy:app_runtime"
+  },
+  "queries_run": [
+    {
+      "query_id": "Q00",
+      "query_name": "data_version",
+      "query_group": "meta",
+      "source_objects": [
+        "public.v_data_version"
+      ],
+      "sql_hash": "c9acd15f16e80ecddff3289a1b618f144eb30c05e0f6560227ffa8eadcc3e9b8",
+      "duration_ms": 431.461,
+      "row_count": 1,
+      "status": "ok",
+      "severity": "info",
+      "result_summary": {
+        "fecha_datos": "2026-05-12",
+        "ingested_at": "2026-05-13T16:57:32.222443+00:00"
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "Q01",
+      "query_name": "observed_scope_contract_objects_inventory",
+      "query_group": "inventory",
+      "source_objects": [
+        "pg_tables",
+        "pg_views",
+        "pg_matviews"
+      ],
+      "sql_hash": "0065816ad212b33ec8a9b799bc38e2856a5c8d3f83bc9c62b4289615626b1b59",
+      "duration_ms": 301.635,
+      "row_count": 4,
+      "status": "ok",
+      "severity": "info",
+      "result_summary": {
+        "rows": 4
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "Q02",
+      "query_name": "observed_scope_contract_columns_inventory",
+      "query_group": "inventory",
+      "source_objects": [
+        "information_schema.columns"
+      ],
+      "sql_hash": "9def6ccab303112cdd82711988b571b5e5efe4381e7cb609ec79d7d295256b6b",
+      "duration_ms": 380.048,
+      "row_count": 41,
+      "status": "ok",
+      "severity": "info",
+      "result_summary": {
+        "rows": 41
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "Q03",
+      "query_name": "observed_scope_contract_definitions_inventory",
+      "query_group": "inventory",
+      "source_objects": [
+        "pg_views",
+        "pg_matviews"
+      ],
+      "sql_hash": "3373bc8505e73700a25d3c1283c4570ba0c06ad450ac3d507e57c8041582ab70",
+      "duration_ms": 278.314,
+      "row_count": 4,
+      "status": "ok",
+      "severity": "info",
+      "result_summary": {
+        "rows": 4
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "Q04",
+      "query_name": "target_B3_candidate_objects_inventory",
+      "query_group": "inventory",
+      "source_objects": [
+        "pg_tables",
+        "pg_views",
+        "pg_matviews"
+      ],
+      "sql_hash": "e6abc6832f87f6a809bcfb279d455e12e16e45be11299868c7ddc2d05097db22",
+      "duration_ms": 250.636,
+      "row_count": 10,
+      "status": "ok",
+      "severity": "info",
+      "result_summary": {
+        "rows": 10
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "Q05",
+      "query_name": "target_B3_candidate_columns_inventory",
+      "query_group": "inventory",
+      "source_objects": [
+        "information_schema.columns"
+      ],
+      "sql_hash": "292ac15531c373e4bd480349ab9f13ae400ef8c5decbe5f77853f0aea6b29ad8",
+      "duration_ms": 396.775,
+      "row_count": 198,
+      "status": "ok",
+      "severity": "info",
+      "result_summary": {
+        "rows": 198
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "Q06",
+      "query_name": "scope_rollup_counts",
+      "query_group": "validated_counts",
+      "source_objects": [
+        "public.v_scope_cliente_responsable_rr_distinct",
+        "public.v_scope_cliente_responsable_fact_bridge",
+        "public.v_scope_cliente_responsable_summary"
+      ],
+      "sql_hash": "97bfe4894f8a94eec41228c7f2a182343cf40509b059d5659aad1ab26cc0fdf7",
+      "duration_ms": 958.161,
+      "row_count": 1,
+      "status": "ok",
+      "severity": "info",
+      "result_summary": {
+        "rr_distinct_rows": 6682,
+        "fact_bridge_rows": 41745,
+        "summary_rows": 5827,
+        "distinct_cod_rt": 799,
+        "distinct_cliente_norm": 45,
+        "distinct_responsable_norm": 14
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "Q07",
+      "query_name": "scope_top_responsables",
+      "query_group": "summary_support",
+      "source_objects": [
+        "public.v_scope_cliente_responsable_summary"
+      ],
+      "sql_hash": "66c7f3f0438900caa19b30ab7c07c63eb26a0fb9fb034a2a01fe5871f39f5cd8",
+      "duration_ms": 973.484,
+      "row_count": 20,
+      "status": "ok",
+      "severity": "info",
+      "result_summary": {
+        "rows": 20
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "Q08",
+      "query_name": "exact_contract_readiness_flags",
+      "query_group": "gate_support",
+      "source_objects": [
+        "pg_tables",
+        "pg_views",
+        "pg_matviews"
+      ],
+      "sql_hash": "e27e5980f0528e51049ae50dc9b2f10ab82cbe5e5b0c621d3f16d92f3bf4083f",
+      "duration_ms": 253.19,
+      "row_count": 1,
+      "status": "ok",
+      "severity": "info",
+      "result_summary": {
+        "ready_observed_scope_contract": true,
+        "observed_scope_contract_object_count": 4,
+        "ready_target_b3_contract": true,
+        "target_b3_exact_object_count": 6,
+        "target_b3_alias_object_count": 0,
+        "target_b3_contract_mode": "exact_contract_emitted_aliases_partial",
+        "recommended_next_step": "freeze_db_py_contract_now"
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "S01",
+      "query_name": "sample_ruta_rutero_by_cod_rt",
+      "query_group": "sample_lookups",
+      "source_objects": [
+        "public.ruta_rutero"
+      ],
+      "sql_hash": null,
+      "duration_ms": 0.0,
+      "row_count": 0,
+      "status": "skipped",
+      "severity": "info",
+      "result_summary": {
+        "skip_reason": "missing_params:sample_cod_rt"
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "S02",
+      "query_name": "sample_scope_rr_distinct_by_cod_rt",
+      "query_group": "sample_lookups",
+      "source_objects": [
+        "public.v_scope_cliente_responsable_rr_distinct"
+      ],
+      "sql_hash": null,
+      "duration_ms": 0.0,
+      "row_count": 0,
+      "status": "skipped",
+      "severity": "info",
+      "result_summary": {
+        "skip_reason": "missing_params:sample_cod_rt"
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "S03",
+      "query_name": "sample_scope_summary_by_cod_rt",
+      "query_group": "sample_lookups",
+      "source_objects": [
+        "public.v_scope_cliente_responsable_summary"
+      ],
+      "sql_hash": null,
+      "duration_ms": 0.0,
+      "row_count": 0,
+      "status": "skipped",
+      "severity": "info",
+      "result_summary": {
+        "skip_reason": "missing_params:sample_cod_rt"
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "S04",
+      "query_name": "sample_stock_local_cliente_ux_by_cod_rt",
+      "query_group": "sample_lookups",
+      "source_objects": [
+        "public.v_stock_local_cliente_ux"
+      ],
+      "sql_hash": null,
+      "duration_ms": 0.0,
+      "row_count": 0,
+      "status": "skipped",
+      "severity": "info",
+      "result_summary": {
+        "skip_reason": "missing_params:sample_cod_rt"
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    },
+    {
+      "query_id": "S05",
+      "query_name": "sample_slot_multiplicity_by_cod_rt",
+      "query_group": "sample_lookups",
+      "source_objects": [
+        "public.ruta_rutero",
+        "public.v_scope_cliente_responsable_rr_distinct"
+      ],
+      "sql_hash": null,
+      "duration_ms": 0.0,
+      "row_count": 0,
+      "status": "skipped",
+      "severity": "info",
+      "result_summary": {
+        "skip_reason": "missing_params:sample_cod_rt"
+      },
+      "comparison_vs_previous": "unknown",
+      "supports_gate": "G3_open_B3_app_query_contract"
+    }
+  ],
+  "validated_counts": {
+    "Q06_scope_rollup_counts": {
+      "rr_distinct_rows": 6682,
+      "fact_bridge_rows": 41745,
+      "summary_rows": 5827,
+      "distinct_cod_rt": 799,
+      "distinct_cliente_norm": 45,
+      "distinct_responsable_norm": 14
+    },
+    "Q07_scope_top_responsables": {
+      "row_count": 20,
+      "preview_rows": [
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "JUAN MONTERO",
+          "rows_scope_total": 3943,
+          "skus_scope_total": 3943,
+          "venta_0_total": 1275,
+          "negativos_total": 62,
+          "quiebres_total": 309
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "CAROLINA SILVA",
+          "rows_scope_total": 3270,
+          "skus_scope_total": 3270,
+          "venta_0_total": 1142,
+          "negativos_total": 54,
+          "quiebres_total": 278
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "CAROLINA SILVA",
+          "rows_scope_total": 3170,
+          "skus_scope_total": 3170,
+          "venta_0_total": 1108,
+          "negativos_total": 54,
+          "quiebres_total": 269
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "EYRIMAR VARGAS",
+          "rows_scope_total": 3171,
+          "skus_scope_total": 3171,
+          "venta_0_total": 983,
+          "negativos_total": 50,
+          "quiebres_total": 238
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "JHONNY MOSCOTE",
+          "rows_scope_total": 3139,
+          "skus_scope_total": 3139,
+          "venta_0_total": 1157,
+          "negativos_total": 45,
+          "quiebres_total": 249
+        }
+      ]
+    }
+  },
+  "observed_contract_inventory": {
+    "Q01_objects": [
+      {
+        "object_type": "materialized_view",
+        "schemaname": "public",
+        "object_name": "mv_scope_fact_latest_cliente"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_scope_cliente_responsable_fact_bridge"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_scope_cliente_responsable_rr_distinct"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_scope_cliente_responsable_summary"
+      }
+    ],
+    "Q02_columns": [
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 1,
+        "column_name": "responsable_tipo",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 2,
+        "column_name": "responsable",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 3,
+        "column_name": "responsable_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 4,
+        "column_name": "cod_rt",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 5,
+        "column_name": "local_nombre_rr",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 6,
+        "column_name": "cliente",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 7,
+        "column_name": "cliente_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 8,
+        "column_name": "fecha",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 9,
+        "column_name": "marca",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 10,
+        "column_name": "marca_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 11,
+        "column_name": "sku",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 12,
+        "column_name": "producto",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 13,
+        "column_name": "stock",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 14,
+        "column_name": "venta_7",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 15,
+        "column_name": "negativo",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 16,
+        "column_name": "riesgo_quiebre",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_fact_bridge",
+        "ordinal_position": 17,
+        "column_name": "otros",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 1,
+        "column_name": "cod_rt",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 2,
+        "column_name": "local_nombre_rr",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 3,
+        "column_name": "cliente",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 4,
+        "column_name": "cliente_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 5,
+        "column_name": "responsable_tipo",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 6,
+        "column_name": "responsable",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 7,
+        "column_name": "responsable_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 8,
+        "column_name": "rutero",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 9,
+        "column_name": "reponedor",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 10,
+        "column_name": "rr_persona",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_rr_distinct",
+        "ordinal_position": 11,
+        "column_name": "modalidad",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 1,
+        "column_name": "responsable_tipo",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 2,
+        "column_name": "responsable",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 3,
+        "column_name": "responsable_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 4,
+        "column_name": "cliente",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 5,
+        "column_name": "cliente_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 6,
+        "column_name": "cod_rt",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 7,
+        "column_name": "local_nombre_rr",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 8,
+        "column_name": "rows_scope",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 9,
+        "column_name": "skus_scope",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 10,
+        "column_name": "venta_0",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 11,
+        "column_name": "negativos",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 12,
+        "column_name": "quiebres",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_scope_cliente_responsable_summary",
+        "ordinal_position": 13,
+        "column_name": "otros",
+        "data_type": "integer"
+      }
+    ],
+    "Q03_definitions": [
+      {
+        "schemaname": "public",
+        "object_name": "mv_scope_fact_latest_cliente",
+        "object_type": "materialized_view",
+        "definition": " SELECT fecha,\n    cod_rt,\n    COALESCE(NULLIF(TRIM(BOTH FROM nombre_local_rr), ''::text), cod_rt) AS local_nombre_rr,\n    marca,\n    upper(TRIM(BOTH FROM COALESCE(marca, ''::text))) AS marca_norm,\n    sku,\n    descripcion_producto AS producto,\n    inv_u AS stock,\n    venta_u AS venta_7,\n        CASE\n            WHEN (inv_u < 0) THEN 'SI'::text\n            ELSE 'NO'::text\n        END AS negativo,\n        CASE\n            WHEN ((venta_u > 0) AND (inv_u > 0) AND (inv_u < venta_u)) THEN 'SI'::text\n            ELSE 'NO'::text\n        END AS riesgo_quiebre,\n    COALESCE(otros, ''::text) AS otros,\n    ingested_at,\n    id\n   FROM ( SELECT DISTINCT ON ((btrim(f.cod_rt)), (btrim(f.sku)), (upper(TRIM(BOTH FROM COALESCE(f.marca, ''::text))))) f.id,\n            f.fecha,\n            btrim(f.cod_rt) AS cod_rt,\n            f.nombre_local_rr,\n            btrim(f.marca) AS marca,\n            btrim(f.sku) AS sku,\n            f.descripcion_producto,\n            f.inv_u,\n            f.venta_u,\n            f.otros,\n            f.ingested_at\n           FROM fact_stock_venta f\n          WHERE ((NULLIF(btrim(COALESCE(f.cod_rt, ''::text)), ''::text) IS NOT NULL) AND (NULLIF(btrim(COALESCE(f.sku, ''::text)), ''::text) IS NOT NULL) AND (NULLIF(btrim(COALESCE(f.marca, ''::text)), ''::text) IS NOT NULL))\n          ORDER BY (btrim(f.cod_rt)), (btrim(f.sku)), (upper(TRIM(BOTH FROM COALESCE(f.marca, ''::text)))), f.fecha DESC, f.ingested_at DESC, f.id DESC) x;"
+      },
+      {
+        "schemaname": "public",
+        "object_name": "v_scope_cliente_responsable_fact_bridge",
+        "object_type": "view",
+        "definition": " WITH scope_pair AS (\n         SELECT DISTINCT s.cod_rt,\n            s.local_nombre_rr,\n            s.cliente,\n            s.cliente_norm,\n            s.responsable_tipo,\n            s.responsable,\n            s.responsable_norm\n           FROM v_scope_cliente_responsable_rr_distinct s\n        )\n SELECT sp.responsable_tipo,\n    sp.responsable,\n    sp.responsable_norm,\n    sp.cod_rt,\n    sp.local_nombre_rr,\n    sp.cliente,\n    sp.cliente_norm,\n    v.fecha,\n    v.marca,\n    v.marca_norm,\n    v.sku,\n    v.producto,\n    v.stock,\n    v.venta_7,\n    v.negativo,\n    v.riesgo_quiebre,\n    v.otros\n   FROM (scope_pair sp\n     JOIN mv_scope_fact_latest_cliente v ON (((v.cod_rt = sp.cod_rt) AND (v.marca_norm = sp.cliente_norm))));"
+      },
+      {
+        "schemaname": "public",
+        "object_name": "v_scope_cliente_responsable_rr_distinct",
+        "object_type": "view",
+        "definition": " WITH rr_base AS (\n         SELECT DISTINCT rr.cod_rt,\n            COALESCE(NULLIF(TRIM(BOTH FROM rr.local_nombre), ''::text), rr.cod_rt) AS local_nombre_rr,\n            NULLIF(TRIM(BOTH FROM rr.cliente), ''::text) AS cliente,\n            upper(TRIM(BOTH FROM COALESCE(rr.cliente, ''::text))) AS cliente_norm,\n            NULLIF(TRIM(BOTH FROM rr.gestores), ''::text) AS gestor,\n            upper(TRIM(BOTH FROM COALESCE(rr.gestores, ''::text))) AS gestor_norm,\n            NULLIF(TRIM(BOTH FROM rr.supervisor), ''::text) AS supervisor,\n            upper(TRIM(BOTH FROM COALESCE(rr.supervisor, ''::text))) AS supervisor_norm,\n            NULLIF(TRIM(BOTH FROM rr.rutero), ''::text) AS rutero,\n            NULLIF(TRIM(BOTH FROM rr.reponedor), ''::text) AS reponedor,\n            concat_ws(' — '::text, NULLIF(TRIM(BOTH FROM rr.rutero), ''::text), NULLIF(TRIM(BOTH FROM rr.reponedor), ''::text)) AS rr_persona,\n            NULLIF(TRIM(BOTH FROM rr.modalidad), ''::text) AS modalidad\n           FROM ruta_rutero rr\n          WHERE ((NULLIF(TRIM(BOTH FROM COALESCE(rr.cod_rt, ''::text)), ''::text) IS NOT NULL) AND (NULLIF(TRIM(BOTH FROM COALESCE(rr.cliente, ''::text)), ''::text) IS NOT NULL))\n        ), rr_gestor AS (\n         SELECT DISTINCT rr_base.cod_rt,\n            rr_base.local_nombre_rr,\n            rr_base.cliente,\n            rr_base.cliente_norm,\n            'GESTOR'::text AS responsable_tipo,\n            rr_base.gestor AS responsable,\n            rr_base.gestor_norm AS responsable_norm,\n            rr_base.rutero,\n            rr_base.reponedor,\n            rr_base.rr_persona,\n            rr_base.modalidad\n           FROM rr_base\n          WHERE (NULLIF(TRIM(BOTH FROM COALESCE(rr_base.gestor, ''::text)), ''::text) IS NOT NULL)\n        ), rr_supervisor AS (\n         SELECT DISTINCT rr_base.cod_rt,\n            rr_base.local_nombre_rr,\n            rr_base.cliente,\n            rr_base.cliente_norm,\n            'SUPERVISOR'::text AS responsable_tipo,\n            rr_base.supervisor AS responsable,\n            rr_base.supervisor_norm AS responsable_norm,\n            rr_base.rutero,\n            rr_base.reponedor,\n            rr_base.rr_persona,\n            rr_base.modalidad\n           FROM rr_base\n          WHERE (NULLIF(TRIM(BOTH FROM COALESCE(rr_base.supervisor, ''::text)), ''::text) IS NOT NULL)\n        )\n SELECT rr_gestor.cod_rt,\n    rr_gestor.local_nombre_rr,\n    rr_gestor.cliente,\n    rr_gestor.cliente_norm,\n    rr_gestor.responsable_tipo,\n    rr_gestor.responsable,\n    rr_gestor.responsable_norm,\n    rr_gestor.rutero,\n    rr_gestor.reponedor,\n    rr_gestor.rr_persona,\n    rr_gestor.modalidad\n   FROM rr_gestor\nUNION ALL\n SELECT rr_supervisor.cod_rt,\n    rr_supervisor.local_nombre_rr,\n    rr_supervisor.cliente,\n    rr_supervisor.cliente_norm,\n    rr_supervisor.responsable_tipo,\n    rr_supervisor.responsable,\n    rr_supervisor.responsable_norm,\n    rr_supervisor.rutero,\n    rr_supervisor.reponedor,\n    rr_supervisor.rr_persona,\n    rr_supervisor.modalidad\n   FROM rr_supervisor;"
+      },
+      {
+        "schemaname": "public",
+        "object_name": "v_scope_cliente_responsable_summary",
+        "object_type": "view",
+        "definition": " SELECT responsable_tipo,\n    responsable,\n    responsable_norm,\n    cliente,\n    cliente_norm,\n    cod_rt,\n    max(local_nombre_rr) AS local_nombre_rr,\n    (count(*))::integer AS rows_scope,\n    (count(DISTINCT sku))::integer AS skus_scope,\n    (COALESCE(sum(\n        CASE\n            WHEN (COALESCE(venta_7, 0) = 0) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS venta_0,\n    (COALESCE(sum(\n        CASE\n            WHEN (upper(TRIM(BOTH FROM COALESCE(negativo, ''::text))) = 'SI'::text) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS negativos,\n    (COALESCE(sum(\n        CASE\n            WHEN (upper(TRIM(BOTH FROM COALESCE(riesgo_quiebre, ''::text))) = 'SI'::text) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS quiebres,\n    (COALESCE(sum(\n        CASE\n            WHEN ((NULLIF(TRIM(BOTH FROM COALESCE(otros, ''::text)), ''::text) IS NOT NULL) AND (upper(TRIM(BOTH FROM COALESCE(otros, ''::text))) <> ALL (ARRAY['NO'::text, 'N/A'::text, 'NA'::text, '-'::text]))) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS otros\n   FROM v_scope_cliente_responsable_fact_bridge\n  GROUP BY responsable_tipo, responsable, responsable_norm, cliente, cliente_norm, cod_rt;"
+      }
+    ]
+  },
+  "target_contract_discovery": {
+    "Q04_candidate_objects": [
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_alertas_control_gestion"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_cumplimiento_detalle"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_cumplimiento_detalle_v2"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_cumplimiento_semana_local_cliente"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_cumplimiento_semana_local_parity"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_cumplimiento_semana_scope"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_cumplimiento_semana_scope_v2"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_gestor_global_faltas"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_inicio_gestor"
+      },
+      {
+        "object_type": "view",
+        "schemaname": "public",
+        "object_name": "v_cg_inicio_jefe"
+      }
+    ],
+    "Q05_candidate_columns": [
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_alertas_control_gestion",
+        "ordinal_position": 1,
+        "column_name": "alerta_tipo",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_alertas_control_gestion",
+        "ordinal_position": 2,
+        "column_name": "fuente",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_alertas_control_gestion",
+        "ordinal_position": 3,
+        "column_name": "cod_rt",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_alertas_control_gestion",
+        "ordinal_position": 4,
+        "column_name": "cliente",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_alertas_control_gestion",
+        "ordinal_position": 5,
+        "column_name": "persona",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_alertas_control_gestion",
+        "ordinal_position": 6,
+        "column_name": "fecha_visita",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_alertas_control_gestion",
+        "ordinal_position": 7,
+        "column_name": "detalle",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_alertas_control_gestion",
+        "ordinal_position": 8,
+        "column_name": "prioridad",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 1,
+        "column_name": "fuente",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 2,
+        "column_name": "gestor",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 3,
+        "column_name": "gestor_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 4,
+        "column_name": "cliente",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 5,
+        "column_name": "cliente_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 6,
+        "column_name": "cod_rt",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 7,
+        "column_name": "local_nombre",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 8,
+        "column_name": "reponedor",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 9,
+        "column_name": "modalidad",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 10,
+        "column_name": "fecha_visita",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 11,
+        "column_name": "fecha_visita_key",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 12,
+        "column_name": "has_evidence",
+        "data_type": "boolean"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 13,
+        "column_name": "match_status",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 14,
+        "column_name": "brecha_tipo",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 15,
+        "column_name": "persona_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 16,
+        "column_name": "local_nombre_candidate",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 17,
+        "column_name": "match_quality",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle",
+        "ordinal_position": 18,
+        "column_name": "persona_match_exacta",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 1,
+        "column_name": "fuente",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 2,
+        "column_name": "gestor",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 3,
+        "column_name": "gestor_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 4,
+        "column_name": "cliente",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 5,
+        "column_name": "cliente_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 6,
+        "column_name": "cod_rt",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 7,
+        "column_name": "local_nombre",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 8,
+        "column_name": "reponedor",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 9,
+        "column_name": "modalidad",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 10,
+        "column_name": "fecha_visita",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 11,
+        "column_name": "fecha_visita_key",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 12,
+        "column_name": "semana_inicio",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 13,
+        "column_name": "semana_iso",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 14,
+        "column_name": "has_evidence",
+        "data_type": "boolean"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 15,
+        "column_name": "match_status",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 16,
+        "column_name": "brecha_tipo",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 17,
+        "column_name": "persona_norm",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 18,
+        "column_name": "local_nombre_candidate",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 19,
+        "column_name": "match_quality",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 20,
+        "column_name": "persona_match_exacta",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 21,
+        "column_name": "batch_id",
+        "data_type": "bigint"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 22,
+        "column_name": "ruta_batch_id",
+        "data_type": "bigint"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 23,
+        "column_name": "ruta_duplicada_flag",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_detalle_v2",
+        "ordinal_position": 24,
+        "column_name": "ruta_duplicada_rows",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 1,
+        "column_name": "COD_RT",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 2,
+        "column_name": "CLIENTE",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 3,
+        "column_name": "LOCAL",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 4,
+        "column_name": "GESTOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 5,
+        "column_name": "REPONEDOR_SCOPE",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 6,
+        "column_name": "MODALIDAD",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 7,
+        "column_name": "SEMANA_INICIO",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 8,
+        "column_name": "SEMANA_ISO",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 9,
+        "column_name": "VISITA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 10,
+        "column_name": "VISITA_REALIZADA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 11,
+        "column_name": "DIFERENCIA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 12,
+        "column_name": "DIAS_DOBLE_MARCAJE",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 13,
+        "column_name": "DIAS_KPIONE",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 14,
+        "column_name": "DIAS_POWER_APP",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 15,
+        "column_name": "PERSONA_CONFLICTO_ROWS",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 16,
+        "column_name": "LUNES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 17,
+        "column_name": "MARTES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 18,
+        "column_name": "MIERCOLES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 19,
+        "column_name": "JUEVES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 20,
+        "column_name": "VIERNES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 21,
+        "column_name": "SABADO_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 22,
+        "column_name": "DOMINGO_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 23,
+        "column_name": "DIAS_PLANIFICADOS_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_cliente",
+        "ordinal_position": 24,
+        "column_name": "ALERTA",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 1,
+        "column_name": "COD_RT",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 2,
+        "column_name": "CLIENTE",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 3,
+        "column_name": "LOCAL",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 4,
+        "column_name": "GESTOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 5,
+        "column_name": "REPONEDOR_SCOPE",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 6,
+        "column_name": "MODALIDAD",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 7,
+        "column_name": "SEMANA_INICIO",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 8,
+        "column_name": "SEMANA_ISO",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 9,
+        "column_name": "VISITA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 10,
+        "column_name": "VISITA_REALIZADA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 11,
+        "column_name": "DIFERENCIA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 12,
+        "column_name": "DIAS_DOBLE_MARCAJE",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 13,
+        "column_name": "DIAS_KPIONE",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 14,
+        "column_name": "DIAS_POWER_APP",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 15,
+        "column_name": "PERSONA_CONFLICTO_ROWS",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 16,
+        "column_name": "LUNES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 17,
+        "column_name": "MARTES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 18,
+        "column_name": "MIERCOLES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 19,
+        "column_name": "JUEVES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 20,
+        "column_name": "VIERNES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 21,
+        "column_name": "SABADO_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 22,
+        "column_name": "DOMINGO_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 23,
+        "column_name": "DIAS_PLANIFICADOS_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_local_parity",
+        "ordinal_position": 24,
+        "column_name": "ALERTA",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 1,
+        "column_name": "COD_RT",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 2,
+        "column_name": "CLIENTE",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 3,
+        "column_name": "LOCAL",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 4,
+        "column_name": "GESTOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 5,
+        "column_name": "REPONEDOR_SCOPE",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 6,
+        "column_name": "MODALIDAD",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 7,
+        "column_name": "SEMANA_INICIO",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 8,
+        "column_name": "SEMANA_ISO",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 9,
+        "column_name": "VISITA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 10,
+        "column_name": "VISITA_REALIZADA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 11,
+        "column_name": "DIFERENCIA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 12,
+        "column_name": "DIAS_DOBLE_MARCAJE",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 13,
+        "column_name": "DIAS_KPIONE",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 14,
+        "column_name": "DIAS_POWER_APP",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 15,
+        "column_name": "PERSONA_CONFLICTO_ROWS",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 16,
+        "column_name": "LUNES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 17,
+        "column_name": "MARTES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 18,
+        "column_name": "MIERCOLES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 19,
+        "column_name": "JUEVES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 20,
+        "column_name": "VIERNES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 21,
+        "column_name": "SABADO_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 22,
+        "column_name": "DOMINGO_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 23,
+        "column_name": "DIAS_PLANIFICADOS_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope",
+        "ordinal_position": 24,
+        "column_name": "ALERTA",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 1,
+        "column_name": "COD_RT",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 2,
+        "column_name": "COD_B2B",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 3,
+        "column_name": "LOCAL",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 4,
+        "column_name": "CLIENTE",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 5,
+        "column_name": "GESTOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 6,
+        "column_name": "RUTERO",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 7,
+        "column_name": "REPONEDOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 8,
+        "column_name": "SUPERVISOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 9,
+        "column_name": "MODALIDAD",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 10,
+        "column_name": "SEMANA_INICIO",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 11,
+        "column_name": "SEMANA_ISO",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 12,
+        "column_name": "LUNES_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 13,
+        "column_name": "MARTES_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 14,
+        "column_name": "MIERCOLES_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 15,
+        "column_name": "JUEVES_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 16,
+        "column_name": "VIERNES_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 17,
+        "column_name": "SABADO_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 18,
+        "column_name": "DOMINGO_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 19,
+        "column_name": "LUNES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 20,
+        "column_name": "MARTES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 21,
+        "column_name": "MIERCOLES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 22,
+        "column_name": "JUEVES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 23,
+        "column_name": "VIERNES_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 24,
+        "column_name": "SABADO_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 25,
+        "column_name": "DOMINGO_PLAN",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 26,
+        "column_name": "VISITA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 27,
+        "column_name": "VISITA_REALIZADA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 28,
+        "column_name": "DIFERENCIA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 29,
+        "column_name": "ALERTA",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 30,
+        "column_name": "DIAS_KPIONE",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 31,
+        "column_name": "DIAS_KPIONE2",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 32,
+        "column_name": "DIAS_POWER_APP",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 33,
+        "column_name": "DIAS_DOBLE_MARCAJE",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 34,
+        "column_name": "DIAS_TRIPLE_MARCAJE",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 35,
+        "column_name": "FUENTES_REPORTADAS_SEMANA",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 36,
+        "column_name": "PERSONA_CONFLICTO_ROWS",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 37,
+        "column_name": "VISITA_REALIZADA_RAW",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 38,
+        "column_name": "VISITA_REALIZADA_CAP",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 39,
+        "column_name": "SOBRE_CUMPLIMIENTO",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 40,
+        "column_name": "RUTA_DUPLICADA_FLAG",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_cumplimiento_semana_scope_v2",
+        "ordinal_position": 41,
+        "column_name": "RUTA_DUPLICADA_ROWS",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 1,
+        "column_name": "GESTOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 2,
+        "column_name": "CLIENTE",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 3,
+        "column_name": "COD_RT",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 4,
+        "column_name": "LOCAL",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 5,
+        "column_name": "REPONEDOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 6,
+        "column_name": "MODALIDAD",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 7,
+        "column_name": "FECHA_REFERENCIA",
+        "data_type": "date"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 8,
+        "column_name": "TIENE_EVIDENCIA",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 9,
+        "column_name": "FUENTE_PRINCIPAL",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 10,
+        "column_name": "EVENTOS_TOTAL",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 11,
+        "column_name": "EVENTOS_CON_EVIDENCIA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 12,
+        "column_name": "EVENTOS_SIN_EVIDENCIA",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 13,
+        "column_name": "PERSONA_CONFLICTO_ROWS",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 14,
+        "column_name": "BRECHA_TIPO",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_gestor_global_faltas",
+        "ordinal_position": 15,
+        "column_name": "PRIORIDAD",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 1,
+        "column_name": "GESTOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 2,
+        "column_name": "locales_scope",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 3,
+        "column_name": "clientes_scope",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 4,
+        "column_name": "reponedores_scope",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 5,
+        "column_name": "eventos_total",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 6,
+        "column_name": "eventos_con_evidencia",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 7,
+        "column_name": "eventos_sin_evidencia",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 8,
+        "column_name": "pct_cobertura",
+        "data_type": "numeric"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 9,
+        "column_name": "persona_conflicto_rows",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_gestor",
+        "ordinal_position": 10,
+        "column_name": "fuente_dominante",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 1,
+        "column_name": "GESTOR",
+        "data_type": "text"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 2,
+        "column_name": "locales_scope",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 3,
+        "column_name": "clientes_scope",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 4,
+        "column_name": "reponedores_scope",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 5,
+        "column_name": "eventos_total",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 6,
+        "column_name": "eventos_con_evidencia",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 7,
+        "column_name": "eventos_sin_evidencia",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 8,
+        "column_name": "pct_cobertura",
+        "data_type": "numeric"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 9,
+        "column_name": "persona_conflicto_rows",
+        "data_type": "integer"
+      },
+      {
+        "table_schema": "public",
+        "table_name": "v_cg_inicio_jefe",
+        "ordinal_position": 10,
+        "column_name": "fuente_dominante",
+        "data_type": "text"
+      }
+    ]
+  },
+  "contract_audit": {
+    "ready_observed_scope_contract": true,
+    "observed_scope_contract_object_count": 4,
+    "ready_target_b3_contract": true,
+    "target_b3_exact_object_count": 6,
+    "target_b3_alias_object_count": 0,
+    "target_b3_contract_mode": "exact_contract_emitted_aliases_partial",
+    "recommended_next_step": "freeze_db_py_contract_now"
+  },
+  "sample_lookups": [],
+  "anomalies": [],
+  "performance_trace": {
+    "total_bundle_ms": 5225.738,
+    "slowest_query_name": "scope_top_responsables",
+    "slowest_query_ms": 973.484,
+    "queries_over_500ms": [
+      "scope_rollup_counts",
+      "scope_top_responsables"
+    ],
+    "queries_failed": [],
+    "queries_skipped": [
+      "sample_ruta_rutero_by_cod_rt",
+      "sample_scope_rr_distinct_by_cod_rt",
+      "sample_scope_summary_by_cod_rt",
+      "sample_stock_local_cliente_ux_by_cod_rt",
+      "sample_slot_multiplicity_by_cod_rt"
+    ],
+    "bundle_status": "ok"
+  },
+  "index_inventory": [],
+  "artifacts_touched": [
+    {
+      "artifact": "STOCK_ZERO_SUPABASE_QUERY_BUNDLE_V3_1.json",
+      "status": "read",
+      "reason": "bundle_contract"
+    },
+    {
+      "artifact": "STOCK_ZERO_SUPABASE_EVIDENCE_PACKET_V3.json",
+      "status": "read",
+      "reason": "output_standard"
+    }
+  ],
+  "sql_evidence": {
+    "bundle_status": "ok",
+    "has_failures": false,
+    "contract_target_ready": true,
+    "observed_scope_ready": true,
+    "evidence_is_stage_agnostic": true
+  },
+  "gate_impact": {
+    "target_gate": "G3_open_B3_app_query_contract",
+    "effect": "confirms",
+    "effect_source": "stage_policy:app_runtime",
+    "why": [
+      "bundle_ejecutado_sobre_SQL_real",
+      "data_version_congelada_en_la_corrida",
+      "Q08_usa_contrato_canonico_B3_por_nombres_exactos",
+      "el_exporter_confirma_evidencia_y_no_define_en_solitario_el_workflow_total"
+    ],
+    "open_conditions_progress": {
+      "ready_observed_scope_contract": true,
+      "observed_scope_contract_object_count": 4,
+      "ready_target_b3_contract": true,
+      "target_b3_exact_object_count": 6,
+      "target_b3_alias_object_count": 0,
+      "target_b3_contract_mode": "exact_contract_emitted_aliases_partial",
+      "recommended_next_step": "freeze_db_py_contract_now"
+    }
+  },
+  "closing_state": {
+    "run_status": "usable_for_interpretation",
+    "recommended_next_action": "validar_consumo_real_app_db.py_y_emitir_packet_final_app_sql",
+    "must_preserve": [
+      "1_corrida=1_packet",
+      "no_recalculo_negocio_en_python",
+      "bundle_y_packet_con_nombres_estables",
+      "sample_probe_opcional_no_define_el_modelo",
+      "Q08_exacto_para_contrato_B3_canonico",
+      "exporter_unico_pero_stage_aware"
+    ],
+    "must_not_do": [
+      "no_subir_snippets_sueltos_como_fuente_principal",
+      "no_mezclar_fechas_distintas_en_un_mismo_packet",
+      "no_omitir_data_version",
+      "no_usar_el_exporter_como_unico_orquestador_del_proyecto"
+    ]
+  },
+  "raw_query_outputs": {
+    "Q00": {
+      "status": "ok",
+      "row_count": 1,
+      "columns": [
+        "fecha_datos",
+        "ingested_at"
+      ],
+      "preview_rows": [
+        {
+          "fecha_datos": "2026-05-12",
+          "ingested_at": "2026-05-13T16:57:32.222443+00:00"
+        }
+      ],
+      "rows": [
+        {
+          "fecha_datos": "2026-05-12",
+          "ingested_at": "2026-05-13T16:57:32.222443+00:00"
+        }
+      ],
+      "compiled_sql": "select fecha_datos, ingested_at from public.v_data_version;",
+      "meta": {
+        "query_id": "Q00",
+        "query_name": "data_version",
+        "purpose": "congelar_fecha_datos_e_ingestion_de_la_corrida",
+        "group": "meta"
+      }
+    },
+    "Q01": {
+      "status": "ok",
+      "row_count": 4,
+      "columns": [
+        "object_type",
+        "schemaname",
+        "object_name"
+      ],
+      "preview_rows": [
+        {
+          "object_type": "materialized_view",
+          "schemaname": "public",
+          "object_name": "mv_scope_fact_latest_cliente"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_fact_bridge"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_rr_distinct"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_summary"
+        }
+      ],
+      "rows": [
+        {
+          "object_type": "materialized_view",
+          "schemaname": "public",
+          "object_name": "mv_scope_fact_latest_cliente"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_fact_bridge"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_rr_distinct"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_summary"
+        }
+      ],
+      "compiled_sql": "with objs as ( select 'table' as object_type, schemaname, tablename as object_name from pg_tables where schemaname='public' union all select 'view' as object_type, schemaname, viewname as object_name from pg_views where schemaname='public' union all select 'materialized_view' as object_type, schemaname, matviewname as object_name from pg_matviews where schemaname='public' ) select object_type, schemaname, object_name from objs where object_name in ('mv_scope_fact_latest_cliente','v_scope_cliente_responsable_rr_distinct','v_scope_cliente_responsable_fact_bridge','v_scope_cliente_responsable_summary') order by object_type, object_name;",
+      "meta": {
+        "query_id": "Q01",
+        "query_name": "observed_scope_contract_objects_inventory",
+        "purpose": "inventariar_objetos_exactos_del_contrato_publico_scope_observado_hoy",
+        "group": "inventory"
+      }
+    },
+    "Q02": {
+      "status": "ok",
+      "row_count": 41,
+      "columns": [
+        "table_schema",
+        "table_name",
+        "ordinal_position",
+        "column_name",
+        "data_type"
+      ],
+      "preview_rows": [
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 1,
+          "column_name": "responsable_tipo",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 2,
+          "column_name": "responsable",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 3,
+          "column_name": "responsable_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 4,
+          "column_name": "cod_rt",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 5,
+          "column_name": "local_nombre_rr",
+          "data_type": "text"
+        }
+      ],
+      "rows": [
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 1,
+          "column_name": "responsable_tipo",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 2,
+          "column_name": "responsable",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 3,
+          "column_name": "responsable_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 4,
+          "column_name": "cod_rt",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 5,
+          "column_name": "local_nombre_rr",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 6,
+          "column_name": "cliente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 7,
+          "column_name": "cliente_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 8,
+          "column_name": "fecha",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 9,
+          "column_name": "marca",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 10,
+          "column_name": "marca_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 11,
+          "column_name": "sku",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 12,
+          "column_name": "producto",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 13,
+          "column_name": "stock",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 14,
+          "column_name": "venta_7",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 15,
+          "column_name": "negativo",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 16,
+          "column_name": "riesgo_quiebre",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_fact_bridge",
+          "ordinal_position": 17,
+          "column_name": "otros",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 1,
+          "column_name": "cod_rt",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 2,
+          "column_name": "local_nombre_rr",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 3,
+          "column_name": "cliente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 4,
+          "column_name": "cliente_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 5,
+          "column_name": "responsable_tipo",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 6,
+          "column_name": "responsable",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 7,
+          "column_name": "responsable_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 8,
+          "column_name": "rutero",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 9,
+          "column_name": "reponedor",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 10,
+          "column_name": "rr_persona",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_rr_distinct",
+          "ordinal_position": 11,
+          "column_name": "modalidad",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 1,
+          "column_name": "responsable_tipo",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 2,
+          "column_name": "responsable",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 3,
+          "column_name": "responsable_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 4,
+          "column_name": "cliente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 5,
+          "column_name": "cliente_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 6,
+          "column_name": "cod_rt",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 7,
+          "column_name": "local_nombre_rr",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 8,
+          "column_name": "rows_scope",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 9,
+          "column_name": "skus_scope",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 10,
+          "column_name": "venta_0",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 11,
+          "column_name": "negativos",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 12,
+          "column_name": "quiebres",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_scope_cliente_responsable_summary",
+          "ordinal_position": 13,
+          "column_name": "otros",
+          "data_type": "integer"
+        }
+      ],
+      "compiled_sql": "select table_schema, table_name, ordinal_position, column_name, data_type from information_schema.columns where table_schema='public' and table_name in ('mv_scope_fact_latest_cliente','v_scope_cliente_responsable_rr_distinct','v_scope_cliente_responsable_fact_bridge','v_scope_cliente_responsable_summary') order by table_name, ordinal_position;",
+      "meta": {
+        "query_id": "Q02",
+        "query_name": "observed_scope_contract_columns_inventory",
+        "purpose": "inventariar_columnas_del_contrato_publico_scope_observado_hoy",
+        "group": "inventory"
+      }
+    },
+    "Q03": {
+      "status": "ok",
+      "row_count": 4,
+      "columns": [
+        "schemaname",
+        "object_name",
+        "object_type",
+        "definition"
+      ],
+      "preview_rows": [
+        {
+          "schemaname": "public",
+          "object_name": "mv_scope_fact_latest_cliente",
+          "object_type": "materialized_view",
+          "definition": " SELECT fecha,\n    cod_rt,\n    COALESCE(NULLIF(TRIM(BOTH FROM nombre_local_rr), ''::text), cod_rt) AS local_nombre_rr,\n    marca,\n    upper(TRIM(BOTH FROM COALESCE(marca, ''::text))) AS marca_norm,\n    sku,\n    descripcion_producto AS producto,\n    inv_u AS stock,\n    venta_u AS venta_7,\n        CASE\n            WHEN (inv_u < 0) THEN 'SI'::text\n            ELSE 'NO'::text\n        END AS negativo,\n        CASE\n            WHEN ((venta_u > 0) AND (inv_u > 0) AND (inv_u < venta_u)) THEN 'SI'::text\n            ELSE 'NO'::text\n        END AS riesgo_quiebre,\n    COALESCE(otros, ''::text) AS otros,\n    ingested_at,\n    id\n   FROM ( SELECT DISTINCT ON ((btrim(f.cod_rt)), (btrim(f.sku)), (upper(TRIM(BOTH FROM COALESCE(f.marca, ''::text))))) f.id,\n            f.fecha,\n            btrim(f.cod_rt) AS cod_rt,\n            f.nombre_local_rr,\n            btrim(f.marca) AS marca,\n            btrim(f.sku) AS sku,\n            f.descripcion_producto,\n            f.inv_u,\n            f.venta_u,\n            f.otros,\n            f.ingested_at\n           FROM fact_stock_venta f\n          WHERE ((NULLIF(btrim(COALESCE(f.cod_rt, ''::text)), ''::text) IS NOT NULL) AND (NULLIF(btrim(COALESCE(f.sku, ''::text)), ''::text) IS NOT NULL) AND (NULLIF(btrim(COALESCE(f.marca, ''::text)), ''::text) IS NOT NULL))\n          ORDER BY (btrim(f.cod_rt)), (btrim(f.sku)), (upper(TRIM(BOTH FROM COALESCE(f.marca, ''::text)))), f.fecha DESC, f.ingested_at DESC, f.id DESC) x;"
+        },
+        {
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_fact_bridge",
+          "object_type": "view",
+          "definition": " WITH scope_pair AS (\n         SELECT DISTINCT s.cod_rt,\n            s.local_nombre_rr,\n            s.cliente,\n            s.cliente_norm,\n            s.responsable_tipo,\n            s.responsable,\n            s.responsable_norm\n           FROM v_scope_cliente_responsable_rr_distinct s\n        )\n SELECT sp.responsable_tipo,\n    sp.responsable,\n    sp.responsable_norm,\n    sp.cod_rt,\n    sp.local_nombre_rr,\n    sp.cliente,\n    sp.cliente_norm,\n    v.fecha,\n    v.marca,\n    v.marca_norm,\n    v.sku,\n    v.producto,\n    v.stock,\n    v.venta_7,\n    v.negativo,\n    v.riesgo_quiebre,\n    v.otros\n   FROM (scope_pair sp\n     JOIN mv_scope_fact_latest_cliente v ON (((v.cod_rt = sp.cod_rt) AND (v.marca_norm = sp.cliente_norm))));"
+        },
+        {
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_rr_distinct",
+          "object_type": "view",
+          "definition": " WITH rr_base AS (\n         SELECT DISTINCT rr.cod_rt,\n            COALESCE(NULLIF(TRIM(BOTH FROM rr.local_nombre), ''::text), rr.cod_rt) AS local_nombre_rr,\n            NULLIF(TRIM(BOTH FROM rr.cliente), ''::text) AS cliente,\n            upper(TRIM(BOTH FROM COALESCE(rr.cliente, ''::text))) AS cliente_norm,\n            NULLIF(TRIM(BOTH FROM rr.gestores), ''::text) AS gestor,\n            upper(TRIM(BOTH FROM COALESCE(rr.gestores, ''::text))) AS gestor_norm,\n            NULLIF(TRIM(BOTH FROM rr.supervisor), ''::text) AS supervisor,\n            upper(TRIM(BOTH FROM COALESCE(rr.supervisor, ''::text))) AS supervisor_norm,\n            NULLIF(TRIM(BOTH FROM rr.rutero), ''::text) AS rutero,\n            NULLIF(TRIM(BOTH FROM rr.reponedor), ''::text) AS reponedor,\n            concat_ws(' — '::text, NULLIF(TRIM(BOTH FROM rr.rutero), ''::text), NULLIF(TRIM(BOTH FROM rr.reponedor), ''::text)) AS rr_persona,\n            NULLIF(TRIM(BOTH FROM rr.modalidad), ''::text) AS modalidad\n           FROM ruta_rutero rr\n          WHERE ((NULLIF(TRIM(BOTH FROM COALESCE(rr.cod_rt, ''::text)), ''::text) IS NOT NULL) AND (NULLIF(TRIM(BOTH FROM COALESCE(rr.cliente, ''::text)), ''::text) IS NOT NULL))\n        ), rr_gestor AS (\n         SELECT DISTINCT rr_base.cod_rt,\n            rr_base.local_nombre_rr,\n            rr_base.cliente,\n            rr_base.cliente_norm,\n            'GESTOR'::text AS responsable_tipo,\n            rr_base.gestor AS responsable,\n            rr_base.gestor_norm AS responsable_norm,\n            rr_base.rutero,\n            rr_base.reponedor,\n            rr_base.rr_persona,\n            rr_base.modalidad\n           FROM rr_base\n          WHERE (NULLIF(TRIM(BOTH FROM COALESCE(rr_base.gestor, ''::text)), ''::text) IS NOT NULL)\n        ), rr_supervisor AS (\n         SELECT DISTINCT rr_base.cod_rt,\n            rr_base.local_nombre_rr,\n            rr_base.cliente,\n            rr_base.cliente_norm,\n            'SUPERVISOR'::text AS responsable_tipo,\n            rr_base.supervisor AS responsable,\n            rr_base.supervisor_norm AS responsable_norm,\n            rr_base.rutero,\n            rr_base.reponedor,\n            rr_base.rr_persona,\n            rr_base.modalidad\n           FROM rr_base\n          WHERE (NULLIF(TRIM(BOTH FROM COALESCE(rr_base.supervisor, ''::text)), ''::text) IS NOT NULL)\n        )\n SELECT rr_gestor.cod_rt,\n    rr_gestor.local_nombre_rr,\n    rr_gestor.cliente,\n    rr_gestor.cliente_norm,\n    rr_gestor.responsable_tipo,\n    rr_gestor.responsable,\n    rr_gestor.responsable_norm,\n    rr_gestor.rutero,\n    rr_gestor.reponedor,\n    rr_gestor.rr_persona,\n    rr_gestor.modalidad\n   FROM rr_gestor\nUNION ALL\n SELECT rr_supervisor.cod_rt,\n    rr_supervisor.local_nombre_rr,\n    rr_supervisor.cliente,\n    rr_supervisor.cliente_norm,\n    rr_supervisor.responsable_tipo,\n    rr_supervisor.responsable,\n    rr_supervisor.responsable_norm,\n    rr_supervisor.rutero,\n    rr_supervisor.reponedor,\n    rr_supervisor.rr_persona,\n    rr_supervisor.modalidad\n   FROM rr_supervisor;"
+        },
+        {
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_summary",
+          "object_type": "view",
+          "definition": " SELECT responsable_tipo,\n    responsable,\n    responsable_norm,\n    cliente,\n    cliente_norm,\n    cod_rt,\n    max(local_nombre_rr) AS local_nombre_rr,\n    (count(*))::integer AS rows_scope,\n    (count(DISTINCT sku))::integer AS skus_scope,\n    (COALESCE(sum(\n        CASE\n            WHEN (COALESCE(venta_7, 0) = 0) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS venta_0,\n    (COALESCE(sum(\n        CASE\n            WHEN (upper(TRIM(BOTH FROM COALESCE(negativo, ''::text))) = 'SI'::text) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS negativos,\n    (COALESCE(sum(\n        CASE\n            WHEN (upper(TRIM(BOTH FROM COALESCE(riesgo_quiebre, ''::text))) = 'SI'::text) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS quiebres,\n    (COALESCE(sum(\n        CASE\n            WHEN ((NULLIF(TRIM(BOTH FROM COALESCE(otros, ''::text)), ''::text) IS NOT NULL) AND (upper(TRIM(BOTH FROM COALESCE(otros, ''::text))) <> ALL (ARRAY['NO'::text, 'N/A'::text, 'NA'::text, '-'::text]))) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS otros\n   FROM v_scope_cliente_responsable_fact_bridge\n  GROUP BY responsable_tipo, responsable, responsable_norm, cliente, cliente_norm, cod_rt;"
+        }
+      ],
+      "rows": [
+        {
+          "schemaname": "public",
+          "object_name": "mv_scope_fact_latest_cliente",
+          "object_type": "materialized_view",
+          "definition": " SELECT fecha,\n    cod_rt,\n    COALESCE(NULLIF(TRIM(BOTH FROM nombre_local_rr), ''::text), cod_rt) AS local_nombre_rr,\n    marca,\n    upper(TRIM(BOTH FROM COALESCE(marca, ''::text))) AS marca_norm,\n    sku,\n    descripcion_producto AS producto,\n    inv_u AS stock,\n    venta_u AS venta_7,\n        CASE\n            WHEN (inv_u < 0) THEN 'SI'::text\n            ELSE 'NO'::text\n        END AS negativo,\n        CASE\n            WHEN ((venta_u > 0) AND (inv_u > 0) AND (inv_u < venta_u)) THEN 'SI'::text\n            ELSE 'NO'::text\n        END AS riesgo_quiebre,\n    COALESCE(otros, ''::text) AS otros,\n    ingested_at,\n    id\n   FROM ( SELECT DISTINCT ON ((btrim(f.cod_rt)), (btrim(f.sku)), (upper(TRIM(BOTH FROM COALESCE(f.marca, ''::text))))) f.id,\n            f.fecha,\n            btrim(f.cod_rt) AS cod_rt,\n            f.nombre_local_rr,\n            btrim(f.marca) AS marca,\n            btrim(f.sku) AS sku,\n            f.descripcion_producto,\n            f.inv_u,\n            f.venta_u,\n            f.otros,\n            f.ingested_at\n           FROM fact_stock_venta f\n          WHERE ((NULLIF(btrim(COALESCE(f.cod_rt, ''::text)), ''::text) IS NOT NULL) AND (NULLIF(btrim(COALESCE(f.sku, ''::text)), ''::text) IS NOT NULL) AND (NULLIF(btrim(COALESCE(f.marca, ''::text)), ''::text) IS NOT NULL))\n          ORDER BY (btrim(f.cod_rt)), (btrim(f.sku)), (upper(TRIM(BOTH FROM COALESCE(f.marca, ''::text)))), f.fecha DESC, f.ingested_at DESC, f.id DESC) x;"
+        },
+        {
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_fact_bridge",
+          "object_type": "view",
+          "definition": " WITH scope_pair AS (\n         SELECT DISTINCT s.cod_rt,\n            s.local_nombre_rr,\n            s.cliente,\n            s.cliente_norm,\n            s.responsable_tipo,\n            s.responsable,\n            s.responsable_norm\n           FROM v_scope_cliente_responsable_rr_distinct s\n        )\n SELECT sp.responsable_tipo,\n    sp.responsable,\n    sp.responsable_norm,\n    sp.cod_rt,\n    sp.local_nombre_rr,\n    sp.cliente,\n    sp.cliente_norm,\n    v.fecha,\n    v.marca,\n    v.marca_norm,\n    v.sku,\n    v.producto,\n    v.stock,\n    v.venta_7,\n    v.negativo,\n    v.riesgo_quiebre,\n    v.otros\n   FROM (scope_pair sp\n     JOIN mv_scope_fact_latest_cliente v ON (((v.cod_rt = sp.cod_rt) AND (v.marca_norm = sp.cliente_norm))));"
+        },
+        {
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_rr_distinct",
+          "object_type": "view",
+          "definition": " WITH rr_base AS (\n         SELECT DISTINCT rr.cod_rt,\n            COALESCE(NULLIF(TRIM(BOTH FROM rr.local_nombre), ''::text), rr.cod_rt) AS local_nombre_rr,\n            NULLIF(TRIM(BOTH FROM rr.cliente), ''::text) AS cliente,\n            upper(TRIM(BOTH FROM COALESCE(rr.cliente, ''::text))) AS cliente_norm,\n            NULLIF(TRIM(BOTH FROM rr.gestores), ''::text) AS gestor,\n            upper(TRIM(BOTH FROM COALESCE(rr.gestores, ''::text))) AS gestor_norm,\n            NULLIF(TRIM(BOTH FROM rr.supervisor), ''::text) AS supervisor,\n            upper(TRIM(BOTH FROM COALESCE(rr.supervisor, ''::text))) AS supervisor_norm,\n            NULLIF(TRIM(BOTH FROM rr.rutero), ''::text) AS rutero,\n            NULLIF(TRIM(BOTH FROM rr.reponedor), ''::text) AS reponedor,\n            concat_ws(' — '::text, NULLIF(TRIM(BOTH FROM rr.rutero), ''::text), NULLIF(TRIM(BOTH FROM rr.reponedor), ''::text)) AS rr_persona,\n            NULLIF(TRIM(BOTH FROM rr.modalidad), ''::text) AS modalidad\n           FROM ruta_rutero rr\n          WHERE ((NULLIF(TRIM(BOTH FROM COALESCE(rr.cod_rt, ''::text)), ''::text) IS NOT NULL) AND (NULLIF(TRIM(BOTH FROM COALESCE(rr.cliente, ''::text)), ''::text) IS NOT NULL))\n        ), rr_gestor AS (\n         SELECT DISTINCT rr_base.cod_rt,\n            rr_base.local_nombre_rr,\n            rr_base.cliente,\n            rr_base.cliente_norm,\n            'GESTOR'::text AS responsable_tipo,\n            rr_base.gestor AS responsable,\n            rr_base.gestor_norm AS responsable_norm,\n            rr_base.rutero,\n            rr_base.reponedor,\n            rr_base.rr_persona,\n            rr_base.modalidad\n           FROM rr_base\n          WHERE (NULLIF(TRIM(BOTH FROM COALESCE(rr_base.gestor, ''::text)), ''::text) IS NOT NULL)\n        ), rr_supervisor AS (\n         SELECT DISTINCT rr_base.cod_rt,\n            rr_base.local_nombre_rr,\n            rr_base.cliente,\n            rr_base.cliente_norm,\n            'SUPERVISOR'::text AS responsable_tipo,\n            rr_base.supervisor AS responsable,\n            rr_base.supervisor_norm AS responsable_norm,\n            rr_base.rutero,\n            rr_base.reponedor,\n            rr_base.rr_persona,\n            rr_base.modalidad\n           FROM rr_base\n          WHERE (NULLIF(TRIM(BOTH FROM COALESCE(rr_base.supervisor, ''::text)), ''::text) IS NOT NULL)\n        )\n SELECT rr_gestor.cod_rt,\n    rr_gestor.local_nombre_rr,\n    rr_gestor.cliente,\n    rr_gestor.cliente_norm,\n    rr_gestor.responsable_tipo,\n    rr_gestor.responsable,\n    rr_gestor.responsable_norm,\n    rr_gestor.rutero,\n    rr_gestor.reponedor,\n    rr_gestor.rr_persona,\n    rr_gestor.modalidad\n   FROM rr_gestor\nUNION ALL\n SELECT rr_supervisor.cod_rt,\n    rr_supervisor.local_nombre_rr,\n    rr_supervisor.cliente,\n    rr_supervisor.cliente_norm,\n    rr_supervisor.responsable_tipo,\n    rr_supervisor.responsable,\n    rr_supervisor.responsable_norm,\n    rr_supervisor.rutero,\n    rr_supervisor.reponedor,\n    rr_supervisor.rr_persona,\n    rr_supervisor.modalidad\n   FROM rr_supervisor;"
+        },
+        {
+          "schemaname": "public",
+          "object_name": "v_scope_cliente_responsable_summary",
+          "object_type": "view",
+          "definition": " SELECT responsable_tipo,\n    responsable,\n    responsable_norm,\n    cliente,\n    cliente_norm,\n    cod_rt,\n    max(local_nombre_rr) AS local_nombre_rr,\n    (count(*))::integer AS rows_scope,\n    (count(DISTINCT sku))::integer AS skus_scope,\n    (COALESCE(sum(\n        CASE\n            WHEN (COALESCE(venta_7, 0) = 0) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS venta_0,\n    (COALESCE(sum(\n        CASE\n            WHEN (upper(TRIM(BOTH FROM COALESCE(negativo, ''::text))) = 'SI'::text) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS negativos,\n    (COALESCE(sum(\n        CASE\n            WHEN (upper(TRIM(BOTH FROM COALESCE(riesgo_quiebre, ''::text))) = 'SI'::text) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS quiebres,\n    (COALESCE(sum(\n        CASE\n            WHEN ((NULLIF(TRIM(BOTH FROM COALESCE(otros, ''::text)), ''::text) IS NOT NULL) AND (upper(TRIM(BOTH FROM COALESCE(otros, ''::text))) <> ALL (ARRAY['NO'::text, 'N/A'::text, 'NA'::text, '-'::text]))) THEN 1\n            ELSE 0\n        END), (0)::bigint))::integer AS otros\n   FROM v_scope_cliente_responsable_fact_bridge\n  GROUP BY responsable_tipo, responsable, responsable_norm, cliente, cliente_norm, cod_rt;"
+        }
+      ],
+      "compiled_sql": "select schemaname, viewname as object_name, 'view' as object_type, definition from pg_views where schemaname='public' and viewname in ('v_scope_cliente_responsable_rr_distinct','v_scope_cliente_responsable_fact_bridge','v_scope_cliente_responsable_summary') union all select schemaname, matviewname as object_name, 'materialized_view' as object_type, definition from pg_matviews where schemaname='public' and matviewname in ('mv_scope_fact_latest_cliente') order by object_type, object_name;",
+      "meta": {
+        "query_id": "Q03",
+        "query_name": "observed_scope_contract_definitions_inventory",
+        "purpose": "inventariar_definiciones_SQL_del_contrato_publico_scope_observado_hoy",
+        "group": "inventory"
+      }
+    },
+    "Q04": {
+      "status": "ok",
+      "row_count": 10,
+      "columns": [
+        "object_type",
+        "schemaname",
+        "object_name"
+      ],
+      "preview_rows": [
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_alertas_control_gestion"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_detalle"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_detalle_v2"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_semana_local_cliente"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_semana_local_parity"
+        }
+      ],
+      "rows": [
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_alertas_control_gestion"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_detalle"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_detalle_v2"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_semana_local_cliente"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_semana_local_parity"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_semana_scope"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_cumplimiento_semana_scope_v2"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_gestor_global_faltas"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_inicio_gestor"
+        },
+        {
+          "object_type": "view",
+          "schemaname": "public",
+          "object_name": "v_cg_inicio_jefe"
+        }
+      ],
+      "compiled_sql": "with objs as ( select 'table' as object_type, schemaname, tablename as object_name from pg_tables where schemaname='public' union all select 'view' as object_type, schemaname, viewname as object_name from pg_views where schemaname='public' union all select 'materialized_view' as object_type, schemaname, matviewname as object_name from pg_matviews where schemaname='public' ) select * from objs where ( object_name ilike '%cumpl%' or object_name ilike '%alert%' or object_name ilike '%inicio%' or object_name ilike '%gestor%' or object_name ilike '%jefe%' or object_name ilike '%control%' ) and object_name not in ('mv_scope_fact_latest_cliente','v_scope_cliente_responsable_rr_distinct','v_scope_cliente_responsable_fact_bridge','v_scope_cliente_responsable_summary') order by object_type, object_name;",
+      "meta": {
+        "query_id": "Q04",
+        "query_name": "target_B3_candidate_objects_inventory",
+        "purpose": "descubrir_objetos_candidatos_para_el_contrato_final_B3_sin_asumir_nombres_heredados",
+        "group": "inventory"
+      }
+    },
+    "Q05": {
+      "status": "ok",
+      "row_count": 198,
+      "columns": [
+        "table_schema",
+        "table_name",
+        "ordinal_position",
+        "column_name",
+        "data_type"
+      ],
+      "preview_rows": [
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 1,
+          "column_name": "alerta_tipo",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 2,
+          "column_name": "fuente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 3,
+          "column_name": "cod_rt",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 4,
+          "column_name": "cliente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 5,
+          "column_name": "persona",
+          "data_type": "text"
+        }
+      ],
+      "rows": [
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 1,
+          "column_name": "alerta_tipo",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 2,
+          "column_name": "fuente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 3,
+          "column_name": "cod_rt",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 4,
+          "column_name": "cliente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 5,
+          "column_name": "persona",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 6,
+          "column_name": "fecha_visita",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 7,
+          "column_name": "detalle",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_alertas_control_gestion",
+          "ordinal_position": 8,
+          "column_name": "prioridad",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 1,
+          "column_name": "fuente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 2,
+          "column_name": "gestor",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 3,
+          "column_name": "gestor_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 4,
+          "column_name": "cliente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 5,
+          "column_name": "cliente_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 6,
+          "column_name": "cod_rt",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 7,
+          "column_name": "local_nombre",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 8,
+          "column_name": "reponedor",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 9,
+          "column_name": "modalidad",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 10,
+          "column_name": "fecha_visita",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 11,
+          "column_name": "fecha_visita_key",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 12,
+          "column_name": "has_evidence",
+          "data_type": "boolean"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 13,
+          "column_name": "match_status",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 14,
+          "column_name": "brecha_tipo",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 15,
+          "column_name": "persona_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 16,
+          "column_name": "local_nombre_candidate",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 17,
+          "column_name": "match_quality",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle",
+          "ordinal_position": 18,
+          "column_name": "persona_match_exacta",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 1,
+          "column_name": "fuente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 2,
+          "column_name": "gestor",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 3,
+          "column_name": "gestor_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 4,
+          "column_name": "cliente",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 5,
+          "column_name": "cliente_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 6,
+          "column_name": "cod_rt",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 7,
+          "column_name": "local_nombre",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 8,
+          "column_name": "reponedor",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 9,
+          "column_name": "modalidad",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 10,
+          "column_name": "fecha_visita",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 11,
+          "column_name": "fecha_visita_key",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 12,
+          "column_name": "semana_inicio",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 13,
+          "column_name": "semana_iso",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 14,
+          "column_name": "has_evidence",
+          "data_type": "boolean"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 15,
+          "column_name": "match_status",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 16,
+          "column_name": "brecha_tipo",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 17,
+          "column_name": "persona_norm",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 18,
+          "column_name": "local_nombre_candidate",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 19,
+          "column_name": "match_quality",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 20,
+          "column_name": "persona_match_exacta",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 21,
+          "column_name": "batch_id",
+          "data_type": "bigint"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 22,
+          "column_name": "ruta_batch_id",
+          "data_type": "bigint"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 23,
+          "column_name": "ruta_duplicada_flag",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_detalle_v2",
+          "ordinal_position": 24,
+          "column_name": "ruta_duplicada_rows",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 1,
+          "column_name": "COD_RT",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 2,
+          "column_name": "CLIENTE",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 3,
+          "column_name": "LOCAL",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 4,
+          "column_name": "GESTOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 5,
+          "column_name": "REPONEDOR_SCOPE",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 6,
+          "column_name": "MODALIDAD",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 7,
+          "column_name": "SEMANA_INICIO",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 8,
+          "column_name": "SEMANA_ISO",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 9,
+          "column_name": "VISITA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 10,
+          "column_name": "VISITA_REALIZADA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 11,
+          "column_name": "DIFERENCIA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 12,
+          "column_name": "DIAS_DOBLE_MARCAJE",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 13,
+          "column_name": "DIAS_KPIONE",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 14,
+          "column_name": "DIAS_POWER_APP",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 15,
+          "column_name": "PERSONA_CONFLICTO_ROWS",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 16,
+          "column_name": "LUNES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 17,
+          "column_name": "MARTES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 18,
+          "column_name": "MIERCOLES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 19,
+          "column_name": "JUEVES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 20,
+          "column_name": "VIERNES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 21,
+          "column_name": "SABADO_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 22,
+          "column_name": "DOMINGO_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 23,
+          "column_name": "DIAS_PLANIFICADOS_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_cliente",
+          "ordinal_position": 24,
+          "column_name": "ALERTA",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 1,
+          "column_name": "COD_RT",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 2,
+          "column_name": "CLIENTE",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 3,
+          "column_name": "LOCAL",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 4,
+          "column_name": "GESTOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 5,
+          "column_name": "REPONEDOR_SCOPE",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 6,
+          "column_name": "MODALIDAD",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 7,
+          "column_name": "SEMANA_INICIO",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 8,
+          "column_name": "SEMANA_ISO",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 9,
+          "column_name": "VISITA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 10,
+          "column_name": "VISITA_REALIZADA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 11,
+          "column_name": "DIFERENCIA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 12,
+          "column_name": "DIAS_DOBLE_MARCAJE",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 13,
+          "column_name": "DIAS_KPIONE",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 14,
+          "column_name": "DIAS_POWER_APP",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 15,
+          "column_name": "PERSONA_CONFLICTO_ROWS",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 16,
+          "column_name": "LUNES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 17,
+          "column_name": "MARTES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 18,
+          "column_name": "MIERCOLES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 19,
+          "column_name": "JUEVES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 20,
+          "column_name": "VIERNES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 21,
+          "column_name": "SABADO_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 22,
+          "column_name": "DOMINGO_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 23,
+          "column_name": "DIAS_PLANIFICADOS_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_local_parity",
+          "ordinal_position": 24,
+          "column_name": "ALERTA",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 1,
+          "column_name": "COD_RT",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 2,
+          "column_name": "CLIENTE",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 3,
+          "column_name": "LOCAL",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 4,
+          "column_name": "GESTOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 5,
+          "column_name": "REPONEDOR_SCOPE",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 6,
+          "column_name": "MODALIDAD",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 7,
+          "column_name": "SEMANA_INICIO",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 8,
+          "column_name": "SEMANA_ISO",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 9,
+          "column_name": "VISITA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 10,
+          "column_name": "VISITA_REALIZADA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 11,
+          "column_name": "DIFERENCIA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 12,
+          "column_name": "DIAS_DOBLE_MARCAJE",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 13,
+          "column_name": "DIAS_KPIONE",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 14,
+          "column_name": "DIAS_POWER_APP",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 15,
+          "column_name": "PERSONA_CONFLICTO_ROWS",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 16,
+          "column_name": "LUNES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 17,
+          "column_name": "MARTES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 18,
+          "column_name": "MIERCOLES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 19,
+          "column_name": "JUEVES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 20,
+          "column_name": "VIERNES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 21,
+          "column_name": "SABADO_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 22,
+          "column_name": "DOMINGO_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 23,
+          "column_name": "DIAS_PLANIFICADOS_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope",
+          "ordinal_position": 24,
+          "column_name": "ALERTA",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 1,
+          "column_name": "COD_RT",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 2,
+          "column_name": "COD_B2B",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 3,
+          "column_name": "LOCAL",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 4,
+          "column_name": "CLIENTE",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 5,
+          "column_name": "GESTOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 6,
+          "column_name": "RUTERO",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 7,
+          "column_name": "REPONEDOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 8,
+          "column_name": "SUPERVISOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 9,
+          "column_name": "MODALIDAD",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 10,
+          "column_name": "SEMANA_INICIO",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 11,
+          "column_name": "SEMANA_ISO",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 12,
+          "column_name": "LUNES_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 13,
+          "column_name": "MARTES_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 14,
+          "column_name": "MIERCOLES_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 15,
+          "column_name": "JUEVES_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 16,
+          "column_name": "VIERNES_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 17,
+          "column_name": "SABADO_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 18,
+          "column_name": "DOMINGO_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 19,
+          "column_name": "LUNES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 20,
+          "column_name": "MARTES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 21,
+          "column_name": "MIERCOLES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 22,
+          "column_name": "JUEVES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 23,
+          "column_name": "VIERNES_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 24,
+          "column_name": "SABADO_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 25,
+          "column_name": "DOMINGO_PLAN",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 26,
+          "column_name": "VISITA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 27,
+          "column_name": "VISITA_REALIZADA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 28,
+          "column_name": "DIFERENCIA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 29,
+          "column_name": "ALERTA",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 30,
+          "column_name": "DIAS_KPIONE",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 31,
+          "column_name": "DIAS_KPIONE2",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 32,
+          "column_name": "DIAS_POWER_APP",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 33,
+          "column_name": "DIAS_DOBLE_MARCAJE",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 34,
+          "column_name": "DIAS_TRIPLE_MARCAJE",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 35,
+          "column_name": "FUENTES_REPORTADAS_SEMANA",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 36,
+          "column_name": "PERSONA_CONFLICTO_ROWS",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 37,
+          "column_name": "VISITA_REALIZADA_RAW",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 38,
+          "column_name": "VISITA_REALIZADA_CAP",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 39,
+          "column_name": "SOBRE_CUMPLIMIENTO",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 40,
+          "column_name": "RUTA_DUPLICADA_FLAG",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_cumplimiento_semana_scope_v2",
+          "ordinal_position": 41,
+          "column_name": "RUTA_DUPLICADA_ROWS",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 1,
+          "column_name": "GESTOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 2,
+          "column_name": "CLIENTE",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 3,
+          "column_name": "COD_RT",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 4,
+          "column_name": "LOCAL",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 5,
+          "column_name": "REPONEDOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 6,
+          "column_name": "MODALIDAD",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 7,
+          "column_name": "FECHA_REFERENCIA",
+          "data_type": "date"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 8,
+          "column_name": "TIENE_EVIDENCIA",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 9,
+          "column_name": "FUENTE_PRINCIPAL",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 10,
+          "column_name": "EVENTOS_TOTAL",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 11,
+          "column_name": "EVENTOS_CON_EVIDENCIA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 12,
+          "column_name": "EVENTOS_SIN_EVIDENCIA",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 13,
+          "column_name": "PERSONA_CONFLICTO_ROWS",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 14,
+          "column_name": "BRECHA_TIPO",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_gestor_global_faltas",
+          "ordinal_position": 15,
+          "column_name": "PRIORIDAD",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 1,
+          "column_name": "GESTOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 2,
+          "column_name": "locales_scope",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 3,
+          "column_name": "clientes_scope",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 4,
+          "column_name": "reponedores_scope",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 5,
+          "column_name": "eventos_total",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 6,
+          "column_name": "eventos_con_evidencia",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 7,
+          "column_name": "eventos_sin_evidencia",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 8,
+          "column_name": "pct_cobertura",
+          "data_type": "numeric"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 9,
+          "column_name": "persona_conflicto_rows",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_gestor",
+          "ordinal_position": 10,
+          "column_name": "fuente_dominante",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 1,
+          "column_name": "GESTOR",
+          "data_type": "text"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 2,
+          "column_name": "locales_scope",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 3,
+          "column_name": "clientes_scope",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 4,
+          "column_name": "reponedores_scope",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 5,
+          "column_name": "eventos_total",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 6,
+          "column_name": "eventos_con_evidencia",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 7,
+          "column_name": "eventos_sin_evidencia",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 8,
+          "column_name": "pct_cobertura",
+          "data_type": "numeric"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 9,
+          "column_name": "persona_conflicto_rows",
+          "data_type": "integer"
+        },
+        {
+          "table_schema": "public",
+          "table_name": "v_cg_inicio_jefe",
+          "ordinal_position": 10,
+          "column_name": "fuente_dominante",
+          "data_type": "text"
+        }
+      ],
+      "compiled_sql": "select table_schema, table_name, ordinal_position, column_name, data_type from information_schema.columns where table_schema='public' and ( table_name ilike '%cumpl%' or table_name ilike '%alert%' or table_name ilike '%inicio%' or table_name ilike '%gestor%' or table_name ilike '%jefe%' or table_name ilike '%control%' ) and table_name not in ('mv_scope_fact_latest_cliente','v_scope_cliente_responsable_rr_distinct','v_scope_cliente_responsable_fact_bridge','v_scope_cliente_responsable_summary') order by table_name, ordinal_position;",
+      "meta": {
+        "query_id": "Q05",
+        "query_name": "target_B3_candidate_columns_inventory",
+        "purpose": "inventariar_columnas_de_objetos_candidatos_para_el_contrato_final_B3",
+        "group": "inventory"
+      }
+    },
+    "Q06": {
+      "status": "ok",
+      "row_count": 1,
+      "columns": [
+        "rr_distinct_rows",
+        "fact_bridge_rows",
+        "summary_rows",
+        "distinct_cod_rt",
+        "distinct_cliente_norm",
+        "distinct_responsable_norm"
+      ],
+      "preview_rows": [
+        {
+          "rr_distinct_rows": 6682,
+          "fact_bridge_rows": 41745,
+          "summary_rows": 5827,
+          "distinct_cod_rt": 799,
+          "distinct_cliente_norm": 45,
+          "distinct_responsable_norm": 14
+        }
+      ],
+      "rows": [
+        {
+          "rr_distinct_rows": 6682,
+          "fact_bridge_rows": 41745,
+          "summary_rows": 5827,
+          "distinct_cod_rt": 799,
+          "distinct_cliente_norm": 45,
+          "distinct_responsable_norm": 14
+        }
+      ],
+      "compiled_sql": "select (select count(*) from public.v_scope_cliente_responsable_rr_distinct) as rr_distinct_rows, (select count(*) from public.v_scope_cliente_responsable_fact_bridge) as fact_bridge_rows, (select count(*) from public.v_scope_cliente_responsable_summary) as summary_rows, (select count(distinct cod_rt) from public.v_scope_cliente_responsable_rr_distinct) as distinct_cod_rt, (select count(distinct cliente_norm) from public.v_scope_cliente_responsable_rr_distinct) as distinct_cliente_norm, (select count(distinct responsable_norm) from public.v_scope_cliente_responsable_rr_distinct) as distinct_responsable_norm;",
+      "meta": {
+        "query_id": "Q06",
+        "query_name": "scope_rollup_counts",
+        "purpose": "tener_conteos_canonicos_del_contrato_scope_observado",
+        "group": "validated_counts"
+      }
+    },
+    "Q07": {
+      "status": "ok",
+      "row_count": 20,
+      "columns": [
+        "responsable_tipo",
+        "responsable",
+        "rows_scope_total",
+        "skus_scope_total",
+        "venta_0_total",
+        "negativos_total",
+        "quiebres_total"
+      ],
+      "preview_rows": [
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "JUAN MONTERO",
+          "rows_scope_total": 3943,
+          "skus_scope_total": 3943,
+          "venta_0_total": 1275,
+          "negativos_total": 62,
+          "quiebres_total": 309
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "CAROLINA SILVA",
+          "rows_scope_total": 3270,
+          "skus_scope_total": 3270,
+          "venta_0_total": 1142,
+          "negativos_total": 54,
+          "quiebres_total": 278
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "CAROLINA SILVA",
+          "rows_scope_total": 3170,
+          "skus_scope_total": 3170,
+          "venta_0_total": 1108,
+          "negativos_total": 54,
+          "quiebres_total": 269
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "EYRIMAR VARGAS",
+          "rows_scope_total": 3171,
+          "skus_scope_total": 3171,
+          "venta_0_total": 983,
+          "negativos_total": 50,
+          "quiebres_total": 238
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "JHONNY MOSCOTE",
+          "rows_scope_total": 3139,
+          "skus_scope_total": 3139,
+          "venta_0_total": 1157,
+          "negativos_total": 45,
+          "quiebres_total": 249
+        }
+      ],
+      "rows": [
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "JUAN MONTERO",
+          "rows_scope_total": 3943,
+          "skus_scope_total": 3943,
+          "venta_0_total": 1275,
+          "negativos_total": 62,
+          "quiebres_total": 309
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "CAROLINA SILVA",
+          "rows_scope_total": 3270,
+          "skus_scope_total": 3270,
+          "venta_0_total": 1142,
+          "negativos_total": 54,
+          "quiebres_total": 278
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "CAROLINA SILVA",
+          "rows_scope_total": 3170,
+          "skus_scope_total": 3170,
+          "venta_0_total": 1108,
+          "negativos_total": 54,
+          "quiebres_total": 269
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "EYRIMAR VARGAS",
+          "rows_scope_total": 3171,
+          "skus_scope_total": 3171,
+          "venta_0_total": 983,
+          "negativos_total": 50,
+          "quiebres_total": 238
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "JHONNY MOSCOTE",
+          "rows_scope_total": 3139,
+          "skus_scope_total": 3139,
+          "venta_0_total": 1157,
+          "negativos_total": 45,
+          "quiebres_total": 249
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "ELITCC RONDON",
+          "rows_scope_total": 3161,
+          "skus_scope_total": 3161,
+          "venta_0_total": 1035,
+          "negativos_total": 39,
+          "quiebres_total": 260
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "ELITCC RONDON",
+          "rows_scope_total": 3161,
+          "skus_scope_total": 3161,
+          "venta_0_total": 1035,
+          "negativos_total": 39,
+          "quiebres_total": 260
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "CARLOS GARAY",
+          "rows_scope_total": 3700,
+          "skus_scope_total": 3700,
+          "venta_0_total": 1379,
+          "negativos_total": 32,
+          "quiebres_total": 245
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "CARLOS GARAY",
+          "rows_scope_total": 3527,
+          "skus_scope_total": 3527,
+          "venta_0_total": 1311,
+          "negativos_total": 32,
+          "quiebres_total": 232
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "ALEXIS INATTI",
+          "rows_scope_total": 2091,
+          "skus_scope_total": 2091,
+          "venta_0_total": 686,
+          "negativos_total": 32,
+          "quiebres_total": 123
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "JOSE SALAZAR",
+          "rows_scope_total": 1852,
+          "skus_scope_total": 1852,
+          "venta_0_total": 589,
+          "negativos_total": 30,
+          "quiebres_total": 186
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "KEVIN ORTIZ",
+          "rows_scope_total": 1789,
+          "skus_scope_total": 1789,
+          "venta_0_total": 531,
+          "negativos_total": 28,
+          "quiebres_total": 110
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "WILLIAM NATHEUS",
+          "rows_scope_total": 1626,
+          "skus_scope_total": 1626,
+          "venta_0_total": 559,
+          "negativos_total": 25,
+          "quiebres_total": 151
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "HUGO ALMARIO",
+          "rows_scope_total": 1382,
+          "skus_scope_total": 1382,
+          "venta_0_total": 452,
+          "negativos_total": 22,
+          "quiebres_total": 128
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "VALERIA CONTRERAS",
+          "rows_scope_total": 1513,
+          "skus_scope_total": 1513,
+          "venta_0_total": 598,
+          "negativos_total": 20,
+          "quiebres_total": 98
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "JAIR CANTILLO",
+          "rows_scope_total": 571,
+          "skus_scope_total": 571,
+          "venta_0_total": 205,
+          "negativos_total": 7,
+          "quiebres_total": 35
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "JAIR CANTILLO",
+          "rows_scope_total": 571,
+          "skus_scope_total": 571,
+          "venta_0_total": 205,
+          "negativos_total": 7,
+          "quiebres_total": 35
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "JHONNY MOSCOTE",
+          "rows_scope_total": 48,
+          "skus_scope_total": 48,
+          "venta_0_total": 13,
+          "negativos_total": 1,
+          "quiebres_total": 9
+        },
+        {
+          "responsable_tipo": "GESTOR",
+          "responsable": "EVANGELYS RENDON",
+          "rows_scope_total": 45,
+          "skus_scope_total": 45,
+          "venta_0_total": 20,
+          "negativos_total": 1,
+          "quiebres_total": 8
+        },
+        {
+          "responsable_tipo": "SUPERVISOR",
+          "responsable": "EVANGELYS RENDON",
+          "rows_scope_total": 15,
+          "skus_scope_total": 15,
+          "venta_0_total": 14,
+          "negativos_total": 0,
+          "quiebres_total": 0
+        }
+      ],
+      "compiled_sql": "select responsable_tipo, responsable, sum(rows_scope)::int as rows_scope_total, sum(skus_scope)::int as skus_scope_total, sum(venta_0)::int as venta_0_total, sum(negativos)::int as negativos_total, sum(quiebres)::int as quiebres_total from public.v_scope_cliente_responsable_summary group by responsable_tipo, responsable order by negativos_total desc, quiebres_total desc, venta_0_total desc, responsable nulls last limit 25;",
+      "meta": {
+        "query_id": "Q07",
+        "query_name": "scope_top_responsables",
+        "purpose": "mirar_peso_operativo_por_responsable_sobre_la_vista_summary",
+        "group": "summary_support"
+      }
+    },
+    "Q08": {
+      "status": "ok",
+      "row_count": 1,
+      "columns": [
+        "ready_observed_scope_contract",
+        "observed_scope_contract_object_count",
+        "ready_target_b3_contract",
+        "target_b3_exact_object_count",
+        "target_b3_alias_object_count",
+        "target_b3_contract_mode",
+        "recommended_next_step"
+      ],
+      "preview_rows": [
+        {
+          "ready_observed_scope_contract": true,
+          "observed_scope_contract_object_count": 4,
+          "ready_target_b3_contract": true,
+          "target_b3_exact_object_count": 6,
+          "target_b3_alias_object_count": 0,
+          "target_b3_contract_mode": "exact_contract_emitted_aliases_partial",
+          "recommended_next_step": "freeze_db_py_contract_now"
+        }
+      ],
+      "rows": [
+        {
+          "ready_observed_scope_contract": true,
+          "observed_scope_contract_object_count": 4,
+          "ready_target_b3_contract": true,
+          "target_b3_exact_object_count": 6,
+          "target_b3_alias_object_count": 0,
+          "target_b3_contract_mode": "exact_contract_emitted_aliases_partial",
+          "recommended_next_step": "freeze_db_py_contract_now"
+        }
+      ],
+      "compiled_sql": "with objs as ( select 'table' as object_type, schemaname, tablename as object_name from pg_tables where schemaname='public' union all select 'view' as object_type, schemaname, viewname as object_name from pg_views where schemaname='public' union all select 'materialized_view' as object_type, schemaname, matviewname as object_name from pg_matviews where schemaname='public' ), observed_exact as ( select count(*) as c from objs where object_name in ('mv_scope_fact_latest_cliente','v_scope_cliente_responsable_rr_distinct','v_scope_cliente_responsable_fact_bridge','v_scope_cliente_responsable_summary') ), target_exact as ( select count(*) as c from objs where object_name in ('v_cg_cumplimiento_semana_local_parity','v_cg_cumplimiento_semana_scope','v_cg_alertas_control_gestion','v_cg_inicio_jefe','v_cg_inicio_gestor','v_cg_cumplimiento_detalle') ), target_alias as ( select count(*) as c from objs where object_name in ('v_alertas_control_gestion','v_inicio_jefe','v_inicio_gestor','v_cumplimiento_detalle') ) select (observed_exact.c=4) as ready_observed_scope_contract, observed_exact.c as observed_scope_contract_object_count, (target_exact.c=6) as ready_target_b3_contract, target_exact.c as target_b3_exact_object_count, target_alias.c as target_b3_alias_object_count, case when target_exact.c=6 and target_alias.c=4 then 'exact_contract_emitted_with_aliases' when target_exact.c=6 and target_alias.c<4 then 'exact_contract_emitted_aliases_partial' when target_exact.c between 1 and 5 then 'partial_exact_contract' else 'pending_definition_or_emit' end as target_b3_contract_mode, case when observed_exact.c=4 and target_exact.c=6 then 'freeze_db_py_contract_now' when observed_exact.c=4 and target_exact.c between 1 and 5 then 'finish_exact_B3_contract_emit_then_freeze' when observed_exact.c=4 and target_exact.c=0 then 'define_or_emit_final_B3_public_contract' else 'repair_observed_scope_contract_before_B3' end as recommended_next_step from observed_exact, target_exact, target_alias;",
+      "meta": {
+        "query_id": "Q08",
+        "query_name": "exact_contract_readiness_flags",
+        "purpose": "medir_contrato_observado_scope_y_contrato_canonico_B3_emitido_por_nombres_exactos; separar_aliases_de_compatibilidad",
+        "group": "gate_support"
+      }
+    },
+    "S01": {
+      "status": "skipped",
+      "row_count": 0,
+      "columns": [],
+      "preview_rows": [],
+      "rows": [],
+      "compiled_sql": null,
+      "meta": {
+        "query_id": "S01",
+        "query_name": "sample_ruta_rutero_by_cod_rt",
+        "purpose": "ver_puente_operativo_real_para_un_local_muestra_desde_ruta_rutero",
+        "group": "sample_lookups"
+      }
+    },
+    "S02": {
+      "status": "skipped",
+      "row_count": 0,
+      "columns": [],
+      "preview_rows": [],
+      "rows": [],
+      "compiled_sql": null,
+      "meta": {
+        "query_id": "S02",
+        "query_name": "sample_scope_rr_distinct_by_cod_rt",
+        "purpose": "ver_distinct_operativo_cliente_responsable_para_un_local_muestra",
+        "group": "sample_lookups"
+      }
+    },
+    "S03": {
+      "status": "skipped",
+      "row_count": 0,
+      "columns": [],
+      "preview_rows": [],
+      "rows": [],
+      "compiled_sql": null,
+      "meta": {
+        "query_id": "S03",
+        "query_name": "sample_scope_summary_by_cod_rt",
+        "purpose": "ver_resumen_scope_para_un_local_muestra",
+        "group": "sample_lookups"
+      }
+    },
+    "S04": {
+      "status": "skipped",
+      "row_count": 0,
+      "columns": [],
+      "preview_rows": [],
+      "rows": [],
+      "compiled_sql": null,
+      "meta": {
+        "query_id": "S04",
+        "query_name": "sample_stock_local_cliente_ux_by_cod_rt",
+        "purpose": "ver_stock_local_cliente_para_un_local_muestra_desde_la_vista_ux_observada",
+        "group": "sample_lookups"
+      }
+    },
+    "S05": {
+      "status": "skipped",
+      "row_count": 0,
+      "columns": [],
+      "preview_rows": [],
+      "rows": [],
+      "compiled_sql": null,
+      "meta": {
+        "query_id": "S05",
+        "query_name": "sample_slot_multiplicity_by_cod_rt",
+        "purpose": "medir_multiplicidad_controlada_de_un_local_muestra_en_las_capas_rr_y_scope",
+        "group": "sample_lookups"
+      }
+    }
+  }
+}
