@@ -507,6 +507,35 @@ def collect_dates_detected(source_key: str, df: pd.DataFrame) -> tuple[dict[str,
     return payload["date_ranges"], warnings
 
 
+def collect_incremental_affected_dates(source_key: str, df: pd.DataFrame) -> tuple[list[str], list[str]]:
+    if source_key == "KPIONE":
+        return [], []
+    if source_key == "KPIONE2":
+        driver_column = "Fecha"
+    elif source_key == "POWER_APP":
+        driver_column = "Creado"
+    else:
+        return [], [f"incremental_unsupported_source:{source_key}"]
+
+    if driver_column not in df.columns:
+        return [], [f"incremental_missing_date_driver:{source_key}:{driver_column}"]
+
+    dates: set[str] = set()
+    parse_errors = 0
+    for value in df[driver_column].tolist():
+        parsed = parse_date_value(value)
+        if parsed is None:
+            if clean_text(value):
+                parse_errors += 1
+            continue
+        dates.add(parsed.isoformat())
+
+    warnings: list[str] = []
+    if parse_errors:
+        warnings.append(f"incremental_date_parse_errors:{source_key}:{driver_column}:{parse_errors}")
+    return sorted(dates), warnings
+
+
 def load_source_dataframe(source_key: str, excel_path: Path) -> pd.DataFrame:
     if source_key == "KPIONE":
         return read_kpione_df(excel_path)
@@ -866,6 +895,80 @@ def _mv_refresh_final_status(refresh_result: dict[str, Any]) -> tuple[str, str, 
     return refresh_status, validation_status, "load_ok_refresh_failed", True
 
 
+def _run_incremental_refresh_dry_run(
+    *,
+    db_url: str,
+    affected_dates: list[str],
+    validate: bool,
+    statement_timeout_seconds: int,
+) -> dict[str, Any]:
+    if not affected_dates:
+        return {
+            "status": "skipped",
+            "final_status": "incremental_skipped_no_affected_dates",
+            "dry_run": True,
+            "affected_dates": [],
+            "affected_weeks": [],
+            "warnings": [],
+            "real_apply_enabled": False,
+        }
+    if not db_url:
+        return {
+            "status": "skipped",
+            "final_status": "incremental_skipped_no_db_url",
+            "dry_run": True,
+            "affected_dates": affected_dates,
+            "affected_weeks": [],
+            "warnings": ["incremental_db_url_missing"],
+            "real_apply_enabled": False,
+        }
+
+    from refresh_control_gestion_v2_incremental import build_week_scope, run_incremental_dry_run
+
+    affected_date_values = {date.fromisoformat(value) for value in affected_dates}
+    week_scope = build_week_scope(affected_date_values, set(), safety_window_weeks=1)
+    return run_incremental_dry_run(
+        db_url=db_url,
+        week_scope=week_scope,
+        validate=validate,
+        require_complete_safety_window=False,
+        post_apply_validate=False,
+        statement_timeout_seconds=statement_timeout_seconds,
+    )
+
+
+def _apply_incremental_loader_status(result: dict[str, Any]) -> None:
+    incremental_result = result.get("incremental_refresh")
+    if not isinstance(incremental_result, dict):
+        return
+
+    incremental_status = str(incremental_result.get("status") or "unknown")
+    incremental_final_status = str(incremental_result.get("final_status") or "")
+    result["incremental_status"] = incremental_status
+    result["incremental_final_status"] = incremental_final_status
+    result["incremental_warnings"] = list(dict.fromkeys(
+        list(result.get("incremental_warnings", [])) + list(incremental_result.get("warnings", []))
+    ))
+    result["affected_dates"] = list(incremental_result.get("requested_affected_dates") or incremental_result.get("affected_dates") or result.get("affected_dates") or [])
+    result["affected_weeks"] = list(incremental_result.get("validation_weeks") or incremental_result.get("affected_weeks") or [])
+
+    if incremental_status == "ok":
+        result["final_status"] = "load_ok_incremental_dry_run_ok"
+        result["status"] = "ok"
+    elif incremental_status == "warn":
+        result["final_status"] = "load_ok_incremental_dry_run_warn"
+        result["status"] = "ok"
+    elif incremental_final_status == "incremental_skipped_no_affected_dates":
+        result["final_status"] = "load_ok_incremental_skipped_no_affected_dates"
+        result["status"] = "ok"
+    elif incremental_final_status == "incremental_skipped_no_db_url":
+        result["final_status"] = "load_ok_incremental_skipped_no_db_url"
+        result["status"] = "ok"
+    else:
+        result["final_status"] = "load_ok_incremental_dry_run_failed"
+        result["status"] = "load_ok_incremental_dry_run_failed"
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--excel", default=DEFAULT_FILE)
@@ -877,6 +980,10 @@ def main() -> None:
     ap.add_argument("--refresh-cg-v2-mv", action="store_true")
     ap.add_argument("--validate-cg-v2-mv", action="store_true")
     ap.add_argument("--cg-v2-refresh-timeout-seconds", type=int, default=DEFAULT_CG_V2_REFRESH_TIMEOUT_SECONDS)
+    ap.add_argument("--refresh-cg-v2-incremental", action="store_true")
+    ap.add_argument("--validate-cg-v2-incremental", action="store_true")
+    ap.add_argument("--dry-run-incremental", action="store_true")
+    ap.add_argument("--fallback-full-refresh", action="store_true")
     ap.add_argument("--skip-source-check", action="store_true")
     ap.add_argument("--source-check-strict", action="store_true")
     ap.add_argument("--source-check-only", action="store_true")
@@ -914,6 +1021,8 @@ def main() -> None:
         raise SystemExit(f"No existe el archivo: {excel_path}")
     if args.validate_cg_v2_mv and not args.refresh_cg_v2_mv:
         raise SystemExit("--validate-cg-v2-mv requiere --refresh-cg-v2-mv")
+    if args.validate_cg_v2_incremental and not args.refresh_cg_v2_incremental:
+        raise SystemExit("--validate-cg-v2-incremental requiere --refresh-cg-v2-incremental")
 
     db_url = ensure_sslmode(args.db_url)
     if not args.dry_run and not db_url:
@@ -929,6 +1038,8 @@ def main() -> None:
         "source_check_status": source_check["final_verdict"],
         "load_status": "pending",
         "sources_changed": [],
+        "affected_dates": [],
+        "affected_weeks": [],
         "should_refresh_mv": False,
         "mv_refresh_skipped_reason": "",
         "mv_refresh_status": "not_requested",
@@ -937,10 +1048,18 @@ def main() -> None:
         "pending_refresh": False,
         "mv_stale": False,
         "cg_v2_refresh_timeout_seconds": int(args.cg_v2_refresh_timeout_seconds),
+        "incremental_requested": bool(args.refresh_cg_v2_incremental),
+        "incremental_dry_run": bool(args.refresh_cg_v2_incremental),
+        "dry_run_incremental_requested": bool(args.dry_run_incremental),
+        "incremental_status": "not_requested",
+        "incremental_final_status": "not_requested",
+        "fallback_full_refresh_requested": bool(args.fallback_full_refresh),
+        "fallback_full_refresh_status": "not_requested",
         "final_status": "started",
         "incremental_warnings": [],
         "status": "ok",
     }
+    incremental_affected_dates: set[str] = set()
 
     conn = None
     cur = None
@@ -971,6 +1090,7 @@ def main() -> None:
                 "rows_loaded": 0,
                 "would_load": 0,
                 "dates_detected": {},
+                "affected_dates": [],
             }
             result["sources"][source_key] = source_result
             if source_key not in enabled_sources:
@@ -1033,6 +1153,12 @@ def main() -> None:
             source_result["changed"] = changed
             if changed:
                 result["sources_changed"].append(source_key)
+                affected_dates, affected_warnings = collect_incremental_affected_dates(source_key, df)
+                source_result["affected_dates"] = affected_dates
+                incremental_affected_dates.update(affected_dates)
+                for warning in affected_warnings:
+                    if warning not in result["incremental_warnings"]:
+                        result["incremental_warnings"].append(warning)
 
             if args.dry_run:
                 source_result["would_load"] = source_result["rows_read"] if changed else 0
@@ -1068,18 +1194,54 @@ def main() -> None:
         if conn is not None:
             conn.close()
 
+    result["affected_dates"] = sorted(incremental_affected_dates)
+    if args.refresh_cg_v2_incremental:
+        result["incremental_dry_run"] = True
+        result["dry_run_incremental_forced"] = True
+        result["fallback_full_refresh_status"] = (
+            "available_not_executed_in_N3" if args.fallback_full_refresh else "not_requested"
+        )
+        try:
+            result["incremental_refresh"] = _run_incremental_refresh_dry_run(
+                db_url=db_url,
+                affected_dates=result["affected_dates"],
+                validate=args.validate_cg_v2_incremental,
+                statement_timeout_seconds=args.cg_v2_refresh_timeout_seconds,
+            )
+        except Exception as exc:
+            result["incremental_refresh"] = {
+                "status": "error",
+                "final_status": "dry_run_error",
+                "dry_run": True,
+                "affected_dates": result["affected_dates"],
+                "affected_weeks": [],
+                "warnings": [],
+                "error": str(exc),
+                "real_apply_enabled": False,
+            }
+        _apply_incremental_loader_status(result)
+
     if args.dry_run:
         result["mv_refresh_skipped_reason"] = "dry_run"
         result["mv_refresh_status"] = "skipped"
         result["mv_validation_status"] = "not_requested"
         result["web_data_status"] = "dry_run_no_change"
-        result["final_status"] = "dry_run_ok"
+        if not args.refresh_cg_v2_incremental:
+            result["final_status"] = "dry_run_ok"
     elif args.skip_mv_refresh_if_no_change and not result["sources_changed"]:
         result["mv_refresh_skipped_reason"] = "no_source_change"
         result["mv_refresh_status"] = "skipped"
         result["mv_validation_status"] = "not_requested"
         result["web_data_status"] = "fresh_no_source_change"
-        result["final_status"] = "load_ok_no_source_change"
+        if not args.refresh_cg_v2_incremental:
+            result["final_status"] = "load_ok_no_source_change"
+    elif args.refresh_cg_v2_incremental and not args.refresh_cg_v2_mv:
+        result["mv_refresh_skipped_reason"] = "incremental_dry_run_requested"
+        result["mv_refresh_status"] = "deferred" if result["sources_changed"] else "not_requested"
+        result["mv_validation_status"] = "not_requested"
+        result["pending_refresh"] = bool(result["sources_changed"])
+        result["mv_stale"] = bool(result["sources_changed"])
+        result["web_data_status"] = "stale_pending_refresh" if result["sources_changed"] else "fresh_no_source_change"
     elif not args.refresh_cg_v2_mv:
         result["mv_refresh_skipped_reason"] = "refresh_flag_not_requested"
         result["mv_refresh_status"] = "deferred" if result["sources_changed"] else "not_requested"
@@ -1090,6 +1252,10 @@ def main() -> None:
         result["final_status"] = "load_ok_refresh_deferred" if result["sources_changed"] else "load_ok_refresh_not_requested"
     else:
         result["should_refresh_mv"] = True
+
+    if args.refresh_cg_v2_incremental and result["status"] == "load_ok_incremental_dry_run_failed":
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        raise SystemExit(1)
 
     if result["should_refresh_mv"]:
         try:
@@ -1120,7 +1286,7 @@ def main() -> None:
                 result["pending_refresh"] = True
             result["status"] = "ok" if result["final_status"] == "load_ok_refresh_ok" else result["final_status"]
             if result["final_status"] != "load_ok_refresh_ok":
-                print(json.dumps(result, ensure_ascii=False, indent=2))
+                print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
                 raise SystemExit(1)
         except Exception as exc:
             result["status"] = "load_ok_refresh_failed"
@@ -1134,9 +1300,9 @@ def main() -> None:
                 "status": result["mv_refresh_status"],
                 "error": str(exc),
             }
-            print(json.dumps(result, ensure_ascii=False, indent=2))
+            print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
             raise SystemExit(1)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 
 
 if __name__ == "__main__":
