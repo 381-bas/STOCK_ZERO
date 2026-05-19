@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 
-PHASE = "FASE_9C5N_N4A_CONTROL_GESTION_INCREMENTAL_APPLY_GUARDED_PATCH"
+PHASE = "FASE_9C5N_N4B_2_CONTROL_GESTION_INCREMENTAL_APPLY_SEED_SCOPE_PATCH_REVIEW"
 DEFAULT_STATEMENT_TIMEOUT_SECONDS = 1800
 REAL_APPLY_ENABLED = False
 
@@ -173,6 +173,25 @@ def build_week_origin_by_week(week_scope: dict[str, set[date]]) -> dict[str, str
             labels.append("safety")
         origins[week_value.isoformat()] = "+".join(labels) if labels else "unknown"
     return origins
+
+
+def build_apply_scope(week_scope: dict[str, set[date]]) -> dict[str, Any]:
+    apply_daily_dates = sorted_iso(week_scope["requested_affected_dates"])
+    apply_weekly_weeks = sorted_iso(week_scope["strict_affected_weeks"])
+    explicit_weeks = sorted_iso(week_scope["explicit_affected_weeks"])
+    return {
+        "apply_daily_dates": apply_daily_dates,
+        "apply_weekly_weeks": apply_weekly_weeks,
+        "explicit_weeks_included_in_apply": all(value in apply_weekly_weeks for value in explicit_weeks),
+        "safety_weeks_included_in_apply": False,
+        "weekly_stage_order": "after_daily_apply",
+        "apply_order": {
+            "daily_fact": "delete_insert_validate_first",
+            "weekly_fact": "stage_delete_insert_validate_after_daily",
+            "transaction": "single_transaction_until_fact_validations_pass",
+            "analyze": "after_commit",
+        },
+    }
 
 
 def _statement_timeout_ms(statement_timeout_seconds: int) -> int:
@@ -1048,6 +1067,7 @@ def run_incremental_dry_run(
     safety_week_values = sorted_iso(week_scope["safety_weeks"])
     validation_week_values = sorted_iso(week_scope["validation_weeks"])
     week_origin_by_week = build_week_origin_by_week(week_scope)
+    apply_scope = build_apply_scope(week_scope)
 
     started_ms = _now_ms()
     result: dict[str, Any] = {
@@ -1062,8 +1082,14 @@ def run_incremental_dry_run(
         "safety_weeks": safety_week_values,
         "validation_weeks": validation_week_values,
         "week_origin_by_week": week_origin_by_week,
+        **apply_scope,
         "skipped_weeks": [],
         "warnings": [],
+        "dry_run_projection": {
+            "current_candidate_from_existing_daily": True,
+            "projected_candidate_after_daily_apply": False,
+            "warning": None,
+        },
         "route_scope_by_week": [],
         "daily_fact_coverage_by_week": [],
         "pre_apply_diffs": [],
@@ -1144,6 +1170,10 @@ def run_incremental_dry_run(
 
     weekly_diff = weekly_check.get("diff")
     weekly_expected_weeks = list(weekly_check.get("expected_pre_apply_diff_weeks", []))
+    if result["expected_updates"]["daily_fact_dates"]:
+        projection_warning = "dry_run_weekly_candidate_uses_current_daily_fact_not_projected_stage"
+        result["dry_run_projection"]["warning"] = projection_warning
+        result["warnings"].append(projection_warning)
     if weekly_expected_weeks:
         result["pre_apply_diffs"].append({
             "scope": "weekly_candidate_vs_mv",
@@ -1229,6 +1259,7 @@ def run_incremental_apply(
     affected_week_values = sorted_iso(week_scope["strict_affected_weeks"])
     validation_week_values = sorted_iso(week_scope["validation_weeks"])
     week_origin_by_week = build_week_origin_by_week(week_scope)
+    apply_scope = build_apply_scope(week_scope)
 
     if not requested_affected_date_values and not affected_week_values:
         raise RuntimeError("NO_AFFECTED_DATES_OR_WEEKS")
@@ -1252,6 +1283,7 @@ def run_incremental_apply(
         "safety_weeks": safety_week_values,
         "validation_weeks": validation_week_values,
         "week_origin_by_week": week_origin_by_week,
+        **apply_scope,
         "warnings": [],
         "route_scope_by_week": [],
         "daily_apply": {
@@ -1370,6 +1402,7 @@ def blocked_real_apply_result(
     elapsed_ms: int,
 ) -> dict[str, Any]:
     raw_dates = set(args.affected_date or [])
+    apply_scope = build_apply_scope(week_scope)
     return {
         "phase": PHASE,
         "status": "error",
@@ -1384,6 +1417,7 @@ def blocked_real_apply_result(
         "safety_weeks": sorted_iso(week_scope["safety_weeks"]),
         "validation_weeks": sorted_iso(week_scope["validation_weeks"]),
         "week_origin_by_week": build_week_origin_by_week(week_scope),
+        **apply_scope,
         "skipped_weeks": [],
         "warnings": [],
         "route_scope_by_week": [],
@@ -1475,6 +1509,7 @@ def main() -> int:
             "safety_weeks": sorted_iso(week_scope["safety_weeks"]),
             "validation_weeks": sorted_iso(week_scope["validation_weeks"]),
             "week_origin_by_week": build_week_origin_by_week(week_scope),
+            **build_apply_scope(week_scope),
             "skipped_weeks": [],
             "warnings": [],
             "route_scope_by_week": [],
