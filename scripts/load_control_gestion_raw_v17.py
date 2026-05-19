@@ -27,6 +27,7 @@ SOURCE_REQUIRED_COLUMNS = {
     "KPIONE": ["nombre_local", "marca", "trabajador", "Fecha_reg", "estado_foto"],
     "KPIONE2": ["Codigo Local", "Marca", "Reponedor", "Fecha", "VISITA"],
 }
+KPIONE2_NUMERIC_COLUMNS = ["VISITA"]
 
 
 def ensure_sslmode(db_url: str) -> str:
@@ -41,6 +42,17 @@ def clean_text(v: Any) -> str:
     if pd.isna(v) or v is None:
         return ""
     return str(v).strip()
+
+
+def is_empty_like(v: Any) -> bool:
+    if v is None:
+        return True
+    try:
+        if pd.isna(v):
+            return True
+    except (TypeError, ValueError):
+        pass
+    return str(v).strip() == ""
 
 
 def clean_json_value(v: Any) -> Any:
@@ -175,6 +187,8 @@ def calc_week_iso(fecha_visita: date | None) -> int | None:
 
 
 def parse_numeric_value(v: Any) -> float | None:
+    if is_empty_like(v):
+        return None
     text = clean_text(v)
     if not text:
         return None
@@ -183,6 +197,15 @@ def parse_numeric_value(v: Any) -> float | None:
         return float(normalized)
     except ValueError:
         return None
+
+
+def numeric_empty_to_null_counts(df: pd.DataFrame, columns: list[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for column in columns:
+        if column not in df.columns:
+            continue
+        counts[column] = int(sum(1 for value in df[column].tolist() if is_empty_like(value)))
+    return counts
 
 
 def bool_from_evidence(v: Any) -> bool:
@@ -283,6 +306,7 @@ def run_source_check_control_gestion(*, excel_path: str, strict: bool) -> dict[s
         "warnings": [],
         "rows_checked": {},
         "date_ranges": {},
+        "numeric_empty_to_null_count": {},
         "notes": [],
     }
     blockers: list[str] = []
@@ -351,6 +375,10 @@ def run_source_check_control_gestion(*, excel_path: str, strict: bool) -> dict[s
         kpione2_df = read_excel_sheet(workbook_path, "DB (KPIONE2.0)", dtype=str)
         kpione2_df.columns = [str(c).strip() for c in kpione2_df.columns]
         payload["rows_checked"]["DB (KPIONE2.0)"] = int(len(kpione2_df))
+        payload["numeric_empty_to_null_count"]["DB (KPIONE2.0)"] = numeric_empty_to_null_counts(
+            kpione2_df,
+            KPIONE2_NUMERIC_COLUMNS,
+        )
         missing = [c for c in required_sheets["DB (KPIONE2.0)"] if c not in kpione2_df.columns]
         if missing:
             blockers.append("missing_critical_columns:DB (KPIONE2.0):" + ",".join(missing))
@@ -574,6 +602,16 @@ def finalize_batch(cur, batch_id: int, loaded_rows: int, status: str, notes: str
     )
 
 
+def register_cancelled_batch_after_error(cur, source_file: str, source_sheet: str, exc: Exception) -> None:
+    conn = getattr(cur, "connection", None)
+    if conn is not None:
+        conn.rollback()
+    cancelled_batch_id = register_batch(cur, source_file, source_sheet)
+    finalize_batch(cur, cancelled_batch_id, 0, "cancelled", f"error={exc}")
+    if conn is not None:
+        conn.commit()
+
+
 def load_kpione(
     cur,
     excel_path: Path,
@@ -672,7 +710,7 @@ def load_kpione2(
                 clean_text(rec.get("Marca")),
                 clean_text(rec.get("Reponedor")),
                 clean_text(rec.get("Fecha")),
-                clean_text(rec.get("VISITA")),
+                visita_numeric,
                 fecha_visita,
                 calc_week_iso(fecha_visita),
                 visita_value,
@@ -720,7 +758,13 @@ def load_kpione2(
             page_size=5000,
         )
     except Exception as exc:
-        finalize_batch(cur, batch_id, 0, "cancelled", f"error={exc}")
+        try:
+            register_cancelled_batch_after_error(cur, excel_path.name, sheet, exc)
+        except Exception as cancel_exc:
+            try:
+                exc.add_note(f"cancelled_batch_record_failed={cancel_exc}")
+            except AttributeError:
+                pass
         raise
 
     finalize_batch(cur, batch_id, len(rows), "ok", incremental_notes)
@@ -729,6 +773,7 @@ def load_kpione2(
         "batch_id": batch_id,
         "rows_read": int(len(df)),
         "rows_loaded": int(len(rows)),
+        "numeric_empty_to_null_count": numeric_empty_to_null_counts(df, KPIONE2_NUMERIC_COLUMNS),
     }
 
 
@@ -1091,6 +1136,7 @@ def main() -> None:
                 "would_load": 0,
                 "dates_detected": {},
                 "affected_dates": [],
+                "numeric_empty_to_null_count": {},
             }
             result["sources"][source_key] = source_result
             if source_key not in enabled_sources:
@@ -1100,6 +1146,11 @@ def main() -> None:
             dates_detected, date_warnings = collect_dates_detected(source_key, df)
             source_result["rows_read"] = int(len(df))
             source_result["dates_detected"] = dates_detected
+            if source_key == "KPIONE2":
+                source_result["numeric_empty_to_null_count"] = numeric_empty_to_null_counts(
+                    df,
+                    KPIONE2_NUMERIC_COLUMNS,
+                )
             source_result["sheet_hash"] = compute_sheet_hash(df)
             for warning in date_warnings:
                 if warning not in result["incremental_warnings"]:
@@ -1184,6 +1235,8 @@ def main() -> None:
             )
             source_result["rows_loaded"] = int(load_info["rows_loaded"])
             source_result["batch_id"] = int(load_info["batch_id"])
+            if "numeric_empty_to_null_count" in load_info:
+                source_result["numeric_empty_to_null_count"] = load_info["numeric_empty_to_null_count"]
 
         if conn is not None and not args.dry_run:
             conn.commit()
