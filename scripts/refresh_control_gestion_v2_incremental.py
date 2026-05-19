@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 
-PHASE = "FASE_9C5N_N4B_2_CONTROL_GESTION_INCREMENTAL_APPLY_SEED_SCOPE_PATCH_REVIEW"
+PHASE = "FASE_9C5N_N4B_3A_CONTROL_GESTION_INITIAL_SEED_APPLY_TYPE_FIX"
 DEFAULT_STATEMENT_TIMEOUT_SECONDS = 1800
 REAL_APPLY_ENABLED = False
 
@@ -528,7 +528,7 @@ def _create_daily_stage_query() -> str:
         COALESCE(v.power_app_rows_dia, 0)::integer AS power_app_rows_dia,
         COALESCE(v.persona_conflicto_rows_dia, 0)::integer AS persona_conflicto_rows_dia,
         v.match_quality,
-        COALESCE(v.registro_fuera_cruce, 0)::integer AS registro_fuera_cruce,
+        COALESCE(v.registro_fuera_cruce, '')::text AS registro_fuera_cruce,
         now()::timestamptz AS mart_loaded_at
     FROM {DAILY_SOURCE} v
     JOIN affected_dates ad
