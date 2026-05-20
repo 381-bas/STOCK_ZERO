@@ -1396,6 +1396,19 @@ def run_incremental_apply(
             conn.close()
 
 
+def _operator_next_step(result: dict[str, Any]) -> str:
+    final_status = str(result.get("final_status") or "")
+    return {
+        "dry_run_ok": "dry_run_clean_no_action_required",
+        "dry_run_would_update": "review_expected_updates_then_run_apply_with_confirm_if_approved",
+        "dry_run_ok_with_skipped_safety_weeks": "review_skipped_safety_weeks_before_apply",
+        "dry_run_error": "fix_blockers_before_apply",
+        "apply_ok": "apply_completed_validate_app_or_exports_if_needed",
+        "apply_failed_rolled_back": "review_error_no_commit_expected",
+        "real_apply_requires_apply_and_confirm_flags": "rerun_with_dry_run_or_explicit_apply_confirm",
+    }.get(final_status, "review_final_status_and_warnings")
+
+
 def blocked_real_apply_result(
     args: argparse.Namespace,
     week_scope: dict[str, set[date]],
@@ -1403,7 +1416,7 @@ def blocked_real_apply_result(
 ) -> dict[str, Any]:
     raw_dates = set(args.affected_date or [])
     apply_scope = build_apply_scope(week_scope)
-    return {
+    result = {
         "phase": PHASE,
         "status": "error",
         "error": "real_apply_requires_apply_and_confirm_flags",
@@ -1437,21 +1450,87 @@ def blocked_real_apply_result(
         "final_status": "real_apply_requires_apply_and_confirm_flags",
         "elapsed_ms": elapsed_ms,
     }
+    result["operator_next_step"] = _operator_next_step(result)
+    return result
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--db-url", default="")
-    parser.add_argument("--affected-date", action="append", type=parse_iso_date, default=[])
-    parser.add_argument("--affected-week", action="append", type=parse_iso_date, default=[])
-    parser.add_argument("--safety-window-weeks", type=int, default=1)
-    parser.add_argument("--validate", action="store_true")
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--confirm-real-apply", action="store_true")
-    parser.add_argument("--post-apply-validate", action="store_true")
-    parser.add_argument("--require-complete-safety-window", action="store_true")
-    parser.add_argument("--statement-timeout-seconds", type=int, default=DEFAULT_STATEMENT_TIMEOUT_SECONDS)
+    parser = argparse.ArgumentParser(
+        description=(
+            "Incremental Control Gestion v2 helper. Use dry-run first to inspect "
+            "daily dates, weekly scope, safety weeks, and expected updates before "
+            "any confirmed apply."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Safe examples:
+  python scripts/refresh_control_gestion_v2_incremental.py --help
+  python scripts/refresh_control_gestion_v2_incremental.py --dry-run --affected-date 2026-05-18 --validate
+  python scripts/refresh_control_gestion_v2_incremental.py --dry-run --affected-week 2026-05-18 --safety-window-weeks 1 --validate
+
+Apply requires both --apply and --confirm-real-apply. Run dry-run first and review
+final_status, operator_next_step, expected_updates, skipped_weeks, and warnings.""",
+    )
+    parser.add_argument(
+        "--db-url",
+        default="",
+        help="Postgres DSN. Required for dry-run/apply execution; never printed by this helper.",
+    )
+    parser.add_argument(
+        "--affected-date",
+        action="append",
+        type=parse_iso_date,
+        default=[],
+        help="Affected daily date in YYYY-MM-DD format. Repeat for multiple dates.",
+    )
+    parser.add_argument(
+        "--affected-week",
+        action="append",
+        type=parse_iso_date,
+        default=[],
+        help="Affected week anchor in YYYY-MM-DD format. Normalized to Monday week start.",
+    )
+    parser.add_argument(
+        "--safety-window-weeks",
+        type=int,
+        default=1,
+        help="Number of prior weeks to inspect as safety context. Use 0 to disable.",
+    )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Compare sources and targets and report validation_status fields.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run read-only inspection and rollback; does not write fact tables.",
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Request real apply mode. Must be paired with --confirm-real-apply.",
+    )
+    parser.add_argument(
+        "--confirm-real-apply",
+        action="store_true",
+        help="Second explicit confirmation required before real apply can run.",
+    )
+    parser.add_argument(
+        "--post-apply-validate",
+        action="store_true",
+        help="Treat remaining validation diffs as blockers after apply-style validation.",
+    )
+    parser.add_argument(
+        "--require-complete-safety-window",
+        action="store_true",
+        help="Block when safety weeks have incomplete daily fact coverage.",
+    )
+    parser.add_argument(
+        "--statement-timeout-seconds",
+        type=int,
+        default=DEFAULT_STATEMENT_TIMEOUT_SECONDS,
+        help="Statement timeout for DB operations, in seconds. Use 0 for no timeout.",
+    )
     return parser
 
 
@@ -1493,6 +1572,7 @@ def main() -> int:
                 statement_timeout_seconds=args.statement_timeout_seconds,
                 post_apply_validate=args.post_apply_validate,
             )
+        result["operator_next_step"] = _operator_next_step(result)
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         return 0 if result.get("status") in {"ok", "warn"} else 1
     except Exception as exc:
@@ -1530,6 +1610,7 @@ def main() -> int:
             "final_status": "dry_run_error" if args.dry_run else "apply_failed_rolled_back",
             "elapsed_ms": _now_ms() - started_ms,
         }
+        error_result["operator_next_step"] = _operator_next_step(error_result)
         print(json.dumps(error_result, ensure_ascii=False, indent=2, default=str))
         return 1
 
