@@ -2,7 +2,7 @@
 """
 scanner.py - Auditor del proyecto (sin ejecutar tu app).
 
-Genera 1 SOLO .txt con:
+Puede generar JSON mecanico y, bajo demanda, 1 SOLO .txt con:
 - Entorno Python (sys.executable, sys.version)
 - Chequeo paquetes (streamlit, pandas, openpyxl)
 - Imports por archivo (resumen)
@@ -12,8 +12,12 @@ Genera 1 SOLO .txt con:
     <<<END FILE: path>>>
 
 Uso:
-    python scripts/scanner.py
-    python scripts/scanner.py --root "C:\\Users\\basti\\Desktop\\STOCK_ZERO" --out "codigo_app_stockzero.txt"
+    python scripts/scanner.py --root "C:\\Users\\basti\\Desktop\\STOCK_ZERO" --json-out "%TEMP%\\scanner.json"
+    python scripts/scanner.py --root "C:\\Users\\basti\\Desktop\\STOCK_ZERO" --out "%TEMP%\\scanner.txt"
+
+Nota:
+    No se genera TXT por defecto. El dump TXT requiere --out explicito.
+    codigo_app_stockzero.txt queda deprecado como salida por defecto.
 """
 
 from __future__ import annotations
@@ -475,7 +479,11 @@ def build_json_payload(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=".", help="Ruta raiz del proyecto")
-    parser.add_argument("--out", default="codigo_app_stockzero.txt", help="Archivo de salida (un solo .txt)")
+    parser.add_argument(
+        "--out",
+        default="",
+        help="Archivo TXT opcional de salida full dump. Si se omite, no se escribe TXT.",
+    )
     parser.add_argument(
         "--max-dump-lines",
         type=int,
@@ -488,7 +496,7 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
-    out_path = Path(args.out).resolve()
+    out_path = Path(args.out).resolve() if args.out else None
     json_out_path = Path(args.json_out).resolve() if args.json_out else None
 
     all_py_files = collect_all_py_files(root)
@@ -504,14 +512,18 @@ def main() -> int:
         archive_v_i_files_count=archive_v_i_files_count,
     )
 
-    txt_lines = build_txt_report(root=root, args=args, file_infos=file_infos, summary=summary)
-    out_path.write_text("\n".join(txt_lines), encoding="utf-8")
+    if out_path is not None:
+        txt_lines = build_txt_report(root=root, args=args, file_infos=file_infos, summary=summary)
+        out_path.write_text("\n".join(txt_lines), encoding="utf-8")
 
     if json_out_path is not None:
         payload = build_json_payload(root=root, scope=args.scope, summary=summary, file_infos=file_infos)
         json_out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"OK - Reporte FULL generado en: {out_path}")
+    if out_path is not None:
+        print(f"OK - Reporte FULL generado en: {out_path}")
+    else:
+        print("OK - Reporte FULL omitido (--out no entregado)")
     if json_out_path is not None:
         print(f"OK - Reporte JSON generado en: {json_out_path}")
 
