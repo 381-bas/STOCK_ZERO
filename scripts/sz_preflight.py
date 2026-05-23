@@ -19,7 +19,7 @@ SCANNER_SCOPES = ("active", "all")
 CODex_RO_PHASES = {"control_gestion_v2", "9B15"}
 EXPECTED_CODEX_RO_USER = "stock_zero_codex_ro"
 KERNEL_NAMES = (
-    "01_kernel_global_v1_4_1.json",
+    "01_kernel_global_v1_4_2.json",
     "02_project_state_stock_zero_v1_6_4.json",
     "03_iterative_ledger_v1_6_3.json",
     "04_project_direction_kernel_stock_zero_v1_0_3.json",
@@ -261,7 +261,7 @@ def kernel_probe(root: Path, phase: str, git_head: str) -> tuple[dict[str, Any],
                 add_warning(warnings, f"{filename}_json_invalid")
             continue
 
-        if filename == "01_kernel_global_v1_4_1.json":
+        if filename == "01_kernel_global_v1_4_2.json":
             meta = data.get("meta", {}) if isinstance(data.get("meta"), dict) else {}
             meta_01_status = str(meta.get("status") or "")
             meta_01_last_updated = str(meta.get("last_updated") or "")
