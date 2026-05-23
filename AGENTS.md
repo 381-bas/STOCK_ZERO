@@ -79,6 +79,27 @@ Typical warnings:
 - Do not touch Supabase SQL unless the task explicitly allows it.
 - Do not commit or push unless the user explicitly asks.
 
+## Loader execution guardrails
+
+- Codex may inspect, audit, grep, compile, and review loader scripts.
+- Codex must not execute DB loaders, product refresh, MV refresh, or incremental apply unless the user explicitly authorizes that exact command and phase.
+- Productive loader execution remains Bastian-only by default.
+
+Current guarded loader roles:
+- `scripts/load_control_gestion_raw_v17.py`: main CONTROL_GESTION raw loader.
+- `scripts/refresh_control_gestion_v2_incremental.py`: guarded incremental refresh helper; dry-run/apply semantics must be respected.
+- `scripts/refresh_control_gestion_v2_mv.py`: fallback/full MV refresh helper.
+- `scripts/load_fact_from_excel.py`: manual/fallback inventory loader.
+- `scripts/load_ruta_rutero_from_excel.py`: manual/fallback route loader.
+- `scripts/cliente_mvs.py`: helper used by stock/ruta loaders for cliente MVs.
+
+Legacy loaders removed by Casa Limpia:
+- `scripts/load_cg_power_app_raw_v1.py`
+
+If a task asks to run a loader, Codex must block or ask for an explicit reprompt unless command, phase, DB mode, and authorization are unambiguous.
+
+Codex must never infer DB write authorization from a cleanup or audit task.
+
 ## ChatGPT + Codex task gates
 
 Codex must classify each request before acting:
