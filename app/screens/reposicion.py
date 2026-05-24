@@ -539,7 +539,7 @@ def render_reposicion(
                 st.form_submit_button(
                     "Aplicar",
                     on_click=_apply_filters,
-                    use_container_width=True,
+                    width="stretch",
                 )
 
         marcas = list(st.session_state.get("applied_marcas", []) or [])
@@ -667,7 +667,7 @@ def render_reposicion(
             key="page_prev_btn",
             disabled=(current_page <= 1),
             on_click=_page_prev,
-            use_container_width=True,
+            width="stretch",
         )
 
     with p2:
@@ -687,7 +687,7 @@ def render_reposicion(
             key="page_next_btn",
             disabled=(current_page >= total_pages),
             on_click=_page_next,
-            use_container_width=True,
+            width="stretch",
         )
 
     with p4:
@@ -1019,7 +1019,7 @@ def render_reposicion(
                     data=st.session_state["_export_excel"],
                     file_name=f"{file_prefix}_{cod_rt}_{cliente_token}_{file_stamp}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
+                    width="stretch",
                     key=button_key,
                 )
             else:
@@ -1035,7 +1035,7 @@ def render_reposicion(
                         data=st.session_state["_focus_export_excel"],
                         file_name=f"STOCK_ZERO_FOCO_{cod_rt}_{file_stamp}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
+                        width="stretch",
                         key="download_focus_excel",
                     )
                 else:
@@ -1047,7 +1047,7 @@ def render_reposicion(
                         data=st.session_state["_focus_export_pdf"],
                         file_name=f"STOCK_ZERO_FOCO_{cod_rt}_{file_stamp}.pdf",
                         mime="application/pdf",
-                        use_container_width=True,
+                        width="stretch",
                         key="download_focus_pdf",
                     )
                 else:
@@ -1063,7 +1063,7 @@ def render_reposicion(
                         data=st.session_state["_export_excel"],
                         file_name=f"STOCK_ZERO_LOCAL_{cod_rt}_{file_stamp}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
+                        width="stretch",
                         key="download_local_excel",
                     )
                 else:
@@ -1075,7 +1075,7 @@ def render_reposicion(
                         data=st.session_state["_export_pdf"],
                         file_name=f"STOCK_ZERO_LOCAL_{cod_rt}_{file_stamp}.pdf",
                         mime="application/pdf",
-                        use_container_width=True,
+                        width="stretch",
                         key="download_local_pdf",
                     )
                 else:

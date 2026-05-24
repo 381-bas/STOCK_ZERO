@@ -48,7 +48,7 @@ def _cg_render_pager(page_key: str, total_rows: int, page_size: int = 25) -> Non
             key=f"{page_key}_prev_btn",
             disabled=(current_page <= 1),
             on_click=_page_prev,
-            use_container_width=True,
+            width="stretch",
         )
     with p2:
             st.selectbox(
@@ -65,7 +65,7 @@ def _cg_render_pager(page_key: str, total_rows: int, page_size: int = 25) -> Non
             key=f"{page_key}_next_btn",
             disabled=(current_page >= total_pages),
             on_click=_page_next,
-            use_container_width=True,
+            width="stretch",
         )
     if total_rows:
         start = (current_page - 1) * page_size + 1
@@ -670,7 +670,7 @@ def render_control_gestion(
                                     .fillna(0)
                                     .astype(int)
                                 )
-                        st.dataframe(competitive_view, use_container_width=True, hide_index=True)
+                        st.dataframe(competitive_view, width="stretch", hide_index=True)
 
                 try:
                     with st.spinner("Preparando export global de cumplimiento..."):
@@ -723,7 +723,7 @@ def render_control_gestion(
                         file_name=global_file_name,
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key=f"cg_v2_global_export_{semana_inicio}",
-                        use_container_width=True,
+                        width="stretch",
                     )
                 except Exception as global_export_exc:
                     _dbg(
@@ -851,7 +851,7 @@ def render_control_gestion(
                         file_name=file_name,
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key=f"cg_v2_export_{vista_sel}_{semana_inicio}_{focus_value}",
-                        use_container_width=True,
+                        width="stretch",
                     )
                 except Exception as export_exc:
                     _dbg(

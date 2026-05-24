@@ -150,7 +150,7 @@ def _render_scope_pager(page_key: str, total_rows: int, page_size: int = 25) -> 
             key=f"{page_key}_prev_btn",
             disabled=(current_page <= 1),
             on_click=_prev,
-            use_container_width=True,
+            width="stretch",
         )
 
     with p2:
@@ -170,7 +170,7 @@ def _render_scope_pager(page_key: str, total_rows: int, page_size: int = 25) -> 
             key=f"{page_key}_next_btn",
             disabled=(current_page >= total_pages),
             on_click=_next,
-            use_container_width=True,
+            width="stretch",
         )
 
     with p4:
@@ -293,7 +293,7 @@ def _render_cliente_inventory_export(
             f"{cliente_token}_{resp_tipo_token}_{responsable_token}_{file_stamp}.xlsx"
         ),
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
+        width="stretch",
         key=f"cliente_inventory_excel_{scope_level}_{cliente_token}_{resp_tipo_token}_{responsable_token}",
     )
 
