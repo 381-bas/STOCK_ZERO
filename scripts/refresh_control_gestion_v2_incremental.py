@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 from datetime import date, datetime, timedelta
 import json
+import os
+from pathlib import Path
 import time
 from typing import Any
 
@@ -12,6 +14,8 @@ from typing import Any
 PHASE = "FASE_9C5N_N4B_3A_CONTROL_GESTION_INITIAL_SEED_APPLY_TYPE_FIX"
 DEFAULT_STATEMENT_TIMEOUT_SECONDS = 1800
 REAL_APPLY_ENABLED = False
+ROOT = Path(__file__).resolve().parents[1]
+CODEX_RO_SECRET_FILE = ROOT / ".local_secrets" / "codex_ro.env"
 
 DAILY_SOURCE = "cg_core.v_cg_visita_dia_precedencia_v2"
 DAILY_FACT = "cg_mart.fact_cg_visita_dia_resuelta_v2"
@@ -199,6 +203,45 @@ def _statement_timeout_ms(statement_timeout_seconds: int) -> int:
     if seconds <= 0:
         return 0
     return seconds * 1000
+
+
+def _normalize_db_url(raw: str) -> str:
+    value = str(raw or "").strip()
+    if not value:
+        return ""
+    if value.startswith("$env:DB_URL_CODEX_RO="):
+        value = value.split("=", 1)[1].strip()
+    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+        value = value[1:-1].strip()
+    return value
+
+
+def _load_codex_ro_db_url_from_file(path: Path) -> str:
+    if not path.exists():
+        return ""
+    for line in path.read_text(encoding="utf-8").splitlines():
+        raw = line.replace("\ufeff", "").strip()
+        if not raw or raw.startswith("#"):
+            continue
+        if raw.startswith("DB_URL_CODEX_RO="):
+            _, value = raw.split("=", 1)
+            return _normalize_db_url(value)
+    return ""
+
+
+def resolve_readonly_db_url_for_dry_run(args: argparse.Namespace) -> tuple[str, str]:
+    explicit = _normalize_db_url(args.db_url)
+    if explicit:
+        return explicit, "explicit"
+    if not args.dry_run or args.apply or args.confirm_real_apply:
+        return "", "missing"
+    env_value = _normalize_db_url(os.getenv("DB_URL_CODEX_RO", ""))
+    if env_value:
+        return env_value, "env:DB_URL_CODEX_RO"
+    file_value = _load_codex_ro_db_url_from_file(CODEX_RO_SECRET_FILE)
+    if file_value:
+        return file_value, "file:.local_secrets/codex_ro.env"
+    return "", "missing"
 
 
 def _fetch_relation_exists(cur, relation_name: str) -> bool:
@@ -1468,12 +1511,17 @@ def build_parser() -> argparse.ArgumentParser:
   python scripts/refresh_control_gestion_v2_incremental.py --dry-run --affected-week 2026-05-18 --safety-window-weeks 1 --validate
 
 Apply requires both --apply and --confirm-real-apply. Run dry-run first and review
-final_status, operator_next_step, expected_updates, skipped_weeks, and warnings.""",
+final_status, operator_next_step, expected_updates, skipped_weeks, and warnings.
+Dry-run can resolve DB_URL_CODEX_RO from env or .local_secrets/codex_ro.env.
+Apply always requires an explicit --db-url and never auto-resolves Codex RO.""",
     )
     parser.add_argument(
         "--db-url",
         default="",
-        help="Postgres DSN. Required for dry-run/apply execution; never printed by this helper.",
+        help=(
+            "Postgres DSN. Dry-run may omit this when DB_URL_CODEX_RO is available; "
+            "apply requires explicit --db-url. The value is never printed."
+        ),
     )
     parser.add_argument(
         "--affected-date",
@@ -1556,9 +1604,10 @@ def main() -> int:
         return 1
 
     try:
+        resolved_db_url, db_url_source = resolve_readonly_db_url_for_dry_run(args)
         if args.dry_run:
             result = run_incremental_dry_run(
-                db_url=args.db_url,
+                db_url=resolved_db_url,
                 week_scope=week_scope,
                 validate=args.validate,
                 require_complete_safety_window=args.require_complete_safety_window,
@@ -1572,10 +1621,13 @@ def main() -> int:
                 statement_timeout_seconds=args.statement_timeout_seconds,
                 post_apply_validate=args.post_apply_validate,
             )
+            db_url_source = "explicit" if _normalize_db_url(args.db_url) else "missing"
+        result["db_url_source"] = db_url_source
         result["operator_next_step"] = _operator_next_step(result)
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         return 0 if result.get("status") in {"ok", "warn"} else 1
     except Exception as exc:
+        _, db_url_source = resolve_readonly_db_url_for_dry_run(args)
         error_result = {
             "phase": PHASE,
             "status": "error",
@@ -1606,6 +1658,7 @@ def main() -> int:
                 "weekly_fact": bool(week_scope["validation_weeks"]),
             },
             "real_apply_enabled": REAL_APPLY_ENABLED,
+            "db_url_source": db_url_source,
             "error": str(exc),
             "final_status": "dry_run_error" if args.dry_run else "apply_failed_rolled_back",
             "elapsed_ms": _now_ms() - started_ms,
