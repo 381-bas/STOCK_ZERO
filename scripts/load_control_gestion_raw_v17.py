@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date
+from datetime import date, timedelta
 import hashlib
 import json
 import os
@@ -36,6 +36,21 @@ def ensure_sslmode(db_url: str) -> str:
     if "sslmode=" in db_url:
         return db_url
     return db_url + ("&sslmode=require" if "?" in db_url else "?sslmode=require")
+
+
+def parse_iso_date(value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid date {value!r}; expected YYYY-MM-DD") from exc
+
+
+def week_start(value: date) -> date:
+    return value - timedelta(days=value.weekday())
+
+
+def sorted_iso(values: set[date] | list[date]) -> list[str]:
+    return [value.isoformat() for value in sorted(values)]
 
 
 def clean_text(v: Any) -> str:
@@ -940,18 +955,24 @@ def _mv_refresh_final_status(refresh_result: dict[str, Any]) -> tuple[str, str, 
     return refresh_status, validation_status, "load_ok_refresh_failed", True
 
 
-def _run_incremental_refresh_dry_run(
+def _run_incremental_refresh_from_loader(
     *,
     db_url: str,
     affected_dates: list[str],
+    affected_weeks: list[str],
     validate: bool,
+    apply: bool,
+    confirm_real_apply: bool,
+    post_apply_validate: bool,
+    safety_window_weeks: int,
     statement_timeout_seconds: int,
 ) -> dict[str, Any]:
-    if not affected_dates:
+    if not affected_dates and not affected_weeks:
         return {
             "status": "skipped",
-            "final_status": "incremental_skipped_no_affected_dates",
-            "dry_run": True,
+            "final_status": "incremental_skipped_no_scope",
+            "dry_run": not apply,
+            "apply": bool(apply),
             "affected_dates": [],
             "affected_weeks": [],
             "warnings": [],
@@ -959,27 +980,94 @@ def _run_incremental_refresh_dry_run(
         }
     if not db_url:
         return {
-            "status": "skipped",
-            "final_status": "incremental_skipped_no_db_url",
-            "dry_run": True,
+            "status": "blocked" if apply else "skipped",
+            "final_status": "incremental_blocked_missing_db_url" if apply else "incremental_skipped_no_db_url",
+            "dry_run": not apply,
+            "apply": bool(apply),
             "affected_dates": affected_dates,
-            "affected_weeks": [],
+            "affected_weeks": affected_weeks,
             "warnings": ["incremental_db_url_missing"],
             "real_apply_enabled": False,
         }
+    if apply and not confirm_real_apply:
+        return {
+            "status": "blocked",
+            "final_status": "incremental_blocked_missing_confirm",
+            "dry_run": False,
+            "apply": True,
+            "affected_dates": affected_dates,
+            "affected_weeks": affected_weeks,
+            "warnings": ["incremental_apply_requires_confirm_real_apply"],
+            "real_apply_enabled": False,
+        }
 
-    from refresh_control_gestion_v2_incremental import build_week_scope, run_incremental_dry_run
+    from refresh_control_gestion_v2_incremental import (
+        build_week_scope,
+        run_incremental_apply,
+        run_incremental_dry_run,
+    )
 
     affected_date_values = {date.fromisoformat(value) for value in affected_dates}
-    week_scope = build_week_scope(affected_date_values, set(), safety_window_weeks=1)
+    affected_week_values = {date.fromisoformat(value) for value in affected_weeks}
+    week_scope = build_week_scope(
+        affected_date_values,
+        affected_week_values,
+        safety_window_weeks=safety_window_weeks,
+    )
+    if apply:
+        return run_incremental_apply(
+            db_url=db_url,
+            week_scope=week_scope,
+            statement_timeout_seconds=statement_timeout_seconds,
+            post_apply_validate=post_apply_validate,
+        )
+
     return run_incremental_dry_run(
         db_url=db_url,
         week_scope=week_scope,
         validate=validate,
         require_complete_safety_window=False,
-        post_apply_validate=False,
+        post_apply_validate=post_apply_validate,
         statement_timeout_seconds=statement_timeout_seconds,
     )
+
+
+def build_incremental_scope_guard(
+    *,
+    selected_dates: list[str],
+    selected_weeks: list[str],
+    max_auto_dates: int,
+    allow_wide_scope: bool,
+    apply_requested: bool,
+) -> dict[str, Any]:
+    selected_dates_count = len(selected_dates)
+    selected_weeks_count = len(selected_weeks)
+    warnings: list[str] = []
+    blockers: list[str] = []
+    status = "ok"
+
+    if selected_dates_count == 0 and selected_weeks_count == 0:
+        status = "blocked_no_scope" if apply_requested else "skipped_no_scope"
+        if apply_requested:
+            blockers.append("incremental_apply_requires_affected_date_or_week")
+    elif selected_dates_count > max_auto_dates and not allow_wide_scope:
+        warning = f"incremental_scope_wide_dates:{selected_dates_count}>{max_auto_dates}"
+        warnings.append(warning)
+        if apply_requested:
+            status = "blocked_wide_scope"
+            blockers.append(warning)
+        else:
+            status = "warn_wide_scope_dry_run_allowed"
+
+    return {
+        "status": status,
+        "selected_dates_count": selected_dates_count,
+        "selected_weeks_count": selected_weeks_count,
+        "max_auto_incremental_dates": int(max_auto_dates),
+        "allow_wide_incremental_scope": bool(allow_wide_scope),
+        "warnings": warnings,
+        "blockers": blockers,
+    }
 
 
 def _apply_incremental_loader_status(result: dict[str, Any]) -> None:
@@ -997,11 +1085,30 @@ def _apply_incremental_loader_status(result: dict[str, Any]) -> None:
     result["affected_dates"] = list(incremental_result.get("requested_affected_dates") or incremental_result.get("affected_dates") or result.get("affected_dates") or [])
     result["affected_weeks"] = list(incremental_result.get("validation_weeks") or incremental_result.get("affected_weeks") or [])
 
-    if incremental_status == "ok":
-        result["final_status"] = "load_ok_incremental_dry_run_ok"
+    apply_requested = bool(result.get("incremental_apply_requested"))
+
+    if incremental_final_status == "apply_ok":
+        result["final_status"] = "load_ok_incremental_apply_ok"
+        result["status"] = "ok"
+        result["incremental_apply_executed"] = True
+    elif incremental_final_status.startswith("apply_failed") or incremental_final_status == "apply_committed_with_post_commit_error":
+        result["final_status"] = "load_ok_incremental_apply_failed"
+        result["status"] = "load_ok_incremental_apply_failed"
+        result["incremental_apply_executed"] = True
+    elif incremental_final_status in {"incremental_blocked_scope", "incremental_blocked_missing_db_url"}:
+        result["final_status"] = "load_ok_incremental_blocked_scope"
+        result["status"] = "load_ok_incremental_blocked_scope"
+    elif incremental_final_status == "incremental_blocked_missing_confirm":
+        result["final_status"] = "load_ok_incremental_blocked_missing_confirm"
+        result["status"] = "load_ok_incremental_blocked_missing_confirm"
+    elif incremental_final_status == "incremental_skipped_no_scope":
+        result["final_status"] = "load_ok_incremental_blocked_scope" if apply_requested else "load_ok_incremental_skipped_no_affected_dates"
+        result["status"] = result["final_status"] if apply_requested else "ok"
+    elif incremental_status == "ok":
+        result["final_status"] = "load_ok_incremental_apply_ok" if apply_requested else "load_ok_incremental_dry_run_ok"
         result["status"] = "ok"
     elif incremental_status == "warn":
-        result["final_status"] = "load_ok_incremental_dry_run_warn"
+        result["final_status"] = "load_ok_incremental_apply_ok" if apply_requested else "load_ok_incremental_dry_run_warn"
         result["status"] = "ok"
     elif incremental_final_status == "incremental_skipped_no_affected_dates":
         result["final_status"] = "load_ok_incremental_skipped_no_affected_dates"
@@ -1028,6 +1135,14 @@ def main() -> None:
     ap.add_argument("--refresh-cg-v2-incremental", action="store_true")
     ap.add_argument("--validate-cg-v2-incremental", action="store_true")
     ap.add_argument("--dry-run-incremental", action="store_true")
+    ap.add_argument("--apply-cg-v2-incremental", action="store_true")
+    ap.add_argument("--confirm-real-apply", action="store_true")
+    ap.add_argument("--post-apply-validate", action="store_true")
+    ap.add_argument("--affected-date", action="append", type=parse_iso_date, default=[])
+    ap.add_argument("--affected-week", action="append", type=parse_iso_date, default=[])
+    ap.add_argument("--allow-wide-incremental-scope", action="store_true")
+    ap.add_argument("--max-auto-incremental-dates", type=int, default=3)
+    ap.add_argument("--incremental-safety-window-weeks", type=int, default=1)
     ap.add_argument("--fallback-full-refresh", action="store_true")
     ap.add_argument("--skip-source-check", action="store_true")
     ap.add_argument("--source-check-strict", action="store_true")
@@ -1068,6 +1183,20 @@ def main() -> None:
         raise SystemExit("--validate-cg-v2-mv requiere --refresh-cg-v2-mv")
     if args.validate_cg_v2_incremental and not args.refresh_cg_v2_incremental:
         raise SystemExit("--validate-cg-v2-incremental requiere --refresh-cg-v2-incremental")
+    if args.dry_run_incremental and not args.refresh_cg_v2_incremental:
+        raise SystemExit("--dry-run-incremental requiere --refresh-cg-v2-incremental")
+    if args.apply_cg_v2_incremental and not args.refresh_cg_v2_incremental:
+        raise SystemExit("--apply-cg-v2-incremental requiere --refresh-cg-v2-incremental")
+    if args.confirm_real_apply and not args.apply_cg_v2_incremental:
+        raise SystemExit("--confirm-real-apply requiere --apply-cg-v2-incremental")
+    if args.post_apply_validate and not args.apply_cg_v2_incremental:
+        raise SystemExit("--post-apply-validate requiere --apply-cg-v2-incremental")
+    if args.apply_cg_v2_incremental and args.dry_run:
+        raise SystemExit("--apply-cg-v2-incremental no puede combinarse con --dry-run del loader")
+    if args.max_auto_incremental_dates < 1:
+        raise SystemExit("--max-auto-incremental-dates debe ser >= 1")
+    if args.incremental_safety_window_weeks < 0:
+        raise SystemExit("--incremental-safety-window-weeks debe ser >= 0")
 
     db_url = ensure_sslmode(args.db_url)
     if not args.dry_run and not db_url:
@@ -1096,6 +1225,21 @@ def main() -> None:
         "incremental_requested": bool(args.refresh_cg_v2_incremental),
         "incremental_dry_run": bool(args.refresh_cg_v2_incremental),
         "dry_run_incremental_requested": bool(args.dry_run_incremental),
+        "incremental_apply_requested": bool(args.apply_cg_v2_incremental),
+        "incremental_apply_executed": False,
+        "incremental_post_apply_validate_requested": bool(args.post_apply_validate),
+        "affected_dates_detected": [],
+        "affected_dates_selected_for_incremental": [],
+        "affected_weeks_selected_for_incremental": [],
+        "incremental_scope_guard": {
+            "status": "not_evaluated",
+            "selected_dates_count": 0,
+            "selected_weeks_count": 0,
+            "max_auto_incremental_dates": int(args.max_auto_incremental_dates),
+            "allow_wide_incremental_scope": bool(args.allow_wide_incremental_scope),
+            "warnings": [],
+            "blockers": [],
+        },
         "incremental_status": "not_requested",
         "incremental_final_status": "not_requested",
         "fallback_full_refresh_requested": bool(args.fallback_full_refresh),
@@ -1248,30 +1392,72 @@ def main() -> None:
             conn.close()
 
     result["affected_dates"] = sorted(incremental_affected_dates)
+    result["affected_dates_detected"] = list(result["affected_dates"])
     if args.refresh_cg_v2_incremental:
-        result["incremental_dry_run"] = True
-        result["dry_run_incremental_forced"] = True
+        manual_affected_dates = sorted_iso(set(args.affected_date or []))
+        manual_affected_weeks = sorted_iso({week_start(value) for value in (args.affected_week or [])})
+        selected_dates = manual_affected_dates if manual_affected_dates else list(result["affected_dates_detected"])
+        selected_week_values = {
+            week_start(date.fromisoformat(value)) for value in selected_dates
+        }
+        selected_week_values.update(date.fromisoformat(value) for value in manual_affected_weeks)
+        selected_weeks = sorted_iso(selected_week_values)
+        result["affected_dates_selected_for_incremental"] = selected_dates
+        result["affected_weeks_selected_for_incremental"] = selected_weeks
+        result["incremental_dry_run"] = not bool(args.apply_cg_v2_incremental)
+        result["dry_run_incremental_forced"] = not bool(args.apply_cg_v2_incremental)
+        result["incremental_apply_requested"] = bool(args.apply_cg_v2_incremental)
+        result["incremental_post_apply_validate_requested"] = bool(args.post_apply_validate)
         result["fallback_full_refresh_status"] = (
             "available_not_executed_in_N3" if args.fallback_full_refresh else "not_requested"
         )
-        try:
-            result["incremental_refresh"] = _run_incremental_refresh_dry_run(
-                db_url=db_url,
-                affected_dates=result["affected_dates"],
-                validate=args.validate_cg_v2_incremental,
-                statement_timeout_seconds=args.cg_v2_refresh_timeout_seconds,
-            )
-        except Exception as exc:
+        result["incremental_scope_guard"] = build_incremental_scope_guard(
+            selected_dates=selected_dates,
+            selected_weeks=selected_weeks,
+            max_auto_dates=args.max_auto_incremental_dates,
+            allow_wide_scope=args.allow_wide_incremental_scope,
+            apply_requested=args.apply_cg_v2_incremental,
+        )
+        result["incremental_warnings"] = list(dict.fromkeys(
+            result["incremental_warnings"] + list(result["incremental_scope_guard"].get("warnings", []))
+        ))
+        if args.apply_cg_v2_incremental and result["incremental_scope_guard"]["status"] == "blocked_wide_scope":
             result["incremental_refresh"] = {
-                "status": "error",
-                "final_status": "dry_run_error",
-                "dry_run": True,
-                "affected_dates": result["affected_dates"],
-                "affected_weeks": [],
-                "warnings": [],
-                "error": str(exc),
+                "status": "blocked",
+                "final_status": "incremental_blocked_scope",
+                "dry_run": False,
+                "apply": True,
+                "affected_dates": selected_dates,
+                "affected_weeks": selected_weeks,
+                "warnings": list(result["incremental_scope_guard"].get("warnings", [])),
+                "blockers": list(result["incremental_scope_guard"].get("blockers", [])),
                 "real_apply_enabled": False,
             }
+        else:
+            try:
+                result["incremental_refresh"] = _run_incremental_refresh_from_loader(
+                    db_url=db_url,
+                    affected_dates=selected_dates,
+                    affected_weeks=selected_weeks,
+                    validate=args.validate_cg_v2_incremental,
+                    apply=args.apply_cg_v2_incremental,
+                    confirm_real_apply=args.confirm_real_apply,
+                    post_apply_validate=args.post_apply_validate,
+                    safety_window_weeks=args.incremental_safety_window_weeks,
+                    statement_timeout_seconds=args.cg_v2_refresh_timeout_seconds,
+                )
+            except Exception as exc:
+                result["incremental_refresh"] = {
+                    "status": "error",
+                    "final_status": "apply_failed_rolled_back" if args.apply_cg_v2_incremental else "dry_run_error",
+                    "dry_run": not bool(args.apply_cg_v2_incremental),
+                    "apply": bool(args.apply_cg_v2_incremental),
+                    "affected_dates": selected_dates,
+                    "affected_weeks": selected_weeks,
+                    "warnings": [],
+                    "error": str(exc),
+                    "real_apply_enabled": False,
+                }
         _apply_incremental_loader_status(result)
 
     if args.dry_run:
@@ -1289,7 +1475,9 @@ def main() -> None:
         if not args.refresh_cg_v2_incremental:
             result["final_status"] = "load_ok_no_source_change"
     elif args.refresh_cg_v2_incremental and not args.refresh_cg_v2_mv:
-        result["mv_refresh_skipped_reason"] = "incremental_dry_run_requested"
+        result["mv_refresh_skipped_reason"] = (
+            "incremental_apply_requested" if args.apply_cg_v2_incremental else "incremental_dry_run_requested"
+        )
         result["mv_refresh_status"] = "deferred" if result["sources_changed"] else "not_requested"
         result["mv_validation_status"] = "not_requested"
         result["pending_refresh"] = bool(result["sources_changed"])
@@ -1306,7 +1494,12 @@ def main() -> None:
     else:
         result["should_refresh_mv"] = True
 
-    if args.refresh_cg_v2_incremental and result["status"] == "load_ok_incremental_dry_run_failed":
+    if args.refresh_cg_v2_incremental and result["status"] in {
+        "load_ok_incremental_dry_run_failed",
+        "load_ok_incremental_apply_failed",
+        "load_ok_incremental_blocked_scope",
+        "load_ok_incremental_blocked_missing_confirm",
+    }:
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         raise SystemExit(1)
 
