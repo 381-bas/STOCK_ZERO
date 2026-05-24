@@ -113,7 +113,7 @@ CG_V2_DETALLE_VIEW = os.getenv(
 )
 CG_V2_OUT_WEEKLY_VIEW = os.getenv(
     "CG_V2_OUT_WEEKLY_VIEW",
-    "cg_mart.v_cg_out_weekly_v2",
+    "cg_mart.fact_cg_out_weekly_v2",
 )
 CG_V2_MULTI_MARCAJE_VIEW = os.getenv(
     "CG_V2_MULTI_MARCAJE_VIEW",
