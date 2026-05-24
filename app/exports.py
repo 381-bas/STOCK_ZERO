@@ -120,8 +120,11 @@ CG_V2_GLOBAL_SHEETS = [
 ]
 
 CG_V2_GLOBAL_PROTOTYPE_WARNING = (
-    "Cumplimiento calculado desde weekly mart CONTROL_GESTION v2. Precedencia: KPIONE2 primero; "
-    "POWER_APP solo fallback por día único; KPIONE1 audit-only."
+    "Cumplimiento calculado desde weekly mart CONTROL_GESTION v2 con visitas validas capadas. "
+    "Ranking global por entidad operativa exacta; filtros por gestor incluyen ambitos compartidos "
+    "donde participa. Gestion compartida y evidencia duplicada quedan como auditoria, no como "
+    "cumplimiento extra. Precedencia: KPIONE2 primero; POWER_APP solo fallback por dia unico; "
+    "KPIONE1 audit-only."
 )
 
 
@@ -515,6 +518,7 @@ def _cg_v2_context_export_df(context: dict[str, Any]) -> pd.DataFrame:
         ("Foco", context.get("Foco") or "scope"),
         ("Alerta", context.get("Alerta") or "Todas"),
         ("Fuente weekly", context.get("Fuente weekly") or ""),
+        ("Nota semantica", context.get("Nota semantica") or CG_V2_GLOBAL_PROTOTYPE_WARNING),
         ("Generado en", context.get("Generado en") or ""),
     ]
     return pd.DataFrame(rows, columns=["CAMPO", "VALOR"])

@@ -620,6 +620,11 @@ def render_control_gestion(
                         "Métricas sujetas a ajuste por contrato de precedencia de fuentes "
                         "KPIONE2 / POWER_APP / KPIONE1."
                     )
+                    st.caption(
+                        "Ranking global por entidad operativa exacta. Al filtrar por gestor se incluyen "
+                        "ambitos compartidos donde participa. El cumplimiento usa visitas validas capadas; "
+                        "gestion compartida y evidencia duplicada quedan como auditoria, no como cumplimiento extra."
+                    )
                     st.markdown(f"##### {summary_title}")
                     competitive_error = False
                     try:
@@ -810,6 +815,7 @@ def render_control_gestion(
                         "Foco": focus_value if focus_value != "Pendiente" else "scope",
                         "Alerta": alerta_sel or "Todas",
                         "Fuente weekly": str((db.get_cg_v2_contract() or {}).get("views", {}).get("out_weekly") or ""),
+                        "Nota semantica": CG_V2_GLOBAL_PROTOTYPE_WARNING,
                         "Generado en": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     export_summary = db.get_cg_v2_export_summary(
