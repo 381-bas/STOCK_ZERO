@@ -20,9 +20,9 @@ CODex_RO_PHASES = {"control_gestion_v2", "9B15"}
 EXPECTED_CODEX_RO_USER = "stock_zero_codex_ro"
 KERNEL_NAMES = (
     "01_kernel_global_v1_4_3.json",
-    "02_project_state_stock_zero_v1_6_5.json",
-    "03_iterative_ledger_v1_6_4.json",
-    "04_project_direction_kernel_stock_zero_v1_0_4.json",
+    "02_project_state_stock_zero_v1_6_6.json",
+    "03_iterative_ledger_v1_6_5.json",
+    "04_project_direction_kernel_stock_zero_v1_0_5.json",
     "STOCK_ZERO_3JSON_AUDIT_MATRIX_20260331_v2_2.json",
     "CONTROL_GESTION_IMPLEMENTATION_KERNEL_V2_4.json",
 )
@@ -243,7 +243,7 @@ def kernel_probe(root: Path, phase: str, git_head: str) -> tuple[dict[str, Any],
         path = kernel_paths[filename]
         if not path:
             json_parse_ok[filename] = False
-            if filename == "02_project_state_stock_zero_v1_6_5.json":
+            if filename == "02_project_state_stock_zero_v1_6_6.json":
                 if phase == "9B15":
                     add_blocker(blockers, "kernel_02_missing")
                 else:
@@ -255,7 +255,7 @@ def kernel_probe(root: Path, phase: str, git_head: str) -> tuple[dict[str, Any],
         data = load_json_file(path)
         json_parse_ok[filename] = data is not None
         if data is None:
-            if filename == "02_project_state_stock_zero_v1_6_5.json" and phase == "9B15":
+            if filename == "02_project_state_stock_zero_v1_6_6.json" and phase == "9B15":
                 add_blocker(blockers, "kernel_02_json_invalid")
             else:
                 add_warning(warnings, f"{filename}_json_invalid")
@@ -265,7 +265,7 @@ def kernel_probe(root: Path, phase: str, git_head: str) -> tuple[dict[str, Any],
             meta = data.get("meta", {}) if isinstance(data.get("meta"), dict) else {}
             meta_01_status = str(data.get("status") or meta.get("status") or "")
             meta_01_last_updated = str(data.get("last_updated") or meta.get("last_updated") or "")
-        elif filename == "02_project_state_stock_zero_v1_6_5.json":
+        elif filename == "02_project_state_stock_zero_v1_6_6.json":
             project = data.get("project", {}) if isinstance(data.get("project"), dict) else {}
             current_head = project.get("current_head", {}) if isinstance(project.get("current_head"), dict) else {}
             next_required_action = (
@@ -280,7 +280,7 @@ def kernel_probe(root: Path, phase: str, git_head: str) -> tuple[dict[str, Any],
             )
             if head_expected_from_02 and head_expected_from_02 != git_head:
                 add_warning(warnings, "kernel_02_head_mismatch")
-        elif filename == "03_iterative_ledger_v1_6_4.json":
+        elif filename == "03_iterative_ledger_v1_6_5.json":
             open_watchlist = data.get("open_watchlist")
             if isinstance(open_watchlist, list):
                 open_watchlist_count = len(open_watchlist)
