@@ -1,0 +1,604 @@
+{
+  "phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+  "generated_at": "2026-06-10",
+  "runtime_code_baseline": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+  "claude_c001_commit": "ebdd99ffc2a4981c9129a8571a192d1e582078a7",
+  "codex_tooling_commit": "f05e74c46b5dd12bd5b8d2a91def206755a75deb",
+  "db_access": {
+    "used": true,
+    "allowed_paths": [
+      "scripts/codex_ro_env_check.py",
+      "scripts/sz_preflight.py",
+      "scripts/cg_readonly_extract.py c001-profile"
+    ],
+    "role": "stock_zero_codex_ro",
+    "readonly": true,
+    "db_writes": false,
+    "dsn_printed": false,
+    "row_level_results_in_git": false
+  },
+  "counts": {
+    "VALIDATED": 11,
+    "PARTIAL": 13,
+    "DISPUTED": 5,
+    "REJECTED": 1
+  },
+  "findings": [
+    {
+      "claude_finding_id": "CLAUDE-C001-INVDATA-FACT-001",
+      "classification": "PARTIAL",
+      "validated_statement": "DB_GLOBAL_HISTORICO.xlsx exists as an unreferenced workbook and Hoja1 has the BASE 12-column schema, but row counts are header-sensitive and retirement cannot be inferred because DB coverage is incomplete for the historical range checked.",
+      "evidence": [
+        "DB_GLOBAL_HISTORICO.xlsx Hoja1 max_row=141886, 141885 data rows",
+        "No runtime/script references found outside research material",
+        "public.fact_stock_venta date range from read-only profile: 2026-05-02 to 2026-06-07"
+      ],
+      "confidence": 0.82,
+      "contradictions": [
+        "Claim used 141886 as rows without distinguishing header",
+        "DB retirement condition is not met by current fact_stock_venta date coverage"
+      ],
+      "required_next_action": "Confirm operational use with Bastian and compare against authoritative DB coverage before any retirement proposal.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DATA-002 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-INVDATA-FACT-002",
+      "classification": "VALIDATED",
+      "validated_statement": "DB_GLOBAL_INVENTARIO.xlsx BASE has four formula-derived columns (COD_RT, NOMBRE_LOCAL_RR, OTROS, duplicados) and eight direct source columns; the loader reads saved values rather than evaluating Excel formulas.",
+      "evidence": [
+        "BASE table Tabla1 A1:L43636",
+        "Workbook XML formulas in columns I:J:K:L",
+        "Formula caches present for I,J,L and absent for K in XML inspection",
+        "scripts/load_fact_from_excel.py reads workbook values through pandas/openpyxl path"
+      ],
+      "confidence": 0.96,
+      "contradictions": [],
+      "required_next_action": "Keep as validated memory; any offload requires parity tests before implementation.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "DATA-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-INVDATA-FACT-003",
+      "classification": "VALIDATED",
+      "validated_statement": "The BASE duplicados column is ignored by the loader; deduplication is performed in Python and enforced again by the DB upsert conflict key.",
+      "evidence": [
+        "scripts/load_fact_from_excel.py source_check treats extra columns as warnings",
+        "scripts/load_fact_from_excel.py drop_duplicates path",
+        "ON CONFLICT (fecha, cod_rt, sku, marca)",
+        "DB constraint on public.fact_stock_venta (fecha, cod_rt, sku, marca)"
+      ],
+      "confidence": 0.98,
+      "contradictions": [],
+      "required_next_action": "Treat removal as an operational workbook decision, not a code-approved change.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "DATA-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-INVDATA-FACT-004",
+      "classification": "VALIDATED",
+      "validated_statement": "COD_RT depends on an Excel XLOOKUP over RUTA_RUTERO for each BASE row, so stale saved formula values can be ingested silently by the loader.",
+      "evidence": [
+        "COD_RT formula uses XLOOKUP with CADENA, COD B2B/N_LOCAL, CLIENTE/MARCA conditions",
+        "BASE has 43635 data rows",
+        "RUTA_RUTERO has 3568 data rows",
+        "No formula-recency or formula-cache validation in scripts/load_fact_from_excel.py"
+      ],
+      "confidence": 0.93,
+      "contradictions": [],
+      "required_next_action": "Future guard should validate formula/cache freshness and operator workflow; mtime alone is not enough.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "DATA-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-INVDATA-INF-001",
+      "classification": "PARTIAL",
+      "validated_statement": "DB_GLOBAL_HISTORICO.xlsx is not referenced by runtime/loaders and resembles a manual archive, but its construction method and operational authority are not proven.",
+      "evidence": [
+        "No app/scripts/tests references found",
+        "Hoja1 matches BASE 12-column layout",
+        "File modified earlier than DB_GLOBAL_INVENTARIO.xlsx"
+      ],
+      "confidence": 0.7,
+      "contradictions": [
+        "The statement that it was built by accumulating BASE copies remains an inference"
+      ],
+      "required_next_action": "Ask Bastian whether this workbook is an authoritative manual archive.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DATA-002 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-INVDATA-HYP-001",
+      "classification": "PARTIAL",
+      "validated_statement": "Computing COD_RT/NOMBRE_LOCAL_RR in code is plausible, but the safest parity source is the same workbook RUTA_RUTERO or a versioned local snapshot, not a live public.ruta_rutero lookup without temporal controls.",
+      "evidence": [
+        "public.ruta_rutero exists with 3568 rows",
+        "Workbook RUTA_RUTERO has 3568 data rows",
+        "public.ruta_rutero row_hash distinct count differs slightly from row count",
+        "Formula keys require CADENA + N_LOCAL/COD_B2B + MARCA/CLIENTE alignment"
+      ],
+      "confidence": 0.66,
+      "contradictions": [
+        "Live DB ruta can be fresher than the workbook period and may create temporal mismatch"
+      ],
+      "required_next_action": "Design a parity test using workbook RUTA_RUTERO first, then evaluate a versioned ruta snapshot.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DATA-001 -> PARTIAL; ROUTE-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-CGDATA-FACT-001",
+      "classification": "VALIDATED",
+      "validated_statement": "CUMPLIMIENTO_FRECUENCIA.xlsx has seven sheets and the committed CG loader consumes only DB (KPIONE), DB (KPIONE2.0), and DB (POWER_APP).",
+      "evidence": [
+        "Workbook sheet profile: DB (KPIONE), DB (KPIONE2.0), DB (POWER_APP), DESARROLLO_CONTROL_GESTION, Tabla1, OUT, gg",
+        "scripts/load_control_gestion_raw_v17.py SOURCE_TO_SHEET maps only KPIONE, KPIONE2, POWER_APP"
+      ],
+      "confidence": 0.97,
+      "contradictions": [],
+      "required_next_action": "Document sheet roles before any workbook governance change.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "DATA-003 -> VALIDATED",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-CGDATA-FACT-002",
+      "classification": "VALIDATED",
+      "validated_statement": "DESARROLLO_CONTROL_GESTION and OUT are not consumed by committed loader code or runtime code found in this pass.",
+      "evidence": [
+        "SOURCE_TO_SHEET excludes DESARROLLO_CONTROL_GESTION and OUT",
+        "Search across app/scripts/tests found no runtime consumer of those sheet names"
+      ],
+      "confidence": 0.95,
+      "contradictions": [],
+      "required_next_action": "Confirm manual usage with Bastian before treating these sheets as removable.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "DATA-003 -> VALIDATED",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-CGDATA-INF-001",
+      "classification": "PARTIAL",
+      "validated_statement": "OUT resembles a manual wide-format CG artifact and is not consumed by runtime, but whether it predates or still parallels DB-backed CG reporting requires business confirmation.",
+      "evidence": [
+        "OUT sheet shape: 3440 x 34",
+        "cg_mart fact/mv weekly objects exist and are read by app/db.py",
+        "No loader/runtime reference to OUT sheet name"
+      ],
+      "confidence": 0.62,
+      "contradictions": [
+        "Manual predecessor and ongoing parallel tracking are interpretations, not directly proven"
+      ],
+      "required_next_action": "Ask Bastian whether OUT remains operationally used.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DATA-003 -> VALIDATED with manual-use caveat",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-RUTA-FACT-001",
+      "classification": "VALIDATED",
+      "validated_statement": "The ruta loader computes row_hash as an analysis fingerprint and explicitly does not use it as the upsert key.",
+      "evidence": [
+        "scripts/load_ruta_rutero_from_excel.py row_hash comment says it is not the UPSERT key",
+        "public.ruta_rutero upsert key is (source, source_row)",
+        "row_hash written to public.ruta_rutero and cg_core.ruta_rutero_load_rows"
+      ],
+      "confidence": 0.98,
+      "contradictions": [],
+      "required_next_action": "Keep as validated memory; do not remove without consumer and audit policy review.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "ROUTE-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-RUTA-FACT-002",
+      "classification": "VALIDATED",
+      "validated_statement": "The ruta loader writes the current routing table plus full load history and batch metadata; DB profile confirms accumulated route load batches.",
+      "evidence": [
+        "Loader targets public.ruta_rutero, cg_core.ruta_rutero_load_rows, cg_core.ruta_rutero_load_batch",
+        "DB profile: ruta_rutero_load_batch rows=19",
+        "DB profile: ruta_rutero_load_rows rows=64346"
+      ],
+      "confidence": 0.97,
+      "contradictions": [],
+      "required_next_action": "Use DB consumers and retention evidence before proposing cleanup.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "ROUTE-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-RUTA-INF-001",
+      "classification": "PARTIAL",
+      "validated_statement": "No app/runtime consumer of row_hash was found, but cg_core.ruta_rutero_load_rows itself is consumed by DB views, so the history layer is not only manual DB auditing.",
+      "evidence": [
+        "No row_hash references in app/db.py or screens/services",
+        "DB profile found ruta_rutero_load_rows consumers in cg_core.v_rr_frecuencia_base_resuelta_v2 and cg_mart.v_cg_ruta_duplicados_auditoria_v2",
+        "No row_hash definition hits found in the DB profile"
+      ],
+      "confidence": 0.76,
+      "contradictions": [
+        "History table has DB view consumers, not just manual audit use"
+      ],
+      "required_next_action": "Separate row_hash consumer analysis from route history table consumer analysis.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "ROUTE-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-LOADER-FACT-001",
+      "classification": "PARTIAL",
+      "validated_statement": "The CG raw loader is a large, highly coupled script with 54 functions and three raw source targets, but line count is 2024 in the current checked file, not 2023.",
+      "evidence": [
+        "scripts/load_control_gestion_raw_v17.py line count checked as 2024",
+        "Function count checked as 54",
+        "Targets cg_raw.kpione_raw, cg_raw.kpione2_raw, cg_raw.power_app_raw and cg_audit.batch_registry"
+      ],
+      "confidence": 0.88,
+      "contradictions": [
+        "Exact line count differs by one"
+      ],
+      "required_next_action": "Use as complexity signal only; no refactor authorized.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DB-002 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-LOADER-FACT-002",
+      "classification": "VALIDATED",
+      "validated_statement": "The CG raw loader uses source sheet hash checks and batch_registry, so unchanged sheets can be skipped while changed sheets create batch records.",
+      "evidence": [
+        "scripts/load_control_gestion_raw_v17.py hash/check logic",
+        "DB profile: cg_audit.batch_registry has 37 batches across DB (KPIONE), DB (KPIONE2.0), DB (POWER_APP)",
+        "No loader execution was performed"
+      ],
+      "confidence": 0.93,
+      "contradictions": [],
+      "required_next_action": "Retain as pipeline behavior memory; retention decisions require DB policy.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "DB-002 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-LOADER-FACT-003",
+      "classification": "DISPUTED",
+      "validated_statement": "app/db.py does not read cg_raw payload_json directly, but DB views in cg_core/cg_mart do read payload_json, so payload_json is not a zero-consumer field.",
+      "evidence": [
+        "No app/db.py raw payload_json consumer found",
+        "DB profile found payload_json in cg_core.v_cg_evento_scope, cg_core.v_cg_evidencia_unificada, and multiple cg_mart audit views",
+        "Untracked SQL drafts also reference payload_json but are not authority"
+      ],
+      "confidence": 0.91,
+      "contradictions": [
+        "The application-level zero-consumer conclusion omits DB view consumers"
+      ],
+      "required_next_action": "Reject any payload_json removal proposal until DB view consumers are redesigned and migrated.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DB-002 -> DISPUTED",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-LOADER-FACT-004",
+      "classification": "VALIDATED",
+      "validated_statement": "The incremental refresh rebuilds daily and weekly mart facts through staged validation before commit; the data mutation transaction commits before a separate best-effort ANALYZE step.",
+      "evidence": [
+        "scripts/refresh_control_gestion_v2_incremental.py stages daily and weekly data",
+        "Validation failures before conn.commit roll back",
+        "conn.commit occurs before post-commit ANALYZE; ANALYZE failures produce warning after rollback of analyze transaction"
+      ],
+      "confidence": 0.9,
+      "contradictions": [
+        "Any broad claim that every post-step failure leaves a partially updated state is overstated; analyze is post-commit only"
+      ],
+      "required_next_action": "Document commit/analyze boundary; no runtime change authorized.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "DB-002 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-DBPY-FACT-001",
+      "classification": "VALIDATED",
+      "validated_statement": "The ten named app/db.py functions have no static callers in app, scripts, or tests, and no known dynamic lookup pattern was found in this pass.",
+      "evidence": [
+        "Search found only definitions for the ten candidate functions",
+        "Search for getattr, __all__, globals, locals, importlib found no relevant dynamic db.py dispatch",
+        "Previously recorded static-only functions were rechecked"
+      ],
+      "confidence": 0.9,
+      "contradictions": [],
+      "required_next_action": "Keep as static-only candidates; deletion requires a separate approved cleanup and runtime smoke.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "CODE-001 -> VALIDATED",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-DBPY-FACT-002",
+      "classification": "PARTIAL",
+      "validated_statement": "app/db.py is a large SQL-bearing module with 80 f-string SQL blocks, 35 JOIN clauses, and 54 os.getenv calls, but CTE count and the exact CG_V2 constant list in the Claude claim were inaccurate.",
+      "evidence": [
+        "app/db.py checked as 5348 lines",
+        "Counted 80 triple f-string SQL blocks, 35 JOIN clauses, 22 WITH patterns, 54 os.getenv calls",
+        "Actual CG_V2 constants differ from the claimed names"
+      ],
+      "confidence": 0.78,
+      "contradictions": [
+        "CTE count checked as 22, not 15",
+        "Not all claimed CG_V2_* names exist"
+      ],
+      "required_next_action": "Use corrected constant list for any future runbook or probe design.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "CODE-001 -> VALIDATED; DB-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-DBPY-FACT-003",
+      "classification": "VALIDATED",
+      "validated_statement": "Home.py defers app/db.py, exports, and screen imports inside main(), so those modules are not imported by Home.py at module import time.",
+      "evidence": [
+        "app/Home.py imports db, exports, and screen modules inside main()",
+        "No equivalent module-level imports found outside main()"
+      ],
+      "confidence": 0.94,
+      "contradictions": [],
+      "required_next_action": "Record as import behavior; no AGENTS.md change authorized in this phase.",
+      "absorbed_into_shared_memory": true,
+      "backlog_effect": "CODE-001 -> VALIDATED",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-DBPY-INF-001",
+      "classification": "PARTIAL",
+      "validated_statement": "The ten static-only functions can be grouped conceptually, but whether they are abandoned, incomplete, or intentionally diagnostic is an interpretation.",
+      "evidence": [
+        "Function names and SQL shapes suggest coverage-audit and CG diagnostic groups",
+        "No static callers found",
+        "No runtime execution was performed"
+      ],
+      "confidence": 0.65,
+      "contradictions": [
+        "Abandoned-stub language is not proven by static analysis"
+      ],
+      "required_next_action": "Ask Bastian or inspect historical commits before classifying intent.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "CODE-001 -> VALIDATED with cleanup caveat",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-SUPABASE-FACT-001",
+      "classification": "PARTIAL",
+      "validated_statement": "The project references public, cg_raw, cg_core, cg_mart, and cg_audit objects, but app/db.py does not cover the full DB dependency graph because DB views connect raw/core/mart layers.",
+      "evidence": [
+        "Schema-prefixed references found across app/db.py, scripts, and SQL drafts",
+        "DB profile covered 11 allowlisted relations",
+        "DB definition hits show cg_core/cg_mart views consume raw payloads and route load rows"
+      ],
+      "confidence": 0.74,
+      "contradictions": [
+        "cg_raw is not only write-only in the DB graph; it is read through DB views"
+      ],
+      "required_next_action": "Build an authoritative object catalog before object cleanup.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DB-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-SUPABASE-FACT-002",
+      "classification": "DISPUTED",
+      "validated_statement": "app/db.py does define nine CG_V2_* environment-backed constants, but several names listed by Claude do not exist and the actual defaults differ.",
+      "evidence": [
+        "Actual constants: CG_V2_SCOPE_VIEW, CG_V2_DETALLE_VIEW, CG_V2_OUT_WEEKLY_VIEW, CG_V2_MULTI_MARCAJE_VIEW, CG_V2_DAILY_EVIDENCE_VIEW, CG_V2_ROUTE_FREQ_RESUELTA_VIEW, CG_V2_RUTA_DUP_VIEW, CG_V2_FUERA_CRUCE_REAL_VIEW, CG_V2_SIN_BATCH_RUTA_VIEW",
+        "Claimed constants such as CG_V2_PRECEDENCIA_VIEW and CG_V2_BASE_MV were not found"
+      ],
+      "confidence": 0.96,
+      "contradictions": [
+        "Exact claimed constant list is wrong"
+      ],
+      "required_next_action": "Reformulate any env probe using the actual constant list.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DB-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-SUPABASE-INF-001",
+      "classification": "DISPUTED",
+      "validated_statement": "The app does not read cg_raw directly, but the DB view layer does, so raw is not decoupled from runtime-visible CG outputs.",
+      "evidence": [
+        "No app/db.py raw table read found",
+        "DB profile found payload_json and ruta_rutero_load_rows references in DB views",
+        "cg_mart outputs read by app/db.py depend on upstream core/mart view logic"
+      ],
+      "confidence": 0.85,
+      "contradictions": [
+        "Raw-layer decoupling is overstated when DB views feed app-facing facts"
+      ],
+      "required_next_action": "Treat raw retention as DB-architecture work, not a simple app cleanup.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DB-002 -> DISPUTED",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-MANUAL-FACT-001",
+      "classification": "PARTIAL",
+      "validated_statement": "The inventory workbook has formula and freshness dependencies that make manual process errors plausible, but the exact seven-step operational workflow and timing estimates require Bastian confirmation.",
+      "evidence": [
+        "Formula dependencies confirmed in BASE",
+        "No formula freshness preflight in load_fact_from_excel.py",
+        "No runtime or operator workflow observation performed"
+      ],
+      "confidence": 0.68,
+      "contradictions": [
+        "Manual step count and 10-60 second recalc window are not independently measured"
+      ],
+      "required_next_action": "Validate actual operator workflow with Bastian before creating process gates.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DATA-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-MANUAL-HYP-001",
+      "classification": "PARTIAL",
+      "validated_statement": "OTROS depends on FOCO_CLIENTE lookup logic and appears lower priority than COD_RT, but hit rate and best target representation need parity evidence.",
+      "evidence": [
+        "FOCO_CLIENTE sheet max_row=849",
+        "OTROS formula uses FECHA + CADENA + N_LOCAL + SKU",
+        "K-column formula cache missing in XML inspection"
+      ],
+      "confidence": 0.58,
+      "contradictions": [
+        "The 2 percent non-empty hit-rate was not confirmed from cached OTROS values"
+      ],
+      "required_next_action": "Revisit after COD_RT parity design; do not create a FOCO_CLIENTE DB table from this evidence alone.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DATA-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-COMPLEXITY-FACT-001",
+      "classification": "PARTIAL",
+      "validated_statement": "The SQL directory contains committed draft files and untracked 09/10 drafts, but live-object status cannot be inferred only from filenames or git status.",
+      "evidence": [
+        "sql/01-08 present plus untracked sql/09 and sql/10",
+        "Untracked 09/10 remain outside this commit",
+        "DB profile was limited to C001 allowlisted relations and did not execute SQL drafts"
+      ],
+      "confidence": 0.72,
+      "contradictions": [
+        "No-evidence-of-live-objects is not the same as proof they were never applied"
+      ],
+      "required_next_action": "Keep SQL governance in backlog; compare against catalog/migrations before cleanup.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DB-001 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-COMPLEXITY-FACT-002",
+      "classification": "DISPUTED",
+      "validated_statement": "DB_GLOBAL_INVENTARIO has an internal DB_HISTORICA sheet and DB_GLOBAL_HISTORICO has an external Hoja1 archive, but internal DB_HISTORICA does not share the BASE 12-column schema.",
+      "evidence": [
+        "DB_HISTORICA max_row=244009 and table Tabla4 has 10 columns",
+        "External Hoja1 has the BASE-style 12 columns",
+        "Internal DB_HISTORICA columns differ from BASE and omit COD_RT/NOMBRE_LOCAL_RR/OTROS/duplicados"
+      ],
+      "confidence": 0.95,
+      "contradictions": [
+        "Both-have-identical-BASE-schema claim is false for internal DB_HISTORICA"
+      ],
+      "required_next_action": "Reformulate historical archive map with distinct schemas.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DATA-002 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-COMPLEXITY-INF-001",
+      "classification": "PARTIAL",
+      "validated_statement": "There are multiple historical stock/sales layers, but they are not schema-equivalent and DB fact coverage currently does not cover the same historical span as the external archive.",
+      "evidence": [
+        "Internal DB_HISTORICA data rows=244008 with 10-column structure",
+        "External Hoja1 data rows=141885 with BASE-style structure",
+        "public.fact_stock_venta rows=112250 and fecha range 2026-05-02 to 2026-06-07",
+        "Hoja1 date range checked as 2026-03-03 to 2026-04-06"
+      ],
+      "confidence": 0.79,
+      "contradictions": [
+        "Source-of-truth risk is real, but equality/redundancy is not proven"
+      ],
+      "required_next_action": "Map date ranges and business use before any retirement decision.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DATA-002 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-COMPLEXITY-HYP-001",
+      "classification": "REJECTED",
+      "validated_statement": "The current DB evidence does not support retiring DB_GLOBAL_HISTORICO.xlsx, because public.fact_stock_venta does not cover the external historical workbook date range observed in this validation.",
+      "evidence": [
+        "public.fact_stock_venta fecha range: 2026-05-02 to 2026-06-07",
+        "DB_GLOBAL_HISTORICO Hoja1 date range: 2026-03-03 to 2026-04-06"
+      ],
+      "confidence": 0.91,
+      "contradictions": [
+        "Condition for retirement is false in current aggregate evidence"
+      ],
+      "required_next_action": "Do not propose retirement now; require Bastian decision and fuller lineage map.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DATA-002 -> PARTIAL",
+      "implementation_authorized": false
+    },
+    {
+      "claude_finding_id": "CLAUDE-C001-COMPLEXITY-HYP-002",
+      "classification": "DISPUTED",
+      "validated_statement": "payload_json cannot be treated as removable based on current evidence because multiple DB views read it; the 40-60 percent write-size saving estimate is unsupported here.",
+      "evidence": [
+        "DB profile found payload_json references in cg_core and cg_mart view definitions",
+        "No row-level size samples were collected",
+        "No DB write or migration was performed"
+      ],
+      "confidence": 0.92,
+      "contradictions": [
+        "Zero-consumer prerequisite fails",
+        "Storage-saving estimate was not measured"
+      ],
+      "required_next_action": "Reject removal recommendation until full DB dependency redesign exists.",
+      "absorbed_into_shared_memory": false,
+      "backlog_effect": "DB-002 -> DISPUTED",
+      "implementation_authorized": false
+    }
+  ],
+  "recommendation_validation": {
+    "R01_remove_duplicados": {
+      "classification": "REQUIRES_BASTIAN_OPERATIONAL_CONFIRMATION",
+      "reason": "Technically redundant for the loader, but manual workbook use was not validated.",
+      "implementation_authorized": false
+    },
+    "R02_mtime_preflight": {
+      "classification": "REFORMULATE",
+      "reason": "mtime alone is weak; use formula/cache/freshness plus operator-confirmed workflow.",
+      "implementation_authorized": false
+    },
+    "R03_document_cg_sheet_roles": {
+      "classification": "VALIDATED_TECHNICALLY",
+      "reason": "Loader consumes only the three DB source sheets; manual sheets require business context.",
+      "implementation_authorized": false
+    },
+    "R04_ruta_retention_52_loads": {
+      "classification": "REFORMULATE",
+      "reason": "DB has 19 route batches and route history has DB view consumers; retention window needs policy, not an arbitrary count.",
+      "implementation_authorized": false
+    },
+    "R05_cg_raw_retention_12_weeks": {
+      "classification": "REFORMULATE",
+      "reason": "cg_raw feeds DB views; retention needs reconstructability and storage evidence.",
+      "implementation_authorized": false
+    },
+    "R06_cg_env_startup_probe": {
+      "classification": "REFORMULATE",
+      "reason": "The claimed constant list was wrong; future probe must use actual constants and avoid startup UX risk.",
+      "implementation_authorized": false
+    },
+    "R07_python_cod_rt_offload": {
+      "classification": "REQUIRES_PARITY_TEST",
+      "reason": "Start with same-workbook RUTA_RUTERO for exact parity, then evaluate versioned snapshot; live DB can introduce temporal mismatch.",
+      "implementation_authorized": false
+    },
+    "R08_remove_payload_json": {
+      "classification": "REJECTED",
+      "reason": "DB views consume payload_json; zero-consumer prerequisite is false.",
+      "implementation_authorized": false
+    },
+    "R09_zero_caller_cleanup": {
+      "classification": "VALIDATED_TECHNICALLY_REQUIRES_APPROVAL",
+      "reason": "Static-only candidates validated, but deletion needs separate approval and runtime smoke.",
+      "implementation_authorized": false
+    },
+    "R10_retire_historical_excel": {
+      "classification": "REJECTED_FOR_NOW_REQUIRES_BASTIAN",
+      "reason": "public.fact_stock_venta does not cover the external historical workbook date range observed.",
+      "implementation_authorized": false
+    }
+  },
+  "non_authority_notice": "This matrix validates research claims only. It authorizes no runtime, loader, SQL, DB, data, or evidence changes."
+}

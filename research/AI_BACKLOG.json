@@ -10,75 +10,111 @@
       "VALIDATED"
     ],
     "implementation_authorized_by_backlog": false,
-    "approval_note": "No backlog item is APPROVED for implementation by this file."
+    "approval_note": "No backlog item is APPROVED for implementation by this file.",
+    "allowed_statuses_after_c001": [
+      "INVESTIGATE",
+      "VALIDATED",
+      "PARTIAL",
+      "DISPUTED",
+      "REJECTED"
+    ]
   },
   "items": [
     {
       "id": "DATA-001",
       "title": "Linaje de DB_GLOBAL_INVENTARIO",
       "category": "DATA",
-      "status": "INVESTIGATE",
+      "status": "PARTIAL",
       "evidence": [
-        "Requested as shared research backlog item."
+        "Requested as shared research backlog item.",
+        "C001 Codex validation: BASE has four formula-derived columns and eight direct source columns.",
+        "C001 Codex validation: duplicados is ignored by the loader and DB dedupe is enforced by conflict key.",
+        "C001 Codex validation: formula freshness risk is real, but mtime-only guard must be reformulated."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
-      "implementation_authorized": false
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+      "required_next_action": "Design formula/cache freshness and parity checks; no loader change approved."
     },
     {
       "id": "DATA-002",
       "title": "Linaje de DB_GLOBAL_HISTORICO",
       "category": "DATA",
-      "status": "INVESTIGATE",
+      "status": "PARTIAL",
       "evidence": [
-        "Requested as shared research backlog item."
+        "Requested as shared research backlog item.",
+        "C001 Codex validation: external DB_GLOBAL_HISTORICO Hoja1 has BASE-style 12 columns and no runtime reference found.",
+        "C001 Codex validation: internal DB_HISTORICA has 10-column schema, not BASE-identical.",
+        "C001 Codex validation: public.fact_stock_venta aggregate date coverage did not cover the external historical workbook range observed."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
-      "implementation_authorized": false
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+      "required_next_action": "Clarify authoritative historical source with Bastian before any retirement proposal."
     },
     {
       "id": "DATA-003",
       "title": "Linaje de CUMPLIMIENTO_FRECUENCIA",
       "category": "DATA",
-      "status": "INVESTIGATE",
+      "status": "VALIDATED",
       "evidence": [
-        "data/CUMPLIMIENTO_FRECUENCIA.xlsx sheet DB (KPIONE2.0) recorded as productive Control Gestion source under investigation."
+        "data/CUMPLIMIENTO_FRECUENCIA.xlsx sheet DB (KPIONE2.0) recorded as productive Control Gestion source under investigation.",
+        "C001 Codex validation: CUMPLIMIENTO_FRECUENCIA has seven sheets and the committed loader consumes only three DB source sheets.",
+        "C001 Codex validation: DESARROLLO_CONTROL_GESTION and OUT have no committed loader/runtime consumers found in this pass."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
-      "implementation_authorized": false
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+      "required_next_action": "Confirm manual use of DESARROLLO_CONTROL_GESTION and OUT before workbook governance changes."
     },
     {
       "id": "ROUTE-001",
       "title": "Utilidad real de row_hash y acumulacion historica",
       "category": "ROUTE",
-      "status": "INVESTIGATE",
+      "status": "PARTIAL",
       "evidence": [
-        "Requested as shared research backlog item."
+        "Requested as shared research backlog item.",
+        "C001 Codex validation: row_hash is analysis fingerprint, not upsert key.",
+        "C001 DB profile: route history has 19 batches and 64346 history rows.",
+        "C001 DB profile: ruta_rutero_load_rows has DB view consumers; row_hash itself had no DB definition hit in the allowlisted profile."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
-      "implementation_authorized": false
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+      "required_next_action": "Separate row_hash utility from route history retention and consumer analysis."
     },
     {
       "id": "DB-001",
       "title": "Catalogo de objetos Supabase y consumidores",
       "category": "DB",
-      "status": "INVESTIGATE",
+      "status": "PARTIAL",
       "evidence": [
         "Runtime map identifies app/db.py as central DB access layer.",
-        "No DB access was performed during bootstrap."
+        "No DB access was performed during bootstrap.",
+        "C001 Codex validation: app/db.py CG_V2 constant list corrected.",
+        "C001 DB profile: selected cg_core/cg_mart views consume payload_json and route history.",
+        "C001 validation did not produce a complete DB object catalog."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
-      "implementation_authorized": false
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+      "required_next_action": "Build a full authoritative DB object catalog before cleanup."
     },
     {
       "id": "DB-002",
       "title": "Justificacion de JOIN, hashes y raw duplicado",
       "category": "DB",
-      "status": "INVESTIGATE",
+      "status": "DISPUTED",
       "evidence": [
-        "Requested as shared research backlog item."
+        "Requested as shared research backlog item.",
+        "C001 Codex validation disputes payload_json removal because DB views consume it.",
+        "C001 Codex validation confirms CG loader hash-skip/batch_registry behavior.",
+        "C001 Codex validation confirms incremental refresh commit occurs before post-commit ANALYZE."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
-      "implementation_authorized": false
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+      "required_next_action": "Reformulate retention and raw duplication work around actual DB consumers."
     },
     {
       "id": "CODE-001",
@@ -87,10 +123,15 @@
       "status": "VALIDATED",
       "evidence": [
         "Codex validation counted app/db.py as central data access module with 149 functions.",
-        "Claude and Codex both identified concentrated responsibilities in app/db.py."
+        "Claude and Codex both identified concentrated responsibilities in app/db.py.",
+        "C001 Codex validation: app/db.py has 10 named static-only functions with no known dynamic caller pattern.",
+        "C001 Codex validation: app/db.py counts corrected to 80 f-string SQL blocks, 35 JOIN clauses, 22 WITH patterns, 54 os.getenv calls.",
+        "C001 Codex validation: Home.py defers db/export/screen imports inside main()."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
-      "implementation_authorized": false
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+      "required_next_action": "Treat static-only functions as cleanup candidates only after separate approval and runtime smoke."
     },
     {
       "id": "CG-001",
@@ -118,5 +159,7 @@
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
       "implementation_authorized": false
     }
-  ]
+  ],
+  "last_updated_by_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+  "last_updated_at": "2026-06-10"
 }

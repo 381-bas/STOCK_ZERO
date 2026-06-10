@@ -78,17 +78,12 @@
     "meaning": "No static runtime callers were found. This is not approval to delete.",
     "functions": [
       {
-        "name": "get_rutero_reponedor",
+        "name": "get_cg_v2_contract_smoke",
         "file": "app/db.py",
         "known_static_callers": []
       },
       {
-        "name": "get_rr_stock_en_local",
-        "file": "app/db.py",
-        "known_static_callers": []
-      },
-      {
-        "name": "get_cobertura_local",
+        "name": "get_cg_v2_filter_options",
         "file": "app/db.py",
         "known_static_callers": []
       },
@@ -98,12 +93,59 @@
         "known_static_callers": []
       },
       {
+        "name": "get_cobertura_local",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_locales_por_mercaderista",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_mercaderistas_home",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_result_view_contract",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_rr_stock_en_local",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_rutero_reponedor",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
         "name": "get_scope_clientes_rr",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_tabla_ux_paginada",
         "file": "app/db.py",
         "known_static_callers": []
       }
     ],
-    "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5"
+    "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+    "c001_extension": {
+      "phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+      "validated_zero_caller_count": 10,
+      "dynamic_lookup_patterns_checked": [
+        "getattr",
+        "__all__",
+        "globals",
+        "locals",
+        "importlib"
+      ],
+      "implementation_authorized": false
+    }
   },
   "data_research_context": {
     "status": "PARTIAL",
@@ -141,5 +183,144 @@
       ]
     }
   },
-  "non_authority_notice": "This file records shared memory only. It does not authorize implementation, DB access, loader execution, SQL execution, commits, or pushes."
+  "non_authority_notice": "This file records shared memory only. It does not authorize implementation, DB writes, loader execution, SQL execution, commits, or pushes.",
+  "c001_validated_research": {
+    "status": "VALIDATED_SCOPE_WITH_LIMITS",
+    "phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
+    "claude_c001_commit": "ebdd99ffc2a4981c9129a8571a192d1e582078a7",
+    "runtime_code_baseline": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+    "codex_tooling_commit": "f05e74c46b5dd12bd5b8d2a91def206755a75deb",
+    "counts": {
+      "VALIDATED": 11,
+      "PARTIAL": 13,
+      "DISPUTED": 5,
+      "REJECTED": 1
+    },
+    "validated_findings": [
+      {
+        "id": "CLAUDE-C001-INVDATA-FACT-002",
+        "statement": "DB_GLOBAL_INVENTARIO.xlsx BASE has four formula-derived columns (COD_RT, NOMBRE_LOCAL_RR, OTROS, duplicados) and eight direct source columns; the loader reads saved values rather than evaluating Excel formulas.",
+        "evidence": [
+          "BASE table Tabla1 A1:L43636",
+          "Workbook XML formulas in columns I:J:K:L",
+          "Formula caches present for I,J,L and absent for K in XML inspection",
+          "scripts/load_fact_from_excel.py reads workbook values through pandas/openpyxl path"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-INVDATA-FACT-003",
+        "statement": "The BASE duplicados column is ignored by the loader; deduplication is performed in Python and enforced again by the DB upsert conflict key.",
+        "evidence": [
+          "scripts/load_fact_from_excel.py source_check treats extra columns as warnings",
+          "scripts/load_fact_from_excel.py drop_duplicates path",
+          "ON CONFLICT (fecha, cod_rt, sku, marca)",
+          "DB constraint on public.fact_stock_venta (fecha, cod_rt, sku, marca)"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-INVDATA-FACT-004",
+        "statement": "COD_RT depends on an Excel XLOOKUP over RUTA_RUTERO for each BASE row, so stale saved formula values can be ingested silently by the loader.",
+        "evidence": [
+          "COD_RT formula uses XLOOKUP with CADENA, COD B2B/N_LOCAL, CLIENTE/MARCA conditions",
+          "BASE has 43635 data rows",
+          "RUTA_RUTERO has 3568 data rows",
+          "No formula-recency or formula-cache validation in scripts/load_fact_from_excel.py"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-CGDATA-FACT-001",
+        "statement": "CUMPLIMIENTO_FRECUENCIA.xlsx has seven sheets and the committed CG loader consumes only DB (KPIONE), DB (KPIONE2.0), and DB (POWER_APP).",
+        "evidence": [
+          "Workbook sheet profile: DB (KPIONE), DB (KPIONE2.0), DB (POWER_APP), DESARROLLO_CONTROL_GESTION, Tabla1, OUT, gg",
+          "scripts/load_control_gestion_raw_v17.py SOURCE_TO_SHEET maps only KPIONE, KPIONE2, POWER_APP"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-CGDATA-FACT-002",
+        "statement": "DESARROLLO_CONTROL_GESTION and OUT are not consumed by committed loader code or runtime code found in this pass.",
+        "evidence": [
+          "SOURCE_TO_SHEET excludes DESARROLLO_CONTROL_GESTION and OUT",
+          "Search across app/scripts/tests found no runtime consumer of those sheet names"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-RUTA-FACT-001",
+        "statement": "The ruta loader computes row_hash as an analysis fingerprint and explicitly does not use it as the upsert key.",
+        "evidence": [
+          "scripts/load_ruta_rutero_from_excel.py row_hash comment says it is not the UPSERT key",
+          "public.ruta_rutero upsert key is (source, source_row)",
+          "row_hash written to public.ruta_rutero and cg_core.ruta_rutero_load_rows"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-RUTA-FACT-002",
+        "statement": "The ruta loader writes the current routing table plus full load history and batch metadata; DB profile confirms accumulated route load batches.",
+        "evidence": [
+          "Loader targets public.ruta_rutero, cg_core.ruta_rutero_load_rows, cg_core.ruta_rutero_load_batch",
+          "DB profile: ruta_rutero_load_batch rows=19",
+          "DB profile: ruta_rutero_load_rows rows=64346"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-LOADER-FACT-002",
+        "statement": "The CG raw loader uses source sheet hash checks and batch_registry, so unchanged sheets can be skipped while changed sheets create batch records.",
+        "evidence": [
+          "scripts/load_control_gestion_raw_v17.py hash/check logic",
+          "DB profile: cg_audit.batch_registry has 37 batches across DB (KPIONE), DB (KPIONE2.0), DB (POWER_APP)",
+          "No loader execution was performed"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-LOADER-FACT-004",
+        "statement": "The incremental refresh rebuilds daily and weekly mart facts through staged validation before commit; the data mutation transaction commits before a separate best-effort ANALYZE step.",
+        "evidence": [
+          "scripts/refresh_control_gestion_v2_incremental.py stages daily and weekly data",
+          "Validation failures before conn.commit roll back",
+          "conn.commit occurs before post-commit ANALYZE; ANALYZE failures produce warning after rollback of analyze transaction"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-DBPY-FACT-001",
+        "statement": "The ten named app/db.py functions have no static callers in app, scripts, or tests, and no known dynamic lookup pattern was found in this pass.",
+        "evidence": [
+          "Search found only definitions for the ten candidate functions",
+          "Search for getattr, __all__, globals, locals, importlib found no relevant dynamic db.py dispatch",
+          "Previously recorded static-only functions were rechecked"
+        ]
+      },
+      {
+        "id": "CLAUDE-C001-DBPY-FACT-003",
+        "statement": "Home.py defers app/db.py, exports, and screen imports inside main(), so those modules are not imported by Home.py at module import time.",
+        "evidence": [
+          "app/Home.py imports db, exports, and screen modules inside main()",
+          "No equivalent module-level imports found outside main()"
+        ]
+      }
+    ],
+    "non_absorbed_counts": {
+      "PARTIAL": 13,
+      "DISPUTED": 5,
+      "REJECTED": 1
+    },
+    "matrix_path": "research/C001_CODEX_VALIDATION_MATRIX.json",
+    "report_path": "research/reports/CODEX_C001_INDEPENDENT_VALIDATION.md",
+    "implementation_authorized": false
+  },
+  "data_lineage_c001": {
+    "status": "VALIDATED_SCOPE_WITH_LIMITS",
+    "validated_facts": [
+      "DB_GLOBAL_INVENTARIO.BASE has four formula-derived columns and the loader reads saved values.",
+      "The duplicados column is redundant for the loader but may still have manual workbook meaning.",
+      "CUMPLIMIENTO_FRECUENCIA loader consumption is limited to DB (KPIONE), DB (KPIONE2.0), and DB (POWER_APP).",
+      "The ruta loader writes current route, full route load history, and batch metadata.",
+      "CG raw loader hash-skip and batch_registry behavior is validated at static/aggregate level."
+    ],
+    "not_absorbed_as_truth": [
+      "Retirement of DB_GLOBAL_HISTORICO.xlsx",
+      "Removal of payload_json from cg_raw tables",
+      "Claim that DB_HISTORICA has BASE-identical schema",
+      "Exact Claude CG_V2 constant list"
+    ],
+    "implementation_authorized": false
+  }
 }
