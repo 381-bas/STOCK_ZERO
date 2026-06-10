@@ -46,6 +46,7 @@ ALLOWLISTED_SUBCOMMANDS = (
     "baseline-daily",
     "baseline-weekly",
     "baseline-audit",
+    "c001-profile",
     "all",
 )
 
@@ -78,6 +79,28 @@ BASELINE_CANDIDATES = {
     "audit_sin_batch_ruta": ("cg_mart.v_cg_sin_batch_ruta_semana_v2",),
     "audit_ruta_duplicados": ("cg_mart.v_cg_ruta_duplicados_auditoria_v2",),
 }
+
+C001_PROFILE_RELATIONS = (
+    "public.fact_stock_venta",
+    "public.ruta_rutero",
+    "cg_core.ruta_rutero_load_rows",
+    "cg_core.ruta_rutero_load_batch",
+    "cg_raw.kpione_raw",
+    "cg_raw.kpione2_raw",
+    "cg_raw.power_app_raw",
+    "cg_audit.batch_registry",
+    "cg_mart.fact_cg_visita_dia_resuelta_v2",
+    "cg_mart.fact_cg_out_weekly_v2",
+    "cg_mart.mv_cg_out_weekly_v2",
+)
+C001_PROFILE_TERMS = (
+    "payload_json",
+    "row_hash",
+    "ruta_rutero_load_rows",
+    "kpione_raw",
+    "kpione2_raw",
+    "power_app_raw",
+)
 
 DAILY_SPLIT_HINTS = ("fecha", "dia", "date", "created_at", "ingested_at")
 WEEKLY_SPLIT_HINTS = ("semana", "week", "week_start", "periodo")
@@ -660,7 +683,278 @@ def baseline_audit(conn: Any, out_root: Path, sample_limit: int | None, max_buck
     return payload
 
 
-def run_command(command: str, out_root: Path, sample_limit: int | None, max_buckets: int | None) -> dict[str, Any]:
+def c001_profile_relation(cur: Any, qualified_name: str) -> dict[str, Any]:
+    schema, relation = split_qualified_name(qualified_name)
+    quoted = quote_qualified(qualified_name)
+    exists = relation_exists(cur, qualified_name)
+    payload: dict[str, Any] = {
+        "relation": qualified_name,
+        "exists": exists,
+        "columns": [],
+        "metrics": {},
+    }
+    if not exists:
+        return payload
+
+    execute_static(
+        cur,
+        "c001_relation_size",
+        """
+        SELECT
+            c.relkind::text AS kind,
+            pg_catalog.pg_total_relation_size(c.oid)::bigint AS total_bytes
+        FROM pg_catalog.pg_class c
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = %s
+          AND c.relname = %s
+        """,
+        (schema, relation),
+    )
+    size_rows = fetch_all_dicts(cur)
+    payload["storage"] = size_rows[0] if size_rows else {}
+
+    columns = get_columns(cur, qualified_name)
+    payload["columns"] = columns
+    column_names = [str(row["column_name"]) for row in columns]
+    lower_to_name = {name.lower(): name for name in column_names}
+
+    execute_static(cur, "c001_count", f"SELECT COUNT(*)::bigint AS rows FROM {quoted}")
+    payload["metrics"]["row_count"] = cur.fetchone()[0]
+
+    date_columns = [
+        name
+        for name in column_names
+        if any(token in name.lower() for token in ("fecha", "date", "created", "updated", "loaded", "semana", "week"))
+    ][:8]
+    date_ranges: dict[str, dict[str, Any]] = {}
+    for name in date_columns:
+        col = quote_ident(name)
+        execute_static(
+            cur,
+            "c001_date_range",
+            f"SELECT MIN({col}) AS min_value, MAX({col}) AS max_value FROM {quoted}",
+        )
+        row = fetch_all_dicts(cur)[0]
+        date_ranges[name] = row
+    payload["metrics"]["date_ranges"] = date_ranges
+
+    distinct_columns = [
+        lower_to_name[key]
+        for key in (
+            "batch_id",
+            "ruta_batch_id",
+            "source",
+            "source_file",
+            "source_sheet",
+            "source_row",
+            "row_hash",
+            "sheet_hash",
+        )
+        if key in lower_to_name
+    ]
+    distinct_counts: dict[str, int] = {}
+    for name in distinct_columns:
+        col = quote_ident(name)
+        execute_static(
+            cur,
+            "c001_distinct_count",
+            f"SELECT COUNT(DISTINCT {col})::bigint AS distinct_values FROM {quoted}",
+        )
+        distinct_counts[name] = cur.fetchone()[0]
+    payload["metrics"]["distinct_counts"] = distinct_counts
+
+    if "ruta_batch_id" in lower_to_name and "row_hash" in lower_to_name:
+        batch_col = quote_ident(lower_to_name["ruta_batch_id"])
+        hash_col = quote_ident(lower_to_name["row_hash"])
+        execute_static(
+            cur,
+            "c001_ruta_batch_overlap_summary",
+            f"""
+            WITH batch_profile AS (
+                SELECT
+                    {batch_col} AS batch_id,
+                    COUNT(*)::bigint AS rows,
+                    COUNT(DISTINCT {hash_col})::bigint AS distinct_row_hashes
+                FROM {quoted}
+                GROUP BY {batch_col}
+            ),
+            repeated_hashes AS (
+                SELECT {hash_col}
+                FROM {quoted}
+                WHERE {hash_col} IS NOT NULL
+                GROUP BY {hash_col}
+                HAVING COUNT(DISTINCT {batch_col}) > 1
+            )
+            SELECT
+                COUNT(*)::bigint AS batches,
+                MIN(rows)::bigint AS min_rows_per_batch,
+                MAX(rows)::bigint AS max_rows_per_batch,
+                ROUND(AVG(rows)::numeric, 2)::text AS avg_rows_per_batch,
+                MIN(distinct_row_hashes)::bigint AS min_distinct_hashes_per_batch,
+                MAX(distinct_row_hashes)::bigint AS max_distinct_hashes_per_batch,
+                (SELECT COUNT(*)::bigint FROM repeated_hashes) AS row_hashes_seen_in_multiple_batches
+            FROM batch_profile
+            """,
+        )
+        payload["metrics"]["ruta_batch_overlap_summary"] = fetch_all_dicts(cur)[0]
+
+    return payload
+
+
+def c001_profile_definition_hits(cur: Any) -> list[dict[str, Any]]:
+    term_patterns = [f"%{term}%" for term in C001_PROFILE_TERMS]
+    execute_static(
+        cur,
+        "c001_definition_hits_views",
+        """
+        SELECT
+            n.nspname::text AS schema,
+            c.relname::text AS name,
+            c.relkind::text AS kind,
+            pg_catalog.pg_get_viewdef(c.oid, true)::text AS definition
+        FROM pg_catalog.pg_class c
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+          AND c.relkind IN ('v','m')
+          AND pg_catalog.pg_get_viewdef(c.oid, true) ILIKE ANY(%s)
+        ORDER BY n.nspname, c.relname
+        """,
+        (list(DDL_SCHEMAS), term_patterns),
+    )
+    rows = fetch_all_dicts(cur)
+    execute_static(
+        cur,
+        "c001_definition_hits_functions",
+        """
+        SELECT
+            n.nspname::text AS schema,
+            p.proname::text AS name,
+            p.prokind::text AS kind,
+            pg_catalog.pg_get_functiondef(p.oid)::text AS definition
+        FROM pg_catalog.pg_proc p
+        JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = ANY(%s)
+          AND p.prokind IN ('f','p','w')
+          AND pg_catalog.pg_get_functiondef(p.oid) ILIKE ANY(%s)
+        ORDER BY n.nspname, p.proname
+        """,
+        (list(DDL_SCHEMAS), term_patterns),
+    )
+    rows.extend(fetch_all_dicts(cur))
+    hits: list[dict[str, Any]] = []
+    for row in rows:
+        definition = str(row.pop("definition") or "")
+        matched_terms = [term for term in C001_PROFILE_TERMS if term.lower() in definition.lower()]
+        hits.append(
+            {
+                **row,
+                "matched_terms": matched_terms,
+                "definition_sha256": hashlib.sha256(definition.encode("utf-8")).hexdigest(),
+                "definition_excerpt": definition[:500],
+            }
+        )
+    return hits
+
+
+def c001_profile_batch_registry(cur: Any) -> list[dict[str, Any]]:
+    if not relation_exists(cur, "cg_audit.batch_registry"):
+        return []
+    columns = {str(row["column_name"]).lower(): str(row["column_name"]) for row in get_columns(cur, "cg_audit.batch_registry")}
+    if "source_file" not in columns or "source_sheet" not in columns:
+        return []
+    quoted = quote_qualified("cg_audit.batch_registry")
+    select_parts = [
+        f"{quote_ident(columns['source_file'])}::text AS source_file",
+        f"{quote_ident(columns['source_sheet'])}::text AS source_sheet",
+        "COUNT(*)::bigint AS batches",
+    ]
+    for key in ("status",):
+        if key in columns:
+            select_parts.append(f"COUNT(DISTINCT {quote_ident(columns[key])})::bigint AS distinct_{key}")
+    for key in ("created_at", "started_at", "finished_at", "loaded_at"):
+        if key in columns:
+            col = quote_ident(columns[key])
+            select_parts.append(f"MIN({col}) AS min_{key}")
+            select_parts.append(f"MAX({col}) AS max_{key}")
+    sql = f"""
+        SELECT {", ".join(select_parts)}
+        FROM {quoted}
+        GROUP BY {quote_ident(columns['source_file'])}, {quote_ident(columns['source_sheet'])}
+        ORDER BY source_file, source_sheet
+    """
+    execute_static(cur, "c001_batch_registry_profile", sql)
+    return fetch_all_dicts(cur)
+
+
+def c001_profile_constraints_indexes(cur: Any) -> dict[str, list[dict[str, Any]]]:
+    relation_pairs = [split_qualified_name(relation) for relation in C001_PROFILE_RELATIONS]
+    schemas = sorted({schema for schema, _relation in relation_pairs})
+    relations = sorted({relation for _schema, relation in relation_pairs})
+    execute_static(
+        cur,
+        "c001_constraints",
+        """
+        SELECT
+            n.nspname::text AS schema,
+            c.relname::text AS relation,
+            con.conname::text AS constraint_name,
+            con.contype::text AS constraint_type,
+            pg_catalog.pg_get_constraintdef(con.oid, true)::text AS definition
+        FROM pg_catalog.pg_constraint con
+        JOIN pg_catalog.pg_class c ON c.oid = con.conrelid
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+          AND c.relname = ANY(%s)
+        ORDER BY n.nspname, c.relname, con.conname
+        """,
+        (schemas, relations),
+    )
+    constraints = fetch_all_dicts(cur)
+    execute_static(
+        cur,
+        "c001_indexes",
+        """
+        SELECT
+            n.nspname::text AS schema,
+            c.relname::text AS relation,
+            i.relname::text AS index_name,
+            ix.indisunique::boolean AS is_unique,
+            pg_catalog.pg_get_indexdef(i.oid)::text AS definition
+        FROM pg_catalog.pg_index ix
+        JOIN pg_catalog.pg_class c ON c.oid = ix.indrelid
+        JOIN pg_catalog.pg_class i ON i.oid = ix.indexrelid
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+          AND c.relname = ANY(%s)
+        ORDER BY n.nspname, c.relname, i.relname
+        """,
+        (schemas, relations),
+    )
+    indexes = fetch_all_dicts(cur)
+    return {"constraints": constraints, "indexes": indexes}
+
+
+def c001_profile(conn: Any) -> dict[str, Any]:
+    with conn.cursor() as cur:
+        relations = [c001_profile_relation(cur, relation) for relation in C001_PROFILE_RELATIONS]
+        definition_hits = c001_profile_definition_hits(cur)
+        batch_registry = c001_profile_batch_registry(cur)
+        constraints_indexes = c001_profile_constraints_indexes(cur)
+    return {
+        "relations": relations,
+        "definition_hits": definition_hits,
+        "batch_registry": batch_registry,
+        "constraints_indexes": constraints_indexes,
+        "profile_limits": {
+            "row_level_payloads_included": False,
+            "samples_included": False,
+            "free_sql_allowed": False,
+            "arbitrary_tables_allowed": False,
+        },
+    }
+
+
+def run_command(command: str, out_root: Path | None, sample_limit: int | None, max_buckets: int | None) -> dict[str, Any]:
     conn, source = connect_readonly()
     try:
         status = begin_guarded_readonly(conn)
@@ -685,8 +979,14 @@ def run_command(command: str, out_root: Path, sample_limit: int | None, max_buck
         elif command == "baseline-weekly":
             result["baseline_weekly"] = export_baseline(conn, out_root, "weekly", "weekly", sample_limit, max_buckets)
         elif command == "baseline-audit":
+            if out_root is None:
+                raise ExtractorBlock("OUTPUT_ROOT_REQUIRED")
             result["baseline_audit"] = baseline_audit(conn, out_root, sample_limit, max_buckets)
+        elif command == "c001-profile":
+            result["c001_profile"] = c001_profile(conn)
         elif command == "all":
+            if out_root is None:
+                raise ExtractorBlock("OUTPUT_ROOT_REQUIRED")
             result["role_audit"] = role_audit(conn, out_root, status)
             result["catalog"] = catalog(conn, out_root)
             result["dependencies"] = dependencies(conn, out_root)
@@ -725,7 +1025,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        out_root = ensure_output_root(args.output_root)
+        out_root = None if args.command == "c001-profile" else ensure_output_root(args.output_root)
         result = run_command(args.command, out_root, args.sample_limit, args.max_buckets)
         print(json.dumps(result, ensure_ascii=False, indent=2, default=json_default))
         return 0
