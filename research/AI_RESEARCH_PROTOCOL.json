@@ -1,0 +1,89 @@
+{
+  "protocol_id": "AI_RESEARCH_PROTOCOL_STOCK_ZERO_V1",
+  "schema_version": 1,
+  "created_by_phase": "FASE_AI_MEMORY_00_BOOTSTRAP_AND_ABSORPTION",
+  "created_at": "2026-06-10",
+  "approved_baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+  "purpose": "Shared technical memory protocol for Claude, Codex, ChatGPT, and Bastian. This memory records validated research, unresolved hypotheses, and investigation backlog without granting implementation authority.",
+  "roles": {
+    "claude": {
+      "role": "researcher_and_hypothesis_generator",
+      "can_add_ledger_statuses": [
+        "PROPOSED"
+      ],
+      "cannot_modify": [
+        "research/AI_SHARED_MEMORY.json",
+        "research/AI_BACKLOG.json"
+      ]
+    },
+    "codex": {
+      "role": "technical_validator_and_implementer",
+      "can_validate_findings": true,
+      "can_update": [
+        "research/AI_SHARED_MEMORY.json",
+        "research/AI_BACKLOG.json",
+        "research/AI_FINDINGS_LEDGER.jsonl"
+      ],
+      "implementation_requires_explicit_task": true
+    },
+    "chatgpt": {
+      "role": "governance_and_synthesis",
+      "can_set_priorities": true,
+      "can_request_revalidation": true
+    },
+    "bastian": {
+      "role": "final_authority",
+      "can_approve_implementation": true,
+      "can_override_priorities": true
+    }
+  },
+  "finding_states": [
+    "PROPOSED",
+    "VALIDATED",
+    "PARTIAL",
+    "DISPUTED",
+    "REJECTED",
+    "APPROVED",
+    "IMPLEMENTED",
+    "REGRESSION_VERIFIED",
+    "DEPRECATED"
+  ],
+  "rules": [
+    "Claude does not modify AI_SHARED_MEMORY or AI_BACKLOG.",
+    "Claude may append PROPOSED findings to AI_FINDINGS_LEDGER only when explicitly authorized.",
+    "Codex validates findings independently and may update shared memory and backlog when explicitly authorized.",
+    "No finding authorizes implementation by itself.",
+    "Every ledger entry must include evidence and commit baseline.",
+    "Do not repeat VALIDATED findings without new evidence.",
+    "APPROVED is not equivalent to IMPLEMENTED.",
+    "IMPLEMENTED requires a committed code change tied to a task that explicitly authorized implementation.",
+    "REGRESSION_VERIFIED requires post-implementation validation evidence.",
+    "Secrets, credentials, DSNs, DB query results, and admin access details must not be stored in these memory files."
+  ],
+  "authority_boundaries": {
+    "runtime_code": "No runtime file may be modified from research memory alone.",
+    "database": "No DB access is authorized by this protocol.",
+    "commits": "Commits require an explicit phase authorization and exact file scope.",
+    "pushes": "Pushes require explicit authorization.",
+    "backlog": "Backlog entries describe research or implementation candidates only; they do not approve work."
+  },
+  "ledger_entry_minimum_fields": [
+    "id",
+    "source",
+    "status",
+    "claim",
+    "evidence",
+    "baseline_commit",
+    "absorbed_into_shared_memory",
+    "implementation_authorized"
+  ],
+  "backlog_item_minimum_fields": [
+    "id",
+    "title",
+    "status",
+    "category",
+    "evidence",
+    "baseline_commit",
+    "implementation_authorized"
+  ]
+}

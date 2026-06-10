@@ -1,0 +1,145 @@
+{
+  "memory_id": "AI_SHARED_MEMORY_STOCK_ZERO_V1",
+  "schema_version": 1,
+  "created_by_phase": "FASE_AI_MEMORY_00_BOOTSTRAP_AND_ABSORPTION",
+  "created_at": "2026-06-10",
+  "approved_baseline": {
+    "commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+    "short_commit": "2c135a7",
+    "source": "origin/main",
+    "status": "VALIDATED"
+  },
+  "runtime_map": {
+    "status": "VALIDATED",
+    "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+    "entry_chain": [
+      "streamlit_app.py",
+      "app/Home.py",
+      "app/screens/* and app/services/*",
+      "app/db.py",
+      "Supabase"
+    ],
+    "notes": [
+      "streamlit_app.py imports app.Home.main and executes it on Streamlit reruns.",
+      "app/Home.py dispatches the active mode to screen modules.",
+      "app/db.py is the central data access module."
+    ],
+    "evidence": [
+      "FASE_CLAUDE_01_RUNTIME_MAP_INDEPENDENT_VALIDATION_NO_APPLY",
+      "research/claude/runs/CLAUDE_RUNTIME_MAP_0002/01_runtime_map.json",
+      "Codex static validation of streamlit_app.py, app/Home.py, app/screens/*, app/services/*, and app/db.py"
+    ]
+  },
+  "reposicion": {
+    "status": "VALIDATED",
+    "dependency_path": [
+      "app/screens/reposicion.py",
+      "app/services/stock.py",
+      "app/db.py"
+    ],
+    "notes": [
+      "reposicion.py imports and uses app.services.stock as stock_service.",
+      "app/services/stock.py is a thin facade over app.db for LOCAL and MERCADERISTA flows.",
+      "No direct db.* runtime calls were found in reposicion.py during static validation."
+    ],
+    "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5"
+  },
+  "cliente": {
+    "status": "VALIDATED",
+    "dependency_path": [
+      "app/screens/cliente.py",
+      "app/db.py"
+    ],
+    "notes": [
+      "cliente.py calls db.* directly for scope selectors, KPIs, tables, details, and exports."
+    ],
+    "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5"
+  },
+  "control_gestion": {
+    "status": "PARTIAL",
+    "normal_path": "CONTROL_GESTION v2",
+    "legacy_path": "B3",
+    "validated_static_facts": [
+      "B3 has active callers in app/screens/control_gestion.py.",
+      "USE_CG_V2 != \"1\" uses B3 directly for the Cumplimiento flow.",
+      "An uncaught exception inside the main v2 block can continue into the B3 legacy flow.",
+      "Some exceptions inside competitive summary or export handling are caught locally and do not trigger B3 fallback.",
+      "Fallback confirmation is static and partial; no runtime or DB validation was performed."
+    ],
+    "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+    "evidence": [
+      "app/Home.py forces sel_cg_module = Cumplimiento before render_control_gestion",
+      "app/screens/control_gestion.py use_cg_v2_requested and fallback flow",
+      "Codex independent validation in FASE_CLAUDE_01_RUNTIME_MAP_INDEPENDENT_VALIDATION_NO_APPLY"
+    ]
+  },
+  "possibly_unused_static_only": {
+    "status": "VALIDATED_STATIC_ONLY",
+    "meaning": "No static runtime callers were found. This is not approval to delete.",
+    "functions": [
+      {
+        "name": "get_rutero_reponedor",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_rr_stock_en_local",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_cobertura_local",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_clientes_sin_match_rr_stock",
+        "file": "app/db.py",
+        "known_static_callers": []
+      },
+      {
+        "name": "get_scope_clientes_rr",
+        "file": "app/db.py",
+        "known_static_callers": []
+      }
+    ],
+    "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5"
+  },
+  "data_research_context": {
+    "status": "PARTIAL",
+    "productive_control_gestion_source_under_investigation": {
+      "path": "data/CUMPLIMIENTO_FRECUENCIA.xlsx",
+      "sheet": "DB (KPIONE2.0)"
+    },
+    "fixture_or_sample": {
+      "path": "data/photo-excel-admin_1780430761513.xlsx",
+      "sheet": "Fotos"
+    },
+    "notes": [
+      "These workbook references are recorded as research context only.",
+      "No Excel files are included in this memory commit.",
+      "No DB access was used to validate data lineage in this phase."
+    ],
+    "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5"
+  },
+  "loader_research_context": {
+    "status": "PARTIAL",
+    "finding": "The local loader v17_9C6A is research and not approved productive truth.",
+    "implementation_authorized": false,
+    "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5"
+  },
+  "committed_tools": {
+    "readonly_extractor": {
+      "status": "IMPLEMENTED",
+      "commit": "2c135a7",
+      "files": [
+        "scripts/cg_readonly_extract.py",
+        "tests/test_cg_readonly_extract.py"
+      ],
+      "notes": [
+        "Extractor read-only output-root implementation was committed and pushed before this memory bootstrap."
+      ]
+    }
+  },
+  "non_authority_notice": "This file records shared memory only. It does not authorize implementation, DB access, loader execution, SQL execution, commits, or pushes."
+}

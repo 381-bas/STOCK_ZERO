@@ -1,0 +1,122 @@
+{
+  "backlog_id": "AI_BACKLOG_STOCK_ZERO_V1",
+  "schema_version": 1,
+  "created_by_phase": "FASE_AI_MEMORY_00_BOOTSTRAP_AND_ABSORPTION",
+  "created_at": "2026-06-10",
+  "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+  "policy": {
+    "allowed_statuses_at_bootstrap": [
+      "INVESTIGATE",
+      "VALIDATED"
+    ],
+    "implementation_authorized_by_backlog": false,
+    "approval_note": "No backlog item is APPROVED for implementation by this file."
+  },
+  "items": [
+    {
+      "id": "DATA-001",
+      "title": "Linaje de DB_GLOBAL_INVENTARIO",
+      "category": "DATA",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "Requested as shared research backlog item."
+      ],
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "implementation_authorized": false
+    },
+    {
+      "id": "DATA-002",
+      "title": "Linaje de DB_GLOBAL_HISTORICO",
+      "category": "DATA",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "Requested as shared research backlog item."
+      ],
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "implementation_authorized": false
+    },
+    {
+      "id": "DATA-003",
+      "title": "Linaje de CUMPLIMIENTO_FRECUENCIA",
+      "category": "DATA",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "data/CUMPLIMIENTO_FRECUENCIA.xlsx sheet DB (KPIONE2.0) recorded as productive Control Gestion source under investigation."
+      ],
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "implementation_authorized": false
+    },
+    {
+      "id": "ROUTE-001",
+      "title": "Utilidad real de row_hash y acumulacion historica",
+      "category": "ROUTE",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "Requested as shared research backlog item."
+      ],
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "implementation_authorized": false
+    },
+    {
+      "id": "DB-001",
+      "title": "Catalogo de objetos Supabase y consumidores",
+      "category": "DB",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "Runtime map identifies app/db.py as central DB access layer.",
+        "No DB access was performed during bootstrap."
+      ],
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "implementation_authorized": false
+    },
+    {
+      "id": "DB-002",
+      "title": "Justificacion de JOIN, hashes y raw duplicado",
+      "category": "DB",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "Requested as shared research backlog item."
+      ],
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "implementation_authorized": false
+    },
+    {
+      "id": "CODE-001",
+      "title": "Responsabilidades concentradas en app/db.py",
+      "category": "CODE",
+      "status": "VALIDATED",
+      "evidence": [
+        "Codex validation counted app/db.py as central data access module with 149 functions.",
+        "Claude and Codex both identified concentrated responsibilities in app/db.py."
+      ],
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "implementation_authorized": false
+    },
+    {
+      "id": "CG-001",
+      "title": "Fallback B3 visible y controlado",
+      "category": "CONTROL_GESTION",
+      "status": "VALIDATED",
+      "evidence": [
+        "Codex static validation found active B3 callers in app/screens/control_gestion.py.",
+        "USE_CG_V2 != \"1\" uses B3 directly.",
+        "An uncaught exception in the main v2 block can continue toward B3 fallback."
+      ],
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "implementation_authorized": false,
+      "runtime_confirmation": false
+    },
+    {
+      "id": "MEMORY-001",
+      "title": "Propuesta de SYSTEM MAP",
+      "category": "MEMORY",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "Claude runtime map was useful but partial.",
+        "Codex required corrections before a durable system map."
+      ],
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "implementation_authorized": false
+    }
+  ]
+}
