@@ -1,0 +1,336 @@
+{
+  "phase": "FASE_C002_B0_FUNCTIONAL_PARITY_ROOTCAUSE_NO_SUPABASE_WRITE",
+  "baseline_daily_rows": 21348,
+  "initial_local_daily_rows": 34817,
+  "initial_surplus": 13469,
+  "evidence_integrity": {
+    "research_head_expected": "8e0f1038b66e952c9489d08039763d31e18db7ba",
+    "research_head_observed": "8e0f1038b66e952c9489d08039763d31e18db7ba",
+    "export_9c7a3_manifest_sha256": "7526ea7ea080ea018a035c220c20defb4c3acee7c33ce73752ad4e93383f2e63",
+    "baseline_9c7a4_manifest_sha256": "1e6879d14cc5a84f85da765c77b77408cfdbfffd2c25af8de31f943b858cfb37",
+    "baseline_hash_mismatches": 0,
+    "ddl_files_sha256": {
+      "ddl/03_views.sql": "90f51b742233023d60aa5b93bc28e89abb56a72737aaed516aba3e7ae6e4ad91",
+      "ddl/04_functions.sql": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+      "ddl/05_constraints_indexes.sql": "400da3f240934a6c231062546ed584820b30bb8481d9d6ba61601129607f651f"
+    },
+    "local_postgres": {
+      "container": "stock_zero_cg_parity_pg",
+      "port": "127.0.0.1:55432",
+      "version": "PostgreSQL 17.10 (Debian 17.10-1.pgdg13+1)",
+      "local_pg_preserved": true
+    },
+    "loaded_counts": {
+      "batch_registry": 37,
+      "ruta_batch": 19,
+      "ruta_rows": 64346,
+      "kpione_raw": 707321,
+      "kpione2_raw": 526022,
+      "power_app_raw": 42366,
+      "initial_local_daily": 34817
+    },
+    "supabase_extraction_repeated": false
+  },
+  "daily_key_contract": {
+    "key": [
+      "fecha_visita",
+      "cod_rt",
+      "cliente_norm"
+    ],
+    "rationale": "This key is unique in baseline and local daily surfaces. It yields 13470 extra keys and 1 missing key, exactly explaining the net surplus of 13469 rows.",
+    "baseline_duplicate_keys": 0,
+    "local_duplicate_keys": 0,
+    "initial_missing_keys": 1,
+    "initial_extra_keys": 13470,
+    "initial_value_differences_on_shared_keys": 1204
+  },
+  "surplus_classification": [
+    {
+      "cause": "LOCAL_RECONSTRUCTED_PRE_BASELINE_DAILY_WINDOW",
+      "exclusive_rows": 13470,
+      "net_surplus_effect": 13469,
+      "offsetting_missing_rows": 1,
+      "dates": {
+        "min": "2026-04-27",
+        "max": "2026-05-10"
+      },
+      "weeks": [
+        {
+          "semana_inicio": "2026-04-27",
+          "rows": 6249
+        },
+        {
+          "semana_inicio": "2026-05-04",
+          "rows": 7221
+        }
+      ],
+      "source_labels": [
+        {
+          "label": "KPIONE2",
+          "rows": 10950
+        },
+        {
+          "label": "KPIONE2 | POWER_APP",
+          "rows": 1103
+        },
+        {
+          "label": "KPIONE | KPIONE2",
+          "rows": 742
+        },
+        {
+          "label": "POWER_APP",
+          "rows": 641
+        },
+        {
+          "label": "KPIONE | KPIONE2 | POWER_APP",
+          "rows": 25
+        },
+        {
+          "label": "KPIONE",
+          "rows": 9
+        }
+      ],
+      "event_sources": [
+        {
+          "source": "KPIONE2",
+          "events": 13039
+        },
+        {
+          "source": "KPIONE",
+          "events": 4321
+        },
+        {
+          "source": "POWER_APP",
+          "events": 1873
+        }
+      ],
+      "ruta_batches": [
+        {
+          "ruta_batch_id": 2,
+          "events": 11257
+        },
+        {
+          "ruta_batch_id": 7,
+          "events": 7963
+        },
+        {
+          "ruta_batch_id": 4,
+          "events": 12
+        },
+        {
+          "ruta_batch_id": 6,
+          "events": 1
+        }
+      ],
+      "status": "CONFIRMED"
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "title": "Seleccion incorrecta de latest batch por source",
+      "status": "REJECTED",
+      "evidence": [
+        "v_cg_latest_batch_by_source selected one latest batch per source: KPIONE 19, KPIONE2 38, POWER_APP 26.",
+        "Extra rows come from dates inside those latest batches, not from selecting multiple raw batches."
+      ],
+      "count_explained": 0,
+      "experimental_change": "No change required.",
+      "result_after_change": "Not applicable."
+    },
+    {
+      "id": "H2",
+      "title": "Ventana acumulativa de raw reconstruida como si fuera incremental",
+      "status": "CONFIRMED",
+      "evidence": [
+        "Latest raw batches are accumulative/mixed and contain dates before the product daily baseline window.",
+        "All 13470 extra keys are before 2026-05-11.",
+        "Applying fecha_visita >= 2026-05-11 reduces local daily from 34817 to 21347 and removes all extra keys."
+      ],
+      "count_explained": 13470,
+      "experimental_change": "Filter local daily reconstruction to the observed productive daily window fecha_visita >= 2026-05-11.",
+      "result_after_change": "rows=21347, extra_keys=0, missing_keys=1, duplicate_keys=0."
+    },
+    {
+      "id": "H3",
+      "title": "Divergencia en seleccion de ruta_batch_id",
+      "status": "PARTIAL",
+      "evidence": [
+        "The surplus itself is fixed by the date/window correction, not by ruta batch changes.",
+        "Remaining route attribute differences concentrate in week 2026-06-01.",
+        "Baseline route attributes match ruta_batch 16/17 far better than local ruta_batch 18 for that week."
+      ],
+      "count_explained": 0,
+      "experimental_change": "Override week 2026-06-01 route attributes with ruta_batch 16 in a local-only surface.",
+      "result_after_change": "value_differences drop from 1227 to 56 after route16 dedup, with rows=21347, extra_keys=0, missing_keys=1."
+    },
+    {
+      "id": "H4",
+      "title": "Multiplicacion en v_rr_frecuencia_base_resuelta_v2",
+      "status": "REJECTED_FOR_SURPLUS",
+      "evidence": [
+        "The real daily key has duplicate_keys=0 in both baseline and initial local surfaces.",
+        "A naive route16 override created 11 duplicate keys, but current local daily did not."
+      ],
+      "count_explained": 0,
+      "experimental_change": "No production change; keep route duplicate handling gated separately.",
+      "result_after_change": "No evidence that route multiplication caused the 13469 net surplus."
+    },
+    {
+      "id": "H5",
+      "title": "Diferencias por payload_json versus columnas fisicas",
+      "status": "PARTIAL_NOT_SURPLUS_CAUSE",
+      "evidence": [
+        "The local DDL intentionally reads some KPIONE and POWER_APP fields from payload_json.",
+        "The surplus is date-window bounded and disappears when the pre-2026-05-11 dates are removed."
+      ],
+      "count_explained": 0,
+      "experimental_change": "No payload rewrite in this phase.",
+      "result_after_change": "Payload differences remain a compatibility risk, not the demonstrated surplus cause."
+    },
+    {
+      "id": "H6",
+      "title": "SP Item ID fisico NULL en KPIONE2 y valor presente solo en payload",
+      "status": "CONFIRMED_BUT_NOT_SURPLUS_CAUSE",
+      "evidence": [
+        "kpione2_raw rows=526022; physical sp_item_id NULL in 526022; payload SP Item ID present in 526022.",
+        "Latest KPIONE2 batch 38 rows=45736; physical sp_item_id NULL in all, payload value present in all.",
+        "Daily key and surplus do not use SP Item ID."
+      ],
+      "count_explained": 0,
+      "experimental_change": "None for daily root cause; preserve payload_json dependency.",
+      "result_after_change": "Confirms payload_json cannot be removed, but does not explain daily surplus."
+    },
+    {
+      "id": "H7",
+      "title": "DDL local no corresponde exactamente a la definicion productiva",
+      "status": "PARTIAL",
+      "evidence": [
+        "DDL hashes were recorded and applied from 9C7A4 evidence.",
+        "Local required v2 views exist, but 10 legacy views failed due absent historical dependencies.",
+        "The local daily checkpoint used cg_core.v_cg_visita_dia_resuelta_v2, while the productive daily fact contract aligns with cg_core.v_cg_visita_dia_precedencia_v2 plus mart_loaded_at."
+      ],
+      "count_explained": 0,
+      "experimental_change": "Use v_cg_visita_dia_precedencia_v2 for the local daily parity surface.",
+      "result_after_change": "Semantic columns align better, but parity still has 1 missing key and 1227 value differences before route correction."
+    },
+    {
+      "id": "H8",
+      "title": "Dependencia o filtro omitido durante la reconstruccion local",
+      "status": "CONFIRMED",
+      "evidence": [
+        "Productive daily baseline starts at 2026-05-11 while local daily view includes 2026-04-27 and 2026-05-04.",
+        "Filtering to the productive daily window removes all extra keys."
+      ],
+      "count_explained": 13470,
+      "experimental_change": "Add the productive affected-date/window contract to the local reconstruction.",
+      "result_after_change": "rows=21347, extra_keys=0, missing_keys=1."
+    },
+    {
+      "id": "H9",
+      "title": "Diferencia temporal entre batch raw y snapshot RUTA_RUTERO",
+      "status": "PARTIAL",
+      "evidence": [
+        "Week 2026-06-01 route attributes in baseline match ruta_batch 16/17, while local reconstruction uses mostly ruta_batch 18.",
+        "Route16 dedup experiment reduces value differences from 1227 to 56."
+      ],
+      "count_explained": 1171,
+      "experimental_change": "Use the route snapshot that was effective for the productive weekly/daily materialization, not the later local latest-week snapshot.",
+      "result_after_change": "Still not parity-closed: 1 missing key and 56 value differences remain."
+    }
+  ],
+  "experiments": [
+    {
+      "id": "E0_INITIAL_KEY_DIFF",
+      "description": "Compare baseline and initial local daily using fecha_visita + cod_rt + cliente_norm.",
+      "runtime_seconds": 81.2,
+      "daily_rows": 34817,
+      "missing_keys": 1,
+      "extra_keys": 13470,
+      "duplicate_keys": 0,
+      "value_differences": 1204,
+      "full_row_hash_parity": false,
+      "status": "FAIL_NET_SURPLUS_13469"
+    },
+    {
+      "id": "E1_WINDOW_ONLY",
+      "description": "Filter local daily to fecha_visita >= 2026-05-11.",
+      "runtime_seconds": 11,
+      "daily_rows": 21347,
+      "missing_keys": 1,
+      "extra_keys": 0,
+      "duplicate_keys": 0,
+      "value_differences": 1204,
+      "full_row_hash_parity": false,
+      "status": "SURPLUS_REMOVED_NOT_PARITY_CLOSED"
+    },
+    {
+      "id": "E2_PRECEDENCE_VIEW_WITH_WINDOW",
+      "description": "Use cg_core.v_cg_visita_dia_precedencia_v2 with the same daily window.",
+      "runtime_seconds": 152,
+      "daily_rows": 21347,
+      "missing_keys": 1,
+      "extra_keys": 0,
+      "duplicate_keys": 0,
+      "value_differences": 1227,
+      "full_row_hash_parity": false,
+      "status": "SEMANTIC_SURFACE_ALIGNED_NOT_PARITY_CLOSED"
+    },
+    {
+      "id": "E3_ROUTE16_DEDUP_FOR_2026_06_01",
+      "description": "Local-only override of week 2026-06-01 route attributes with deduped ruta_batch 16.",
+      "runtime_seconds": 15.9,
+      "daily_rows": 21347,
+      "missing_keys": 1,
+      "extra_keys": 0,
+      "duplicate_keys": 0,
+      "value_differences": 56,
+      "full_row_hash_parity": false,
+      "status": "ROOT_CAUSE_CONFIRMED_REMAINING_DIFFS"
+    },
+    {
+      "id": "E4_WEEKLY_ONE_WEEK_MATERIALIZATION",
+      "description": "CREATE TABLE from cg_mart.v_cg_out_weekly_v2 for SEMANA_INICIO=2026-05-11.",
+      "runtime_seconds": 180,
+      "daily_rows": null,
+      "missing_keys": null,
+      "extra_keys": null,
+      "duplicate_keys": null,
+      "value_differences": null,
+      "full_row_hash_parity": null,
+      "status": "TIMEOUT_ONE_WEEK_MATERIALIZATION"
+    }
+  ],
+  "daily_final": {
+    "rows": 21347,
+    "missing_keys": 1,
+    "extra_keys": 0,
+    "duplicate_keys": 0,
+    "value_differences": 56,
+    "status": "ROOT_CAUSE_CONFIRMED_NOT_PARITY_CLOSED"
+  },
+  "weekly": {
+    "status": "TIMEOUT_CAUSE_CONFIRMED_NOT_PARITY_CLOSED",
+    "runtime_seconds": 900,
+    "bounded_runtime_seconds": 180,
+    "dominant_plan_nodes": [
+      "Subquery Scan/Aggregate total cost 161292 for one-week filtered query",
+      "Sort + WindowAgg over v_cg_evento_scope_v2 before week filter can finish",
+      "Append over latest raw source branches with computed date/week expressions",
+      "Hash Join from raw evidence to route frequency base",
+      "Sorted Aggregate with string_agg(DISTINCT ...) in weekly grouping"
+    ],
+    "index_candidates_local_only": [
+      "Materialize daily precedence/event scope before weekly aggregation in local parity surface",
+      "Expression or generated-column indexes for raw report_week_start/date and normalized cliente/cod_rt candidates",
+      "Composite local indexes on event_scope/precomputed daily: semana_inicio, cod_rt, cliente_norm",
+      "Route frequency surface indexed by effective_week_start, cod_rt, cliente_norm, ruta_batch_id",
+      "Avoid querying cg_mart.v_cg_out_weekly_v2 directly for parity; use staged daily and route surfaces"
+    ],
+    "explain_analyze": "One-week EXPLAIN ANALYZE timed out at 300s; one-week CREATE TABLE timed out at 180s; full materialization previously timed out at 900s."
+  },
+  "supabase_writes": false,
+  "productive_files_modified": [],
+  "root_cause": "The net daily surplus is caused by reconstructing daily rows from complete latest raw snapshots over dates 2026-04-27..2026-05-10, while the productive daily baseline is materialized only from 2026-05-11 onward. This omitted productive affected-date/window contract explains 13470 extra local keys, offset by one missing baseline key. Weekly exceeds 900s because the local weekly view recomputes event_scope from raw and route views with WindowAgg/Sort/Hash Join before the week filter can finish, rather than using a precomputed daily/mart surface.",
+  "next_gate": "G0 remains open: resolve the one missing KPIONE2 key on 2026-05-15, define the authoritative route snapshot policy for week 2026-06-01, then rebuild weekly from staged daily/route surfaces before any storage or retention work."
+}
