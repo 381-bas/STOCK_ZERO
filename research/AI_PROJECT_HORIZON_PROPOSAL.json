@@ -1,0 +1,171 @@
+{
+  "proposal_id": "AI_PROJECT_HORIZON_PROPOSAL",
+  "phase": "CLAUDE_C003_PRODUCT_CAPABILITY_DECOMPOSITION_REV2",
+  "generated_at": "2026-06-11",
+  "agent": "Claude (claude-opus-4-8)",
+  "runtime_code_baseline": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+  "based_on": {
+    "c001_codex_validation": "research/C001_CODEX_VALIDATION_MATRIX.json",
+    "c002_portfolio": "research/C002_IMPLEMENTATION_PORTFOLIO.json",
+    "c002_b0_rootcause": "research/C002_B0_PARITY_ROOTCAUSE.json",
+    "c002_b0_report": "research/reports/CODEX_C002_B0_PARITY_ROOTCAUSE.md"
+  },
+  "authority": {
+    "implementation_authorized": false,
+    "db_access": "none",
+    "note": "This file proposes horizons only. It moves no code and authorizes no runtime, loader, SQL, DB, Docker, data, or evidence change."
+  },
+  "principles_respected": [
+    "STOCK_ZERO is not removed.",
+    "The current app stops growing horizontally.",
+    "Inventory and Control Gestion are independent domains.",
+    "KPIONE2 is a Control Gestion adapter.",
+    "Docker is a reproducible laboratory, not a backup.",
+    "Git/GitHub is the knowledge bus between agents.",
+    "No future module must depend mandatorily on Streamlit.",
+    "No second repository is proposed yet.",
+    "No big-bang rewrite.",
+    "No proposal authorizes implementation."
+  ],
+  "b0_temporal_contract_principle": {
+    "statement": "Control Gestion is reproducible ONLY if the following are declared explicitly. No engine may auto-use 'latest raw' and 'latest route'.",
+    "required_declarations": [
+      "affected_date_window",
+      "raw_batch_set per source",
+      "route_snapshot_id/version",
+      "source_precedence_version",
+      "build_version",
+      "daily_fact_staged used to build weekly"
+    ],
+    "evidence": "C002 B0 confirmed the daily surplus (13,470 extra keys over 2026-04-27..2026-05-10) came from reconstructing from complete latest raw snapshots without the productive affected-date window (>= 2026-05-11)."
+  },
+  "horizons": [
+    {
+      "id": "H0",
+      "name": "Parity Closure and Temporal Contract Foundation",
+      "objective": "Close G0 functional parity and codify the temporal contracts that make Control Gestion reproducible. Nothing downstream is safe until this is done.",
+      "owner": "Codex (under Bastian decisions)",
+      "entry_state": "B0 root cause CONFIRMED but G0 OPEN: daily rows=21347 with 1 missing key and 56 value differences; weekly times out at 900s.",
+      "required_outcomes": [
+        {
+          "id": "H0.1",
+          "title": "Close the missing key",
+          "detail": "Resolve the single missing KPIONE2 daily key on 2026-05-15 (fecha_visita+cod_rt+cliente_norm). Determine whether it is a precedence, normalization, or window-boundary omission.",
+          "evidence": "C002_B0_PARITY_ROOTCAUSE.json daily_final.missing_keys=1; next_gate item 1"
+        },
+        {
+          "id": "H0.2",
+          "title": "Resolve the 56 value differences",
+          "detail": "Resolve the 56 remaining value_differences concentrated in week 2026-06-01, which are a route snapshot/value problem, not a row-count problem (down from 1227 after the route16 dedup experiment E3).",
+          "evidence": "C002_B0 experiments E3 value_differences=56; H3/H9 PARTIAL"
+        },
+        {
+          "id": "H0.3",
+          "title": "Define route snapshot policy",
+          "detail": "Define the authoritative route_snapshot policy for week 2026-06-01: baseline route attributes match ruta_batch 16/17, while the local reconstruction used ruta_batch 18. The policy must state which route snapshot was effective for the productive materialization, not simply the latest week snapshot.",
+          "evidence": "C002_B0 H9 PARTIAL; daily route attributes match ruta_batch 16/17 better than 18",
+          "requires_bastian_decision": true
+        },
+        {
+          "id": "H0.4",
+          "title": "Build weekly from staged daily",
+          "detail": "Rebuild the weekly fact from a staged daily/route surface instead of recomputing event_scope from raw. The productive-equivalent path must not re-enter the raw/WindowAgg/Sort/HashJoin pipeline before the week filter, which is the cause of the 900s timeout.",
+          "evidence": "C002_B0 weekly.dominant_plan_nodes; E4 timeout; LOADER-FACT-004 (refresh stages daily then weekly)"
+        },
+        {
+          "id": "H0.5",
+          "title": "Decide when Docker/local_pg can be destroyed",
+          "detail": "Define the destruction criterion for the local_pg container and Docker lab. Proposed: local_pg may be destroyed only once (a) G0 parity is closed AND reproducible from a versioned recipe in git, (b) all six temporal contracts are declared as data/config under version control, and (c) the 9C7A3/9C7A4 evidence manifest hashes remain the rebuildable source of truth, so the container can be regenerated on demand rather than preserved as a backup (principle 5).",
+          "requires_bastian_decision": true
+        }
+      ],
+      "exit_gate": "G0 CLOSED: daily exact parity (0 missing, 0 extra, 0 value diffs on the declared window) AND weekly parity reproduced from staged daily.",
+      "docker_role": "Primary: local_pg (stock_zero_cg_parity_pg) is the reproducible parity lab. Not a backup.",
+      "depends_on": [],
+      "no_horizontal_growth": true
+    },
+    {
+      "id": "H1",
+      "name": "Temporal Contract Formalization and DB Catalog",
+      "objective": "Promote the six temporal declarations from diagnostic findings to explicit, versioned inputs of the CG reconstruction, and build the authoritative DB object/dependency catalog.",
+      "owner": "Codex (under Bastian decisions)",
+      "entry_state": "G0 closed; contracts proven but not yet codified as first-class inputs.",
+      "required_outcomes": [
+        "Declare affected_date_window, raw_batch_set, route_snapshot_id/version, source_precedence_version, build_version, and daily_fact_staged as explicit reconstruction inputs (design only).",
+        "Authoritative DB object + view-dependency catalog with column-level payload_json and row_hash consumers (supersedes the partial ~28-object estimate; C002 Gate G1).",
+        "Map raw into raw_necesario | raw_reconstruible | raw_historico using v_cg_latest_batch_by_source plus the declared window as the boundary (C002 Gate G2)."
+      ],
+      "exit_gate": "Temporal contracts are versioned config and the DB catalog is authoritative.",
+      "docker_role": "Still the reproducibility lab; used to validate that declared contracts reproduce the closed parity.",
+      "depends_on": ["H0"],
+      "no_horizontal_growth": true
+    },
+    {
+      "id": "H2",
+      "name": "Domain Seam: Inventory and Control Gestion",
+      "objective": "Establish the seam between the two independent domains inside the existing repo (no new repo, no big-bang). Make capability boundaries explicit and contract-driven.",
+      "owner": "Codex (design) under Bastian approval",
+      "entry_state": "Contracts and catalog authoritative; app/db.py still concentrates both domains.",
+      "required_outcomes": [
+        "Separate Inventory (fact_stock_venta, ruta_rutero, stock/cliente views) from Control Gestion (cg_raw/cg_core/cg_mart) at the capability-interface level.",
+        "Define read-only capability interfaces behind the temporal contracts so consumers depend on contracts, not on db.py internals.",
+        "Confirm the static-only db.py functions are runtime-dead via the C002 Program C runtime smoke before any decomposition."
+      ],
+      "exit_gate": "Both domains are independently describable and testable without one importing the other's internals.",
+      "docker_role": "Validates domain seams against the closed parity without touching Supabase.",
+      "depends_on": ["H1"],
+      "no_horizontal_growth": true
+    },
+    {
+      "id": "H3",
+      "name": "Adapter Formalization (KPIONE2 and siblings)",
+      "objective": "Formalize KPIONE2, KPIONE, and POWER_APP as pluggable Control Gestion source adapters behind the source_precedence contract, decoupling the CG core from any single source format.",
+      "owner": "Codex (design) under Bastian approval",
+      "entry_state": "Domain seam exists; sources are hard-wired in the v17 loader and v2 views.",
+      "required_outcomes": [
+        "Define an adapter contract: each source maps its raw payload (including payload-only fields like KPIONE2 SP Item ID) to the CG canonical evidence shape.",
+        "Make source_precedence_version an explicit adapter-resolution input, not implicit ordering.",
+        "Keep payload_json as the canonical surface (it cannot be removed; C001 R08 REJECTED)."
+      ],
+      "exit_gate": "A new CG source could be added as an adapter without editing the CG core reconstruction.",
+      "docker_role": "Lab for adapter parity tests.",
+      "depends_on": ["H2"],
+      "no_horizontal_growth": true
+    },
+    {
+      "id": "H4",
+      "name": "Headless Capability Layer (Streamlit-optional)",
+      "objective": "Expose the validated capabilities through a presentation-agnostic interface so no future module mandatorily depends on Streamlit. Streamlit becomes one consumer among possible others.",
+      "owner": "Codex (design) under Bastian approval",
+      "entry_state": "Domains and adapters formalized; Streamlit is still the only consumer.",
+      "required_outcomes": [
+        "Define a headless capability API surface (read paths) that the current Streamlit screens could call without changing behavior.",
+        "Identify which capabilities are generic (reusable) vs Retail-Trust-specific.",
+        "Preserve STOCK_ZERO legacy app as a stable consumer of the headless layer (principle 1 and 2)."
+      ],
+      "exit_gate": "At least one capability is demonstrably callable without importing Streamlit.",
+      "docker_role": "Lab for headless capability reproducibility; local_pg likely destroyable by end of H4 if H0.5 criterion is met.",
+      "depends_on": ["H3"],
+      "no_horizontal_growth": true
+    },
+    {
+      "id": "H5",
+      "name": "Productization Decision Point (no new repo yet)",
+      "objective": "Present Bastian with a decision pack on whether and how to productize the generic temporal-contract capabilities, explicitly deferring any second-repository or big-bang decision.",
+      "owner": "Bastian decision, Codex support",
+      "entry_state": "Headless capability layer exists; generic vs specific split documented.",
+      "required_outcomes": [
+        "A decision pack: which generic capabilities (temporal_window_resolution, raw_batch_selection, route_snapshot_versioning, source_precedence, parity_and_reconstruction) could become a product.",
+        "Explicit statement that no second repo and no big-bang rewrite is proposed; options are incremental.",
+        "Retail-Trust-specific surfaces remain in STOCK_ZERO legacy."
+      ],
+      "exit_gate": "Bastian has an explicit, evidence-backed choice; nothing is implemented by this horizon.",
+      "docker_role": "Optional; only if a productization experiment is approved.",
+      "depends_on": ["H4"],
+      "no_horizontal_growth": true
+    }
+  ],
+  "horizons_defined": 6,
+  "verdict": "READY_FOR_CODEX_VALIDATION",
+  "non_authority_notice": "This horizon proposal is research synthesis. It authorizes no implementation. H0 is owned by Codex and gated by Bastian decisions on route policy and Docker destruction."
+}
