@@ -1,0 +1,474 @@
+{
+  "dossier_id": "C004_G0_IMPLEMENTATION_DOSSIER",
+  "phase": "CLAUDE_C004_G0_CLOSURE_IMPLEMENTATION_DOSSIER",
+  "task_type": "implementation_design",
+  "generated_at": "2026-06-11",
+  "agent": "Claude (claude-fable-5)",
+  "runtime_code_baseline": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+  "implementation_not_authorized": true,
+  "authority": {
+    "db_access": "none",
+    "docker_access": false,
+    "experiments_executed": false,
+    "note": "This dossier is a design for Codex execution in the local laboratory. It modifies no productive code and authorizes no Supabase write or cleanup. All queries are read-only designs or local-lab-schema designs, not executed here."
+  },
+  "based_on": {
+    "horizon": "research/AI_PROJECT_HORIZON.json (H0 ACTIVE)",
+    "capability_map": "research/AI_CAPABILITY_MAP.json",
+    "rootcause": "research/C002_B0_PARITY_ROOTCAUSE.json",
+    "rootcause_report": "research/reports/CODEX_C002_B0_PARITY_ROOTCAUSE.md",
+    "c001_matrix": "research/C001_CODEX_VALIDATION_MATRIX.json",
+    "c002_portfolio": "research/C002_IMPLEMENTATION_PORTFOLIO.json",
+    "backlog_targets": ["CG-002 (VALIDATED)", "CG-003 (PARTIAL)", "CG-004 (PARTIAL)"],
+    "productive_recipe_source": "scripts/refresh_control_gestion_v2_incremental.py (_create_daily_stage_query, _create_weekly_stage_query)",
+    "route_semantics_source": "evidence/supabase_cleanup_9C7A4/ddl/03_views.sql (v_rr_frecuencia_base_resuelta_v2, v_ruta_rutero_load_batch_week_v2)"
+  },
+
+  "known_facts": [
+    "The 13,469-row daily surplus was caused by omitting the productive affected-date window; applying the window (observed fecha_visita >= 2026-05-11) removes all 13,470 extra keys (1 missing key offsets the net).",
+    "One daily key remains missing: a KPIONE2 key on 2026-05-15 under the daily key (fecha_visita, cod_rt, cliente_norm).",
+    "56 value differences remain after the route16 dedup experiment (down from 1,227), concentrated in week 2026-06-01.",
+    "The residual problem is route-snapshot related: baseline route attributes for week 2026-06-01 match ruta_batch 16/17; the lab reconstruction used ruta_batch 18.",
+    "Weekly must NOT be recomputed from raw: cg_mart.v_cg_out_weekly_v2 re-enters raw/event-scope (WindowAgg/Sort/HashJoin, string_agg DISTINCT) and times out at 900s; one-week materialization timed out at 180s.",
+    "The productive weekly fact is built by scripts/refresh_control_gestion_v2_incremental.py from _cg_weekly_stage: route frequency base (cg_core.v_rr_frecuencia_base_resuelta_v2 per affected weeks) LEFT JOIN the daily fact ON (cod_rt, cliente_norm, semana_inicio) — already a staged-daily recipe; the lab must mirror it, not the view.",
+    "payload_json is REQUIRED_CURRENT_SURFACE and cannot be removed (KPIONE2 SP Item ID exists only in payload; physical column NULL in all 526,022 rows).",
+    "No Supabase cleanup, retention, deletion, or write is authorized; G0 work is local-lab only.",
+    "Route attribution semantics today (technical lineage): a route batch's effective_week_start is the ISO week (America/Santiago) of its loaded_at; v_rr_frecuencia_base_resuelta_v2 picks per (effective_week_start, cod_rt, cliente_norm) the winning batch by status='ok', then loaded_at DESC, then ruta_batch_id DESC. The winner is therefore query-time dependent: a batch loaded later in the same week retroactively replaces the winner. The materialized facts froze whichever batch won at build time, but that pin was never recorded.",
+    "Daily key (fecha_visita, cod_rt, cliente_norm) is unique on both baseline and local surfaces (0 duplicates)."
+  ],
+
+  "unresolved_items": [
+    {"id": "U1", "item": "Exact cause of the missing KPIONE2 key on 2026-05-15", "block": "BLOQUE_1"},
+    {"id": "U2", "item": "Cause classification of the 56 value differences", "block": "BLOQUE_2"},
+    {"id": "U3", "item": "Authoritative route policy (semantic, Bastian) and pinned snapshot model (technical, Codex)", "block": "BLOQUE_3"},
+    {"id": "U4", "item": "Weekly staged build under a reproducible time bound", "block": "BLOQUE_4"},
+    {"id": "U5", "item": "Build context contract adoption and lab destruction criterion", "blocks": ["BLOQUE_5", "BLOQUE_7"]}
+  ],
+
+  "missing_key_diagnostic": {
+    "target": "Single baseline daily key (fecha_visita=2026-05-15, cod_rt=?, cliente_norm=?) present in cg_mart.fact_cg_visita_dia_resuelta_v2 baseline but absent from the local reconstruction.",
+    "design_principle": "Work outside-in: first prove what the baseline row claims about its own provenance (fuente_ganadora, fuentes_presentes, raw counts), then test each reconstruction stage for where the key disappears. All steps are read-only against lab surfaces.",
+    "steps": [
+      {
+        "step": 1,
+        "name": "Baseline row forensics",
+        "checks": ["inclusion de fecha"],
+        "procedure": "SELECT * FROM baseline_daily WHERE fecha_visita='2026-05-15' AND <missing key>; record cod_rt, cliente, cliente_norm, fuente_ganadora, fuentes_presentes, kpione2_rows_dia, raw_evidence_count, match_quality, mart_loaded_at. mart_loaded_at bounds WHEN the row was materialized, which bounds which raw/route batches could have produced it.",
+        "decision": "If fuente_ganadora != KPIONE2, re-scope the diagnostic to the actual winning source."
+      },
+      {
+        "step": 2,
+        "name": "Raw presence sweep across ALL batches (not only latest)",
+        "checks": ["seleccion de raw batch", "fila historica no reconstruible"],
+        "procedure": "Search cg_raw.kpione2_raw across ALL batch_ids (not only latest batch 38) for rows whose normalized candidates match the key and whose parsed fecha_visita = 2026-05-15. Pseudo-SQL: SELECT batch_id, count(*) FROM kpione2_raw WHERE upper(trim(coalesce(payload_json->>'COD_RT', cod_rt_physical))) = :cod_rt AND upper(trim(payload_json->>'marca-or-cliente-key')) = :cliente_norm AND parsed_fecha = DATE '2026-05-15' GROUP BY batch_id. Repeat for KPIONE and POWER_APP raw in case precedence sourced it elsewhere.",
+        "decision": "If the key exists in an OLDER batch but NOT in latest batch 38, the row is a historical row dropped by a later accumulative snapshot: NOT reconstructible from latest-batch selection alone. This converts the fix into a raw_batch_set declaration question (include the older batch for that date) and feeds the build context contract.",
+        "note": "Accumulative snapshots can silently drop rows; this is the leading hypothesis consistent with B0 evidence that batch selection itself was correct."
+      },
+      {
+        "step": 3,
+        "name": "Payload vs physical column divergence",
+        "checks": ["diferencias payload/columnas fisicas"],
+        "procedure": "For every candidate raw row found in step 2, compare the physical columns the local DDL reads vs the payload_json keys the views extract (the local DDL intentionally reads some fields from payload). If the productive view version read payload while the local compatibility table exposes a divergent physical value (or vice versa), the key can vanish at normalization time.",
+        "decision": "If payload/physical divergence found, record the exact column and source; this is a DDL-compatibility fix in the lab surface, not a window fix."
+      },
+      {
+        "step": 4,
+        "name": "Normalization trace of cod_rt and cliente",
+        "checks": ["normalizacion de cod_rt", "normalizacion de cliente"],
+        "procedure": "Take the raw candidate values and run them through each normalization stage of the local pipeline (evidencia_unificada_v2 candidate extraction: NULLIF/TRIM/upper chains) and compare against baseline cod_rt/cliente_norm byte-by-byte (including invisible whitespace, accents/encoding like 'Marca: TÃ­tulo' UTF-8 mojibake handled in the DDL, and case).",
+        "decision": "If any stage produces a different normalized value than the baseline row carries, the key did not disappear: it was re-keyed. Search local daily for near-keys (same fecha, same cod_rt, similar cliente_norm) to confirm re-keying instead of absence."
+      },
+      {
+        "step": 5,
+        "name": "Precedence resolution replay",
+        "checks": ["precedencia"],
+        "procedure": "For the day-key, list all evidence rows entering precedence (all sources) and replay the precedence rule (KPIONE2 wins; POWER_APP same-day fallback; KPIONE1 audit-only) on the local surface. Compare the winning source and survival of the row vs baseline fuente_ganadora/fuentes_presentes.",
+        "decision": "If precedence locally assigns the day to another source-key combination that then fails route match, classify as precedence-route interaction, not pure precedence."
+      },
+      {
+        "step": 6,
+        "name": "Route-scope inclusion test (snapshot interaction)",
+        "checks": ["seleccion de route snapshot"],
+        "procedure": "The event only enters scope if it matches the route frequency grain. Test whether (cod_rt, cliente_norm) exists in v_rr_frecuencia_base_resuelta_v2 for the week of 2026-05-15 under (a) the route batch effective when the baseline was materialized, and (b) the batch the lab used. Pseudo-SQL: SELECT ruta_batch_id, count(*) FROM route_freq_surface WHERE effective_week_start = date_trunc('week', DATE '2026-05-15') AND cod_rt=:cod_rt AND cliente_norm=:cliente_norm GROUP BY ruta_batch_id.",
+        "decision": "If the grain exists under the older batch but not the newer one, the missing key is a route-snapshot casualty: same root cause class as the 56 value differences, and the route pinning fix (BLOQUE_3/X4) should also recover this key."
+      },
+      {
+        "step": 7,
+        "name": "Window boundary audit",
+        "checks": ["inclusion de fecha"],
+        "procedure": "Verify 2026-05-15 passes the window filter in the exact form applied locally (date type vs timestamp, timezone America/Santiago vs UTC, inclusive >= bound). Confirm date parsing of the raw row (DD-MM-YYYY vs YYYY-MM-DD branches in the DDL) yields 2026-05-15 and not a shifted date.",
+        "decision": "If the raw date parses to a different day locally (e.g., timezone or format branch), classify as date-parsing divergence."
+      },
+      {
+        "step": 8,
+        "name": "Pre-materialization filter diff",
+        "checks": ["filtrado previo a materializacion"],
+        "procedure": "Diff the local daily build path (v_cg_visita_dia_precedencia_v2 surface) stage by stage for the key: evidencia_unificada -> evento_scope -> visita_dia_resuelta -> precedencia. Record at which stage the key count drops from 1 to 0.",
+        "decision": "The first stage where the key disappears localizes the defect; pair with steps 2-7 to name the cause."
+      },
+      {
+        "step": 9,
+        "name": "Baseline-only-row confirmation",
+        "checks": ["fila presente en baseline pero ausente en superficie local"],
+        "procedure": "Confirm the key is genuinely absent from the FULL local daily surface (pre-window), not only from the windowed one: if it exists pre-window with a different fecha or different normalized key, this is re-keying (step 4/7); if absent everywhere, it is raw-level absence (step 2).",
+        "decision": "Branch: re-keying -> normalization/date fix; absence -> raw batch set declaration or historical non-reconstructible."
+      },
+      {
+        "step": 10,
+        "name": "Historical non-reconstructible verdict",
+        "checks": ["fila historica no reconstruible"],
+        "procedure": "If steps 2-9 show the row exists in NO raw batch present in the lab (it predates the retained snapshots or was never re-shipped by the source), document it as historically non-reconstructible from current raw.",
+        "decision": "Then G0 daily closure has two admissible outcomes for Bastian: (a) declare the baseline row as evidence-snapshot-only and target parity = baseline minus documented exceptions (exception list versioned in build context expected_parity), or (b) keep strict parity and source the row from a declared archival input. Strict-by-default; exception requires explicit Bastian sign-off recorded in the build context."
+      }
+    ],
+    "deliverable": "A single-page verdict: stage where the key disappears, cause class (raw-absence | re-keying | normalization | precedence | route-scope | date-parsing | window-boundary), and the fix expressed as a build-context declaration (never as 'use latest')."
+  },
+
+  "value_diff_classification": {
+    "input": "The 56 value differences on shared daily keys after E3 (route16 dedup), plus the pre-E3 set (1,227) for cross-checking that E3 did not mask other causes.",
+    "dimensions_compared_per_key": [
+      "gestor (and gestor_norm)",
+      "rutero",
+      "reponedor (reponedor_scope, reponedor_scope_norm)",
+      "cliente (cliente, cliente_norm)",
+      "local (local_nombre)",
+      "modalidad",
+      "frecuencia (visitas_exigidas_semana via weekly plan columns; daily: none)",
+      "estado de visita (useful_day, match_quality, registro_fuera_cruce)",
+      "fuente (fuente_ganadora, fuentes_presentes, tiene_kpione2/power_app/kpione1, power_app_fallback)",
+      "batch de ruta (ruta_batch_id attribution of the route surface used)"
+    ],
+    "matrix_design": {
+      "surface": "c004_g0.value_diff_matrix (local lab table)",
+      "row_grain": "one row per (daily_key, column_name) with baseline_value, local_value, baseline_route_batch_attr, local_route_batch_attr, normalized_equal_flag, route16_value, route17_value, route18_value",
+      "build": "Join baseline_daily and local_daily on the daily key; unpivot the dimension columns; for route-attributed columns also join the route frequency surface materialized separately under batches 16, 17 and 18 to capture per-batch expected values."
+    },
+    "classification_rules_ordered": [
+      {"class": "SNAPSHOT_DIFF", "rule": "local_value != baseline_value AND baseline_value == route16_value_or_route17_value AND local_value == route18_value (or vice versa for any pinned pair). The column is route-attributed (gestor, rutero, reponedor, supervisor, local, modalidad, cod_b2b)."},
+      {"class": "ROUTE_DUPLICATE_DIFF", "rule": "More than one route row exists for (effective_week_start, cod_rt, cliente_norm) within the SAME batch (ruta_duplicada_flag=1 or count>1) and baseline/local picked different duplicate rows. Detect by per-batch grain counts > 1."},
+      {"class": "NORMALIZATION_DIFF", "rule": "upper(trim(baseline_value)) == upper(trim(local_value)) but raw forms differ (case, whitespace, accents/encoding). No route involvement needed."},
+      {"class": "PRECEDENCE_DIFF", "rule": "Differing columns are source-attribution columns (fuente_ganadora, fuentes_presentes, tiene_*, power_app_fallback, kpione1_audit_only) or useful_day driven by a different winning source."},
+      {"class": "TIMESTAMP_MATERIALIZATION_DIFF", "rule": "Differing column is mart_loaded_at or any value provably derived from build-time (now()) rather than from inputs. Excluded from parity by definition; record and drop from the 56-count."},
+      {"class": "OTHER", "rule": "Anything not matched above; must be individually documented with both values and stage trace before G0 can close."}
+    ],
+    "expected_outcome": "Hypothesis from B0 evidence: the majority of the 56 classify as SNAPSHOT_DIFF or ROUTE_DUPLICATE_DIFF on week 2026-06-01 route-attributed columns; E3 already demonstrated 1,171 of 1,227 were route-related. PASS for the matrix = every one of the 56 has exactly one class and zero remain OTHER after investigation.",
+    "deliverable": "c004_g0.value_diff_matrix + a count-by-class summary CSV in the lab evidence folder."
+  },
+
+  "route_policy_options": [
+    {
+      "id": "POLICY_A_WEEK_FROZEN",
+      "operational_meaning": "The route effective at the start of the week governs the whole week. Intra-week route loads do not change attribution for the running week; they take effect the following week.",
+      "historical_reproducibility": "HIGH once the week-start winner is recorded: the winner is deterministic given loaded_at history (first/effective batch at week start). Still requires recording, because 'effective at week start' depends on load history that later batches do not disturb.",
+      "complexity": "LOW-MEDIUM. Change the winning rule from loaded_at DESC (query-time latest) to 'latest ok batch with loaded_at < week_start' (or first ok batch of the week, per Bastian's semantic choice). No new tables required.",
+      "risk": "Operational: corrections shipped mid-week (e.g., a wrong gestor fixed on Tuesday) would NOT apply until next week, which may contradict how the business expects corrections to behave.",
+      "app_compatibility": "HIGH: same surfaces and columns; only the winner rank changes.",
+      "retroactive_correction": "NONE by design within the week (that is its point). Retroactive fixes require an explicit rebuild under a new build_version.",
+      "storage_impact": "NONE: same route history tables.",
+      "migration": "Redefine the winning_batch_by_grain rank in the v2 frequency view (design-only here); facts rebuilt forward under new build_versions.",
+      "bastian_decision": "Whether week-frozen semantics match how routes operate (do mid-week route changes exist legitimately?).",
+      "codex_evidence_required": "For each historical week, whether the materialized facts are consistent with week-start winners (lineage audit comparing fact route attributes vs per-batch route surfaces)."
+    },
+    {
+      "id": "POLICY_B_EFFECTIVE_DATED",
+      "operational_meaning": "Each route version row carries valid_from/valid_to; attribution joins on fecha_visita BETWEEN valid_from AND valid_to. Mid-week changes apply from their effective date.",
+      "historical_reproducibility": "HIGH IF validity intervals are first-class data. Today they do not exist: they would have to be derived from loaded_at transitions (fragile) or declared going forward (clean only for the future).",
+      "complexity": "HIGH. Requires a versioned route dimension (interval table), backfill policy for history, and changes in every route join (daily scope match AND weekly base).",
+      "risk": "Highest implementation risk; backfilled intervals for past weeks would be inferences, not facts, and could silently rewrite historical attribution.",
+      "app_compatibility": "MEDIUM: read surfaces keep their shape but every route join changes semantics; B3 legacy path also reads route surfaces and must not silently diverge.",
+      "retroactive_correction": "STRONG: corrections are modeled as new validity intervals; history is explainable.",
+      "storage_impact": "MODERATE: one interval table (route version dimension); no raw growth.",
+      "migration": "New interval dimension fed by the existing loader history; cutover week declared in build context; historical weeks remain under their pinned snapshots (no backfill rewrite without Bastian).",
+      "bastian_decision": "Whether mid-week effective-dated corrections are a real business requirement worth the complexity.",
+      "codex_evidence_required": "Frequency of intra-week route batch loads that actually changed attributes (how often would A and B disagree in practice). If near zero, B's value is low."
+    },
+    {
+      "id": "POLICY_C_BUILD_PINNED",
+      "operational_meaning": "Every materialization records the exact route_snapshot (batch ids per period) it used. The pin is part of the build, not a business rule about which route SHOULD apply.",
+      "historical_reproducibility": "TOTAL by construction: reproducing a build means replaying its recorded pins.",
+      "complexity": "LOW. Add route_snapshot_by_period to the build context registry and stamp builds; the technical lineage of past builds is recoverable by comparing fact attributes vs per-batch surfaces (as B0/E3 already did).",
+      "risk": "Alone it is incomplete: it records what happened but does not define what the NEXT build should pin. It needs an operational policy (A or B) to choose pins going forward.",
+      "app_compatibility": "TOTAL: no runtime surface changes; it is metadata plus discipline.",
+      "retroactive_correction": "Corrections = new build with new pins and new build_version; old builds remain reproducible.",
+      "storage_impact": "NEGLIGIBLE: registry rows.",
+      "migration": "Immediate for the lab (B0 already implicitly did this); productive adoption rides the existing refresh script's apply scope without schema change (design-only here).",
+      "bastian_decision": "None on semantics (it is technical); only adoption sign-off.",
+      "codex_evidence_required": "Reconstructed pin lineage for existing baseline facts (which batch each historical week's facts actually reflect) — already partially done for 2026-06-01 (16/17)."
+    }
+  ],
+  "recommended_policy_model": {
+    "model": "COMBINED: POLICY_C_BUILD_PINNED always-on (technical reproducibility layer, owned by Codex) + ONE operational policy chosen by Bastian (A or B) that decides which snapshot each NEW build pins.",
+    "near_term_recommendation": "POLICY_A_WEEK_FROZEN as the operational layer, because (a) the weekly fact grain is already per effective_week_start, (b) it requires no new dimension tables, and (c) B0 evidence suggests intra-week re-loads are corrections of load problems more than effective-dated business changes. POLICY_B remains the upgrade path if Bastian confirms mid-week route changes are a real requirement.",
+    "explicit_exclusions": "Batch identifiers (16, 17, 18, 38...) are technical lineage evidence, never business decisions. The dossier does not select batch IDs as policy; it asks Codex to document lineage and Bastian to choose semantics (C003-HORIZON-CORR-002, C003-HORIZON-CORR-004).",
+    "parity_target_clarification": "G0 parity closes against the EXISTING baseline as materialized (whose technical lineage for week 2026-06-01 is batches 16/17). The chosen operational policy governs FUTURE builds; it does not redefine the parity target. If Bastian instead wants the baseline re-expressed under the new policy, that is a NEW build with a new build_version, not a parity exercise."
+  },
+
+  "build_context_schema": {
+    "contract_name": "CG_BUILD_CONTEXT_V1",
+    "purpose": "Allow exact reconstruction of any historical Control Gestion build. No field may default to 'latest'.",
+    "schema": {
+      "build_id": "string, unique, e.g. cgbuild_2026-06-11_001",
+      "build_created_at": "timestamptz",
+      "parity_target": "string: baseline identifier or PRODUCTIVE_FORWARD",
+      "affected_date_window": {
+        "start": "date, REQUIRED, inclusive",
+        "end": "date, REQUIRED, inclusive"
+      },
+      "affected_weeks": ["date[] derived: distinct week_start covered by the window"],
+      "raw_batch_set": {
+        "KPIONE": "int[] REQUIRED — batch ids participating (may include older batches when a later accumulative snapshot dropped rows)",
+        "KPIONE2": "int[] REQUIRED",
+        "POWER_APP": "int[] REQUIRED"
+      },
+      "route_policy_version": "string, e.g. POLICY_A_WEEK_FROZEN@v1 — the operational rule used to choose pins",
+      "route_snapshot_by_period": [
+        {
+          "period_week_start": "date",
+          "ruta_batch_id": "int — the pinned snapshot for that week",
+          "pin_reason": "string: WEEK_FROZEN_WINNER | EFFECTIVE_DATED | MANUAL_LINEAGE_RECONSTRUCTION"
+        }
+      ],
+      "source_precedence_version": "string, e.g. KPIONE2_FIRST_POWERAPP_SAMEDAY_KPIONE1_AUDIT@v1",
+      "daily_builder_version": "string: recipe identifier + content hash of the daily stage SQL",
+      "weekly_builder_version": "string: recipe identifier + content hash of the weekly stage SQL",
+      "input_hashes": {
+        "raw_manifest_sha256": "per-source export/extract manifest hashes",
+        "route_rows_sha256": "hash of the pinned route surface",
+        "ddl_sha256": "hashes of the view DDL the build depends on"
+      },
+      "expected_parity": {
+        "daily_rows": "int",
+        "weekly_rows": "int",
+        "missing_keys": 0,
+        "extra_keys": 0,
+        "duplicate_keys": 0,
+        "value_differences": 0,
+        "full_row_hash_parity": true,
+        "documented_exceptions": ["empty unless Bastian approves a non-reconstructible exception list"]
+      },
+      "output_hashes": {
+        "daily_staged_sha256": "string",
+        "weekly_staged_sha256": "string"
+      }
+    },
+    "storage_proposal": "Versioned JSON files under git (research/ or future config/) during H0-H1; a DB registry table is an H1+ design decision, not part of this dossier.",
+    "validation_rule": "A build context is INVALID if any of raw_batch_set, route_snapshot_by_period, affected_date_window, or source_precedence_version is null, empty, or expressed as 'latest'."
+  },
+
+  "weekly_staged_design": {
+    "principle": "Mirror the PRODUCTIVE recipe (_cg_weekly_stage in scripts/refresh_control_gestion_v2_incremental.py), which already builds weekly from route-frequency-base LEFT JOIN daily fact. Do NOT touch cg_mart.v_cg_out_weekly_v2 (the raw-recomputing view) for parity: it is the timeout path and a different semantic surface.",
+    "flow": "temporal build context -> daily staged exacto -> weekly staged -> comparacion con baseline semanal",
+    "local_surfaces": {
+      "schema": "c004_g0 (new lab schema, isolated from c002_b0)",
+      "tables": [
+        {"name": "c004_g0.build_context", "content": "the CG_BUILD_CONTEXT_V1 instance for this rehearsal"},
+        {"name": "c004_g0.daily_staged", "content": "exact daily surface after BLOQUE_1 fix and route pinning: expected 21,348 rows, full_row_hash parity vs baseline daily"},
+        {"name": "c004_g0.route_freq_pinned", "content": "v_rr_frecuencia_base_resuelta_v2 recomputed with winning batch FORCED to route_snapshot_by_period (per week), materialized as a table"},
+        {"name": "c004_g0.weekly_staged", "content": "the _cg_weekly_stage recipe applied over route_freq_pinned x daily_staged"},
+        {"name": "c004_g0.weekly_diff", "content": "key and value comparison vs baseline weekly (20,138 rows)"}
+      ]
+    },
+    "keys": {
+      "daily_key": "(fecha_visita, cod_rt, cliente_norm) — unique, validated in B0",
+      "weekly_join_key": "daily joins route base ON (cod_rt, cliente_norm, semana_inicio = effective_week_start) — the productive join",
+      "weekly_candidate_key": "(SEMANA_INICIO, COD_RT, CLIENTE_NORM_FILTER) — candidate; Codex MUST verify uniqueness on baseline weekly first. If ruta_duplicada or multi-gestor rows make it non-unique, extend with (LOCAL_NORM_FILTER, GESTOR_NORM_FILTER) or fall back to full-grain comparison; record the verified key in the build context."
+    },
+    "groupings": "GROUP BY route-base grain exactly as productive: effective_week_start, effective_week_iso, ruta_batch_id, cod_rt, cod_b2b, local_nombre, cliente, cliente_norm, gestor, supervisor, rutero, reponedor_scope, modalidad. Note ruta_batch_id is in the GROUP BY but not in the output columns: with a single pinned batch per week this is harmless; with mixed pins it can split rows — the pinned surface guarantees one batch per week and must assert that.",
+    "columns_and_aggregations": {
+      "day_flags": "LUNES..DOMINGO_FLAG = max(CASE WHEN extract(isodow FROM d.fecha_visita)=N THEN d.useful_day ELSE 0 END)",
+      "plans": "LUNES..DOMINGO_PLAN = max(coalesce(route.day,0))",
+      "visita": "max(coalesce(visitas_exigidas_semana,0))",
+      "visita_realizada_raw": "sum(coalesce(useful_day,0))",
+      "visita_realizada_cap": "least(realizada_raw, visita)",
+      "sobre_cumplimiento": "greatest(realizada_raw - visita, 0)",
+      "dias_por_fuente": "sum(tiene_kpione1|kpione2|power_app)",
+      "doble_triple_marcaje": "sum(case when sum_of_tiene = 2|3 then 1 else 0 end)",
+      "derived": "DIFERENCIA = realizada_raw - visita; ALERTA = CUMPLE/INCUMPLE; *_NORM_FILTER = UPPER(TRIM(...)); GESTION_COMPARTIDA_FLAG_CALC; VISITAS_PENDIENTES_CALC = greatest(visita - cap, 0)"
+    },
+    "string_agg_distinct_treatment": "The productive staged recipe does NOT use string_agg(DISTINCT ...): FUENTES_REPORTADAS_SEMANA is concat_ws(' | ', deterministic fixed source order KPIONE, KPIONE2, POWER_APP). The string_agg(DISTINCT) cost lives only in the v_cg_out_weekly_v2 VIEW path, which this design avoids entirely. Rule: any aggregated string column in the lab MUST be order-deterministic (fixed CASE order or explicit ORDER BY inside the aggregate) so that row hashes are stable.",
+    "filters": "affected_weeks from the build context (unnest of declared week starts); daily side already windowed by affected_date_window; no other implicit filters allowed.",
+    "route_snapshot": "route_freq_pinned built per route_snapshot_by_period; assert exactly one ruta_batch_id per effective_week_start before the weekly build.",
+    "build_version": "weekly_builder_version = recipe id + SQL content hash recorded in build context before execution.",
+    "local_indexes": [
+      "daily_staged: btree (semana_inicio, cod_rt, cliente_norm)",
+      "route_freq_pinned: btree (effective_week_start, cod_rt, cliente_norm)",
+      "baseline_weekly: btree (\"SEMANA_INICIO\", \"COD_RT\", \"CLIENTE_NORM_FILTER\")",
+      "note: local-only; no productive index proposal in this dossier (B0 index candidates remain recorded for later)"
+    ],
+    "execution_order": [
+      "1. Insert build_context row (fail if any field is null/latest).",
+      "2. Materialize route_freq_pinned; ASSERT one batch per week; ANALYZE.",
+      "3. Materialize daily_staged from the corrected daily surface; ASSERT rows == expected_parity.daily_rows and full_row_hash parity vs baseline daily; ANALYZE.",
+      "4. Build weekly_staged with the mirrored recipe; record wall time.",
+      "5. Build weekly_diff (key diff, then value diff per column).",
+      "6. Emit metrics + hashes into the build context output section."
+    ],
+    "time_metrics": {
+      "measure": "wall seconds per step, rows/sec for weekly_staged",
+      "proposed_targets": "weekly_staged build <= 120s target, 300s hard limit on the current lab hardware for the declared window (vs 900s/180s timeouts on the view path). The limit is a lab reproducibility bound, not a productive SLA; Bastian/Codex may re-baseline it with hardware evidence.",
+      "rationale": "Joining two materialized, indexed surfaces of ~21k x ~3.5k rows per week is orders of magnitude below the view path that re-scans 1.27M raw rows."
+    },
+    "rollback_local": "DROP SCHEMA c004_g0 CASCADE; container and c002_b0 surfaces untouched. Parquet evidence and baselines are read-only inputs and never modified.",
+    "explicitly_not_proposed": "No productive SQL, no view redefinition in Supabase, no index creation in Supabase, no refresh-script change. Those become H1+ phases only after G0 closes."
+  },
+
+  "codex_experiments": [
+    {
+      "id": "X1_MISSING_KEY_FORENSICS",
+      "objective": "Locate where the missing 2026-05-15 KPIONE2 key disappears.",
+      "hypothesis": "The key exists in an older KPIONE2 batch but not in the latest accumulative snapshot, OR it falls out of route scope under the lab's route batch.",
+      "input": "Baseline daily row (key + provenance columns); all cg_raw batches in the lab; route surfaces per batch.",
+      "procedure": "Run missing_key_diagnostic steps 1-9 in order; stop at the first stage that localizes the disappearance; then run step 10 only if absent everywhere.",
+      "local_surface": "c004_g0.missing_key_trace (one row per diagnostic stage with found/not_found)",
+      "metrics": ["stage_of_disappearance", "cause_class"],
+      "expected_result": "Exactly one cause class assigned.",
+      "pass_fail": "PASS = cause class assigned with evidence rows; FAIL = key absent from all stages with no explanation.",
+      "next_action": "PASS -> encode the fix as a build-context declaration and feed X2. FAIL -> escalate as candidate historical non-reconstructible (Bastian decision path, step 10).",
+      "rollback": "DROP TABLE c004_g0.missing_key_trace."
+    },
+    {
+      "id": "X2_DAILY_KEY_CLOSURE",
+      "objective": "Daily key parity exact: 0 missing, 0 extra, 0 duplicates.",
+      "hypothesis": "Applying the X1 fix (e.g., including the declared older batch in raw_batch_set, or the route pin) recovers the single missing key without introducing extras.",
+      "input": "X1 verdict; declared affected_date_window; raw_batch_set per source.",
+      "procedure": "Rebuild local daily with the X1 correction; rerun the B0 key diff (fecha_visita, cod_rt, cliente_norm) vs baseline.",
+      "local_surface": "c004_g0.daily_keydiff",
+      "metrics": ["rows", "missing_keys", "extra_keys", "duplicate_keys"],
+      "expected_result": "rows=21348, missing=0, extra=0, duplicates=0.",
+      "pass_fail": "PASS = all three zero and row count equals baseline; FAIL otherwise.",
+      "next_action": "PASS -> X3. FAIL -> return to X1 with the new differential.",
+      "rollback": "DROP TABLE c004_g0.daily_keydiff; daily surface rebuild is idempotent from inputs."
+    },
+    {
+      "id": "X3_VALUE_DIFF_MATRIX",
+      "objective": "Classify 100% of remaining value differences by cause.",
+      "hypothesis": "The 56 differences classify predominantly as SNAPSHOT_DIFF / ROUTE_DUPLICATE_DIFF on week 2026-06-01.",
+      "input": "X2-closed key set; route surfaces materialized per batch 16, 17, 18.",
+      "procedure": "Build value_diff_classification matrix; apply the ordered rules; manually document any OTHER.",
+      "local_surface": "c004_g0.value_diff_matrix",
+      "metrics": ["diffs_total", "count_per_class", "other_count"],
+      "expected_result": "other_count=0; every diff has one class.",
+      "pass_fail": "PASS = other_count=0; FAIL = any unexplained OTHER.",
+      "next_action": "PASS -> X4 with the per-class fix list. FAIL -> investigate OTHER rows before route pinning.",
+      "rollback": "DROP TABLE c004_g0.value_diff_matrix."
+    },
+    {
+      "id": "X4_ROUTE_PIN_DAILY_VALUE_CLOSURE",
+      "objective": "Daily FULL parity: value_differences=0 and full_row_hash_parity=true.",
+      "hypothesis": "Pinning route_snapshot_by_period to the technical lineage of the baseline (week 2026-06-01 -> the batch evidence says produced it) plus normalization fixes from X3 closes all 56.",
+      "input": "X3 class list; route_freq_pinned per lineage; X2 daily surface.",
+      "procedure": "Materialize c004_g0.route_freq_pinned (assert 1 batch/week); rebuild daily_staged with pinned route attribution; compare every column; compute full-row multiset hash vs baseline.",
+      "local_surface": "c004_g0.daily_staged + c004_g0.daily_valuediff",
+      "metrics": ["value_differences", "full_row_hash_parity", "mart_loaded_at_exclusion_documented"],
+      "expected_result": "value_differences=0 (excluding documented build-time columns like mart_loaded_at), full_row_hash_parity=true on the agreed column set.",
+      "pass_fail": "PASS = zero diffs and hash parity with the exclusion list versioned in build context; FAIL otherwise.",
+      "next_action": "PASS -> X5. FAIL -> per-class remediation loop with X3 matrix.",
+      "rollback": "DROP TABLEs; rebuild idempotent."
+    },
+    {
+      "id": "X5_BUILD_CONTEXT_REGISTRATION",
+      "objective": "Freeze the closure as a reproducible build context.",
+      "hypothesis": "The X4 state is fully expressible as CG_BUILD_CONTEXT_V1 with no 'latest' semantics.",
+      "input": "All declarations and hashes from X1-X4.",
+      "procedure": "Write c004_g0.build_context (and the versioned JSON file for git); validate against the schema validation_rule; recompute input hashes.",
+      "local_surface": "c004_g0.build_context",
+      "metrics": ["schema_valid", "null_or_latest_fields"],
+      "expected_result": "Valid context; zero null/latest fields.",
+      "pass_fail": "PASS = validation_rule satisfied; FAIL = any field unresolvable without 'latest'.",
+      "next_action": "PASS -> X6. FAIL -> the unresolved field names the missing contract; return to its block.",
+      "rollback": "DELETE the context row/file (git-versioned, revertable)."
+    },
+    {
+      "id": "X6_WEEKLY_STAGED_BUILD",
+      "objective": "Build weekly_staged from daily_staged + route_freq_pinned within the time bound.",
+      "hypothesis": "The mirrored _cg_weekly_stage recipe over indexed staged surfaces completes in <=120s for the declared window.",
+      "input": "X4 daily_staged; route_freq_pinned; build context.",
+      "procedure": "Execute weekly_staged_design.execution_order steps 4; record wall time and row count.",
+      "local_surface": "c004_g0.weekly_staged",
+      "metrics": ["build_seconds", "weekly_rows"],
+      "expected_result": "build_seconds <= 120 (hard limit 300); weekly_rows comparable to baseline 20,138 for the declared weeks.",
+      "pass_fail": "PASS = completes under hard limit with plausible row count; FAIL = timeout or empty/implausible output.",
+      "next_action": "PASS -> X7. FAIL -> apply local_indexes / per-week batching; if still failing, profile and report (no productive index proposals).",
+      "rollback": "DROP TABLE c004_g0.weekly_staged."
+    },
+    {
+      "id": "X7_WEEKLY_PARITY",
+      "objective": "Weekly key and value parity vs baseline weekly fact.",
+      "hypothesis": "With daily closed and route pinned, weekly_staged equals baseline on the verified weekly key.",
+      "input": "X6 weekly_staged; baseline_weekly (20,138 rows); verified weekly key from weekly_staged_design.keys.",
+      "procedure": "First verify candidate key uniqueness on baseline; then key diff; then per-column value diff; document any build-time column exclusions.",
+      "local_surface": "c004_g0.weekly_diff",
+      "metrics": ["weekly_key_verified", "missing_keys", "extra_keys", "duplicate_keys", "value_differences"],
+      "expected_result": "all zero on the declared weeks.",
+      "pass_fail": "PASS = exact key+value parity, 0 duplicates; FAIL otherwise.",
+      "next_action": "PASS -> X8. FAIL -> classify weekly diffs with an X3-style matrix (route plan columns vs day flags vs derived columns) and loop.",
+      "rollback": "DROP TABLE c004_g0.weekly_diff."
+    },
+    {
+      "id": "X8_CLEAN_ROOM_REPRODUCIBILITY",
+      "objective": "Prove G0 closure is reproducible from recipe + build context alone (lab destructibility evidence).",
+      "hypothesis": "A fresh schema rebuilt only from versioned inputs (parquet evidence + DDL + build context) reproduces identical output hashes.",
+      "input": "Git-versioned build context; evidence manifests (9C7A3/9C7A4 hashes); recipe SQL.",
+      "procedure": "Create c004_g0_rerun schema from scratch; replay X4+X6 builds strictly from the build context; compare daily/weekly output hashes vs the X5-registered output_hashes.",
+      "local_surface": "c004_g0_rerun.*",
+      "metrics": ["daily_hash_match", "weekly_hash_match", "rebuild_total_seconds"],
+      "expected_result": "Both hashes match exactly.",
+      "pass_fail": "PASS = hash-identical rebuild; FAIL = any divergence (which means a hidden 'latest' dependency remains).",
+      "next_action": "PASS -> G0 CLOSED package + BDP-LOCAL-PG-DESTRUCTION evidence for Bastian. FAIL -> the divergence pinpoints the undeclared input; return to X5.",
+      "rollback": "DROP SCHEMA c004_g0_rerun CASCADE."
+    }
+  ],
+
+  "acceptance_criteria": {
+    "daily": {
+      "extra_keys": 0,
+      "missing_keys": 0,
+      "duplicate_keys": 0,
+      "value_differences": 0,
+      "full_row_hash_parity": true,
+      "notes": "Build-time columns (mart_loaded_at) excluded only via a documented, versioned exclusion list in the build context. Any Bastian-approved historical-non-reconstructible exception must be listed in expected_parity.documented_exceptions; default is strict (empty list)."
+    },
+    "weekly": {
+      "key_parity_exact": true,
+      "value_parity_exact": true,
+      "duplicates": 0,
+      "reproducible_time_bound": "<=120s target / 300s hard limit per declared window on lab hardware (re-baselinable with evidence)",
+      "built_exclusively_from_daily_staged": true,
+      "forbidden": "Any weekly path that re-reads cg_raw or v_cg_out_weekly_v2 for parity is non-compliant."
+    },
+    "reproducibility": {
+      "build_context_versioned": "CG_BUILD_CONTEXT_V1 instance in git; validation_rule passing (no null/latest)",
+      "recipe_reconstructible": "daily/weekly builder SQL identified by content hash",
+      "input_output_hashes": "raw manifests, route surface, DDL, daily/weekly outputs all hashed and recorded",
+      "lab_recreatable": "X8 clean-room rebuild hash-identical; only then is local_pg destruction submittable to Bastian (BDP-LOCAL-PG-DESTRUCTION)"
+    },
+    "g0_closed_definition": "G0 = CLOSED only when daily AND weekly AND reproducibility criteria all pass in the same registered build context."
+  },
+
+  "rollback": {
+    "lab": "Every experiment surface lives in schema c004_g0 (or c004_g0_rerun); rollback = DROP SCHEMA ... CASCADE. The c002_b0 schema, baselines, parquet evidence, and the container itself are never modified.",
+    "git": "The build context JSON is a versioned file; reverting = git revert of the commit that introduced it.",
+    "productive": "Nothing productive changes in this dossier, so productive rollback is the absence of action. Any future productive adoption (policy change, registry) requires its own phase with its own rollback plan.",
+    "supabase": "No writes occur; no Supabase rollback surface exists by design."
+  },
+
+  "risks": [
+    {"id": "R1", "risk": "The missing key proves historically non-reconstructible from retained raw (dropped by a later accumulative snapshot and absent everywhere).", "mitigation": "Step-10 path: documented exception requires explicit Bastian sign-off; default remains strict parity. Also feeds H1 raw classification (raw_historico)."},
+    {"id": "R2", "risk": "Weekly candidate key is not unique on baseline (route duplicates / multi-gestor rows), invalidating naive key diff.", "mitigation": "X7 verifies key uniqueness FIRST and falls back to extended grain or full-grain multiset comparison; verified key recorded in build context."},
+    {"id": "R3", "risk": "ruta_batch_id in the weekly GROUP BY splits rows if more than one batch leaks into a week.", "mitigation": "route_freq_pinned asserts exactly one batch per week before the weekly build (execution_order step 2)."},
+    {"id": "R4", "risk": "Route pinning closes the 56 diffs but masks a second, smaller cause (normalization or precedence).", "mitigation": "X3 classifies BEFORE pinning (X4); OTHER must reach zero by investigation, not by pin."},
+    {"id": "R5", "risk": "Time bound is hardware-relative and may fail on different lab machines.", "mitigation": "Bound declared as lab reproducibility target, re-baselinable with recorded hardware evidence; not a productive SLA."},
+    {"id": "R6", "risk": "Policy decision (A vs B) stalls and blocks G0.", "mitigation": "G0 parity does NOT depend on the operational policy: it pins the baseline's technical lineage (POLICY_C). The operational policy gates FUTURE builds (H1), not closure."},
+    {"id": "R7", "risk": "Lab destruction executed before reproducibility proof.", "mitigation": "X8 hash-identical rebuild is a hard precondition for submitting BDP-LOCAL-PG-DESTRUCTION to Bastian."}
+  ],
+
+  "bastian_decisions": [
+    {"id": "BD1", "decision": "Operational route policy semantics: POLICY_A_WEEK_FROZEN vs POLICY_B_EFFECTIVE_DATED (POLICY_C pinning is technical and always-on). Do mid-week route corrections need to apply mid-week?", "blocks": ["future builds under H1", "CG-003"]},
+    {"id": "BD2", "decision": "Confirm the parity target: existing baseline as materialized (recommended) vs re-expressing history under the new policy (a new build, not parity).", "blocks": ["X4 exit interpretation"]},
+    {"id": "BD3", "decision": "If X1 step 10 triggers: accept a documented historical-non-reconstructible exception, or mandate sourcing from declared archival input.", "blocks": ["strict daily closure"]},
+    {"id": "BD4", "decision": "Accept the weekly lab time bound (120s/300s) as the reproducibility criterion or re-baseline it.", "blocks": ["X6 PASS definition"]},
+    {"id": "BD5", "decision": "Approve local_pg/Docker destruction after X8 hash-identical rebuild evidence (BDP-LOCAL-PG-DESTRUCTION).", "blocks": ["lab teardown only"]}
+  ],
+
+  "non_authority_notice": "This dossier designs the G0 closure for Codex execution in the local laboratory. It executes nothing, modifies no productive code, SQL, loaders, or tests, performs no DB or Docker access, and authorizes no Supabase cleanup. Every experiment requires its own explicitly authorized Codex phase."
+}
