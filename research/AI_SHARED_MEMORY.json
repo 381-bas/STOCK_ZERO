@@ -183,7 +183,7 @@
       ]
     }
   },
-  "non_authority_notice": "This file records shared memory only. It does not authorize implementation, DB writes, loader execution, SQL execution, commits, or pushes.",
+  "non_authority_notice": "This file records shared memory only. It does not authorize implementation, DB writes, loader execution, SQL execution, commits, pushes, cleanup, or retention.",
   "c001_validated_research": {
     "status": "VALIDATED_SCOPE_WITH_LIMITS",
     "phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
@@ -322,5 +322,116 @@
       "Exact Claude CG_V2 constant list"
     ],
     "implementation_authorized": false
+  },
+  "c002_b0_parity_rootcause": {
+    "status": "ROOT_CAUSE_CONFIRMED_NOT_PARITY_CLOSED",
+    "phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+    "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+    "source_files": [
+      "research/C002_B0_PARITY_ROOTCAUSE.json",
+      "research/reports/CODEX_C002_B0_PARITY_ROOTCAUSE.md"
+    ],
+    "absorbed_at": "2026-06-11",
+    "findings": [
+      {
+        "id": "CG-PARITY-001",
+        "status": "VALIDATED",
+        "claim": "El excedente diario neto de 13.469 filas fue causado por reconstruir fechas 2026-04-27..2026-05-10 presentes en snapshots raw acumulativos, aunque el fact productivo diario comienza el 2026-05-11.",
+        "evidence": [
+          "research/C002_B0_PARITY_ROOTCAUSE.json surplus_classification",
+          "extra local keys=13470, missing keys=1, net surplus=13469",
+          "commit 506ca6ac2b2413cf417f239f65b735db06a9b4e2"
+        ],
+        "implementation_authorized": false
+      },
+      {
+        "id": "CG-PARITY-002",
+        "status": "VALIDATED",
+        "claim": "La reconstruccion debe declarar explicitamente affected_date_window; no se puede reconstruir el fact usando todas las fechas del ultimo snapshot raw.",
+        "evidence": [
+          "E1 window-only experiment: fecha_visita >= 2026-05-11 reduced local daily rows from 34817 to 21347 and removed all extra keys",
+          "research/reports/CODEX_C002_B0_PARITY_ROOTCAUSE.md Daily Root Cause"
+        ],
+        "implementation_authorized": false
+      },
+      {
+        "id": "CG-ROUTE-SNAPSHOT-001",
+        "status": "PARTIAL",
+        "claim": "La semana 2026-06-01 presenta desalineacion temporal de RUTA_RUTERO; el baseline se aproxima mejor a ruta_batch 16/17 que al batch 18 usado por el laboratorio, pero falta definir la politica autoritativa de snapshot.",
+        "evidence": [
+          "Route candidate comparison: ruta_batch 16/17 matched route attributes far better than ruta_batch 18 for 2026-06-01",
+          "E3 route16 dedup reduced value differences from 1227 to 56 but did not close parity"
+        ],
+        "implementation_authorized": false
+      },
+      {
+        "id": "CG-WEEKLY-001",
+        "status": "PARTIAL",
+        "claim": "La vista semanal no es una superficie eficiente de reconstruccion desde raw: incluso una semana atraviesa raw/event scope, WindowAgg, Sort, joins y agregaciones DISTINCT antes de finalizar.",
+        "evidence": [
+          "One-week EXPLAIN ANALYZE timed out at 300s",
+          "One-week CREATE TABLE timed out at 180s",
+          "Full weekly materialization previously timed out at 900s"
+        ],
+        "implementation_authorized": false
+      },
+      {
+        "id": "CG-PARITY-G0",
+        "status": "PARTIAL",
+        "claim": "G0 continua abierto: queda 1 clave KPIONE2 faltante del 2026-05-15, 56 diferencias de valor, weekly sin paridad y ninguna limpieza Supabase autorizada.",
+        "evidence": [
+          "daily_final status ROOT_CAUSE_CONFIRMED_NOT_PARITY_CLOSED",
+          "daily_final rows=21347, missing_keys=1, extra_keys=0, value_differences=56",
+          "weekly status TIMEOUT_CAUSE_CONFIRMED_NOT_PARITY_CLOSED"
+        ],
+        "implementation_authorized": false
+      }
+    ],
+    "daily": {
+      "baseline_rows": 21348,
+      "initial_local_rows": 34817,
+      "initial_surplus": 13469,
+      "real_key": [
+        "fecha_visita",
+        "cod_rt",
+        "cliente_norm"
+      ],
+      "final": {
+        "rows": 21347,
+        "missing_keys": 1,
+        "extra_keys": 0,
+        "duplicate_keys": 0,
+        "value_differences": 56,
+        "status": "ROOT_CAUSE_CONFIRMED_NOT_PARITY_CLOSED"
+      }
+    },
+    "weekly": {
+      "status": "TIMEOUT_CAUSE_CONFIRMED_NOT_PARITY_CLOSED",
+      "runtime_seconds": 900,
+      "bounded_runtime_seconds": 180,
+      "dominant_plan_nodes": [
+        "Subquery Scan/Aggregate total cost 161292 for one-week filtered query",
+        "Sort + WindowAgg over v_cg_evento_scope_v2 before week filter can finish",
+        "Append over latest raw source branches with computed date/week expressions",
+        "Hash Join from raw evidence to route frequency base",
+        "Sorted Aggregate with string_agg(DISTINCT ...) in weekly grouping"
+      ],
+      "index_candidates_local_only": [
+        "Materialize daily precedence/event scope before weekly aggregation in local parity surface",
+        "Expression or generated-column indexes for raw report_week_start/date and normalized cliente/cod_rt candidates",
+        "Composite local indexes on event_scope/precomputed daily: semana_inicio, cod_rt, cliente_norm",
+        "Route frequency surface indexed by effective_week_start, cod_rt, cliente_norm, ruta_batch_id",
+        "Avoid querying cg_mart.v_cg_out_weekly_v2 directly for parity; use staged daily and route surfaces"
+      ],
+      "explain_analyze": "One-week EXPLAIN ANALYZE timed out at 300s; one-week CREATE TABLE timed out at 180s; full materialization previously timed out at 900s."
+    },
+    "authority": {
+      "supabase_cleanup_authorized": false,
+      "runtime_change_authorized": false,
+      "loader_change_authorized": false,
+      "sql_change_authorized": false,
+      "implementation_authorized": false
+    },
+    "next_gate": "G0 remains open: resolve the one missing KPIONE2 key on 2026-05-15, define the authoritative route snapshot policy for week 2026-06-01, then rebuild weekly from staged daily/route surfaces before any storage or retention work."
   }
 }

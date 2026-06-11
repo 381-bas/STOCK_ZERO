@@ -17,7 +17,8 @@
       "PARTIAL",
       "DISPUTED",
       "REJECTED"
-    ]
+    ],
+    "c002_g0_notice": "No backlog item is APPROVED or IMPLEMENTED while CG-PARITY-G0 remains PARTIAL/open."
   },
   "items": [
     {
@@ -109,12 +110,15 @@
         "Requested as shared research backlog item.",
         "C001 Codex validation disputes payload_json removal because DB views consume it.",
         "C001 Codex validation confirms CG loader hash-skip/batch_registry behavior.",
-        "C001 Codex validation confirms incremental refresh commit occurs before post-commit ANALYZE."
+        "C001 Codex validation confirms incremental refresh commit occurs before post-commit ANALYZE.",
+        "C002 memory update: DB-002 remains blocked for retention while CG-PARITY-G0 is PARTIAL/open.",
+        "No Supabase cleanup, payload_json removal, raw retention, or storage work is authorized by C002 B0."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
       "implementation_authorized": false,
-      "last_validation_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
-      "required_next_action": "Reformulate retention and raw duplication work around actual DB consumers."
+      "last_validation_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+      "required_next_action": "Keep retention/storage work blocked until daily and weekly parity G0 are closed.",
+      "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2"
     },
     {
       "id": "CODE-001",
@@ -158,8 +162,54 @@
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
       "implementation_authorized": false
+    },
+    {
+      "id": "CG-002",
+      "title": "Contrato temporal de reconstruccion CG affected_date_window",
+      "category": "CONTROL_GESTION",
+      "status": "VALIDATED",
+      "evidence": [
+        "CG-PARITY-001 validated net surplus root cause.",
+        "CG-PARITY-002 validated need for explicit affected_date_window.",
+        "C002 B0 E1 removed all extra keys with fecha_visita >= 2026-05-11."
+      ],
+      "baseline_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+      "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+      "required_next_action": "Define and test explicit affected_date_window before any future mart reconstruction."
+    },
+    {
+      "id": "CG-003",
+      "title": "Politica versionada de snapshot RUTA_RUTERO",
+      "category": "CONTROL_GESTION",
+      "status": "PARTIAL",
+      "evidence": [
+        "CG-ROUTE-SNAPSHOT-001: week 2026-06-01 aligns better with ruta_batch 16/17 than batch 18.",
+        "Route16 dedup reduced value differences but did not close parity."
+      ],
+      "baseline_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+      "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+      "required_next_action": "Define authoritative route snapshot policy by week before closing G0."
+    },
+    {
+      "id": "CG-004",
+      "title": "Weekly derivado desde daily staged",
+      "category": "CONTROL_GESTION",
+      "status": "PARTIAL",
+      "evidence": [
+        "CG-WEEKLY-001: weekly view is inefficient as raw reconstruction surface.",
+        "One-week materialization timed out at 180s; full weekly timed out at 900s."
+      ],
+      "baseline_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+      "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+      "required_next_action": "Rebuild weekly parity from staged daily and route surfaces in local lab before storage work."
     }
   ],
-  "last_updated_by_phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
-  "last_updated_at": "2026-06-10"
+  "last_updated_by_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+  "last_updated_at": "2026-06-11"
 }
