@@ -1,0 +1,1141 @@
+{
+  "document_id": "AI_CAPABILITY_MAP_STOCK_ZERO",
+  "schema_version": 1,
+  "status": "ACTIVE_DIRECTION",
+  "promoted_by_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+  "promoted_at": "2026-06-11",
+  "runtime_code_baseline": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+  "source_proposal_commit": "7fa6b13ba15333f1e82e5d26301c3b3285b7f8b7",
+  "authority": {
+    "implementation_authorized": false,
+    "db_access": "none",
+    "no_capability_implemented_by_this_file": true
+  },
+  "vocabulary": {
+    "categories": [
+      "BUSINESS_CAPABILITY",
+      "DOMAIN_SERVICE",
+      "SHARED_REFERENCE_DATA",
+      "SOURCE_ADAPTER",
+      "PERSISTENCE_ADAPTER",
+      "PRESENTATION",
+      "INTERNAL_TOOLING",
+      "LABORATORY",
+      "FUTURE_CAPABILITY"
+    ],
+    "genericity": [
+      "GENERIC",
+      "GENERIC_WITH_RT_CONFIGURATION",
+      "RETAIL_TRUST_SPECIFIC",
+      "UNKNOWN"
+    ],
+    "target_states": [
+      "KEEP_LEGACY_APP",
+      "KEEP_INTERNAL_TOOLING",
+      "KEEP_LAB",
+      "EXTRACT_DOMAIN",
+      "EXTRACT_SHARED_SERVICE",
+      "EXTRACT_ADAPTER",
+      "FUTURE_CAPABILITY",
+      "DEPRECATE_CANDIDATE",
+      "UNKNOWN"
+    ]
+  },
+  "counts": {
+    "claude_capabilities_proposed": 16,
+    "claude_capabilities_validated_with_corrections": 16,
+    "missing_capabilities_added": 9,
+    "promoted_capabilities_total": 25
+  },
+  "evidence_policy": {
+    "stable_contract_fields": [
+      "start_date",
+      "end_date",
+      "batch identifiers",
+      "route snapshot",
+      "build version",
+      "expected parity"
+    ],
+    "specific_dates_counts_and_batches_live_in": "AI_PROJECT_HORIZON.evidence_snapshots",
+    "payload_json_surface": "REQUIRED_CURRENT_SURFACE_REPLACEABLE_ONLY_WITH_PARITY"
+  },
+  "capabilities": [
+    {
+      "capability": "temporal_window_resolution",
+      "category": "DOMAIN_SERVICE",
+      "domain": "CONTROL_GESTION_TEMPORAL_CONTRACT",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "scripts/refresh_control_gestion_v2_incremental.py",
+        "cg_core/cg_mart views via evidence"
+      ],
+      "inputs": [
+        "start_date",
+        "end_date",
+        "raw evidence dates"
+      ],
+      "outputs": [
+        "bounded evidence scope for daily reconstruction"
+      ],
+      "rules": [
+        "Build scope must be declared by parameters; never infer durable rules from latest raw snapshots."
+      ],
+      "consumers": [
+        "daily_fact_builder",
+        "weekly_fact_builder",
+        "parity_and_reconstruction"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "EXTRACT_DOMAIN",
+      "prerequisites": [
+        "G0 parity closed",
+        "affected date window declared as versioned contract"
+      ],
+      "tests_required": [
+        "window-bounded parity",
+        "out-of-window exclusion"
+      ],
+      "risks": [
+        "Without an explicit window, accumulative raw snapshots inflate reconstruction."
+      ],
+      "evidence": [
+        "C002_B0_PARITY_ROOTCAUSE H2/H8/E1"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "raw_batch_selection",
+      "category": "DOMAIN_SERVICE",
+      "domain": "CONTROL_GESTION_TEMPORAL_CONTRACT",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "cg_core.v_cg_latest_batch_by_source evidence",
+        "cg_audit.batch_registry evidence",
+        "scripts/load_control_gestion_raw_v17.py"
+      ],
+      "inputs": [
+        "raw_batch_identifiers_by_source",
+        "batch_registry"
+      ],
+      "outputs": [
+        "raw rows participating in a declared build"
+      ],
+      "rules": [
+        "Batch selection is explicit per source and must be combined with the declared date window."
+      ],
+      "consumers": [
+        "temporal_window_resolution",
+        "source_precedence",
+        "daily_fact_builder"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "EXTRACT_DOMAIN",
+      "prerequisites": [
+        "batch identifiers recorded per build",
+        "G0 parity closed for cleanup implications"
+      ],
+      "tests_required": [
+        "latest-per-source selection",
+        "accumulative batch boundary test"
+      ],
+      "risks": [
+        "Latest batch alone does not bound dates."
+      ],
+      "evidence": [
+        "C002_B0 H1",
+        "scripts/load_control_gestion_raw_v17.py batch_registry logic"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "route_snapshot_versioning",
+      "category": "DOMAIN_SERVICE",
+      "domain": "SHARED_ROUTE_MASTER_AND_CONTROL_GESTION",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "cg_core.ruta_rutero_load_rows evidence",
+        "scripts/load_ruta_rutero_from_excel.py"
+      ],
+      "inputs": [
+        "route_snapshot",
+        "route load batches",
+        "Bastian semantic route policy"
+      ],
+      "outputs": [
+        "route attributes effective for a declared build"
+      ],
+      "rules": [
+        "Bastian owns semantic route validity; Codex reconstructs which snapshot produced each materialization."
+      ],
+      "consumers": [
+        "daily_fact_builder",
+        "weekly_fact_builder",
+        "inventory selectors through Route Master"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "EXTRACT_SHARED_SERVICE",
+      "prerequisites": [
+        "route policy decision",
+        "technical lineage proof"
+      ],
+      "tests_required": [
+        "route attribute parity by declared snapshot",
+        "snapshot determinism"
+      ],
+      "risks": [
+        "Using latest route by default can diverge from productive materialization."
+      ],
+      "evidence": [
+        "C002_B0 H3/H9",
+        "scripts/load_ruta_rutero_from_excel.py history rows"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "source_precedence",
+      "category": "DOMAIN_SERVICE",
+      "domain": "CONTROL_GESTION",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "scripts/load_control_gestion_raw_v17.py",
+        "cg_core/cg_mart views via evidence",
+        "app/exports.py explanatory text"
+      ],
+      "inputs": [
+        "source_precedence_version",
+        "per-source evidence"
+      ],
+      "outputs": [
+        "one resolved evidence row per declared day key"
+      ],
+      "rules": [
+        "The precedence engine is generic; KPIONE2 > POWER_APP > KPIONE1 is Retail Trust configuration."
+      ],
+      "consumers": [
+        "daily_fact_builder",
+        "cg_read_api",
+        "exports_and_reporting"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "EXTRACT_DOMAIN",
+      "prerequisites": [
+        "versioned precedence contract",
+        "G0 parity closed"
+      ],
+      "tests_required": [
+        "precedence resolution per key",
+        "fallback/audit-only source behavior"
+      ],
+      "risks": [
+        "Implicit precedence makes reconstruction non-deterministic."
+      ],
+      "evidence": [
+        "scripts/load_control_gestion_raw_v17.py SOURCE_ORDER",
+        "app/exports.py CG_V2_GLOBAL_PROTOTYPE_WARNING"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "daily_fact_builder",
+      "category": "DOMAIN_SERVICE",
+      "domain": "CONTROL_GESTION",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "scripts/refresh_control_gestion_v2_incremental.py",
+        "cg_mart.fact_cg_visita_dia_resuelta_v2 evidence"
+      ],
+      "inputs": [
+        "windowed evidence",
+        "route snapshot",
+        "source precedence",
+        "build version"
+      ],
+      "outputs": [
+        "staged daily fact"
+      ],
+      "rules": [
+        "Daily reconstruction is valid only under the declared temporal contract and expected parity."
+      ],
+      "consumers": [
+        "weekly_fact_builder",
+        "cg_read_api",
+        "parity_and_reconstruction"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "EXTRACT_DOMAIN",
+      "prerequisites": [
+        "missing key resolved",
+        "value differences resolved where applicable"
+      ],
+      "tests_required": [
+        "daily parity",
+        "daily key uniqueness"
+      ],
+      "risks": [
+        "Daily build can be inflated or underbuilt without declared window and snapshot."
+      ],
+      "evidence": [
+        "C002_B0 daily_final",
+        "scripts/refresh_control_gestion_v2_incremental.py"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "weekly_fact_builder",
+      "category": "DOMAIN_SERVICE",
+      "domain": "CONTROL_GESTION",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "scripts/refresh_control_gestion_v2_incremental.py",
+        "cg_mart.fact_cg_out_weekly_v2 evidence"
+      ],
+      "inputs": [
+        "staged daily fact",
+        "route snapshot",
+        "build version"
+      ],
+      "outputs": [
+        "weekly fact and weekly read surfaces"
+      ],
+      "rules": [
+        "Weekly parity surface must be derived from staged daily; raw recomputation is not the efficient reconstruction surface."
+      ],
+      "consumers": [
+        "cg_read_api",
+        "exports_and_reporting",
+        "parity_and_reconstruction"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "EXTRACT_DOMAIN",
+      "prerequisites": [
+        "daily parity closed",
+        "weekly rebuild path proven from staged daily"
+      ],
+      "tests_required": [
+        "weekly parity",
+        "bounded runtime validation"
+      ],
+      "risks": [
+        "Raw/event-scope weekly reconstruction has documented timeout risk."
+      ],
+      "evidence": [
+        "C002_B0 weekly findings",
+        "app/db.py CG_V2_OUT_WEEKLY_VIEW consumers"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "parity_and_reconstruction",
+      "category": "INTERNAL_TOOLING",
+      "domain": "CONTROL_GESTION_TEMPORAL_CONTRACT",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "research/C002_B0_PARITY_ROOTCAUSE.json",
+        "evidence manifests referenced by research",
+        "scripts/cg_readonly_extract.py"
+      ],
+      "inputs": [
+        "baseline extract",
+        "local reconstruction",
+        "temporal contracts"
+      ],
+      "outputs": [
+        "parity verdicts",
+        "root-cause evidence",
+        "reconstructability proof"
+      ],
+      "rules": [
+        "No storage cleanup or retention action is safe until parity gates close."
+      ],
+      "consumers": [
+        "Codex gates",
+        "Bastian decisions",
+        "AI_BACKLOG DB-002"
+      ],
+      "genericity": "GENERIC",
+      "target_state": "KEEP_INTERNAL_TOOLING",
+      "prerequisites": [
+        "explicit phase authorization for each investigation"
+      ],
+      "tests_required": [
+        "daily parity",
+        "weekly parity",
+        "hash manifest validation"
+      ],
+      "risks": [
+        "Over-promoting partial parity would authorize unsafe cleanup."
+      ],
+      "evidence": [
+        "C002_B0_PARITY_ROOTCAUSE.json",
+        "C002_IMPLEMENTATION_PORTFOLIO.json"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "laboratory_reproducibility",
+      "category": "LABORATORY",
+      "domain": "REPRODUCIBILITY_LAB",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "local_pg/Docker evidence in prior reports",
+        "scripts/cg_readonly_extract.py",
+        "tests/test_cg_readonly_extract.py"
+      ],
+      "inputs": [
+        "read-only extracts",
+        "DDL snapshots",
+        "hash manifests"
+      ],
+      "outputs": [
+        "rebuildable local parity lab"
+      ],
+      "rules": [
+        "The lab is reproducibility infrastructure, not a backup or production source of truth."
+      ],
+      "consumers": [
+        "parity_and_reconstruction",
+        "contract validation"
+      ],
+      "genericity": "GENERIC",
+      "target_state": "KEEP_LAB",
+      "prerequisites": [
+        "Bastian destruction criterion",
+        "rebuild recipe in git"
+      ],
+      "tests_required": [
+        "rebuild-from-evidence",
+        "hash verification"
+      ],
+      "risks": [
+        "Treating live local_pg as source of truth creates hidden state."
+      ],
+      "evidence": [
+        "C002_B0 evidence integrity",
+        "AI_PROJECT_HORIZON_PROPOSAL principle 5"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "inventory_ingestion",
+      "category": "BUSINESS_CAPABILITY",
+      "domain": "INVENTORY",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "scripts/load_fact_from_excel.py"
+      ],
+      "inputs": [
+        "inventory workbook BASE sheet"
+      ],
+      "outputs": [
+        "public.fact_stock_venta"
+      ],
+      "rules": [
+        "Inventory ingestion is a domain capability; the current Excel loader is a legacy implementation path."
+      ],
+      "consumers": [
+        "inventory_read_api",
+        "cliente views",
+        "reposicion workflow"
+      ],
+      "genericity": "RETAIL_TRUST_SPECIFIC",
+      "target_state": "KEEP_LEGACY_APP",
+      "prerequisites": [
+        "separate approval for loader changes"
+      ],
+      "tests_required": [
+        "dedupe/upsert key",
+        "NO_RT exclusion",
+        "formula parity before offload"
+      ],
+      "risks": [
+        "Formula-derived workbook columns can be stale."
+      ],
+      "evidence": [
+        "scripts/load_fact_from_excel.py ON CONFLICT key",
+        "C001_CODEX_VALIDATION_MATRIX DATA-001"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "inventory_derivation_offload",
+      "category": "DOMAIN_SERVICE",
+      "domain": "INVENTORY",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "workbook formula-derived columns consumed by scripts/load_fact_from_excel.py"
+      ],
+      "inputs": [
+        "BASE columns",
+        "Route Master lookup"
+      ],
+      "outputs": [
+        "derived inventory fields"
+      ],
+      "rules": [
+        "Candidate offload requires exact parity against workbook-derived values before replacement."
+      ],
+      "consumers": [
+        "inventory_ingestion"
+      ],
+      "genericity": "RETAIL_TRUST_SPECIFIC",
+      "target_state": "DEPRECATE_CANDIDATE",
+      "prerequisites": [
+        "formula/cache freshness design",
+        "COD_RT parity evidence"
+      ],
+      "tests_required": [
+        "formula parity",
+        "duplicate-key semantics"
+      ],
+      "risks": [
+        "Python semantics may differ from Excel cached formulas."
+      ],
+      "evidence": [
+        "AI_BACKLOG DATA-001",
+        "C001_CODEX_VALIDATION_MATRIX"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "route_master_ingestion",
+      "category": "SHARED_REFERENCE_DATA",
+      "domain": "SHARED_ROUTE_MASTER",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "scripts/load_ruta_rutero_from_excel.py",
+        "public.ruta_rutero",
+        "cg_core.ruta_rutero_load_rows evidence"
+      ],
+      "inputs": [
+        "route workbook sheet",
+        "source/source_row key"
+      ],
+      "outputs": [
+        "current route master",
+        "route load history",
+        "row_hash fingerprint"
+      ],
+      "rules": [
+        "RUTA_RUTERO is shared reference data for Inventory and Control Gestion, not exclusively CG. row_hash is a fingerprint, not the upsert key."
+      ],
+      "consumers": [
+        "inventory selectors",
+        "route_snapshot_versioning",
+        "cg route frequency base evidence"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "EXTRACT_SHARED_SERVICE",
+      "prerequisites": [
+        "route policy decision",
+        "row_hash utility separated from history retention"
+      ],
+      "tests_required": [
+        "source/source_row upsert",
+        "route history snapshot determinism"
+      ],
+      "risks": [
+        "Shared ownership can be confused with CG-only ownership."
+      ],
+      "evidence": [
+        "app/services/stock.py",
+        "app/screens/reposicion.py",
+        "scripts/load_ruta_rutero_from_excel.py"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "cg_raw_ingestion_kpione2_adapter",
+      "category": "SOURCE_ADAPTER",
+      "domain": "CONTROL_GESTION",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "scripts/load_control_gestion_raw_v17.py"
+      ],
+      "inputs": [
+        "CUMPLIMIENTO_FRECUENCIA source sheets",
+        "sheet hash",
+        "payload_json"
+      ],
+      "outputs": [
+        "cg_raw source tables",
+        "cg_audit.batch_registry"
+      ],
+      "rules": [
+        "KPIONE2 is a Control Gestion source adapter; payload_json is a required current surface for source details."
+      ],
+      "consumers": [
+        "raw_batch_selection",
+        "source_precedence",
+        "db view consumers by evidence"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "EXTRACT_ADAPTER",
+      "prerequisites": [
+        "source adapter framework",
+        "payload compatibility plan"
+      ],
+      "tests_required": [
+        "hash skip idempotency",
+        "payload-only field preservation"
+      ],
+      "risks": [
+        "Removing payload_json would break known DB consumers."
+      ],
+      "evidence": [
+        "scripts/load_control_gestion_raw_v17.py",
+        "C001 R08 rejected",
+        "C002_B0 H6"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "inventory_read_api",
+      "category": "DOMAIN_SERVICE",
+      "domain": "INVENTORY",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "app/db.py stock/cliente selectors",
+        "app/services/stock.py"
+      ],
+      "inputs": [
+        "fact_stock_venta",
+        "Route Master",
+        "cliente scope views"
+      ],
+      "outputs": [
+        "dataframes for reposicion and cliente screens"
+      ],
+      "rules": [
+        "Read path should become domain interface before app/db.py responsibilities are split."
+      ],
+      "consumers": [
+        "reposicion workflow",
+        "cliente screen"
+      ],
+      "genericity": "RETAIL_TRUST_SPECIFIC",
+      "target_state": "EXTRACT_DOMAIN",
+      "prerequisites": [
+        "H2 domain seam",
+        "runtime smoke for static-only functions"
+      ],
+      "tests_required": [
+        "reposicion read smoke",
+        "cliente read smoke"
+      ],
+      "risks": [
+        "app/db.py concentrates Inventory and CG responsibilities."
+      ],
+      "evidence": [
+        "app/services/stock.py imports app.db",
+        "app/screens/reposicion.py uses stock_service"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "cg_read_api",
+      "category": "DOMAIN_SERVICE",
+      "domain": "CONTROL_GESTION",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "app/db.py CG v2 and B3 selectors",
+        "app/screens/control_gestion.py"
+      ],
+      "inputs": [
+        "cg_mart facts/views",
+        "B3 public views"
+      ],
+      "outputs": [
+        "Control Gestion dataframes and KPI surfaces"
+      ],
+      "rules": [
+        "V2 is normal path; B3 remains active fallback/legacy path until visibility and replacement evidence exist."
+      ],
+      "consumers": [
+        "control_gestion screen",
+        "exports_and_reporting"
+      ],
+      "genericity": "RETAIL_TRUST_SPECIFIC",
+      "target_state": "EXTRACT_DOMAIN",
+      "prerequisites": [
+        "B3 fallback observability",
+        "H2 domain seam"
+      ],
+      "tests_required": [
+        "V2 read smoke",
+        "B3 activation/fallback visibility"
+      ],
+      "risks": [
+        "Silent fallback can mask V2 failures."
+      ],
+      "evidence": [
+        "app/screens/control_gestion.py USE_CG_V2 path",
+        "app/db.py get_cg_contract and get_cg_v2_contract"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "presentation_streamlit",
+      "category": "PRESENTATION",
+      "domain": "STOCK_ZERO_LEGACY_APP",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "streamlit_app.py",
+        "app/Home.py",
+        "app/screens/*.py"
+      ],
+      "inputs": [
+        "domain read APIs",
+        "session_state",
+        "query params"
+      ],
+      "outputs": [
+        "Streamlit user interface"
+      ],
+      "rules": [
+        "Streamlit remains legacy-stable consumer; future modules must not depend mandatorily on it."
+      ],
+      "consumers": [
+        "Retail Trust users"
+      ],
+      "genericity": "RETAIL_TRUST_SPECIFIC",
+      "target_state": "KEEP_LEGACY_APP",
+      "prerequisites": [
+        "headless interface before any UI replacement"
+      ],
+      "tests_required": [
+        "screen dispatch smoke",
+        "exports smoke"
+      ],
+      "risks": [
+        "Presentation coupling can block reuse if no headless layer exists."
+      ],
+      "evidence": [
+        "app/Home.py deferred screen imports",
+        "streamlit_app.py"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "readonly_extraction",
+      "category": "INTERNAL_TOOLING",
+      "domain": "RESEARCH_AND_VALIDATION",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "scripts/cg_readonly_extract.py",
+        "tests/test_cg_readonly_extract.py"
+      ],
+      "inputs": [
+        "allowlisted DB objects",
+        "read-only role",
+        "output root under evidence"
+      ],
+      "outputs": [
+        "catalogs, dependency extracts, baselines"
+      ],
+      "rules": [
+        "No free SQL, no stdin SQL, read-only transaction, role stock_zero_codex_ro, DSN redaction."
+      ],
+      "consumers": [
+        "parity_and_reconstruction",
+        "laboratory_reproducibility"
+      ],
+      "genericity": "GENERIC",
+      "target_state": "KEEP_INTERNAL_TOOLING",
+      "prerequisites": [
+        "explicit no-DB or read-only phase authorization before use"
+      ],
+      "tests_required": [
+        "allowlist tests",
+        "mutation-block tests",
+        "output-root containment tests"
+      ],
+      "risks": [
+        "Misuse would expose DB scope; tests and allowlists mitigate this."
+      ],
+      "evidence": [
+        "scripts/cg_readonly_extract.py",
+        "tests/test_cg_readonly_extract.py"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "b2b_source_ingestion",
+      "category": "FUTURE_CAPABILITY",
+      "domain": "SOURCE_ADAPTERS",
+      "validation_status": "DIRECTIONAL_FUTURE",
+      "current_implementation": [],
+      "inputs": [
+        "future B2B source contract"
+      ],
+      "outputs": [
+        "normalized source evidence candidate"
+      ],
+      "rules": [
+        "No B2B ingestion is implemented or approved by this map."
+      ],
+      "consumers": [
+        "future source_adapter_framework"
+      ],
+      "genericity": "UNKNOWN",
+      "target_state": "FUTURE_CAPABILITY",
+      "prerequisites": [
+        "source adapter framework",
+        "Bastian approval",
+        "source contract evidence"
+      ],
+      "tests_required": [
+        "schema contract test",
+        "adapter parity test"
+      ],
+      "risks": [
+        "Premature source expansion would grow horizontally before contracts stabilize."
+      ],
+      "evidence": [
+        "Added as missing C003 capability; no runtime implementation claimed."
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "exports_and_reporting",
+      "category": "PRESENTATION",
+      "domain": "STOCK_ZERO_LEGACY_APP",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "app/exports.py",
+        "app/screens/control_gestion.py",
+        "app/screens/reposicion.py",
+        "app/screens/cliente.py"
+      ],
+      "inputs": [
+        "screen dataframes",
+        "CG v2 summaries",
+        "inventory export rows"
+      ],
+      "outputs": [
+        "Excel/PDF/downloadable reports"
+      ],
+      "rules": [
+        "Current exports are legacy presentation surfaces; future report services require explicit extraction approval."
+      ],
+      "consumers": [
+        "Retail Trust users",
+        "Streamlit screens"
+      ],
+      "genericity": "RETAIL_TRUST_SPECIFIC",
+      "target_state": "KEEP_LEGACY_APP",
+      "prerequisites": [
+        "headless capability interface before extraction"
+      ],
+      "tests_required": [
+        "workbook generation smoke",
+        "filename/context validation"
+      ],
+      "risks": [
+        "Reports can encode business semantics outside domain contracts."
+      ],
+      "evidence": [
+        "app/exports.py CG_V2 export builders",
+        "app/screens/control_gestion.py download buttons"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "identity_and_access",
+      "category": "FUTURE_CAPABILITY",
+      "domain": "APP_GOVERNANCE",
+      "validation_status": "DIRECTIONAL_FUTURE",
+      "current_implementation": [
+        "limited role/module selection in app/screens/control_gestion.py"
+      ],
+      "inputs": [
+        "future user/session/role contract"
+      ],
+      "outputs": [
+        "role-aware access decisions"
+      ],
+      "rules": [
+        "Current UI roles are not an authoritative identity system."
+      ],
+      "consumers": [
+        "future headless interfaces",
+        "presentation_streamlit"
+      ],
+      "genericity": "UNKNOWN",
+      "target_state": "FUTURE_CAPABILITY",
+      "prerequisites": [
+        "Bastian product decision",
+        "security requirements"
+      ],
+      "tests_required": [
+        "role matrix test",
+        "access-denial test"
+      ],
+      "risks": [
+        "Confusing UI filters with auth would create false assurance."
+      ],
+      "evidence": [
+        "app/screens/control_gestion.py role/module selectors; no auth implementation claimed."
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "observability_and_runtime_health",
+      "category": "FUTURE_CAPABILITY",
+      "domain": "RUNTIME_OPERATIONS",
+      "validation_status": "DIRECTIONAL_FUTURE",
+      "current_implementation": [
+        "debug timing helpers and smoke calls in screens/db.py"
+      ],
+      "inputs": [
+        "runtime events",
+        "fallback mode",
+        "data version",
+        "contract smoke"
+      ],
+      "outputs": [
+        "health status",
+        "fallback visibility",
+        "diagnostic audit trail"
+      ],
+      "rules": [
+        "B3/V2 mode and fallback must become visible before behavior is changed."
+      ],
+      "consumers": [
+        "Bastian operations",
+        "Codex validations",
+        "future support workflows"
+      ],
+      "genericity": "GENERIC",
+      "target_state": "FUTURE_CAPABILITY",
+      "prerequisites": [
+        "OBS-001 backlog approval",
+        "no behavior change without tests"
+      ],
+      "tests_required": [
+        "fallback event test",
+        "smoke status display test"
+      ],
+      "risks": [
+        "Silent fallback can hide V2 breakage."
+      ],
+      "evidence": [
+        "app/screens/control_gestion.py v2 fallback warning path",
+        "AI_BACKLOG CG-001"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "kpi_composition",
+      "category": "FUTURE_CAPABILITY",
+      "domain": "PRODUCT_DECISION_TOWER",
+      "validation_status": "DIRECTIONAL_FUTURE",
+      "current_implementation": [
+        "current KPI calculations in app/db.py and screens as legacy surfaces"
+      ],
+      "inputs": [
+        "validated domain facts",
+        "scope filters",
+        "expected parity"
+      ],
+      "outputs": [
+        "contracted KPI definitions"
+      ],
+      "rules": [
+        "KPI definitions must depend on validated facts and contracts, not presentation-only calculations."
+      ],
+      "consumers": [
+        "future decision tower",
+        "exports_and_reporting"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "FUTURE_CAPABILITY",
+      "prerequisites": [
+        "H4 headless interface",
+        "H5 Bastian product decision"
+      ],
+      "tests_required": [
+        "KPI contract test",
+        "cross-surface consistency test"
+      ],
+      "risks": [
+        "Premature KPI productization before parity would encode wrong truth."
+      ],
+      "evidence": [
+        "app/db.py get_cg_v2_scope_kpis and inventory KPI paths; no new implementation claimed."
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "alert_generation",
+      "category": "FUTURE_CAPABILITY",
+      "domain": "PRODUCT_DECISION_TOWER",
+      "validation_status": "DIRECTIONAL_FUTURE",
+      "current_implementation": [
+        "legacy CG alert selectors and fixed CUMPLE/INCUMPLE options"
+      ],
+      "inputs": [
+        "validated KPI states",
+        "domain thresholds",
+        "route/context scope"
+      ],
+      "outputs": [
+        "contracted alerts"
+      ],
+      "rules": [
+        "Alerts require explicit business thresholds and evidence before becoming product capability."
+      ],
+      "consumers": [
+        "future decision tower",
+        "presentation_streamlit"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "FUTURE_CAPABILITY",
+      "prerequisites": [
+        "KPI composition contract",
+        "Bastian approval of alert semantics"
+      ],
+      "tests_required": [
+        "threshold fixture tests",
+        "alert explainability tests"
+      ],
+      "risks": [
+        "Static labels can look authoritative without semantic approval."
+      ],
+      "evidence": [
+        "app/db.py get_cg_v2_alertas returns stable options; B3 alert selectors exist."
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "decision_and_action_tracking",
+      "category": "FUTURE_CAPABILITY",
+      "domain": "PRODUCT_DECISION_TOWER",
+      "validation_status": "DIRECTIONAL_FUTURE",
+      "current_implementation": [],
+      "inputs": [
+        "KPI and alert outputs",
+        "user/action events"
+      ],
+      "outputs": [
+        "tracked decisions and follow-up actions"
+      ],
+      "rules": [
+        "No decision/action write workflow is implemented or approved."
+      ],
+      "consumers": [
+        "future product workflows"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "FUTURE_CAPABILITY",
+      "prerequisites": [
+        "identity/access contract",
+        "product decision approval",
+        "write-policy design"
+      ],
+      "tests_required": [
+        "audit trail test",
+        "permission test"
+      ],
+      "risks": [
+        "Would introduce writes and authority changes; must remain future-only."
+      ],
+      "evidence": [
+        "Added as missing C003 capability; no runtime implementation claimed."
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "configuration_and_contract_registry",
+      "category": "FUTURE_CAPABILITY",
+      "domain": "CONTRACT_GOVERNANCE",
+      "validation_status": "DIRECTIONAL_FUTURE",
+      "current_implementation": [
+        "research/AI_PROJECT_HORIZON.json",
+        "research/AI_CAPABILITY_MAP.json",
+        "AI memory files"
+      ],
+      "inputs": [
+        "stable parameters",
+        "evidence snapshots",
+        "baseline commit"
+      ],
+      "outputs": [
+        "versioned contract declarations"
+      ],
+      "rules": [
+        "Contracts declare parameters and evidence; they do not authorize implementation."
+      ],
+      "consumers": [
+        "Claude",
+        "Codex",
+        "ChatGPT",
+        "Bastian"
+      ],
+      "genericity": "GENERIC",
+      "target_state": "FUTURE_CAPABILITY",
+      "prerequisites": [
+        "protocol update",
+        "Bastian review"
+      ],
+      "tests_required": [
+        "schema validation",
+        "required-context enforcement by process"
+      ],
+      "risks": [
+        "Research contracts can be mistaken for implementation approval."
+      ],
+      "evidence": [
+        "This C003 promotion",
+        "AI_RESEARCH_PROTOCOL update"
+      ],
+      "implementation_authorized": false
+    },
+    {
+      "capability": "control_gestion_mart_persistence",
+      "category": "PERSISTENCE_ADAPTER",
+      "domain": "CONTROL_GESTION",
+      "validation_status": "VALIDATED_WITH_CORRECTIONS",
+      "current_implementation": [
+        "scripts/refresh_control_gestion_v2_incremental.py",
+        "cg_mart.fact_cg_visita_dia_resuelta_v2 evidence",
+        "cg_mart.fact_cg_out_weekly_v2 evidence"
+      ],
+      "inputs": [
+        "daily and weekly staged rows",
+        "build version",
+        "expected parity"
+      ],
+      "outputs": [
+        "materialized mart facts and read surfaces"
+      ],
+      "rules": [
+        "Persistence adapter is separate from domain rules; writes require explicit approved loader/refresh phase."
+      ],
+      "consumers": [
+        "cg_read_api",
+        "exports_and_reporting",
+        "parity_and_reconstruction"
+      ],
+      "genericity": "GENERIC_WITH_RT_CONFIGURATION",
+      "target_state": "EXTRACT_ADAPTER",
+      "prerequisites": [
+        "G0 closed",
+        "persistence contract design",
+        "explicit DB write authorization"
+      ],
+      "tests_required": [
+        "transactional refresh test",
+        "post-commit validation",
+        "rollback rehearsal"
+      ],
+      "risks": [
+        "Confusing persistence with domain rules can authorize unsafe writes."
+      ],
+      "evidence": [
+        "scripts/refresh_control_gestion_v2_incremental.py staged daily/weekly flow",
+        "C001 LOADER-FACT-004"
+      ],
+      "implementation_authorized": false
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "document_id": "C003_CODEX_VALIDATION_MATRIX",
+  "phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+  "schema_version": 1,
+  "created_at": "2026-06-11",
+  "runtime_code_baseline": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+  "proposal_commit": "7fa6b13ba15333f1e82e5d26301c3b3285b7f8b7",
+  "authority": {
+    "implementation_authorized": false,
+    "db_access": "none",
+    "docker_access": false,
+    "loaders_executed": false
+  },
+  "summary": {
+    "horizons_validated": 6,
+    "capabilities_proposed": 16,
+    "capabilities_validated": 16,
+    "capabilities_added": [
+      "b2b_source_ingestion",
+      "exports_and_reporting",
+      "identity_and_access",
+      "observability_and_runtime_health",
+      "kpi_composition",
+      "alert_generation",
+      "decision_and_action_tracking",
+      "configuration_and_contract_registry",
+      "control_gestion_mart_persistence"
+    ],
+    "promoted_capabilities_total": 25,
+    "horizon_promoted": true,
+    "capability_map_promoted": true
+  },
+  "horizon_validation": [
+    {
+      "id": "H0",
+      "verdict": "VALIDATED_WITH_CORRECTIONS",
+      "corrections": [
+        "DB catalog can advance read-only in parallel",
+        "only retention/deletion blocked by open G0",
+        "no fixed dates/counts as rules"
+      ]
+    },
+    {
+      "id": "H1",
+      "verdict": "VALIDATED_WITH_CORRECTIONS",
+      "corrections": [
+        "contract registry and DB catalog separated from cleanup authority"
+      ]
+    },
+    {
+      "id": "H2",
+      "verdict": "VALIDATED_WITH_CORRECTIONS",
+      "corrections": [
+        "Route Master is shared; Inventory and CG seam is interface-level inside same repo"
+      ]
+    },
+    {
+      "id": "H3",
+      "verdict": "VALIDATED_WITH_CORRECTIONS",
+      "corrections": [
+        "payload_json is required current surface, not forever-canonical"
+      ]
+    },
+    {
+      "id": "H4",
+      "verdict": "VALIDATED_WITH_CORRECTIONS",
+      "corrections": [
+        "headless interface is future direction, Streamlit remains legacy stable consumer"
+      ]
+    },
+    {
+      "id": "H5",
+      "verdict": "VALIDATED_WITH_CORRECTIONS",
+      "corrections": [
+        "no second repo or big-bang authorized; productization is Bastian decision point"
+      ]
+    }
+  ],
+  "capability_reclassifications": [
+    {
+      "capability": "route_snapshot_versioning",
+      "from": "CONTROL_GESTION exclusive",
+      "to": "shared Route Master dependency plus CG temporal contract"
+    },
+    {
+      "capability": "route_master_ingestion",
+      "from": "KEEP_LEGACY/CG",
+      "to": "SHARED_REFERENCE_DATA / EXTRACT_SHARED_SERVICE"
+    },
+    {
+      "capability": "inventory_ingestion",
+      "from": "loader-centric",
+      "to": "BUSINESS_CAPABILITY with legacy loader implementation"
+    },
+    {
+      "capability": "readonly_extraction",
+      "from": "KEEP_LEGACY",
+      "to": "INTERNAL_TOOLING / KEEP_INTERNAL_TOOLING"
+    },
+    {
+      "capability": "laboratory_reproducibility",
+      "from": "KEEP_LEGACY",
+      "to": "LABORATORY / KEEP_LAB"
+    },
+    {
+      "capability": "payload_json",
+      "from": "canonical forever implication",
+      "to": "REQUIRED_CURRENT_SURFACE replaceable only with parity and consumer migration"
+    },
+    {
+      "capability": "presentation_streamlit",
+      "from": "KEEP_LEGACY",
+      "to": "PRESENTATION / KEEP_LEGACY_APP / RETAIL_TRUST_SPECIFIC"
+    },
+    {
+      "capability": "source_precedence",
+      "from": "CG-specific engine",
+      "to": "GENERIC engine with Retail Trust configuration"
+    }
+  ],
+  "required_corrections": [
+    "Move specific dates, row counts, and batch numbers into evidence_snapshots.",
+    "Use only approved target_state vocabulary.",
+    "Keep future capabilities target_state FUTURE_CAPABILITY and do not present them as implemented.",
+    "Require future Claude/Codex tasks to read the promoted horizon, capability map, shared memory, and backlog first."
+  ],
+  "rejected_or_not_authorized": [
+    "new_repository_now",
+    "big_bang_rewrite",
+    "stock_zero_obsolete_framing",
+    "payload_json_removal_without_parity",
+    "retention_or_deletion_before_G0_and_catalog_gates",
+    "capability_implementation_from_research_contract_alone"
+  ],
+  "evidence_checked": [
+    "app/screens/control_gestion.py: USE_CG_V2 path and B3 fallback/read paths",
+    "app/db.py: CG_V2_OUT_WEEKLY_VIEW consumers and B3/V2 contracts",
+    "app/services/stock.py and app/screens/reposicion.py: reposicion uses stock_service over db",
+    "scripts/load_control_gestion_raw_v17.py: source sheets, sheet hash, payload_json, batch_registry",
+    "scripts/load_ruta_rutero_from_excel.py: Route Master upsert and history rows",
+    "scripts/cg_readonly_extract.py and tests/test_cg_readonly_extract.py: readonly extractor safety contract",
+    "research/C001_CODEX_VALIDATION_MATRIX.json and research/C002_B0_PARITY_ROOTCAUSE.json: validated DB evidence and parity root cause"
+  ],
+  "db_access": "none",
+  "files_modified_by_this_phase": [
+    "research/AI_PROJECT_HORIZON.json",
+    "research/AI_CAPABILITY_MAP.json",
+    "research/C003_CODEX_VALIDATION_MATRIX.json",
+    "research/reports/CODEX_C003_HORIZON_CAPABILITY_VALIDATION.md",
+    "research/AI_RESEARCH_PROTOCOL.json",
+    "research/AI_BACKLOG.json"
+  ]
+}

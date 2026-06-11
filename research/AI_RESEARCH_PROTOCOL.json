@@ -58,7 +58,8 @@
     "APPROVED is not equivalent to IMPLEMENTED.",
     "IMPLEMENTED requires a committed code change tied to a task that explicitly authorized implementation.",
     "REGRESSION_VERIFIED requires post-implementation validation evidence.",
-    "Secrets, credentials, DSNs, DB query results, and admin access details must not be stored in these memory files."
+    "Secrets, credentials, DSNs, DB query results, and admin access details must not be stored in these memory files.",
+    "Future Claude, Codex, and ChatGPT tasks must read AI_PROJECT_HORIZON, AI_CAPABILITY_MAP, AI_SHARED_MEMORY, and AI_BACKLOG before future research or implementation in this lane."
   ],
   "authority_boundaries": {
     "runtime_code": "No runtime file may be modified from research memory alone.",
@@ -85,5 +86,20 @@
     "evidence",
     "baseline_commit",
     "implementation_authorized"
-  ]
+  ],
+  "future_task_required_context": {
+    "added_by_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+    "applies_to_agents": [
+      "Claude",
+      "Codex",
+      "ChatGPT"
+    ],
+    "required_before_future_research_or_implementation": [
+      "research/AI_PROJECT_HORIZON.json",
+      "research/AI_CAPABILITY_MAP.json",
+      "research/AI_SHARED_MEMORY.json",
+      "research/AI_BACKLOG.json"
+    ],
+    "note": "Required reading does not change permission limits and does not authorize implementation, DB access, commit, or push."
+  }
 }

@@ -155,13 +155,16 @@
       "id": "MEMORY-001",
       "title": "Propuesta de SYSTEM MAP",
       "category": "MEMORY",
-      "status": "INVESTIGATE",
+      "status": "VALIDATED",
       "evidence": [
         "Claude runtime map was useful but partial.",
-        "Codex required corrections before a durable system map."
+        "Codex required corrections before a durable system map.",
+        "C003 Codex validation promoted AI_PROJECT_HORIZON.json and AI_CAPABILITY_MAP.json as living contracts."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
-      "implementation_authorized": false
+      "implementation_authorized": false,
+      "last_validation_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+      "required_next_action": "Use promoted horizon and capability map as required context before future Claude/Codex research or implementation."
     },
     {
       "id": "CG-002",
@@ -208,8 +211,84 @@
       "last_validation_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
       "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
       "required_next_action": "Rebuild weekly parity from staged daily and route surfaces in local lab before storage work."
+    },
+    {
+      "id": "ARCH-001",
+      "title": "Domain seam Inventory / Control Gestion",
+      "category": "ARCHITECTURE",
+      "status": "VALIDATED",
+      "evidence": [
+        "C003 capability map validates Inventory and Control Gestion as independent domains behind app/db.py.",
+        "app/screens/reposicion.py consumes app/services/stock.py, which delegates to app/db.py.",
+        "Control Gestion screen consumes app/db.py directly for V2 and B3 paths."
+      ],
+      "required_next_action": "Design interface seam only after H0/H1 contract gates; no runtime move approved.",
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "last_validation_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+      "source_commit": "7fa6b13ba15333f1e82e5d26301c3b3285b7f8b7",
+      "implementation_authorized": false
+    },
+    {
+      "id": "ARCH-002",
+      "title": "Shared Route Master capability",
+      "category": "ARCHITECTURE",
+      "status": "VALIDATED",
+      "evidence": [
+        "C003 reclassifies RUTA_RUTERO as shared reference data, not exclusive Control Gestion.",
+        "Route Master feeds inventory selectors and Control Gestion route snapshot/versioning evidence."
+      ],
+      "required_next_action": "Separate Bastian semantic route policy from Codex technical snapshot lineage before extraction.",
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "last_validation_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+      "source_commit": "7fa6b13ba15333f1e82e5d26301c3b3285b7f8b7",
+      "implementation_authorized": false
+    },
+    {
+      "id": "ARCH-003",
+      "title": "Headless capability interface",
+      "category": "ARCHITECTURE",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "C003 horizon H4 defines Streamlit-optional capability access as future direction.",
+        "Current app/Home.py and screens remain Streamlit legacy-stable consumers."
+      ],
+      "required_next_action": "Identify one read-only capability interface after H2 seam and runtime smoke; no implementation approved.",
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "last_validation_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+      "source_commit": "7fa6b13ba15333f1e82e5d26301c3b3285b7f8b7",
+      "implementation_authorized": false
+    },
+    {
+      "id": "PRODUCT-001",
+      "title": "KPI/decision tower capability",
+      "category": "PRODUCT",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "C003 adds kpi_composition, alert_generation, and decision_and_action_tracking as future capabilities.",
+        "H5 requires Bastian productization decision; no second repo or big-bang authorized."
+      ],
+      "required_next_action": "Prepare Bastian decision pack only after parity, contracts, and headless interfaces are stable.",
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "last_validation_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+      "source_commit": "7fa6b13ba15333f1e82e5d26301c3b3285b7f8b7",
+      "implementation_authorized": false
+    },
+    {
+      "id": "OBS-001",
+      "title": "Runtime observability and B3 visibility",
+      "category": "OBSERVABILITY",
+      "status": "VALIDATED",
+      "evidence": [
+        "C001/Codex validation found B3 callers active and V2 fallback path possible.",
+        "C003 capability map adds observability_and_runtime_health as future capability and keeps B3 visible/controlled."
+      ],
+      "required_next_action": "Design fallback mode visibility and runtime health events before changing CG behavior.",
+      "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+      "last_validation_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+      "source_commit": "7fa6b13ba15333f1e82e5d26301c3b3285b7f8b7",
+      "implementation_authorized": false
     }
   ],
-  "last_updated_by_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+  "last_updated_by_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
   "last_updated_at": "2026-06-11"
 }
