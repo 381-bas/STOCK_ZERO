@@ -1,0 +1,236 @@
+{
+  "portfolio_id": "C002_IMPLEMENTATION_PORTFOLIO",
+  "phase": "CLAUDE_C002_POST_VALIDATION_SYNTHESIS",
+  "generated_at": "2026-06-11",
+  "agent": "Claude (claude-opus-4-8)",
+  "runtime_code_baseline": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+  "based_on": {
+    "claude_c001_commit": "ebdd99ffc2a4981c9129a8571a192d1e582078a7",
+    "codex_validation_matrix": "research/C001_CODEX_VALIDATION_MATRIX.json",
+    "codex_validation_report": "research/reports/CODEX_C001_INDEPENDENT_VALIDATION.md",
+    "claude_prelive_comparative": "research/claude/parallel/CLAUDE_C001_DB_PRELIVE_COMPARATIVE.md",
+    "codex_validation_counts": { "VALIDATED": 11, "PARTIAL": 13, "DISPUTED": 5, "REJECTED": 1 }
+  },
+  "authority": {
+    "implementation_authorized": false,
+    "db_access": "none",
+    "this_file_authorizes": "synthesis and prioritization only",
+    "this_file_does_not_authorize": [
+      "runtime change", "loader change", "SQL execution", "DB writes",
+      "data changes", "evidence changes", "deletion of any object or function"
+    ]
+  },
+  "respected_facts": [
+    "payload_json has DB consumers (cg_core.v_cg_evento_scope, cg_core.v_cg_evidencia_unificada, multiple cg_mart audit views) and cannot be retired (Codex DISPUTED LOADER-FACT-003 / REJECTED R08).",
+    "cg_core.ruta_rutero_load_rows is a live dependency of cg_core.v_rr_frecuencia_base_resuelta_v2 and cg_mart.v_cg_ruta_duplicados_auditoria_v2 (Codex PARTIAL RUTA-INF-001).",
+    "row_hash is an analysis fingerprint, not the UPSERT key; UPSERT key is (source, source_row) (Codex VALIDATED RUTA-FACT-001).",
+    "9C7A4 functional daily/weekly mart parity is NOT closed: local daily recompute 34,817 vs baseline 21,348; weekly materialization timed out.",
+    "DB_GLOBAL_HISTORICO.xlsx cannot be retired with current DB coverage: public.fact_stock_venta covers 2026-05-02..2026-06-07; Hoja1 covers 2026-03-03..2026-04-06 (Codex REJECTED COMPLEXITY-HYP-001 / R10).",
+    "duplicados is redundant for the loader (Codex VALIDATED INVDATA-FACT-003) but its removal from the workbook is an operational decision for Bastian (R01).",
+    "COD_RT and NOMBRE_LOCAL_RR require a parity test before any offload, and the first parity source must be the same workbook RUTA_RUTERO sheet to avoid temporal mismatch (Codex PARTIAL INVDATA-HYP-001 / R07 REQUIRES_PARITY_TEST).",
+    "No finding authorizes implementation."
+  ],
+  "corrected_facts_from_codex": {
+    "db_py_metrics": { "lines": 5348, "fstring_sql_blocks": 80, "join_clauses": 35, "with_ctes": 22, "os_getenv_calls": 54 },
+    "cg_v2_actual_constants": [
+      "CG_V2_SCOPE_VIEW", "CG_V2_DETALLE_VIEW", "CG_V2_OUT_WEEKLY_VIEW",
+      "CG_V2_MULTI_MARCAJE_VIEW", "CG_V2_DAILY_EVIDENCE_VIEW", "CG_V2_ROUTE_FREQ_RESUELTA_VIEW",
+      "CG_V2_RUTA_DUP_VIEW", "CG_V2_FUERA_CRUCE_REAL_VIEW", "CG_V2_SIN_BATCH_RUTA_VIEW"
+    ],
+    "cg_v2_claimed_names_that_do_not_exist": ["CG_V2_PRECEDENCIA_VIEW", "CG_V2_BASE_MV", "CG_V2_BASE_SEMANA_VIEW", "CG_V2_FRECUENCIA_BASE_VIEW", "CG_V2_FACT_DAILY", "CG_V2_FACT_WEEKLY"],
+    "cg_loader_lines": 2024,
+    "db_historica_internal": "10-column structure (Tabla4), 244,008 data rows, NOT BASE-identical schema",
+    "db_global_historico_external": "12-column BASE-style (Hoja1), 141,885 data rows, range 2026-03-03..2026-04-06",
+    "fact_stock_venta": "rows ~112,250, fecha range 2026-05-02..2026-06-07",
+    "refresh_transaction_boundary": "data mutation commits atomically BEFORE a separate post-commit best-effort ANALYZE; ANALYZE failure does not leave the mart in a partially-updated data state",
+    "static_only_functions_validated": 10,
+    "static_only_functions_in_shared_memory": 11
+  },
+  "programs_designed": 3,
+  "programs": [
+    {
+      "id": "PROGRAM_A",
+      "name": "DATA PREPARATION OFFLOAD",
+      "summary": "Progressively replace Excel formula-derived columns with Python computation, proven by read-only parity before any productive loader change.",
+      "offload_order": [
+        { "step": 1, "column": "COD_RT", "reference_table": "workbook RUTA_RUTERO sheet (same file, same period)", "priority": "FIRST", "codex_status": "PARTIAL / REQUIRES_PARITY_TEST" },
+        { "step": 2, "column": "NOMBRE_LOCAL_RR", "reference_table": "workbook RUTA_RUTERO (VLOOKUP on resolved COD_RT)", "priority": "after COD_RT parity passes" },
+        { "step": 3, "column": "OTROS", "reference_table": "FOCO_CLIENTE (Tabla3, 848 rows)", "priority": "LOW; hit-rate unproven per Codex, do not build a DB table from current evidence" },
+        { "step": 4, "column": "duplicados", "reference_table": "none (redundant)", "priority": "SEPARATE OPERATIONAL DECISION (Bastian), not a code offload" }
+      ],
+      "design": {
+        "entradas": [
+          "BASE sheet rows (43,635) from data/DB_GLOBAL_INVENTARIO.xlsx: CADENA, FECHA, MARCA, SKU, DESCRIPCION_PRODUCTO, N_LOCAL, VTA(Un), INV(Un)",
+          "RUTA_RUTERO sheet (3,568 rows) from the SAME workbook: CADENA, COD B2B, CLIENTE, COD KPI ONE, LOCAL (workbook-internal to avoid temporal mismatch with live public.ruta_rutero)"
+        ],
+        "outputs": [
+          "Python-computed COD_RT per BASE row (resolved COD KPI ONE or NO_RT sentinel)",
+          "Python-computed NOMBRE_LOCAL_RR per BASE row (LOCAL name or NO_RT sentinel)",
+          "Parity report CSV/JSON comparing Python-computed vs Excel-cached values, never written into the productive pipeline"
+        ],
+        "llaves": {
+          "cod_rt_match": "CADENA + N_LOCAL(=COD B2B) + MARCA(=CLIENTE) -> COD KPI ONE",
+          "nombre_local_match": "resolved COD_RT -> LOCAL (VLOOKUP first-occurrence semantics)",
+          "fact_logical_key": "(fecha, cod_rt, sku, marca) -- the DB UPSERT key used for row-by-row alignment"
+        },
+        "normalizaciones": [
+          "Trim and upper-case key string columns to mirror Excel implicit coercion",
+          "N_LOCAL integer vs COD B2B type alignment (explicit cast; Excel XLOOKUP coerces implicitly)",
+          "SKU normalization (strip trailing .0) consistent with existing to_sku_text in loader",
+          "cod_rt upper-case consistent with existing loader str.upper()"
+        ],
+        "conflictos": [
+          "RUTA_RUTERO duplicate COD KPI ONE: Excel VLOOKUP takes first occurrence; Python must replicate first-match, not last-match",
+          "NO_RT sentinel rows: loader currently drops them silently; parity must count NO_RT identically",
+          "Multi-row matches in the XLOOKUP boolean product must resolve to the same single value Excel returns"
+        ],
+        "comparacion_fila_a_fila": "Join Python-computed frame and Excel-cached frame on (fecha, cod_rt_excel, sku, marca) plus row index; classify each row as MATCH, MISMATCH_VALUE, MISSING_PYTHON, EXTRA_PYTHON; export full diff. Use pandas assert_frame_equal on the logical key after alignment.",
+        "metricas_de_paridad": [
+          "exact_match_rate on COD_RT (target 100% on a settled historical week)",
+          "NO_RT count equality (Python vs Excel)",
+          "distinct COD_RT distribution equality",
+          "row count equality and zero unmatched rows",
+          "NOMBRE_LOCAL_RR exact match rate conditional on COD_RT match"
+        ],
+        "rollback": "Prototype lives in a NEW standalone script (e.g. research/labs/), never edits scripts/load_fact_from_excel.py. Rollback = delete the lab script; productive loader is untouched at all times.",
+        "criterio_para_modificar_loader_productivo": [
+          "COD_RT exact parity = 100% on at least one fully settled historical week using workbook RUTA_RUTERO",
+          "NO_RT and distribution metrics equal",
+          "Codex independent re-run of the same parity reproduces the result",
+          "Explicit Bastian approval; only then design a loader PR with a feature flag and fallback to Excel-cached values"
+        ]
+      },
+      "objetivo": "Eliminate the silent stale-formula-value risk for the most business-critical derived column (COD_RT) by computing it in Python from a temporally-aligned reference, proven by parity before touching production.",
+      "beneficio_operacional": "Removes the most error-prone manual dependency (formula recalculation/freshness) for route attribution; reduces silent CG metric corruption risk.",
+      "beneficio_tecnico": "Makes COD_RT lineage explicit and testable in code instead of opaque Excel array formulas (~155M comparisons per recalc).",
+      "riesgo": "MEDIUM. Type coercion and duplicate-key semantics can diverge from Excel; mitigated by using same-workbook RUTA_RUTERO and parity gating.",
+      "costo": "LOW-MEDIUM. One standalone parity script + one settled-week dataset; no DB, no productive change.",
+      "reversibilidad": "HIGH. Lab-only; nothing in the productive path changes until a separately-approved PR.",
+      "evidencia_disponible": [
+        "CLAUDE-C001-INVDATA-FACT-002 (VALIDATED): four formula columns, loader reads saved values",
+        "CLAUDE-C001-INVDATA-FACT-004 (VALIDATED): COD_RT XLOOKUP over RUTA_RUTERO, stale-value risk",
+        "Codex R07 REQUIRES_PARITY_TEST with same-workbook RUTA_RUTERO first"
+      ],
+      "evidencia_faltante": [
+        "Whether RUTA_RUTERO has duplicate COD KPI ONE entries affecting first-match",
+        "Exact N_LOCAL vs COD B2B type/format alignment",
+        "A fully settled historical week to use as parity ground truth"
+      ],
+      "primer_experimento": "Read-only COD_RT parity harness: compute COD_RT in Python from workbook RUTA_RUTERO, compare row-by-row against Excel-cached COD_RT on one settled week, emit parity metrics. No loader edit.",
+      "criterio_de_exito": "100% COD_RT exact parity + equal NO_RT count + equal distribution on the settled week, reproduced independently by Codex.",
+      "criterio_de_abandono": "If parity cannot reach ~100% due to irreducible Excel coercion/duplicate semantics, abandon offload and instead keep COD_RT in Excel but add a freshness guard (reformulated R02).",
+      "dependencias": ["A settled historical week", "No dependency on DB or on Program B"],
+      "prioridad": "P1 (start first)"
+    },
+    {
+      "id": "PROGRAM_B",
+      "name": "SUPABASE STORAGE AND PARITY",
+      "summary": "A strictly gated path that resolves functional mart parity FIRST, then catalogs DB objects, then measures archivable raw, never retiring payload_json without an equivalent surface.",
+      "strict_order_gates": [
+        { "gate": "G0", "name": "Functional daily/weekly parity", "exit_criteria": "Local recompute of cg_mart.fact_cg_visita_dia_resuelta_v2 and v_cg_out_weekly_v2 matches baseline exactly (close the 9C7A4 +13,469 daily surplus and weekly timeout).", "owner": "Codex", "status": "OPEN/BLOCKED" },
+        { "gate": "G1", "name": "Authoritative DB object + view-dependency catalog", "exit_criteria": "Complete catalog of all schemas/objects with column-level payload_json and row_hash consumers; supersedes the partial 28-object estimate.", "owner": "Codex", "depends_on": "G0" },
+        { "gate": "G2", "name": "Raw classification", "exit_criteria": "Every raw row classified as raw_necesario | raw_reconstruible | raw_historico with the batch-window selector (v_cg_latest_batch_by_source) as the boundary.", "owner": "Codex", "depends_on": "G1" },
+        { "gate": "G3", "name": "Retention/archival design (no execution)", "exit_criteria": "Reconstructability-proven archival plan for raw_reconstruible and raw_historico, with rollback rehearsed; payload_json retained or replaced by a proven-equivalent surface.", "owner": "Codex + Bastian", "depends_on": "G2" }
+      ],
+      "raw_taxonomy": {
+        "raw_necesario": "Batches currently selected by v_cg_latest_batch_by_source and consumed by the v2 mart pipeline; must remain online.",
+        "raw_reconstruible": "Older batches reproducible from validated local archives (9C7A3 parquet exports, hashes verified); candidate for cold archive only after G0+G2.",
+        "raw_historico": "Batches with no reconstruction need and outside any reporting window; candidate for archival after Bastian retention policy."
+      },
+      "never_do": [
+        "Never retire payload_json without a proven-equivalent surface (REJECTED R08); note SP Item ID exists ONLY in payload_json for KPIONE2.",
+        "Never apply arbitrary retention windows (12 weeks / 52 loads) before G2 measurement (REFORMULATE R04/R05).",
+        "Never delete raw before functional parity (G0) proves the mart is reproducible."
+      ],
+      "objetivo": "Bring Supabase storage under control (currently ~1.43 GB vs 512 MB free target) safely, without breaking the v2 mart that reads raw via DB views.",
+      "beneficio_operacional": "Avoids hitting the free-plan storage limit and reduces cost; protects CG reporting integrity.",
+      "beneficio_tecnico": "Produces the authoritative DB catalog the project lacks and a reconstructability contract for raw.",
+      "riesgo": "HIGH if attempted before G0; data loss / mart corruption. LOW if gates are honored.",
+      "costo": "HIGH. Requires Codex DB work, parity root-cause, and rehearsed rollback.",
+      "reversibilidad": "MEDIUM-LOW for any archival step; HIGH for the measurement/catalog steps (read-only).",
+      "evidencia_disponible": [
+        "9C7A2 storage forensics: cg_raw ~1.43 GB, kpione2_raw 91% duplication, FULL_SNAPSHOT_ACCUMULATIVE overlap",
+        "9C7A4 dependency graph + DDL: payload_json and ruta_rutero_load_rows consumers confirmed",
+        "9C7A3 validated parquet archive (71 files, hashes OK) as reconstruction source"
+      ],
+      "evidencia_faltante": [
+        "Root cause of 9C7A4 daily +13,469 surplus (batch-window selection semantics)",
+        "Weekly parity (timed out)",
+        "MIN(fecha) authoritative coverage of fact_stock_venta vs external archive",
+        "Per-source list of payload-only keys beyond KPIONE2 SP Item ID"
+      ],
+      "primer_experimento": "(Codex-owned) Root-cause the daily surplus: compare local recompute vs baseline keys to isolate whether extra rows come from out-of-window raw batches or from latest-batch selection logic.",
+      "criterio_de_exito": "G0 reached: exact daily AND weekly parity, reproduced.",
+      "criterio_de_abandono": "If functional parity cannot be reproduced locally, escalate to a controlled live-snapshot diagnostic; do not proceed to any archival design.",
+      "dependencias": ["G0 blocks everything", "Independent of Program A", "Partially informed by Program C catalog work"],
+      "prioridad": "P3 (must wait; Gate G0 is the prerequisite and is owned by Codex)"
+    },
+    {
+      "id": "PROGRAM_C",
+      "name": "CODE SIMPLIFICATION",
+      "summary": "Reduce app/db.py risk through observability and verified-dead-code confirmation, with NO big rewrite and NO removal of the B3 fallback in stage one.",
+      "stages": [
+        { "stage": "C1", "name": "Runtime smoke harness", "action": "Build a runtime smoke that exercises each screen path (CLIENTE, CONTROL GESTION v2, LOCAL, MERCADERISTA) and records which db.* functions actually execute.", "removes_code": false },
+        { "stage": "C2", "name": "Confirm static-only functions are runtime-dead", "action": "Cross-check the 10 Codex-validated static-only functions (plus get_rutero_reponedor) against the smoke trace; mark as runtime-confirmed-dead only if never invoked.", "removes_code": false },
+        { "stage": "C3", "name": "Make B3 fallback visible", "action": "Add observability (structured log/metric) when the B3 legacy path is reached via exception fallthrough or USE_CG_V2!=1; do NOT remove B3.", "removes_code": false, "constraint": "B3 removal is explicitly out of scope for stage one." },
+        { "stage": "C4", "name": "Responsibility separation (design only)", "action": "Propose a seam-based extraction plan for app/db.py (infra / selectors / CG-v2 / coverage-audit) without moving code yet; sequence small, independently-revertable PRs.", "removes_code": false },
+        { "stage": "C5", "name": "Approved cleanup PRs (gated)", "action": "Only after C2 runtime confirmation + Bastian approval, design deletion PRs for runtime-confirmed-dead functions, each with smoke before/after.", "removes_code": "candidate, gated" }
+      ],
+      "objetivo": "Lower the maintenance risk of the 5,348-line app/db.py and surface the B3 fallback, without a risky rewrite.",
+      "beneficio_operacional": "Fewer latent failure modes; B3 activation becomes observable instead of silent.",
+      "beneficio_tecnico": "Verified dead-code list and a safe, incremental decomposition path; runtime smoke becomes reusable regression infrastructure.",
+      "riesgo": "LOW for C1-C4 (additive/observability); MEDIUM for C5 (deletion) gated behind smoke + approval.",
+      "costo": "MEDIUM. Building a runtime smoke harness is the main effort.",
+      "reversibilidad": "HIGH for C1-C4; C5 deletions are revertable via git and guarded by before/after smoke.",
+      "evidencia_disponible": [
+        "CLAUDE-C001-DBPY-FACT-001 (VALIDATED): 10 functions static-only, no dynamic dispatch",
+        "CLAUDE-C001-DBPY-FACT-003 (VALIDATED): Home.py defers imports inside main()",
+        "CG-001 (VALIDATED): B3 has active callers and exception-fallthrough path",
+        "AI_SHARED_MEMORY possibly_unused_static_only (11 functions)"
+      ],
+      "evidencia_faltante": [
+        "Runtime trace proving the static-only functions are never invoked dynamically at runtime",
+        "Whether the static-only functions are abandoned vs intentionally-diagnostic (Codex PARTIAL DBPY-INF-001)"
+      ],
+      "primer_experimento": "Stand up the runtime smoke harness (C1) and capture a db.* invocation trace across all four screens.",
+      "criterio_de_exito": "Smoke covers all screen paths and yields a reproducible db.* invocation set; static-only set confirmed absent from it.",
+      "criterio_de_abandono": "If a 'static-only' function appears in the runtime trace, immediately reclassify it as live and stop any cleanup consideration for it.",
+      "dependencias": ["Independent of Program A and B", "C5 depends on C2 + Bastian approval"],
+      "prioridad": "P2 (parallel with Program A)"
+    }
+  ],
+  "comparison_axes": [
+    "objetivo", "beneficio_operacional", "beneficio_tecnico", "riesgo", "costo",
+    "reversibilidad", "evidencia_disponible", "evidencia_faltante", "primer_experimento",
+    "criterio_de_exito", "criterio_de_abandono", "dependencias", "prioridad"
+  ],
+  "recommendation": {
+    "first_program": "PROGRAM_A",
+    "first_program_reason": "Highest validated evidence (INVDATA-FACT-002/004 VALIDATED), read-only and lab-isolated, uses same-workbook RUTA_RUTERO so no DB and no temporal mismatch, fully reversible, and directly attacks the top silent-error risk (stale COD_RT). Matches Codex recommended order item 2.",
+    "parallel_program": "PROGRAM_C",
+    "parallel_program_reason": "Independent of A and of the DB; C1-C4 are additive/observability with low risk. Building the runtime smoke and confirming the validated static-only set can proceed without blocking on parity.",
+    "deferred_program": "PROGRAM_B",
+    "deferred_program_reason": "Gate G0 (functional daily/weekly parity) is open and BLOCKED by the 9C7A4 failure (34,817 vs 21,348 daily; weekly timeout). No retention/archival or payload_json work is safe until G0 closes, and payload_json removal is REJECTED outright.",
+    "do_not_execute": [
+      "Do NOT remove payload_json from any cg_raw or cg_core table (REJECTED R08; SP Item ID is payload-only for KPIONE2).",
+      "Do NOT retire DB_GLOBAL_HISTORICO.xlsx or the internal DB_HISTORICA sheet (REJECTED_FOR_NOW R10; DB does not cover 2026-03-03..2026-04-06).",
+      "Do NOT delete any static-only app/db.py function yet (requires runtime smoke confirmation + Bastian approval).",
+      "Do NOT remove or bypass the B3 fallback in stage one.",
+      "Do NOT modify scripts/load_fact_from_excel.py or any productive loader before COD_RT parity is proven and approved.",
+      "Do NOT apply arbitrary retention windows (12 weeks / 52 loads) to cg_raw or ruta history before G2 measurement.",
+      "Do NOT use live public.ruta_rutero for the first COD_RT parity test (temporal mismatch); use the workbook RUTA_RUTERO sheet.",
+      "Do NOT remove the workbook duplicados column without Bastian operational confirmation (R01).",
+      "Do NOT build a FOCO_CLIENTE DB table for OTROS from current evidence (hit-rate unproven).",
+      "Do NOT delete or apply sql/09 and sql/10 drafts based on filename/git status alone."
+    ],
+    "codex_future_phases": [
+      { "order": 1, "id": "C002_A1_CODRT_PARITY_HARNESS", "title": "Read-only COD_RT parity harness from workbook RUTA_RUTERO", "program": "PROGRAM_A", "gate": "produces the parity evidence required by R07", "implementation_authorized": false },
+      { "order": 2, "id": "C002_B0_FUNCTIONAL_PARITY_ROOTCAUSE", "title": "Root-cause and close 9C7A4 daily/weekly functional mart parity", "program": "PROGRAM_B", "gate": "G0; unblocks all storage work", "implementation_authorized": false },
+      { "order": 3, "id": "C002_C1_RUNTIME_SMOKE", "title": "Runtime smoke harness + confirm static-only functions are runtime-dead", "program": "PROGRAM_C", "gate": "produces runtime confirmation for any future cleanup", "implementation_authorized": false },
+      { "order": 4, "id": "C002_B1_DB_CATALOG", "title": "Authoritative DB object and view-dependency catalog with column-level payload_json/row_hash consumers", "program": "PROGRAM_B", "gate": "G1; depends on G0", "implementation_authorized": false },
+      { "order": 5, "id": "C002_GOV_BASTIAN_DECISION_PACK", "title": "Bastian decision pack: duplicados removal, authoritative historical source, manual CG sheets (DESARROLLO/OUT), retention policy", "program": "cross-cutting", "gate": "governance decisions that gate A4/B3", "implementation_authorized": false }
+    ]
+  },
+  "verdict": "READY_FOR_CHAT_BASTIAN_DECISION",
+  "non_authority_notice": "This portfolio synthesizes validated research into a prioritized plan. It authorizes no runtime, loader, SQL, DB, data, or evidence changes. Every program step remains gated behind explicit Bastian approval and, where stated, Codex parity/catalog evidence."
+}
