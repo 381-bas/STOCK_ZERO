@@ -1,0 +1,505 @@
+{
+  "phase": "FASE_C005_BUILD_PROVENANCE_AND_RESIDUAL_PARITY_AUDIT_NO_SUPABASE_WRITE",
+  "verdict": "PARTIAL",
+  "baseline_provenance": {
+    "daily": {
+      "relation": "cg_mart.fact_cg_visita_dia_resuelta_v2",
+      "rows": 21348,
+      "date_window": {
+        "min_fecha_visita": "2026-05-11",
+        "max_fecha_visita": "2026-06-01",
+        "min_semana_inicio": "2026-05-11",
+        "max_semana_inicio": "2026-06-01"
+      },
+      "mart_loaded_at": {
+        "min": "2026-05-19T15:10:13.668515Z",
+        "max": "2026-06-02T20:22:46.239731Z",
+        "distinct_values": 7,
+        "loads": [
+          {
+            "mart_loaded_at": "2026-05-19T15:10:13.668515Z",
+            "rows": 7327,
+            "min_fecha": "2026-05-11",
+            "max_fecha": "2026-05-17"
+          },
+          {
+            "mart_loaded_at": "2026-05-19T17:18:15.738586Z",
+            "rows": 1291,
+            "min_fecha": "2026-05-18",
+            "max_fecha": "2026-05-18"
+          },
+          {
+            "mart_loaded_at": "2026-05-20T18:06:57.777227Z",
+            "rows": 1130,
+            "min_fecha": "2026-05-19",
+            "max_fecha": "2026-05-19"
+          },
+          {
+            "mart_loaded_at": "2026-05-24T19:57:42.670246Z",
+            "rows": 1706,
+            "min_fecha": "2026-05-20",
+            "max_fecha": "2026-05-21"
+          },
+          {
+            "mart_loaded_at": "2026-05-25T13:30:02.901957Z",
+            "rows": 2137,
+            "min_fecha": "2026-05-22",
+            "max_fecha": "2026-05-24"
+          },
+          {
+            "mart_loaded_at": "2026-05-26T15:05:05.957508Z",
+            "rows": 1172,
+            "min_fecha": "2026-05-25",
+            "max_fecha": "2026-05-25"
+          },
+          {
+            "mart_loaded_at": "2026-06-02T20:22:46.239731Z",
+            "rows": 6585,
+            "min_fecha": "2026-05-26",
+            "max_fecha": "2026-06-01"
+          }
+        ]
+      },
+      "creation_mode_assessment": "incremental_or_seeded_fact_table",
+      "creation_mode_evidence": "The daily baseline is a fact relation with per-row mart_loaded_at spanning seven loads. It is not one homogeneous MV snapshot in the exported evidence."
+    },
+    "weekly": {
+      "relation": "cg_mart.fact_cg_out_weekly_v2",
+      "rows": 20138,
+      "weeks": {
+        "2026-04-27": 3364,
+        "2026-05-04": 3329,
+        "2026-05-11": 3328,
+        "2026-05-18": 3318,
+        "2026-05-25": 3319,
+        "2026-06-01": 3480
+      },
+      "mart_loaded_at": null,
+      "mart_loaded_at_evidence_gap": "The exported weekly baseline columns do not include mart_loaded_at, and the local imported weekly baseline has no load timestamp column.",
+      "creation_mode_assessment": "fact_table_export_with_unknown_materialization_timestamp"
+    },
+    "raw_batches_available_locally": {
+      "KPIONE": {
+        "min_batch": 1,
+        "latest_batch": 19,
+        "batch_count": 8,
+        "max_loaded_rows": 195560
+      },
+      "KPIONE2": {
+        "min_batch": 8,
+        "latest_batch": 38,
+        "batch_count": 19,
+        "max_loaded_rows": 45736
+      },
+      "POWER_APP": {
+        "min_batch": 2,
+        "latest_batch": 26,
+        "batch_count": 10,
+        "max_loaded_rows": 5497
+      }
+    },
+    "route_batches_available_locally": {
+      "min_batch": 1,
+      "latest_batch": 19,
+      "notable_weeks": {
+        "2026-05-11_current_resolved": {
+          "ruta_batch_11": 30,
+          "ruta_batch_12": 3298
+        },
+        "2026-06-01_current_resolved": {
+          "ruta_batch_15": 44,
+          "ruta_batch_18": 3437
+        },
+        "2026-05-11_c004_snapshot": {
+          "ruta_batch_12": 3298
+        },
+        "2026-06-01_c004_snapshot": {
+          "ruta_batch_15": 3,
+          "ruta_batch_17": 3436
+        }
+      }
+    },
+    "commits_available_around_daily_loads": [
+      {
+        "commit": "750b17b",
+        "date_local": "2026-05-18T12:51:34-04:00",
+        "subject": "feat: add dry-run incremental control gestion refresh helper"
+      },
+      {
+        "commit": "dcc4adf",
+        "date_local": "2026-05-18T15:36:08-04:00",
+        "subject": "feat: add guarded incremental control gestion apply"
+      },
+      {
+        "commit": "919b5e5",
+        "date_local": "2026-05-19T10:20:34-04:00",
+        "subject": "fix: clarify incremental apply seed scope"
+      },
+      {
+        "commit": "7c34450",
+        "date_local": "2026-05-19T10:57:08-04:00",
+        "subject": "fix: handle daily route out-of-scope flag as text"
+      },
+      {
+        "commit": "b288958",
+        "date_local": "2026-05-19T12:50:18-04:00",
+        "subject": "fix: normalize empty kpione2 numeric values"
+      },
+      {
+        "commit": "34cdc18",
+        "date_local": "2026-05-24T15:20:57-04:00",
+        "subject": "fix: resolve codex ro db url for incremental dry run"
+      },
+      {
+        "commit": "8c311e2",
+        "date_local": "2026-05-24T16:22:56-04:00",
+        "subject": "feat: add guarded incremental apply flags to loader"
+      }
+    ],
+    "current_loader_version_in_head": "v17_9C2A",
+    "provenance_matrix": [
+      {
+        "component": "daily precedence view",
+        "baseline_version": "cg_core/cg_mart DDL exported in evidence/supabase_cleanup_9C7A4/ddl/03_views.sql",
+        "current_version": "same exported DDL in local parity DB",
+        "same_or_different": "same_schema_observed",
+        "evidence": "DDL lines 875-901 define KPIONE2 precedence, useful_day, same_source_multimark, multisource_overlap, and raw_evidence_count.",
+        "impact": "Does not explain the 23 counter differences; those match raw batch changes instead."
+      },
+      {
+        "component": "daily fact builder",
+        "baseline_version": "multiple materialization timestamps between 2026-05-19 and 2026-06-02",
+        "current_version": "HEAD 2a7f59c, refresh helper with _cg_daily_stage and loader v17_9C2A",
+        "same_or_different": "different_or_mixed",
+        "evidence": "Daily mart_loaded_at has seven distinct values; git history shows refresh and loader changes during that window.",
+        "impact": "Baseline daily is not a single current rebuild; exact provenance requires per-load build context."
+      },
+      {
+        "component": "route resolved view",
+        "baseline_version": "per-grain winner from v_rr_frecuencia_base_resuelta_v2, not a single weekly batch",
+        "current_version": "same current local view; C004 snapshot was a narrower experimental surface",
+        "same_or_different": "c004_different_from_resolved_view",
+        "evidence": "Current resolved view includes 30 rows from route batch 11 plus 3298 from batch 12 for 2026-05-11, and 44 from batch 15 plus 3437 from batch 18 for 2026-06-01. C004 snapshot omitted most of those historical batch rows.",
+        "impact": "Explains the 71 weekly missing keys from the staged C004 output."
+      },
+      {
+        "component": "weekly builder",
+        "baseline_version": "fact_cg_out_weekly_v2 export, no row-level load timestamp",
+        "current_version": "_cg_weekly_stage in scripts/refresh_control_gestion_v2_incremental.py builds from WEEKLY_FREQ + DAILY_FACT",
+        "same_or_different": "partially_same_logic_unproven_materialization",
+        "evidence": "The script and exported DDL both aggregate route frequency with daily facts; however C004 used an experimental route snapshot, not WEEKLY_FREQ.",
+        "impact": "Weekly staged parity failed primarily because the route surface was wrong; FUENTES differences are NULL/empty only."
+      },
+      {
+        "component": "source precedence",
+        "baseline_version": "KPIONE2 beats POWER_APP; KPIONE is audit-only",
+        "current_version": "same precedence in DDL and current helper",
+        "same_or_different": "same",
+        "evidence": "All 56 daily residual keys have source pair KPIONE2 -> KPIONE2.",
+        "impact": "Source precedence does not explain residual daily value differences."
+      },
+      {
+        "component": "normalization rules",
+        "baseline_version": "DDL uses trim/upper normalization for route and client fields",
+        "current_version": "same DDL observed, plus C004 local comparison casts values to text",
+        "same_or_different": "mostly_same_with_comparison_gap",
+        "evidence": "No CLIENT_NORMALIZATION class was required for the 71 weekly missing keys; FUENTES semantic sets are equal after NULL/empty normalization.",
+        "impact": "Normalization is not the primary residual cause, but parity comparison must normalize NULL/empty for source strings."
+      },
+      {
+        "component": "FUENTES_REPORTADAS_SEMANA",
+        "baseline_version": "NULL for no weekly reported source",
+        "current_version": "C004 staged builder produced empty string for the same no-source condition",
+        "same_or_different": "different_null_empty_representation",
+        "evidence": "4048 direct diffs vanish under COALESCE(value, ''). Baseline is NULL and staged is empty string in all 4048 rows.",
+        "impact": "Format/comparison noise only; no semantic source-set difference."
+      },
+      {
+        "component": "RUTA_DUPLICADA_FLAG",
+        "baseline_version": "fact weekly values from baseline route/fact materialization",
+        "current_version": "C004 staged values derived from experimental route snapshot",
+        "same_or_different": "different_due_route_surface",
+        "evidence": "123 common-key weekly diffs remain after FUENTES normalization; route/person/plan fields also differ.",
+        "impact": "Secondary symptom of route surface mismatch, not a standalone source precedence issue."
+      }
+    ]
+  },
+  "daily_56": {
+    "keys": 56,
+    "diff_cells": 176,
+    "diffs_by_column": [
+      {
+        "column": "kpione2_rows_dia",
+        "keys": 23,
+        "diff_cells": 23,
+        "class": "SOURCE_FIELDS"
+      },
+      {
+        "column": "local_nombre",
+        "keys": 23,
+        "diff_cells": 23,
+        "class": "ROUTE_PERSON_FIELDS"
+      },
+      {
+        "column": "persona_conflicto_rows_dia",
+        "keys": 23,
+        "diff_cells": 23,
+        "class": "AUDIT_FIELDS"
+      },
+      {
+        "column": "raw_evidence_count",
+        "keys": 23,
+        "diff_cells": 23,
+        "class": "AUDIT_FIELDS"
+      },
+      {
+        "column": "same_source_multimark",
+        "keys": 19,
+        "diff_cells": 19,
+        "class": "AUDIT_FIELDS"
+      },
+      {
+        "column": "reponedor_scope",
+        "keys": 10,
+        "diff_cells": 10,
+        "class": "ROUTE_PERSON_FIELDS"
+      },
+      {
+        "column": "reponedor_scope_norm",
+        "keys": 10,
+        "diff_cells": 10,
+        "class": "ROUTE_PERSON_FIELDS"
+      },
+      {
+        "column": "rutero",
+        "keys": 10,
+        "diff_cells": 10,
+        "class": "ROUTE_PERSON_FIELDS"
+      },
+      {
+        "column": "gestor",
+        "keys": 9,
+        "diff_cells": 9,
+        "class": "ROUTE_PERSON_FIELDS"
+      },
+      {
+        "column": "gestor_norm",
+        "keys": 9,
+        "diff_cells": 9,
+        "class": "ROUTE_PERSON_FIELDS"
+      },
+      {
+        "column": "modalidad",
+        "keys": 9,
+        "diff_cells": 9,
+        "class": "ROUTE_PERSON_FIELDS"
+      },
+      {
+        "column": "supervisor",
+        "keys": 7,
+        "diff_cells": 7,
+        "class": "ROUTE_PERSON_FIELDS"
+      },
+      {
+        "column": "jefe_operaciones",
+        "keys": 1,
+        "diff_cells": 1,
+        "class": "ROUTE_PERSON_FIELDS"
+      }
+    ],
+    "by_week": {
+      "2026-05-11": {
+        "keys": 9,
+        "diff_cells": 9
+      },
+      "2026-05-18": {
+        "keys": 29,
+        "diff_cells": 94
+      },
+      "2026-05-25": {
+        "keys": 7,
+        "diff_cells": 7
+      },
+      "2026-06-01": {
+        "keys": 11,
+        "diff_cells": 66
+      }
+    },
+    "by_source_pair": [
+      {
+        "baseline_source": "KPIONE2",
+        "local_source": "KPIONE2",
+        "keys": 56,
+        "diff_cells": 176
+      }
+    ],
+    "classes": [
+      {
+        "class": "ROUTE_PERSON_FIELDS",
+        "keys": 33,
+        "diff_cells": 88,
+        "baseline_value_origin": "materialized daily fact route/person fields from historical build context",
+        "local_value_origin": "current local route rows joined by C004 after_missing_key variant",
+        "associated_code_version": "route view DDL plus mixed daily fact materialization; exact deployed commit not proven",
+        "depends_on_route_snapshot": true,
+        "possible_correction": "Record and replay the exact route row lineage per daily key/week; do not infer from a single batch.",
+        "status": "PARTIAL"
+      },
+      {
+        "class": "AUDIT_FIELDS",
+        "keys": 23,
+        "diff_cells": 65,
+        "baseline_value_origin": "KPIONE2 raw batch 33 counts",
+        "local_value_origin": "KPIONE2 raw batch 34 or later counts",
+        "associated_code_version": "daily precedence formula same; input snapshot differs",
+        "depends_on_route_snapshot": false,
+        "possible_correction": "Pin KPIONE2 snapshot by affected date/build context instead of using the latest accumulated snapshot.",
+        "status": "VALIDATED"
+      },
+      {
+        "class": "SOURCE_FIELDS",
+        "keys": 23,
+        "diff_cells": 23,
+        "baseline_value_origin": "KPIONE2 raw batch 33",
+        "local_value_origin": "KPIONE2 raw batch 34 or later",
+        "associated_code_version": "daily precedence formula same; input snapshot differs",
+        "depends_on_route_snapshot": false,
+        "possible_correction": "Pin KPIONE2 raw batch lineage.",
+        "status": "VALIDATED"
+      }
+    ],
+    "root_causes": [
+      {
+        "cause": "HISTORICAL_INPUT_SNAPSHOT_DRIFT",
+        "status": "VALIDATED",
+        "keys": 23,
+        "evidence": "For all 23 KPIONE2 counter keys, raw batch 33 matches baseline counts and batches 34-38 match local counts. Batch 34 adds exactly one row per affected key."
+      },
+      {
+        "cause": "ROUTE_PERSON_MATERIALIZATION_NOT_REPRODUCIBLE_FROM_AVAILABLE_BATCHES",
+        "status": "PARTIAL",
+        "keys": 33,
+        "evidence": "Across 33 route/person residual keys, local values have exact route-row matches in available historical route batches; baseline values have no exact 10/10 route-row match, with best scores 2-9."
+      }
+    ],
+    "anonymized_examples": [
+      {
+        "key_hash": "3a3edd964647f3f72626a52f3105f916",
+        "week": "2026-05-11",
+        "diff_columns": [
+          "local_nombre"
+        ]
+      },
+      {
+        "key_hash": "02af229fa921a9918a115f82003b0dfa",
+        "week": "2026-05-18",
+        "diff_columns": [
+          "kpione2_rows_dia",
+          "persona_conflicto_rows_dia",
+          "raw_evidence_count",
+          "same_source_multimark"
+        ]
+      }
+    ]
+  },
+  "weekly_71": {
+    "keys": 71,
+    "by_week": {
+      "2026-05-11": 30,
+      "2026-06-01": 41
+    },
+    "profile": {
+      "raw_route_present": 71,
+      "current_resolved_view_present": 71,
+      "c004_route_snapshot_present": 0,
+      "daily_baseline_present": {
+        "2026-05-11": 15,
+        "2026-06-01": 0
+      },
+      "baseline_ruta_duplicada_flag": 0,
+      "current_ruta_duplicada_flag": 0,
+      "gestion_compartida_flag": 0
+    },
+    "classes": [
+      {
+        "class": "HISTORICAL_ROUTE_VERSION",
+        "keys": 71,
+        "evidence": "All 71 missing weekly keys exist in historical route rows and in the current resolved route view, but none exists in the C004 route snapshot used for staged weekly.",
+        "exclusive": true
+      }
+    ],
+    "root_causes": [
+      {
+        "cause": "C004_ROUTE_SNAPSHOT_TOO_NARROW_FOR_RESOLVED_VIEW",
+        "status": "VALIDATED",
+        "keys": 71,
+        "evidence": "The C004 snapshot forced a narrowed route surface. The current resolved view carries per-grain historical winners that C004 omitted."
+      },
+      {
+        "cause": "2026-05-11_30_KEYS_FROM_BATCH_11_PATH",
+        "status": "VALIDATED",
+        "keys": 30,
+        "evidence": "The 30 missing keys are present in route batches 8-11, current resolved uses batch 11 for them, and C004 snapshot used only batch 12 for that week."
+      },
+      {
+        "cause": "2026-06-01_41_KEYS_FROM_BATCH_15_PATH",
+        "status": "VALIDATED",
+        "keys": 41,
+        "evidence": "The 41 missing keys are present in route batch 15, current resolved keeps historical batch-15 winners for that subset, and C004 snapshot kept only 3 batch-15 overrides plus batch 17."
+      }
+    ],
+    "not_primary_causes": [
+      "CLIENT_NORMALIZATION",
+      "LOCAL_CLIENT_REKEYING",
+      "SHARED_MANAGEMENT_COLLAPSE",
+      "ZERO_VISIT_ROUTE_ONLY",
+      "ROUTE_KEY_DROPPED_BY_DEDUP"
+    ]
+  },
+  "fuentes_reportadas": {
+    "diffs": 4048,
+    "format_only": 0,
+    "order_only": 0,
+    "null_empty": 4048,
+    "semantic": 0,
+    "builder_version_drift": "NULL_EMPTY_OUTPUT_DRIFT_ONLY",
+    "details": {
+      "baseline_is_null": true,
+      "staged_is_null": false,
+      "baseline_length": 0,
+      "staged_length": 0,
+      "diffs_after_coalesce_empty": 0,
+      "interpretation": "No semantic source-set difference was found. Baseline stores NULL where C004 staged stores empty string."
+    }
+  },
+  "route_provenance": {
+    "business_policy": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1",
+    "business_policy_status": "unchanged",
+    "technical_baseline_rule_inferred": "per_grain_composite_resolved_view",
+    "technical_baseline_rule_status": "PARTIAL",
+    "evidence": [
+      "v_rr_frecuencia_base_resuelta_v2 ranks route batch by effective_week_start, cod_rt, cliente_norm, loaded_at desc and ruta_batch_id desc.",
+      "For 2026-05-11 the current resolved view contains 30 rows from route batch 11 and 3298 from batch 12.",
+      "For 2026-06-01 the current resolved view contains 44 rows from route batch 15 and 3437 from batch 18.",
+      "The C004 experimental route snapshot contained only batch 12 for 2026-05-11 and a batch 15/17 subset for 2026-06-01."
+    ],
+    "baseline_rule_options_assessed": {
+      "single_batch": "REJECTED_FOR_WEEKLY_71",
+      "composite_surface": "SUPPORTED",
+      "historical_view": "SUPPORTED",
+      "non_reproducible_materialization": "PARTIAL_FOR_DAILY_ROUTE_PERSON_FIELDS",
+      "different_ddl_version": "NOT_PROVEN"
+    }
+  },
+  "next_recipe": [
+    "Build an explicit build_context table that pins raw source batch lineage by affected date, including KPIONE2 batch 33 for the 23 daily counter residual keys and batch 31 for the recovered missing key.",
+    "Rebuild daily from the pinned raw lineage and compare before route changes.",
+    "Use the resolved per-grain route lineage from v_rr_frecuencia_base_resuelta_v2 as the technical implementation surface for the closed business rule, recording ruta_batch_id per week/cod_rt/cliente_norm.",
+    "Normalize NULL and empty string for FUENTES_REPORTADAS_SEMANA during parity comparison; no semantic source-set correction is required for those 4048 rows.",
+    "Rebuild weekly from pinned daily plus resolved route lineage, not from the C004 narrowed route snapshot.",
+    "Only run clean-room reproducibility after daily value parity and weekly key/value parity are both exact."
+  ],
+  "supabase_access": "read_only",
+  "supabase_writes": false,
+  "productive_files_modified": []
+}
