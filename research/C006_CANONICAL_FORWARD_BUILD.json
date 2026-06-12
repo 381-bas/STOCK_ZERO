@@ -1,0 +1,329 @@
+{
+  "phase": "FASE_C006_CANONICAL_FORWARD_BUILD_CONTRACT_LOCAL_ONLY",
+  "verdict": "CANONICAL_BUILD_REPRODUCIBLE",
+  "legacy_forensics_status": "CLOSED_WITH_DOCUMENTED_NON_REPRODUCIBILITY",
+  "baseline": {
+    "head_before_commit": "0107724e3a6dc8a2e0713cfa8aa30cf12b5d1b86",
+    "origin_main_before_commit": "0107724e3a6dc8a2e0713cfa8aa30cf12b5d1b86"
+  },
+  "safety": {
+    "supabase_access": "read_only",
+    "supabase_writes": false,
+    "local_writes": true,
+    "docker_local_postgres_used": true,
+    "loaders_executed": false,
+    "product_refresh_executed": false,
+    "sql_migrations_executed": false,
+    "runtime_files_modified": false,
+    "row_level_sensitive_data_in_report": false
+  },
+  "readonly_supabase_check": {
+    "current_user": "stock_zero_codex_ro",
+    "default_transaction_read_only": "on",
+    "statement_timeout": "15s",
+    "mv_count": 13339,
+    "alerta_counts": {
+      "CUMPLE": 6650,
+      "INCUMPLE": 6689
+    },
+    "dsn_printed": false
+  },
+  "preflight_before": {
+    "phase": "control_gestion_v2",
+    "final_verdict": "warn",
+    "blockers": [],
+    "warnings": [
+      "git_worktree_not_clean",
+      "kernel_02_head_mismatch"
+    ]
+  },
+  "local_schemas": [
+    "c006_canonical",
+    "c006_clean_room"
+  ],
+  "build_context": {
+    "build_id": "CG_CANONICAL_BUILD_CONTEXT_V1_C006_W20260518_W20260601",
+    "build_created_at_utc": "2026-06-12T02:32:52Z",
+    "build_created_at_clt": "2026-06-11T22:32:52-04:00",
+    "build_mode": "FORWARD_CANONICAL_LOCAL_LAB",
+    "affected_date_start": "2026-05-18",
+    "affected_date_end": "2026-06-07",
+    "affected_weeks": [
+      "2026-05-18",
+      "2026-06-01"
+    ],
+    "raw_batch_ids": {
+      "KPIONE": 19,
+      "KPIONE2": 38,
+      "POWER_APP": 26
+    },
+    "raw_batch_selection_reason": "C006_CAPTURED_EXACT_BATCH_IDS_FROM_OK_REGISTRY_ROWS_FOR_LAB_WEEKS",
+    "raw_batch_merge_policy": "ONE_EXACT_BATCH_PER_SOURCE; NO_MIX_FOR_LEGACY_PARITY",
+    "route_week_snapshot_policy": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1",
+    "route_lineage_manifest_hash": "87d7d4540c8ca1a87751f8349075904f",
+    "source_precedence_version": "CG_SOURCE_PRECEDENCE_V2_KPIONE2_POWER_APP_KPIONE_AUDIT",
+    "daily_builder_version": "CG_DAILY_CANONICAL_PINNED_RAW_ROUTE_V1",
+    "weekly_builder_version": "CG_WEEKLY_FROM_CANONICAL_DAILY_ROUTE_V1",
+    "input_manifest_hash": "296a3d8c2550c2821546128491b38483",
+    "daily_output_hash": "fdde399cd6f74d5cdc4fb5a251b4a40c",
+    "weekly_output_hash": "6180e2f8c4f4bd133053421c32219788",
+    "rebuild_reason": "C006_FORWARD_CONTRACT_VALIDATION"
+  },
+  "raw_lineage": [
+    {
+      "source_key": "KPIONE",
+      "batch_id": 19,
+      "source_sheet": "DB (KPIONE)",
+      "loaded_rows": 75124,
+      "status": "ok",
+      "loader_name": "load_control_gestion_raw_v17",
+      "source_type": "ACCUMULATIVE_SNAPSHOT",
+      "snapshot_hash": "8931d1f7d05701fa9731e0dd1b160155e1127977a475ec43399c2eac9d7f9cf5",
+      "selection_reason": "C006 exact recorded source batch; not selected by runtime selector",
+      "selected_window_rows": 0
+    },
+    {
+      "source_key": "KPIONE2",
+      "batch_id": 38,
+      "source_sheet": "DB (KPIONE2.0)",
+      "loaded_rows": 45736,
+      "status": "ok",
+      "loader_name": "load_control_gestion_raw_v17",
+      "source_type": "CORRECTION",
+      "snapshot_hash": "1d031758011678c52fada8712e91807d68ebc825064865829fa32c7de6f9e675",
+      "selection_reason": "C006 exact recorded source batch; not selected by runtime selector",
+      "selected_window_rows": 7686
+    },
+    {
+      "source_key": "POWER_APP",
+      "batch_id": 26,
+      "source_sheet": "DB (POWER_APP)",
+      "loaded_rows": 5497,
+      "status": "ok",
+      "loader_name": "load_control_gestion_raw_v17",
+      "source_type": "ACCUMULATIVE_SNAPSHOT",
+      "snapshot_hash": "fe4eaf1d3f7ca384eecddfff6a1cbe10427d512df38f3dbb150d443592f036a9",
+      "selection_reason": "C006 exact recorded source batch; not selected by runtime selector",
+      "selected_window_rows": 0
+    }
+  ],
+  "route_lineage": {
+    "rows": 6799,
+    "duplicate_keys": 0,
+    "weeks": [
+      {
+        "week_start": "2026-05-18",
+        "rows": 3318,
+        "source_ruta_batch_ids": [
+          13
+        ],
+        "route_week_snapshot_version_id": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1|C006|2026-05-18",
+        "surface_hash": "d77324afd998852dd636092ff2bf538f",
+        "classification": "stable_single_batch"
+      },
+      {
+        "week_start": "2026-06-01",
+        "rows": 3481,
+        "source_ruta_batch_ids": [
+          15,
+          18
+        ],
+        "route_week_snapshot_version_id": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1|C006|2026-06-01",
+        "surface_hash": "3cb74f4e4c830d0cd953dbb5dd8008ed",
+        "classification": "composite_corrected_week"
+      }
+    ]
+  },
+  "daily": {
+    "build_source": "pinned raw lineage joined to pinned route week snapshot",
+    "uses_legacy_fact_as_input": false,
+    "uses_latest_batch_selector": false,
+    "runs": [
+      {
+        "run_no": 1,
+        "rows": 7484,
+        "duplicate_keys": 0,
+        "key_hash": "a48c9f3e18668ebfdec729fa4fe79d3e",
+        "full_row_hash": "fdde399cd6f74d5cdc4fb5a251b4a40c",
+        "internal_warnings": []
+      },
+      {
+        "run_no": 2,
+        "rows": 7484,
+        "duplicate_keys": 0,
+        "key_hash": "a48c9f3e18668ebfdec729fa4fe79d3e",
+        "full_row_hash": "fdde399cd6f74d5cdc4fb5a251b4a40c",
+        "internal_warnings": []
+      },
+      {
+        "run_no": 3,
+        "rows": 7484,
+        "duplicate_keys": 0,
+        "key_hash": "a48c9f3e18668ebfdec729fa4fe79d3e",
+        "full_row_hash": "fdde399cd6f74d5cdc4fb5a251b4a40c",
+        "internal_warnings": []
+      }
+    ],
+    "determinism": {
+      "row_variants": 1,
+      "key_hash_variants": 1,
+      "full_row_hash_variants": 1,
+      "deterministic": true
+    },
+    "by_week_run_1": [
+      {
+        "week_start": "2026-05-18",
+        "rows": 6264,
+        "useful_days": 6264
+      },
+      {
+        "week_start": "2026-06-01",
+        "rows": 1220,
+        "useful_days": 1220
+      }
+    ],
+    "internal_validation_run_1": {
+      "invalid_useful_day": 0,
+      "bad_raw_evidence_count": 0,
+      "invalid_flags": 0,
+      "bad_precedence": 0,
+      "source_rows": [
+        {
+          "fuente_ganadora": "KPIONE2",
+          "rows": 7484,
+          "raw_rows": 7579
+        }
+      ]
+    }
+  },
+  "weekly": {
+    "build_source": "canonical daily output plus pinned route week snapshot",
+    "uses_legacy_weekly_fact_as_input": false,
+    "runs": [
+      {
+        "run_no": 1,
+        "rows": 6799,
+        "duplicate_keys": 0,
+        "key_hash": "af8c2414b4e57b57d66c2dfa0f27b0f6",
+        "full_row_hash": "6180e2f8c4f4bd133053421c32219788",
+        "internal_warnings": []
+      },
+      {
+        "run_no": 2,
+        "rows": 6799,
+        "duplicate_keys": 0,
+        "key_hash": "af8c2414b4e57b57d66c2dfa0f27b0f6",
+        "full_row_hash": "6180e2f8c4f4bd133053421c32219788",
+        "internal_warnings": []
+      },
+      {
+        "run_no": 3,
+        "rows": 6799,
+        "duplicate_keys": 0,
+        "key_hash": "af8c2414b4e57b57d66c2dfa0f27b0f6",
+        "full_row_hash": "6180e2f8c4f4bd133053421c32219788",
+        "internal_warnings": []
+      }
+    ],
+    "determinism": {
+      "row_variants": 1,
+      "key_hash_variants": 1,
+      "full_row_hash_variants": 1,
+      "deterministic": true
+    },
+    "by_week_run_1": [
+      {
+        "week_start": "2026-05-18",
+        "rows": 3318,
+        "visitas_realizadas": 6264
+      },
+      {
+        "week_start": "2026-06-01",
+        "rows": 3481,
+        "visitas_realizadas": 1220
+      }
+    ],
+    "internal_validation_run_1": {
+      "bad_cap": 0,
+      "bad_pending": 0,
+      "bad_alert": 0,
+      "fuentes_reportadas_semana_rows": [
+        {
+          "fuentes_reportadas_semana": "",
+          "rows": 2906
+        },
+        {
+          "fuentes_reportadas_semana": "KPIONE2",
+          "rows": 3893
+        }
+      ]
+    }
+  },
+  "clean_room": {
+    "schema": "c006_clean_room",
+    "runs": [
+      {
+        "run_no": 1,
+        "daily_rows": 7484,
+        "daily_duplicate_keys": 0,
+        "daily_key_hash": "a48c9f3e18668ebfdec729fa4fe79d3e",
+        "daily_full_row_hash": "fdde399cd6f74d5cdc4fb5a251b4a40c",
+        "weekly_rows": 6799,
+        "weekly_duplicate_keys": 0,
+        "weekly_key_hash": "af8c2414b4e57b57d66c2dfa0f27b0f6",
+        "weekly_full_row_hash": "6180e2f8c4f4bd133053421c32219788",
+        "internal_warnings": []
+      }
+    ],
+    "matches_canonical": {
+      "daily_rows": true,
+      "daily_key_hash": true,
+      "daily_full_row_hash": true,
+      "weekly_rows": true,
+      "weekly_key_hash": true,
+      "weekly_full_row_hash": true
+    }
+  },
+  "legacy_diagnostics_not_a_gate": {
+    "status": "diagnostic_only",
+    "daily": {
+      "baseline_rows": 7484,
+      "canonical_rows": 7484,
+      "missing_from_canonical": 0,
+      "extra_in_canonical": 0,
+      "common_keys_with_value_diff": 7484,
+      "assessment": "Legacy daily facts are preserved as historical facts and are not used as a forward-build rule."
+    },
+    "weekly": {
+      "baseline_rows": 6798,
+      "canonical_rows": 6799,
+      "missing_from_canonical": 0,
+      "extra_in_canonical": 1,
+      "assessment": "Legacy weekly parity is diagnostic only for C006 because unreproducible route/person provenance remains closed as documented non-reproducibility."
+    }
+  },
+  "contract_validation": {
+    "declares_affected_date_window": true,
+    "raw_lineage_explicit": true,
+    "route_lineage_explicit": true,
+    "source_precedence_explicit": true,
+    "daily_reproducible": true,
+    "weekly_reproducible": true,
+    "clean_room_reproducible": true,
+    "legacy_fact_rewrite_required": false,
+    "legacy_fact_rewrite_authorized": false,
+    "prohibited_implicit_selector_tokens_found_in_context": 0
+  },
+  "warnings": [
+    "Preflight warnings were non-blocking: git_worktree_not_clean and kernel_02_head_mismatch.",
+    "Local heavy diagnostic queries from earlier attempts were cancelled in the Docker lab before the final optimized build; no product data was changed.",
+    "KPIONE and POWER_APP pinned source batches are registered in lineage but have zero rows in the selected C006 week window.",
+    "Legacy parity diagnostics remain different by design and are not a gate for the forward canonical contract."
+  ],
+  "blockers": [],
+  "files_written": [
+    "research/C006_CANONICAL_FORWARD_BUILD.json",
+    "research/reports/CODEX_C006_CANONICAL_FORWARD_BUILD.md"
+  ],
+  "next_step": "ChatGPT/Bastian review"
+}
