@@ -1,0 +1,397 @@
+{
+  "phase": "FASE_C004_CODEX_G0_CLOSURE_WEEK_RETROACTIVE_POLICY_LOCAL_ONLY",
+  "task_type": "implementation",
+  "generated_at": "2026-06-11",
+  "verdict": "ROOT_CAUSE_EXTENDED",
+  "route_business_policy": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1",
+  "baseline": {
+    "approved_head_at_start": "618bce677ab66f3365fa64855f61e34fb9162eab",
+    "supabase_baseline_source": "evidence/supabase_cleanup_9C7A4",
+    "local_container": "stock_zero_cg_parity_pg",
+    "local_database": "stock_zero_cg_parity",
+    "local_schema": "c004_g0"
+  },
+  "preflight": {
+    "codex_ro_env_check": {
+      "current_user": "stock_zero_codex_ro",
+      "default_transaction_read_only": "on",
+      "statement_timeout": "15s",
+      "dsn_printed": false
+    },
+    "sz_preflight": {
+      "phase": "control_gestion_v2",
+      "final_verdict": "warn",
+      "blockers": [],
+      "warnings": [
+        "git_worktree_not_clean",
+        "kernel_02_head_mismatch"
+      ]
+    }
+  },
+  "claude_proposal_audit": [
+    {
+      "proposal": "missing_key_forensics",
+      "decision": "ACCEPT",
+      "reason": "The missing daily key was independently traced from baseline through raw candidates, latest raw scope, event scope, route scope, and local daily surfaces."
+    },
+    {
+      "proposal": "value_diff_matrix",
+      "decision": "ACCEPT",
+      "reason": "A local value-diff matrix was built and grouped by affected columns and daily keys."
+    },
+    {
+      "proposal": "route_policy_options",
+      "decision": "ACCEPT_WITH_CORRECTION",
+      "reason": "Claude proposed options, but Bastian supplied the binding business rule ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1. The lab applied that rule instead of reopening policy selection."
+    },
+    {
+      "proposal": "weekly_from_daily_staged",
+      "decision": "ACCEPT",
+      "reason": "Weekly was built from staged daily and route surfaces, not from cg_mart.v_cg_out_weekly_v2."
+    },
+    {
+      "proposal": "clean_room_reproducibility",
+      "decision": "NOT_NEEDED",
+      "reason": "Daily and weekly exact parity did not close; the clean-room rerun is only valid after exact parity is achieved."
+    }
+  ],
+  "route_snapshot": {
+    "classification": "COMPOSITE_WEEKLY_SNAPSHOT",
+    "classification_note": "A weekly snapshot surface was resolved locally under the retroactive weekly replacement rule, but it is not sufficient to close parity. Week 2026-06-01 remains composite and partly ambiguous.",
+    "version_id": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1_LOCAL_C004",
+    "surface_hash": "089a9b098b913ea2ea23c051e0e01f01",
+    "rows": 13374,
+    "source_batches": [
+      12,
+      13,
+      14,
+      15,
+      17
+    ],
+    "weeks": [
+      {
+        "week_start": "2026-05-11",
+        "rows": 3298,
+        "source_batches": [
+          12
+        ],
+        "source_duplicate_delta": 30
+      },
+      {
+        "week_start": "2026-05-18",
+        "rows": 3318,
+        "source_batches": [
+          13
+        ],
+        "source_duplicate_delta": 30
+      },
+      {
+        "week_start": "2026-05-25",
+        "rows": 3319,
+        "source_batches": [
+          14
+        ],
+        "source_duplicate_delta": 30
+      },
+      {
+        "week_start": "2026-06-01",
+        "rows": 3439,
+        "source_batches": [
+          15,
+          17
+        ],
+        "source_duplicate_delta": 33
+      }
+    ]
+  },
+  "missing_key": {
+    "classification": "RAW_SUPERSESSION",
+    "key": {
+      "fecha_visita": "2026-05-15",
+      "cod_rt": "J988",
+      "cliente_norm": "THE POWER OF FOOD"
+    },
+    "baseline": {
+      "fuente_ganadora": "KPIONE2",
+      "local": "JUMBO SUPER PUERTAS DE CHICUREO",
+      "gestor": "CARLOS GARAY",
+      "rutero": "PITUTO",
+      "reponedor_scope": "CARLOS GARAY",
+      "modalidad": "PITUTO",
+      "useful_day": 1,
+      "raw_evidence_count": 1,
+      "kpione2_rows_dia": 1
+    },
+    "trace": [
+      {
+        "stage": "baseline",
+        "rows_found": 1,
+        "verdict": "present in baseline"
+      },
+      {
+        "stage": "raw_all_batches_kpione2_exact",
+        "rows_found": 1,
+        "batches": [
+          31
+        ],
+        "verdict": "present only in historical raw batch set"
+      },
+      {
+        "stage": "raw_latest_batch_kpione2_exact",
+        "rows_found": 0,
+        "verdict": "absent from latest batch"
+      },
+      {
+        "stage": "event_scope",
+        "rows_found": 0,
+        "verdict": "not admitted to event_scope"
+      },
+      {
+        "stage": "route_scope_all_week_batches",
+        "rows_found": 5,
+        "batches": [
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "verdict": "route scope exists, not route absence"
+      },
+      {
+        "stage": "daily_route16_dedup",
+        "rows_found": 0,
+        "verdict": "absent before C004 recovery"
+      }
+    ],
+    "raw_candidate": {
+      "table": "cg_raw.kpione2_raw",
+      "batch_id": 31,
+      "id": 299566,
+      "source_row": 31440,
+      "reponedor_norm": "LADY BENITEZ",
+      "visita_value": 1,
+      "has_evidence": false
+    }
+  },
+  "daily": {
+    "baseline_rows": 21348,
+    "variants": [
+      {
+        "variant": "local_route16_dedup",
+        "rows": 21347,
+        "missing_keys": 1,
+        "extra_keys": 0,
+        "duplicate_keys": 0,
+        "value_differences": 56,
+        "full_row_hash_parity": false
+      },
+      {
+        "variant": "after_missing_key",
+        "rows": 21348,
+        "missing_keys": 0,
+        "extra_keys": 0,
+        "duplicate_keys": 0,
+        "value_differences": 56,
+        "full_row_hash_parity": false
+      },
+      {
+        "variant": "after_route_snapshot",
+        "rows": 21348,
+        "missing_keys": 0,
+        "extra_keys": 0,
+        "duplicate_keys": 0,
+        "value_differences": 299,
+        "full_row_hash_parity": false
+      }
+    ],
+    "best_result": {
+      "variant": "after_missing_key",
+      "key_parity_closed": true,
+      "value_parity_closed": false,
+      "remaining_value_differences": 56
+    },
+    "route_snapshot_value_diff_matrix": {
+      "classification": "SNAPSHOT_DIFF_OR_UNRESOLVED_ROUTE_COMPOSITE",
+      "diff_cells": 1696,
+      "affected_daily_keys": 276,
+      "top_columns": [
+        {
+          "column": "reponedor_scope",
+          "diff_rows": 253
+        },
+        {
+          "column": "reponedor_scope_norm",
+          "diff_rows": 253
+        },
+        {
+          "column": "rutero",
+          "diff_rows": 253
+        },
+        {
+          "column": "gestor",
+          "diff_rows": 236
+        },
+        {
+          "column": "gestor_norm",
+          "diff_rows": 236
+        },
+        {
+          "column": "modalidad",
+          "diff_rows": 236
+        },
+        {
+          "column": "supervisor",
+          "diff_rows": 206
+        },
+        {
+          "column": "local_nombre",
+          "diff_rows": 23
+        }
+      ]
+    }
+  },
+  "weekly": {
+    "builder": "staged_from_daily_and_route_snapshot",
+    "source_view_avoided": "cg_mart.v_cg_out_weekly_v2",
+    "baseline_weeks_compared": [
+      "2026-05-11",
+      "2026-05-18",
+      "2026-05-25",
+      "2026-06-01"
+    ],
+    "baseline_rows": 13445,
+    "staged_rows": 13374,
+    "candidate_key": [
+      "SEMANA_INICIO",
+      "COD_RT",
+      "CLIENTE_NORM_FILTER"
+    ],
+    "candidate_key_duplicates": {
+      "baseline": 0,
+      "staged": 0
+    },
+    "key_diff": {
+      "missing": 71,
+      "extra": 0,
+      "by_week": [
+        {
+          "week_start": "2026-05-11",
+          "missing": 30
+        },
+        {
+          "week_start": "2026-06-01",
+          "missing": 41
+        }
+      ]
+    },
+    "value_diff_common_keys": {
+      "affected_keys": 4170,
+      "diff_cells": 5125,
+      "columns_with_diffs": 23,
+      "top_columns": [
+        {
+          "column": "FUENTES_REPORTADAS_SEMANA",
+          "diff_rows": 4048
+        },
+        {
+          "column": "RUTA_DUPLICADA_FLAG",
+          "diff_rows": 123
+        },
+        {
+          "column": "REPONEDOR",
+          "diff_rows": 111
+        },
+        {
+          "column": "GESTOR",
+          "diff_rows": 107
+        },
+        {
+          "column": "GESTOR_NORM_FILTER",
+          "diff_rows": 107
+        },
+        {
+          "column": "RUTERO",
+          "diff_rows": 107
+        },
+        {
+          "column": "RUTERO_NORM_FILTER",
+          "diff_rows": 107
+        },
+        {
+          "column": "MODALIDAD",
+          "diff_rows": 103
+        }
+      ]
+    },
+    "timing": {
+      "runs": [
+        {
+          "run_no": 1,
+          "build_seconds": 10.1917013,
+          "rows": 13374,
+          "rows_per_second": 1312.24410982296
+        },
+        {
+          "run_no": 2,
+          "build_seconds": 8.5519564,
+          "rows": 13374,
+          "rows_per_second": 1563.8526875558
+        },
+        {
+          "run_no": 3,
+          "build_seconds": 7.5867757,
+          "rows": 13374,
+          "rows_per_second": 1762.80419098195
+        }
+      ],
+      "median_seconds": 8.5519564,
+      "max_seconds": 10.1917013,
+      "median_rows_per_second": 1563.8526875558,
+      "proposed_local_limit_seconds": 30
+    },
+    "hardware": {
+      "cpu": "Intel(R) Core(TM) i5-1035G1 CPU @ 1.00GHz",
+      "cores": 4,
+      "logical_processors": 8,
+      "memory_gb": 7.78,
+      "os": "Microsoft Windows 11 Home Single Language 10.0.26200",
+      "docker_desktop": "4.76.0",
+      "docker_engine": "29.5.2",
+      "postgres": "PostgreSQL 17.10"
+    },
+    "parity_closed": false
+  },
+  "clean_room": {
+    "executed": false,
+    "reason": "Daily value parity and weekly key/value parity did not close in the primary C004 lab."
+  },
+  "conclusions": [
+    "The single missing daily key is independently classified as RAW_SUPERSESSION, not RAW_ABSENCE or ROUTE_SCOPE.",
+    "Recovering the missing key closes daily key parity but leaves 56 value differences.",
+    "The attempted weekly-retroactive route snapshot is composite and does not close daily value parity; applying it increases daily value differences to 299.",
+    "Weekly staged construction is fast locally and avoids the expensive raw weekly view, but exact weekly parity does not close: 71 keys are missing and common-key values still differ.",
+    "G0 remains open; root cause coverage is extended rather than closed."
+  ],
+  "supabase_access": "read_only",
+  "supabase_writes": false,
+  "local_writes": true,
+  "productive_files_modified": [],
+  "repo_files_written": [
+    "research/C004_CODEX_G0_EXECUTION.json",
+    "research/reports/CODEX_C004_G0_EXECUTION.md"
+  ],
+  "commit": {
+    "created": false,
+    "sha": null
+  },
+  "push": false,
+  "warnings": [
+    "Initial preflight returned warn because of pre-existing git_worktree_not_clean and kernel_02_head_mismatch.",
+    "Docker Desktop was not initially serving the local engine and had to be started; only the local parity container was used.",
+    "The route snapshot is an experimental local surface and is not approved for product implementation.",
+    "Weekly baseline includes earlier 2026-04-27 and 2026-05-04 weeks outside the C004 daily comparison window; C004 weekly parity compared only 2026-05-11 through 2026-06-01."
+  ],
+  "blockers": [],
+  "next_step": "ChatGPT/Bastian review"
+}
