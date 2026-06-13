@@ -1,0 +1,294 @@
+{
+  "plan_id": "AI_PLATFORM_EVOLUTION_PLAN_V1",
+  "schema_version": 1,
+  "status": "BASTIAN_APPROVED_DIRECTIONAL",
+  "created_at": "2026-06-13",
+  "authority": "Bastian",
+  "implementation_authorized": false,
+  "purpose": "Preserve and extend the shared Claude, Codex, ChatGPT and Git operating model so future work can resume from visible progress, improve quality, reduce collisions and support larger ambitions without creating unnecessary platform complexity.",
+  "growth_principle": {
+    "statement": "Bastian is not limited to small phases. The project may pursue large, ambitious outcomes. Phase size must adapt to risk, reversibility, evidence and coordination needs rather than being treated as a fixed personal preference.",
+    "operating_rule": "Use the largest coherent scope that remains auditable and safely reversible. Split work only when it reduces collision, uncertainty or rollback risk.",
+    "anti_pattern": "Do not encode 'Bastian prefers small phases' as a permanent memory or restriction.",
+    "desired_outcome": "Increase the scale of what can be built while improving control, evidence, agent coordination and learning speed."
+  },
+  "shared_operating_model": {
+    "roles": {
+      "Bastian": "Final authority, business semantics, risk acceptance and model/reasoning selection in the UI.",
+      "ChatGPT": "Architecture, synthesis, prompt governance, cross-agent coordination and direction review.",
+      "Claude": "Independent research, semantic challenge, platform experimentation and adversarial validation.",
+      "Codex": "Repository-grounded implementation, deterministic validation, DB-aware execution under explicit authorization and memory promotion.",
+      "Git": "Shared evidence, handoff and durable progress bus."
+    },
+    "blind_routing": {
+      "status": "ACTIVE",
+      "rule": "Model and reasoning recommendations are shown to Bastian outside the agent prompt. The executing agent receives the task contract without being predisposed by the selected model or expected conclusion."
+    },
+    "bayesian_direction": {
+      "status": "OBSERVE_ONLY",
+      "current_candidate": "UC-DL-01",
+      "current_action": "Collect comparable load observations before deterministic scorecards or probabilistic models.",
+      "model_fitting_authorized": false,
+      "production_authorized": false
+    }
+  },
+  "current_progress": {
+    "claude_platform": {
+      "status": "FUNCTIONAL_PILOT",
+      "implemented": [
+        "CLAUDE.md bootstrap",
+        "Path-scoped Control Gestion and research-memory rules",
+        "/sz-context deterministic domain bundle",
+        "Local Claude auto-memory with private user/project pointers",
+        "/sz-load-observation deterministic candidate generator and validator"
+      ],
+      "latest_evidence": {
+        "sz_context_commit": "6d52a7bfc58a39db84697183b06f0512c8b86929",
+        "load_observation_skill_commit": "9f19cca04164bd01b2a58a782671ce001a6da61c"
+      },
+      "pending": [
+        "Codex independent validation of /sz-load-observation",
+        "Use /sz-load-observation once on a completed real load before adding more skills",
+        "Resume Claude CG005F revalidation after usage limits reset"
+      ]
+    },
+    "codex_platform": {
+      "status": "STRONG_EXECUTION_GOVERNANCE_WITHOUT_ISOLATED_WORKSPACES",
+      "implemented": [
+        "AGENTS.md execution discipline",
+        "Preflight and scanner flows",
+        "Read-only extractor profiles",
+        "Guarded no-write defaults and exact staged scopes",
+        "Independent validation and Git evidence flow",
+        "Control Gestion canonical builder and guarded route replacement implementation"
+      ],
+      "pending": [
+        "Worktree-based isolation for concurrent phases",
+        "Versioned local environment and safe task actions",
+        "Codex repository skills that reuse deterministic project scripts",
+        "Minimal project rules and review gates",
+        "Read-only recurring automation pilots"
+      ]
+    },
+    "shared_memory": {
+      "status": "ACTIVE",
+      "authoritative_surfaces": [
+        "research/AI_PROJECT_HORIZON.json",
+        "research/AI_CAPABILITY_MAP.json",
+        "research/AI_SHARED_MEMORY.json",
+        "research/AI_BACKLOG.json",
+        "research/AI_RESEARCH_PROTOCOL.json"
+      ],
+      "principle": "Private agent memory may improve local continuity, but cross-agent-critical facts, decisions and evidence must remain in Git-visible research artifacts."
+    }
+  },
+  "roadmap": [
+    {
+      "phase_id": "CODEX_PLATFORM_001",
+      "name": "Worktree Isolation and Local Environment",
+      "priority": 1,
+      "status": "PLANNED",
+      "objective": "Allow concurrent implementation, review and platform work without contaminating the primary checkout or repeating git_worktree_not_clean as normal operating state.",
+      "scope": [
+        "Define worktree naming and lifecycle",
+        "Create a versioned Codex local environment/setup contract",
+        "Add safe actions for preflight, tests, status and dry-runs",
+        "Document handoff and cleanup without deleting unmerged work"
+      ],
+      "success_metrics": [
+        "Two concurrent phases can run without overlapping modified files",
+        "No accidental staging of another phase",
+        "Fresh worktree reaches test-ready state reproducibly",
+        "Primary checkout remains operational"
+      ],
+      "dependencies": [
+        "Finish the active RUTA_RUTERO validation/correction chain or isolate it first"
+      ]
+    },
+    {
+      "phase_id": "CLAUDE_PLATFORM_006",
+      "name": "First Real Load Observation Use",
+      "priority": 2,
+      "status": "READY_AFTER_CODEX_VALIDATION",
+      "objective": "Prove that /sz-load-observation reduces manual work and preserves privacy using one completed RUTA_RUTERO or KPIONE2 load.",
+      "scope": [
+        "Validate the skill independently with Codex",
+        "Generate one UNREVIEWED candidate from a safe phase JSON",
+        "Review label and evidence manually",
+        "Append to the ledger only in a separately authorized phase"
+      ],
+      "success_metrics": [
+        "Candidate matches the observation contract",
+        "No secrets, PII, payloads or row collections",
+        "Ledger is not written by the skill",
+        "Manual preparation effort is measurably reduced"
+      ],
+      "dependencies": [
+        "Completed load and postvalidation evidence"
+      ]
+    },
+    {
+      "phase_id": "CODEX_PLATFORM_002",
+      "name": "Shared Codex Skills over Existing Deterministic Scripts",
+      "priority": 3,
+      "status": "PLANNED",
+      "objective": "Expose existing project tooling through small Codex skills without duplicating business logic.",
+      "candidate_skills": [
+        "sz-context using scripts/sz_context_bundle.py",
+        "sz-load-observation using scripts/sz_load_observation.py",
+        "sz-preflight selecting an existing approved preflight profile"
+      ],
+      "constraints": [
+        "Read-only or no-write by default",
+        "No duplicate implementation of script logic",
+        "No automatic DB, loader, commit or push authorization"
+      ],
+      "success_metrics": [
+        "Shorter prompts",
+        "Same deterministic output as direct script execution",
+        "No increased startup context cost"
+      ]
+    },
+    {
+      "phase_id": "SHARED_PLATFORM_001",
+      "name": "Cross-Agent Response Envelope and Drift Diagnostics",
+      "priority": 4,
+      "status": "DESIGN_REQUIRED",
+      "objective": "Normalize observable execution facts while keeping quality, confidence and verdict explicitly self-assessed until independently validated.",
+      "scope": [
+        "Stable types for files, DB access, writes, apply, commit and push",
+        "Separate FACT, INFERENCE and HYPOTHESIS",
+        "Detect horizon, backlog, capability and memory divergence",
+        "Do not force every task into an oversized schema"
+      ],
+      "success_metrics": [
+        "No boolean quality.achieved values",
+        "Observable actions are machine-checkable",
+        "Self-assessment and independent validation remain distinct"
+      ]
+    },
+    {
+      "phase_id": "CODEX_PLATFORM_003",
+      "name": "Minimal Rules and Native Review Gate",
+      "priority": 5,
+      "status": "PILOT_LATER",
+      "objective": "Reduce high-confidence command risks and make native review a repeatable gate without blocking legitimate authorized work.",
+      "scope": [
+        "Forbid git add . and git add -A",
+        "Prompt on destructive or write-capable commands",
+        "Use native review before merge or production-facing apply",
+        "Test every matcher with positive and negative cases"
+      ],
+      "non_goals": [
+        "Broad allow python rule",
+        "Hard-block all push/apply/SQL commands",
+        "Treat rules as a complete security boundary"
+      ]
+    },
+    {
+      "phase_id": "PLATFORM_DIAGNOSTICS_001",
+      "name": "Diagnostic Hooks and Context Observability",
+      "priority": 6,
+      "status": "DEFERRED",
+      "objective": "Observe loaded instructions, context drift and out-of-scope changes before introducing enforcement hooks.",
+      "constraints": [
+        "Diagnostic first",
+        "No DB or production side effects",
+        "Low false-positive rate",
+        "Easy removal"
+      ]
+    },
+    {
+      "phase_id": "CODEX_AUTOMATION_001",
+      "name": "Read-Only Recurring Maintenance",
+      "priority": 7,
+      "status": "DEFERRED",
+      "candidate_tasks": [
+        "Scanner and preflight health",
+        "Kernel/head drift report",
+        "Backlog versus horizon divergence",
+        "Untracked evidence and large-file inventory",
+        "Test regression summary"
+      ],
+      "forbidden_tasks": [
+        "Loaders",
+        "DDL",
+        "DB writes",
+        "Automatic commits or pushes",
+        "Production changes"
+      ]
+    },
+    {
+      "phase_id": "ADVANCED_CONTROL_PLANE_001",
+      "name": "MCP, SDK and CI Control Plane",
+      "priority": 8,
+      "status": "FUTURE",
+      "objective": "Evolve the operating model into a controlled AI development plane only after worktree isolation, deterministic skills and observation contracts are proven.",
+      "candidate_capabilities": [
+        "Read-only STOCK_ZERO MCP with allowlisted tools",
+        "Codex SDK-driven worktree orchestration",
+        "GitHub Action review gates",
+        "Decision Tower integration"
+      ],
+      "entry_conditions": [
+        "Stable contracts",
+        "Proven value from earlier platform phases",
+        "Explicit credential and cost model",
+        "Rollback and auditability"
+      ]
+    }
+  ],
+  "progress_measurement": {
+    "principle": "Platform improvement is accepted only when it reduces errors, collisions, rework, prompt size or elapsed time without weakening control.",
+    "metrics": [
+      "worktree collision incidents",
+      "out-of-scope files modified",
+      "rework rounds per phase",
+      "prompt length for repeated procedures",
+      "time from task start to validated commit",
+      "tests and independent validation failures",
+      "number of skills used at least once versus unused skills",
+      "manual steps removed by deterministic tooling",
+      "false positives from rules or hooks"
+    ],
+    "review_rule": "Do not add the next platform layer until the previous layer has been used in real work and its benefit or failure is recorded."
+  },
+  "memory_policy": {
+    "store_in_auto_memory": [
+      "Private preferences and local continuity that are not authoritative for other agents"
+    ],
+    "store_in_git": [
+      "Validated decisions",
+      "Shared operating contracts",
+      "Evidence and baselines",
+      "Platform roadmap and progress"
+    ],
+    "never_encode_as_personal_limit": [
+      "Bastian prefers only small phases",
+      "Bastian should avoid ambitious projects",
+      "A past workflow preference is a permanent capability ceiling"
+    ]
+  },
+  "immediate_next_actions": [
+    "Complete or resume Claude CG005F after the session limit resets.",
+    "Continue the RUTA_RUTERO path toward local PostgreSQL validation before any Supabase DDL or apply.",
+    "Run Codex independent validation of commit 9f19cca for /sz-load-observation.",
+    "After current operational work is isolated or closed, begin CODEX_PLATFORM_001 worktree and local-environment design.",
+    "Use this file as the progress checkpoint before creating additional skills, hooks, subagents, MCP servers or automations."
+  ],
+  "global_non_goals": [
+    "No big-bang platform rewrite",
+    "No autonomous production writes",
+    "No automatic model selection in the UI",
+    "No skill proliferation without demonstrated recurrence",
+    "No subagents solely because the feature exists",
+    "No replacement of human authority with memory, rules, hooks or probability"
+  ],
+  "review_triggers": [
+    "Completion of the active RUTA_RUTERO local-lab chain",
+    "First real use of /sz-load-observation",
+    "Two concurrent Codex/Claude phases collide in the primary checkout",
+    "A new model or platform capability materially changes available workflows",
+    "Bastian changes product direction or authorizes a larger implementation horizon"
+  ]
+}
