@@ -1,0 +1,28 @@
+{
+  "decision_set": "CG005B_ROUTE_REPLACEMENT",
+  "authority": "Bastian",
+  "status": "APPROVED",
+  "decisions": {
+    "BD-CG005B-001": {
+      "status": "APPROVED",
+      "decision": "Las 31 filas multirow no exactas son detalle operacional legitimo. Se preservan en historico y snapshot fisico. La superficie de cumplimiento debe resolver un grano logico semanal."
+    },
+    "BD-CG005B-002": {
+      "status": "APPROVED",
+      "decision": "Los 3 duplicados exactos se preservan en historico y se excluyen de las superficies vigente y resuelta."
+    },
+    "BD-CG005B-003": {
+      "status": "APPROVED",
+      "decision": "VECES POR SEMANA define obligacion semanal. LUNES-DOMINGO define distribucion. Los mismatches son warning."
+    },
+    "BD-CG005B-004": {
+      "status": "APPROVED",
+      "decision": "Las 70 bajas son remociones esperadas del snapshot autoritativo de la semana 2026-06-08."
+    }
+  },
+  "technical_constraint": {
+    "source_row_may_be_used_for_audit": true,
+    "source_row_may_select_logical_winner": false,
+    "logical_resolution_must_be_order_independent": true
+  }
+}
