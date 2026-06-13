@@ -1,0 +1,227 @@
+{
+  "document_id": "CG005F_CORRECTION_REVALIDATION",
+  "schema_version": 1,
+  "task_id": "CLAUDE_CG005F_BLOCKER_CORRECTION_REVALIDATION_NO_DB",
+  "status": "INDEPENDENT_REVALIDATION_NOT_AUTHORITY",
+  "created_at": "2026-06-13",
+  "correction_commit": "9637e08cad2085b0a3ba1de63a333a2edd2a96ba",
+  "prior_findings_commit": "ee26d0fc64c3ee3129d2102365ea307bcee80984",
+  "prior_validated_commit": "074ee5ba24fc02099205b25569a5374d3870ac72",
+  "head_at_revalidation": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+  "working_tree_matches_correction_commit_for_validated_files": true,
+  "authority": {
+    "implementation_authorized": false,
+    "ddl_authorized": false,
+    "apply_authorized": false,
+    "local_lab_authorized": false,
+    "db_access": "none",
+    "docker": false,
+    "executed": ["git ancestry/diff checks", "py_compile", "unittest (weekly replace suite)"]
+  },
+  "verdict": "VALIDATED_WITH_CORRECTIONS",
+  "executive_conclusion": "Commit 9637e08 materially corrects the three original DDL-boundary blockers (F-01 legacy backfill, F-02 cod_rt_norm contract, F-03 assignment supersede) and also closes F-05, F-06, F-07, F-09, F-10, F-11. The resolved view now consumes only v_ruta_rutero_latest_week_batch_v2 (one batch per week) AND excludes legacy_inferred for any week that has an ACTIVE assignment (keyed on the WEEK, not the batch id), so the 70 bajas can no longer be backfilled; a new postcheck additionally compares the resolved grain set to the assigned batch grain set (missing/extra must be 0). The view exposes both cod_rt and cod_rt_norm, reconciling the loader/postcheck contract while staying compatible with refresh (f.cod_rt). The apply now acquires a per-week lock, fetches the ACTIVE assignment FOR UPDATE, blocks an idempotent re-apply, supersedes the prior ACTIVE row, and stores replaces_ruta_batch_id, so the retroactive replacement cycle is implementable. The resolved logical_rank ORDER BY no longer uses source_row (it uses weekly obligation, day-plan sum, operational completeness, normalized operational tuple, then row_hash), satisfying BD-CG005B-001 (now APPROVED) and the source_row-independence constraint. One canonical surface hash (SHA-256 over sorted source_row|row_hash) is now computed identically in Python and over DB-fetched rows and is compared in postcheck/idempotency/rollback; a canonical resolved-surface hash is computed by the same function in plan and postcheck. TWO corrections remain before a trustworthy apply/rollback: (F-08) the new advisory lock calls pg_advisory_xact_lock(hashtextextended(...), hashtextextended(...)) with two bigint arguments, but PostgreSQL only provides pg_advisory_xact_lock(bigint) and pg_advisory_xact_lock(integer,integer); int8 does not implicitly cast to int4, so this two-bigint call has no matching overload and will raise at apply/rollback time (the mocked tests cannot catch it); and (F-04) the rollback now genuinely restores public.ruta_rutero from the previous batch history (distinct on row_hash), reactivates the prior assignment, and marks the failed one ROLLED_BACK, but it commits WITHOUT a full postcheck (no assertion that the restored surface hash equals the previous assignment's stored hash, and no revalidation of the weekly/resolved views or grain sets before commit). Because the three original blockers are cleared, the unit is no longer BLOCKED_BEFORE_DDL: it can advance to an isolated local PostgreSQL lab to apply the DDL, run dry-run, and behaviorally prove F-01/F-02/F-03/F-05/F-06/F-07. However it is VALIDATED_WITH_CORRECTIONS, not clean, because the advisory-lock signature must be fixed before any apply succeeds and the rollback must gain a full pre-commit postcheck before it can be trusted.",
+  "validation_1_integrity": {
+    "commit_exists": true,
+    "expected_files_changed": ["scripts/load_ruta_rutero_from_excel.py", "sql/11_control_gestion_route_week_replacement_contract.sql", "tests/test_load_ruta_rutero_weekly_replace.py"],
+    "is_ancestor_of_head": true,
+    "working_tree_identical_to_commit_for_validated_files": true,
+    "sql_no_apply": true,
+    "sql_no_apply_evidence": "sql/11 line 1 '-- NO APPLY'; lines 2-3 'IMPLEMENTATION CONTRACT ONLY' / 'REQUIRES SEPARATE BASTIAN AUTHORIZATION'; file wrapped begin; ... rollback;",
+    "compile_ok": true,
+    "tests": {"suite": "tests/test_load_ruta_rutero_weekly_replace.py", "ran": 70, "passed": 70, "failed": 0, "skipped": 0, "reproducible": true},
+    "default_no_write": true,
+    "default_no_write_evidence": "validate_cli_args coerces non-apply to dry_run; test_01/test_27/test_70 assert connect_db not called.",
+    "no_real_db": true,
+    "no_shell_true": true,
+    "no_free_sql_cli": true,
+    "no_free_sql_evidence": "No subprocess; SQL is module-level parameterized constants; PUBLIC_DELETE_SQL is 'DELETE FROM public.ruta_rutero WHERE source = %s'; test_30/test_31.",
+    "dsn_not_printed": true,
+    "verdict": "PASS"
+  },
+  "validation_2_f01_exclusivity": {
+    "classification": "CORRECTED_PENDING_LOCAL_PROOF",
+    "explicit_batch_exclusive": true,
+    "legacy_backfill_prevented": true,
+    "deleted_grains_stay_deleted": true,
+    "evidence": [
+      "sql/11:157-200 resolved view source_rows joins ONLY cg_core.v_ruta_rutero_latest_week_batch_v2 (single winning batch per week), not the union view.",
+      "sql/11:95-112 legacy_inferred NOT EXISTS is keyed on the WEEK having an ACTIVE assignment (a.effective_week_start = date_trunc('week', b.loaded_at ...)), so a legacy batch inferring to an explicitly-assigned week is excluded entirely.",
+      "sql/11:120-141 v_ruta_rutero_latest_week_batch_v2 picks rn=1 with EXPLICIT_ASSIGNMENT ranked first.",
+      "loader run_postcheck 1460-1467 compares resolved_grains to assigned_batch_grains; missing or extra raises postcheck_resolved_grain_set_mismatch (runtime guard against any residual backfill).",
+      "loader POSTCHECK_CONTRACT includes no_legacy_backfill_for_assigned_week and resolved_grains_equal_assigned_batch_grains."
+    ],
+    "residual": "Behavioral proof requires executing the views against fixture data in a local PostgreSQL; static reading and the grain-set postcheck make the leak path closed by construction."
+  },
+  "validation_3_f02_columns": {
+    "classification": "CORRECTED",
+    "cod_rt_present": true,
+    "cod_rt_norm_present": true,
+    "loader_view_postcheck_compatible": true,
+    "refresh_not_broken": true,
+    "evidence": [
+      "sql/11:262-263 resolved view selects both cod_rt and cod_rt_norm.",
+      "loader REQUIRED_RESOLVED_VIEW_COLUMNS includes cod_rt and cod_rt_norm (loader 145-149); duplicate-grain postcheck groups by cod_rt_norm (loader 1426-1430) which now exists.",
+      "scripts/refresh_control_gestion_v2_incremental.py reads f.cod_rt and f.cliente_norm; both exposed by sql/11."
+    ]
+  },
+  "validation_4_f03_assignment": {
+    "classification": "CORRECTED",
+    "first_load_ok": true,
+    "second_same_week_supersedes": true,
+    "prior_active_set_superseded": true,
+    "new_active_created": true,
+    "replaces_ruta_batch_id_recorded": true,
+    "idempotent_same_hash_blocked": true,
+    "rollback_on_failure": true,
+    "evidence": [
+      "loader run_weekly_replacement_apply 1492-1533: acquire_week_assignment_lock -> fetch_active_assignment_for_update (FOR UPDATE) -> block_if_idempotent_assignment -> supersede_active_assignment -> create_week_assignment(replaces_ruta_batch_id=...).",
+      "loader supersede_active_assignment 1160-1173 sets prior ACTIVE -> SUPERSEDED and returns the prior ruta_batch_id.",
+      "loader block_if_idempotent_assignment 1147-1157 raises weekly_assignment_already_current when all four hashes match (no second batch created).",
+      "loader 1571-1573 except -> conn.rollback(); raise.",
+      "tests 51,52,53,57 (mocked) assert no-supersede on first, supersede on second, replaces recorded, idempotency block."
+    ]
+  },
+  "validation_5_f04_rollback": {
+    "classification": "PARTIAL",
+    "restoration_present": true,
+    "full_postcheck_present": false,
+    "restores_public_from_previous_batch": true,
+    "excludes_exact_duplicates": true,
+    "marks_current_rolled_back": true,
+    "reactivates_previous": true,
+    "validates_restored_hash": false,
+    "validates_week_view": false,
+    "validates_resolved_view": false,
+    "validates_grain_missing_extra": false,
+    "commit_only_after_all_postchecks": false,
+    "evidence": [
+      "loader run_weekly_replacement_rollback 1581-1693 now executes: advisory lock, current-hash check (1612-1614), lock current ACTIVE assignment FOR UPDATE, read replaces_ruta_batch_id, lock previous SUPERSEDED assignment, delete public + restore_public_from_history(previous batch), mark failed ROLLED_BACK, reactivate previous ACTIVE, commit.",
+      "loader restore_public_from_history 965-1015 uses 'select distinct on (row_hash)' ordered by row_hash, source_row -> exact-duplicate exclusion.",
+      "GAP: after restore (1660) it computes restored_summary (1661) but never asserts restored hash equals the previous assignment's stored current_surface_hash; no re-run of run_postcheck or weekly/resolved-view/grain-set checks before conn.commit (1682).",
+      "tests 54/55 only assert source substrings ('ROLLED_BACK','ACTIVE','restore_public_from_history','distinct on (row_hash)'); no behavioral or full-postcheck assertion."
+    ],
+    "required_correction": "Before the rollback commit, assert the restored current_surface_hash equals the previous assignment's stored current_surface_hash, and revalidate the weekly view (explicit assignment now points to the reactivated batch), the resolved view, and the resolved-vs-assigned grain set. Do not commit a rollback that only restores rows and updates statuses."
+  },
+  "validation_6_f05_f06_hashes": {
+    "classification": "CORRECTED",
+    "current_hash_algorithm": "SHA-256 of sorted 'source_row|row_hash' lines, uppercase (canonical_current_surface_hash, loader 570-573).",
+    "python_plan_and_db_current_hash_identical": true,
+    "db_current_hash_evidence": "fetch_current_snapshot_summary (loader 1070-1084) selects source_row,row_hash from public.ruta_rutero ordered and calls the SAME canonical_current_surface_hash, so the DB-side hash is byte-comparable to the Python plan hash (prior F-06 MD5/row_hash-only mismatch removed).",
+    "resolved_hash_same_function_plan_and_postcheck": true,
+    "resolved_hash_evidence": "canonical_resolved_surface_hash (loader 636-655) is used in the plan (resolved_surface_rows_from_current, ~710) and in run_postcheck (1454-1458) over fetch_resolved_surface_rows -> identical columns and normalization.",
+    "assignment_stores_both_hashes": true,
+    "assignment_hash_evidence": "create_week_assignment writes current_surface_hash and resolved_surface_hash separately (loader 1195-1212); sql/11:29-30,42-45 columns + ^[A-Fa-f0-9]{64}$ checks.",
+    "postcheck_compares_both": true,
+    "postcheck_compare_evidence": "run_postcheck current_surface_hash_matches (1378-1381) and resolved_surface_hash_matches (1454-1458).",
+    "rollback_compares_current_hash": true,
+    "rollback_compare_evidence": "run_weekly_replacement_rollback compares fetch_current_surface_hash to expected_current_surface_hash (1612-1614).",
+    "residual": "Equality is proven in Python and over mocked pairs (test_58); end-to-end equality over a real public.ruta_rutero requires the local lab."
+  },
+  "validation_7_f07_order": {
+    "classification": "CORRECTED",
+    "order_independent": true,
+    "source_row_independent": true,
+    "business_approved": true,
+    "person_conflict_flag_preserved": true,
+    "evidence": [
+      "sql/11:236-248 logical_rank ORDER BY: EXPLICIT first, visitas_exigidas desc, day-plan sum desc, operational_completeness desc, modalidad_norm/reponedor_norm/gestor_norm/supervisor_norm/rutero_norm asc, row_hash asc. source_row is NOT in the ORDER BY.",
+      "source_row is used only in exact_dup_rank (sql/11:194-197) to pick among identical row_hash duplicates (content identical), never to choose among distinct rows.",
+      "sql/11:289 ruta_person_conflict_flag from person_conflicts CTE (route_person_versions > 1).",
+      "BD-CG005B-001 is APPROVED (research/CG005B_BASTIAN_DECISIONS.json): collapse to one logical weekly grain is authorized; technical_constraint requires source_row must not select the winner and resolution must be order-independent.",
+      "Python mirror logical_winner_sort_key (loader 606-614) matches the SQL order; tests 59/62/63 assert order/source_row independence in Python."
+    ],
+    "residual": "The SQL view's order-independence is proven by reading the ORDER BY and by the Python mirror; executing the view on the tie fixtures requires the local lab."
+  },
+  "validation_8_f08_lock": {
+    "classification": "INVALID_SIGNATURE",
+    "call_site": "loader acquire_week_assignment_lock 1104-1113: select pg_advisory_xact_lock(hashtextextended(%s, 0), hashtextextended(%s, 0)).",
+    "analysis": [
+      "hashtextextended(text, bigint) returns bigint (int8).",
+      "PostgreSQL provides pg_advisory_xact_lock(key bigint) and pg_advisory_xact_lock(key1 integer, key2 integer); there is NO pg_advisory_xact_lock(bigint, bigint).",
+      "The two-argument call therefore matches only the (integer, integer) candidate, which requires coercing both int8 args to int4; int8->int4 is an assignment cast, not implicit, so function resolution finds no candidate and raises 'function pg_advisory_xact_lock(bigint, bigint) does not exist' at execution time.",
+      "It fails closed: the lock is acquired before any write, so a failure aborts the apply/rollback with no partial commit.",
+      "The current tests use FakeCursor and only assert the SQL substring 'pg_advisory_xact_lock' and the parameters (test_56); a mocked cursor never validates the catalog signature, so the defect is hidden by the suite."
+    ],
+    "requires_single_bigint_key": true,
+    "tests_hide_error": true,
+    "local_db_proof_required": true,
+    "required_correction": "Use a single bigint key, e.g. pg_advisory_xact_lock(hashtextextended(%s || '|' || %s, 0)); or use the two-int form with int4 hashes, e.g. pg_advisory_xact_lock(hashtext(%s), hashtext(%s)) (hashtext returns int4). Add a test that executes the lock against a real local PostgreSQL."
+  },
+  "validation_9_f09_f10_f11": {
+    "apply_rejects_skip_source_check": true,
+    "apply_rejects_skip_source_check_evidence": "validate_cli_args 1776-1777 raise apply_rejects_skip_source_check when args.skip_source_check under apply.",
+    "week_explicit_required": true,
+    "week_required_evidence": "validate_cli_args requires --effective-week-start for apply (test_03 exit code 2); parse_effective_week_start enforces ISO + Monday.",
+    "workbook_no_intrinsic_week_warning": true,
+    "workbook_warning_evidence": "build_dry_run_plan appends warning 'workbook_has_no_intrinsic_effective_week' (loader 711).",
+    "no_redundant_begin": true,
+    "no_redundant_begin_evidence": "No cur.execute('BEGIN') in the loader; apply relies on autocommit=False implicit transaction (test_66 asserts absence).",
+    "rollback_incompatible_with_apply_dryrun_sourcecheck": true,
+    "rollback_incompatible_evidence": "validate_cli_args 1742-1749 raise rollback_incompatible_with_apply / _with_dry_run / _with_source_check (test_67).",
+    "postcheck_cannot_be_skipped_in_apply": true,
+    "postcheck_required_evidence": "validate_cli_args raises apply_requires_postcheck_enabled when --apply with --skip-postcheck.",
+    "classification": "CORRECTED"
+  },
+  "validation_10_test_strength": {
+    "total": 70,
+    "categories": {
+      "pure_unit": ["test_11","test_12","test_13","test_14","test_15","test_16","test_17","test_37","test_38","test_44","test_45","test_46","test_57","test_58","test_59","test_62","test_63","test_64"],
+      "sql_substring_or_source_text": ["test_18","test_19","test_32","test_33","test_34","test_35","test_36","test_39","test_40","test_47","test_48","test_49","test_50","test_54","test_55","test_61","test_66"],
+      "mocked_transaction": ["test_01","test_02","test_20","test_21","test_22","test_23","test_24","test_25","test_26","test_27","test_51","test_52","test_53","test_56","test_60","test_70"],
+      "semantic_fixture": ["test_05","test_06","test_07","test_08","test_09","test_10","test_28","test_29","test_30","test_31","test_41","test_42","test_43","test_65","test_67","test_68","test_69"],
+      "requires_local_postgresql": []
+    },
+    "note": "No test executes against a real PostgreSQL; category counts are approximate groupings of assertion style. Several green tests assert structure (SQL substrings, POSTCHECK_CONTRACT membership, source text) rather than behavior.",
+    "assertions_not_provable_without_real_db": [
+      "F-01: the resolved view actually excludes legacy batches and the 70 bajas for an explicitly-assigned week (only substring + grain-set-postcheck-name asserted).",
+      "F-02: verify_db_contract passes against the deployed view exposing cod_rt_norm.",
+      "F-03: ux_ruta_rutero_week_assignment_active enforces a single ACTIVE row and the supersede->insert cycle succeeds under real constraints.",
+      "F-04: the rollback restoration executes and (once added) the full pre-commit postcheck holds.",
+      "F-05: postcheck queries (resolved_duplicate_logical_grains_zero, resolved_grains_equal_assigned_batch_grains, no_stale_rows) run against real views.",
+      "F-06: the DB-recomputed canonical_current_surface_hash equals the Python plan hash over a real public.ruta_rutero surface.",
+      "F-07: the SQL view ORDER BY is order-independent at the database level on the tie fixtures.",
+      "F-08: pg_advisory_xact_lock(bigint,bigint) signature validity (high-confidence INVALID by catalog; needs runtime confirmation)."
+    ]
+  },
+  "matrix": [
+    {"finding": "F-01", "status": "CORRECTED", "evidence": ["resolved view consumes only v_ruta_rutero_latest_week_batch_v2 (sql/11:199)", "legacy_inferred excluded by ACTIVE-week NOT EXISTS (sql/11:106-112)", "grain-set equality postcheck (loader 1460-1467)"], "remaining_risk": "Behavioral confirmation requires running the views on fixture data in a local PostgreSQL.", "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-02", "status": "CORRECTED", "evidence": ["view exposes cod_rt and cod_rt_norm (sql/11:262-263)", "loader REQUIRED_RESOLVED_VIEW_COLUMNS includes both", "refresh reads f.cod_rt (compatible)"], "remaining_risk": "verify_db_contract pass needs the deployed view in a local lab.", "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-03", "status": "CORRECTED", "evidence": ["supersede_active_assignment + replaces_ruta_batch_id (loader 1525-1533)", "fetch_active_assignment_for_update FOR UPDATE", "block_if_idempotent_assignment", "tests 51-53,57"], "remaining_risk": "Unique ACTIVE index enforcement and the full supersede->insert cycle need the real constraint in a local lab.", "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-04", "status": "PARTIAL", "evidence": ["rollback restores public from previous batch with distinct-on-row_hash (loader 1659-1660, 965-1015)", "marks ROLLED_BACK and reactivates previous (1663-1681)", "GAP: commits (1682) with no restored-hash assertion and no weekly/resolved/grain revalidation"], "remaining_risk": "A committed bad apply can be reversed, but the reversal is not self-validated before commit; an incorrect restoration would commit silently.", "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-05", "status": "CORRECTED", "evidence": ["run_postcheck implements batch_inserted, history/current counts, current_surface_hash_matches, resolved_surface_hash_matches, resolved_duplicate_logical_grains_zero (cod_rt_norm), week_view_reports_explicit_assignment, resolved_grains_equal_assigned_batch_grains, no_legacy_backfill, no_stale_rows (loader 1325-1469)", "POSTCHECK_CONTRACT names align with implementation"], "remaining_risk": "Checks execute only against a real DB; mocked tests assert presence, not execution.", "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-06", "status": "CORRECTED", "evidence": ["single canonical_current_surface_hash used for plan and DB (loader 570-573, 1070-1084)", "canonical_resolved_surface_hash used in plan and postcheck (636-655, 1454-1458)", "both hashes stored separately and compared"], "remaining_risk": "End-to-end equality over a real surface needs the local lab; test_58 proves equality on mocked pairs only.", "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-07", "status": "CORRECTED", "evidence": ["logical_rank ORDER BY drops source_row; uses normalized business fields + row_hash (sql/11:236-248)", "exact_dup_rank uses source_row only among identical row_hash", "BD-CG005B-001 APPROVED", "Python mirror + tests 59/62/63"], "remaining_risk": "DB-level order-independence on tie fixtures needs the local lab.", "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-08", "status": "FAILED", "evidence": ["pg_advisory_xact_lock(hashtextextended(%s,0), hashtextextended(%s,0)) passes two bigints (loader 1107-1109)", "PostgreSQL has pg_advisory_xact_lock(bigint) and (integer,integer) only; int8->int4 not implicit -> no matching overload", "FakeCursor tests (test_56) cannot detect the signature error"], "remaining_risk": "Apply and rollback will raise at lock acquisition against a real PostgreSQL (fails closed). One-line fix: single bigint key or hashtext int4 two-key form.", "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-09", "status": "CORRECTED", "evidence": ["validate_cli_args rejects --skip-source-check with --apply (loader 1776-1777)", "test_65"], "remaining_risk": null, "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-10", "status": "CORRECTED", "evidence": ["build_dry_run_plan warns workbook_has_no_intrinsic_effective_week (loader 711)", "week required + Monday-validated"], "remaining_risk": "Week is still not cross-checked against workbook content or a contracted week (accepted LOW severity).", "blocks_local_lab": false, "blocks_supabase": true},
+    {"finding": "F-11", "status": "CORRECTED", "evidence": ["no explicit cur.execute('BEGIN') anywhere in the loader", "test_66 asserts absence"], "remaining_risk": null, "blocks_local_lab": false, "blocks_supabase": true}
+  ],
+  "findings_counts": {"corrected": 9, "partial": 1, "failed": 1, "requires_local_lab": 0},
+  "advisory_lock": {"status": "INVALID_SIGNATURE", "local_db_proof_required": true},
+  "rollback": {"restoration_present": true, "full_postcheck_present": false},
+  "tests": {"collected": 70, "passed": 70, "failed": 0, "local_db_gaps": [
+    "Resolver legacy-exclusion behavior (F-01) executed against fixtures",
+    "verify_db_contract against the deployed cod_rt_norm view (F-02)",
+    "unique ACTIVE index + supersede cycle under real constraints (F-03)",
+    "rollback restoration + missing full pre-commit postcheck (F-04)",
+    "postcheck queries executed against real views (F-05)",
+    "DB-recomputed canonical hash equals plan hash on a real surface (F-06)",
+    "SQL ORDER BY order-independence at DB level (F-07)",
+    "pg_advisory_xact_lock signature validity (F-08, high-confidence INVALID)"
+  ]},
+  "quality_assessment": {
+    "quality_target": "Q4_DECISION_GRADE",
+    "quality_achieved": "Q4_DECISION_GRADE",
+    "confidence": "HIGH",
+    "confidence_basis": "Integrity verified by executed commands (py_compile + 70/70 tests). Correction claims derived by static reading of the committed loader/SQL/tests against the prior CG005D findings. The two residual issues are definitive on inspection: F-08 is an unambiguous catalog-signature mismatch (no pg_advisory_xact_lock(bigint,bigint); int8->int4 not implicit), and F-04's missing pre-commit postcheck is visible in the rollback code path. DB-dependent behavioral proofs (F-01/F-02/F-03/F-05/F-06/F-07) are sound by construction but were not executed (no DB access authorized).",
+    "rework_required": true,
+    "rework_items": [
+      "F-08: fix advisory lock signature (single bigint key or hashtext int4 two-key form) and add a real-DB lock test.",
+      "F-04: add a full pre-commit postcheck to the rollback (restored-hash equality + weekly/resolved/grain revalidation)."
+    ]
+  },
+  "local_lab_authorized": false,
+  "ddl_authorized": false,
+  "supabase_apply_authorized": false,
+  "next_step": "ChatGPT/Bastian review: approve a local-lab phase to apply the DDL and behaviorally prove F-01/F-02/F-03/F-05/F-06/F-07, and require F-08 + F-04 corrections before any apply or rollback is trusted."
+}
