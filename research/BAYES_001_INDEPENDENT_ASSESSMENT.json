@@ -1,0 +1,243 @@
+{
+  "document_id": "BAYES_001_INDEPENDENT_ASSESSMENT",
+  "schema_version": 1,
+  "task_id": "CLAUDE_BAYES_001_INDEPENDENT_VALUE_ASSESSMENT",
+  "status": "INDEPENDENT_RESEARCH_NOT_AUTHORITY",
+  "baseline_commit": "e5eef29c5a8726f93438695ce0fb7e3987710886",
+  "runtime_code_baseline": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+  "created_at": "2026-06-13",
+  "authority": {
+    "implementation_authorized": false,
+    "db_access": "none",
+    "docker_access": false,
+    "loaders_authorized": false,
+    "commit_push_authorized_for_named_files_only": true,
+    "personal_data_written": false
+  },
+  "hypothesis": {
+    "id": "HYPOTHESIS_BAYES_001",
+    "statement": "A probabilistic decision-support layer can improve the quality, efficiency, and learning of repeated decisions in STOCK_ZERO and the multi-agent flow, above static rules or deterministic scorecards, without measurement/maintenance/complexity cost exceeding the benefit.",
+    "evaluation_mode": "independent_falsifiable_assessment_against_simpler_alternatives"
+  },
+  "verdict": "NOT_YET_JUSTIFIED",
+  "executive_conclusion": "There is real, repeated uncertainty in STOCK_ZERO, so a Bayesian layer is not rejected outright. But no decision surface currently satisfies all justification criteria at once: the strongest technical seam (data-load batch anomaly scoring) is limited by small sample and sparse failure labels; the highest-value product seams (alert->action efficacy, operational prioritization) have no live feedback loop because action/outcome tracking is not implemented; AI-workflow and engineering decisions are largely non-exchangeable or already rules-sufficient; and every product/CG decision surface inspected (focos, CUMPLE/INCUMPLE) is deterministic by design today. The proportionate move is DO_NOT_BUILD now, with at most a cheap, private, append-only observation contract on the one strong seam so the question becomes answerable later. Conceptual priority is modest; instrumentation priority is the only one that could start; implementation and production priorities are not warranted now.",
+  "problem_validation": {
+    "is_there_a_real_repeated_uncertain_problem": "PARTIALLY",
+    "where_uncertainty_is_material_and_repeated": [
+      "Data-load reliability: per-batch anomaly judgement (row-count/new-key/duplicate/drift) repeats every load and is materially risky to parity.",
+      "Operational efficacy: whether an action on an alert/foco actually resolves it next period (repeats often, high value)."
+    ],
+    "where_decisions_are_actually_deterministic_today": [
+      "Inventory focos: Venta(+7)==0, NEGATIVO=='SI', RIESGO DE QUIEBRE=='SI' are boolean flags (app/screens/reposicion.py _row_indicadores).",
+      "Control Gestion alerts: CUMPLE/INCUMPLE derived from capped valid visits vs plan (app/screens/control_gestion.py).",
+      "Safe-load go/no-go: staged-validate-then-commit is an exact gate (refresh_control_gestion_v2_incremental.py).",
+      "Canonical build parity: deterministic hashes, 1 variant across 3 runs + clean-room (C007)."
+    ],
+    "where_there_is_no_feedback_loop_yet": [
+      "decision_and_action_tracking is a FUTURE_CAPABILITY with empty current_implementation; no action/outcome ledger exists, so alert->action efficacy cannot be learned today."
+    ],
+    "evidence_quality": "Based on validated research files (C001/C002/C006/C007), the capability map, and static reading of app screens; no DB access and no new measurement were performed."
+  },
+  "alternatives_compared": [
+    {
+      "id": "A",
+      "name": "RULES_ONLY",
+      "description": "Static rules, gates, and human decisions.",
+      "fit_today": "STRONG for safety/irreversible and one-off decisions (gates, go/no-go, schema contracts).",
+      "limitation": "Does not adapt thresholds to per-source variability or learn from outcomes."
+    },
+    {
+      "id": "B",
+      "name": "DETERMINISTIC_SCORECARD",
+      "description": "Defined scores and fixed thresholds, no probabilistic updating.",
+      "fit_today": "GOOD as the next step for batch-anomaly bands and build/reuse/retire checklists.",
+      "limitation": "Fixed thresholds ignore uncertainty and do not calibrate; can over/under-alert under varying batch size."
+    },
+    {
+      "id": "C",
+      "name": "BAYESIAN_DECISION_SUPPORT",
+      "description": "Belief updating, uncertainty quantification, expected-utility decisions.",
+      "fit_today": "NOT_YET: best theoretical fit for UC-DL-01 and UC-PA-02 but blocked by sample size / missing feedback loop.",
+      "limitation": "Wide posteriors with current n; measurement and maintenance cost not yet repaid."
+    },
+    {
+      "id": "D",
+      "name": "HYBRID",
+      "description": "Hard rules for safety; Bayes only for the genuinely uncertain sub-decision.",
+      "fit_today": "PREFERRED EVENTUAL SHAPE for UC-DL-01 (rules keep loads safe; a calibrated band flags only the uncertain middle).",
+      "limitation": "Still requires the observation contract and labels before any model is fit."
+    },
+    {
+      "id": "E",
+      "name": "DO_NOT_BUILD",
+      "description": "Keep current governance because incremental benefit does not justify complexity.",
+      "fit_today": "CORRECT FOR NOW across all domains; pairs with a low-cost observation contract on the strongest seam.",
+      "limitation": "Risks indefinite deferral; mitigated by a concrete re-evaluation trigger."
+    }
+  ],
+  "domain_assessments": [
+    {
+      "domain": "AI_WORKFLOW",
+      "use_cases": ["UC-AW-01", "UC-AW-02"],
+      "finding": "High decision frequency but non-comparable units, continuous process change, coarse/confounded outcome labels, and high measurement cost. Safety-critical validation is already a correct hard rule.",
+      "recommended_alternative": "RULES_ONLY / DO_NOT_BUILD",
+      "bayes_justified": false
+    },
+    {
+      "domain": "ENGINEERING",
+      "use_cases": ["UC-EN-01", "UC-EN-02", "UC-EN-03"],
+      "finding": "Phase and architecture decisions are largely one-off and path-dependent (not exchangeable). Build/reuse/retire is at most a deterministic scorecard. Value-of-information is better handled by an explicit gate-criteria stop rule.",
+      "recommended_alternative": "RULES_ONLY / DETERMINISTIC_SCORECARD",
+      "bayes_justified": false
+    },
+    {
+      "domain": "DATA_LOAD_RELIABILITY",
+      "use_cases": ["UC-DL-01", "UC-DL-02", "UC-DL-03"],
+      "finding": "The single strongest seam (UC-DL-01 batch anomaly) is exchangeable, observable, and its metrics are already logged in batch_registry (37 CG batches, 19 route batches) - but failure labels are sparse and per-source n is small, so a distribution would not yet beat a fixed band. Schema-change risk and safe-load go/no-go are rules-sufficient.",
+      "recommended_alternative": "HYBRID (eventual) preceded by OBSERVE_ONLY; rules sufficient elsewhere",
+      "bayes_justified": false
+    },
+    {
+      "domain": "PRODUCT_AND_APP",
+      "use_cases": ["UC-PA-01", "UC-PA-02", "UC-PA-03"],
+      "finding": "Today's product/CG surfaces are deterministic flags. The genuinely probabilistic questions (action efficacy, dead-SKU, prioritization resolution) all require an action/outcome ledger that is not implemented (decision_and_action_tracking = FUTURE_CAPABILITY) and, for worker-level efficacy, privacy gating and a causal design.",
+      "recommended_alternative": "DO_NOT_BUILD now; instrument first",
+      "bayes_justified": false
+    },
+    {
+      "domain": "PERSONAL_GROWTH_PRIVATE",
+      "use_cases": ["UC-PG-01"],
+      "finding": "Evaluated as a conceptual contract only. Highest privacy risk. Must remain in private, git-ignored storage, fully separate from the technical rail. No real personal data recorded in this assessment.",
+      "recommended_alternative": "KEEP_CONCEPTUAL_AND_PRIVATE",
+      "bayes_justified": false
+    }
+  ],
+  "priority_assessment": {
+    "conceptual": {
+      "level": "LOW_TO_MEDIUM",
+      "rationale": "Worth keeping the probabilistic lens alive as a way of thinking about load anomalies and action efficacy; it should not yet compete with operational lanes (RUTA_RUTERO, KPIONE2, frequency, CG-005)."
+    },
+    "instrumentation": {
+      "level": "LOW_TO_MEDIUM",
+      "rationale": "The only tier that could legitimately start: a cheap, private, append-only observation log on the strongest seam (UC-DL-01) so a future evaluation has comparable data. Must not touch operational rails, DB writes, loaders, or Supabase."
+    },
+    "implementation": {
+      "level": "NONE_NOW",
+      "rationale": "No model should be built until the observation contract yields enough comparable labels and a distribution is shown to beat a fixed rule."
+    },
+    "production": {
+      "level": "NONE_NOW",
+      "rationale": "No production probabilistic surface is warranted; it would also collide with active gates (G0 parity, CG-005 shadow) and forbidden actions."
+    },
+    "first_finding_answer": {
+      "question": "Should the Bayesian layer become a parallel project priority now, while RUTA_RUTERO and frequency loads continue?",
+      "answer": "NO as a parallel build priority. The benefit of starting now is low (no live feedback loop, small samples), the distraction and over-engineering cost is real, and it depends on data that does not yet exist. The only defensible parallel activity is a low-cost observation contract that does not compete with the operational lanes.",
+      "begin_with_observation_contract_only": true,
+      "value_of_waiting": "HIGH while batch labels and any action ledger are absent; re-evaluate when the observation triggers are met."
+    }
+  },
+  "recommended_pilot": null,
+  "no_pilot_reason": "NO_PILOT_YET. No use case currently satisfies all justification criteria simultaneously: UC-DL-01 (strongest) is sample- and label-limited; UC-PA-01/02/03 lack any live feedback loop because action/outcome tracking is unimplemented. Selecting a model-fitting pilot now would violate proportionality. The recommended next step is an observation/measurement contract (instrumentation), not a Bayesian pilot, with an explicit trigger to revisit. The first pilot, WHEN justified, would be a shadow, read-only, retrospective HYBRID anomaly band for UC-DL-01.",
+  "candidate_first_pilot_when_justified": {
+    "decision_id": "UC-DL-01",
+    "concrete_problem": "Flag a freshly loaded source batch as anomalous (vs accept) using per-source predictive bands on row-count, new-key rate, and duplicate rate.",
+    "current_alternative": "Deterministic hash-skip + batch_registry + eyeballed deltas.",
+    "compared_alternatives": ["RULES_ONLY", "DETERMINISTIC_SCORECARD", "HYBRID"],
+    "minimum_observation": "Per-source batch metrics already in batch_registry plus a small labeled good/bad set.",
+    "outcome": "Later-confirmed parity break / drift / duplicate explosion for the batch.",
+    "utility": "Catch a bad batch before it pollutes parity, with few false positives.",
+    "measurement_cost": "LOW (data already logged); labeling cost is the real cost.",
+    "proposed_update": "Beta-Binomial / Poisson predictive band per source; hard rules retained for safety (HYBRID).",
+    "success_criterion": "On retrospective replay, the band flags all labeled bad batches AND beats a fixed percentage band on false-positive rate at equal recall.",
+    "failure_criterion": "Posteriors too wide to separate good/bad, or no improvement over a fixed band.",
+    "abandon_criterion": "After the observation window, fewer than the minimum labeled anomalies per source accrue, or rules already catch every labeled case.",
+    "minimum_observations": "~20-30 clean batches per source AND >=3-5 labeled anomalies per source.",
+    "estimated_horizon": "Defer until enough batches/labels accrue from normal operations; do not accelerate loads to gather data.",
+    "risk": "Over-engineering; alert fatigue; look-ahead leakage if labels are derived from post-hoc parity.",
+    "privacy": "LOW (batch metadata, no PII).",
+    "later_implementation_required": "Shadow, read-only retrospective only; no production wiring without separate authorization.",
+    "reversibility": "HIGH (pure analysis over historical evidence; nothing applied)."
+  },
+  "measurement_contract": {
+    "purpose": "Make the strongest seam answerable later without building a model now.",
+    "scope": "UC-DL-01 only.",
+    "what_to_record": [
+      "per batch: source, batch_id, loaded_rows, selected_window_rows, new_key_rate, duplicate_rate, snapshot_hash, declared window/route/precedence/build versions",
+      "post-hoc label: clean | anomalous (with reason), assigned by human/Codex review, recorded WITHOUT look-ahead into the same parity used as the feature"
+    ],
+    "storage": "Append-only research artifact (e.g., a future research/ ledger), local only, no DB writes, no Supabase, no loader execution.",
+    "explicitly_excluded": [
+      "No new loads or refreshes triggered to gather data",
+      "No production writes, no payload_json changes, no cleanup/retention",
+      "No coupling to RUTA_RUTERO / KPIONE2 / frequency operational lanes"
+    ],
+    "reevaluation_trigger": "When >=20-30 clean + >=3-5 labeled anomalous batches per source exist, run a retrospective shadow comparison (fixed band vs predictive band) and re-decide.",
+    "implementation_authorized": false
+  },
+  "privacy_boundary": {
+    "technical_rail": "All use cases except UC-PG-01; batch/parity metadata only, no PII.",
+    "personal_growth_rail": "UC-PG-01 is conceptual only; must live in private, git-ignored storage, separate from technical memory.",
+    "rules": [
+      "No real personal data written to Git or shared memory.",
+      "Worker-level efficacy data (UC-PA-02) is sensitive and requires explicit privacy gating before any capture.",
+      "No secrets, DSNs, or credentials in any artifact."
+    ],
+    "personal_data_written": false
+  },
+  "causal_limits": [
+    {"type": "PREDICTION", "note": "UC-PA-03 dead-SKU is prediction; useful only if a decision consumes the probability."},
+    {"type": "DECISION_SUPPORT", "note": "UC-DL-01 anomaly scoring is decision support over associations, not causal."},
+    {"type": "ASSOCIATION", "note": "Batch metric drift correlates with problems; correlation is sufficient for flagging, not for cause."},
+    {"type": "CAUSAL_EFFECT", "note": "UC-PA-02 action efficacy is a causal question; observational compliance deltas are confounded by route/person changes and regression to the mean."},
+    {"type": "COUNTERFACTUAL", "note": "Any 'would compliance have improved without the action' claim needs a design (panel/hierarchical, synthetic control), which is explicitly NOT designed here."},
+    {"future_methods_when_appropriate": ["local-cliente-week panel", "hierarchical models", "frequency-change and route-change studies", "responsible-change studies", "time series", "synthetic/counterfactual controls"]}
+  ],
+  "risks": [
+    "Distraction from active operational lanes (RUTA_RUTERO load, KPIONE2 format, frequency loads, CG-005 shadow).",
+    "Over-engineering: building probability where deterministic rules already suffice.",
+    "Small-sample over-confidence: wide posteriors presented as precision.",
+    "Feedback-loop illusion: scoring decisions whose outcomes are never recorded.",
+    "Privacy leakage if the personal-growth rail merges with the technical rail or enters Git.",
+    "Causal overreach: treating observational efficacy as proven effect."
+  ],
+  "falsification_conditions": [
+    "NOT_YET_JUSTIFIED would flip toward SUPPORTED_FOR_PILOT if a seam shows, on real logged data, that a calibrated distribution changes a repeated decision AND beats a fixed rule at equal recall.",
+    "Specifically for UC-DL-01: accumulate >=20-30 clean + >=3-5 labeled anomalous batches per source and show a predictive band strictly dominating a fixed band on the FP/recall frontier.",
+    "For UC-PA-02: once an action/outcome ledger exists with a valid design, show a credibly estimated effect that changes prioritization.",
+    "The verdict would move toward REJECTED if, after instrumentation, deterministic rules match the probabilistic layer on every labeled case (probability changes no decision).",
+    "The verdict is wrong if any inspected 'deterministic' surface (focos, CUMPLE/INCUMPLE) actually already consumes a hidden probability - re-check the SQL/runtime would falsify the determinism claim."
+  ],
+  "next_decision": {
+    "owner": "Bastian (final authority); Codex independent validation first",
+    "decision": "Do NOT start a Bayesian build now. Optionally authorize ONLY a low-cost, private, append-only observation contract on UC-DL-01, kept off the operational lanes.",
+    "if_approved_scope": "Design-only / read-only retrospective; no DB, no loaders, no Supabase, no production apply.",
+    "reevaluate_when": "Observation triggers for UC-DL-01 are met, or an action/outcome ledger is independently built for product seams.",
+    "implementation_authorized": false
+  },
+  "quality_assessment": {
+    "quality_target": "Q4_DECISION_GRADE",
+    "quality_achieved": "Q4_DECISION_GRADE",
+    "contract_adherence": "All five alternatives compared; five domains assessed; falsification conditions provided; pilot allowed to be null; implementation_authorized=false; no files modified outside the three authorized artifacts; no DB/loader/SQL executed; no personal data written.",
+    "evidence_quality": "MEDIUM_HIGH",
+    "validation_strength": "INDEPENDENT_DESK_ASSESSMENT_PENDING_CODEX_VALIDATION",
+    "confidence": "MEDIUM_HIGH",
+    "confidence_basis": "Verdict rests on stable, validated facts (deterministic focos/alerts, empty action-tracking capability, logged-but-small batch history, deterministic C007 parity). Main uncertainty is residual: no DB access and no fresh measurement, so sample-size and label-sparsity claims come from the evidence files, not new counts.",
+    "unresolved_items": [
+      "Exact per-source count of historically labeled bad batches (needs read-only batch_registry inspection in an authorized phase).",
+      "Whether any downstream consumer already wants a probability (re-check app/db.py SQL in an authorized phase).",
+      "Codex independent validation of this assessment."
+    ],
+    "rework_required": false
+  },
+  "evidence_classification": [
+    {"claim": "Inventory focos and CG alerts are deterministic flags today.", "type": "FACT", "evidence_source": "app/screens/reposicion.py _row_indicadores; app/screens/control_gestion.py", "confidence": "HIGH", "falsification_condition": "Find probability/threshold-with-uncertainty logic feeding those flags.", "unresolved_dependency": "none"},
+    {"claim": "No action/outcome ledger exists; decision_and_action_tracking is FUTURE_CAPABILITY with empty implementation.", "type": "FACT", "evidence_source": "research/AI_CAPABILITY_MAP.json decision_and_action_tracking", "confidence": "HIGH", "falsification_condition": "Find a committed action-capture workflow.", "unresolved_dependency": "none"},
+    {"claim": "Batch metrics are already logged but the population is small and failure labels are sparse.", "type": "INFERENCE", "evidence_source": "AI_SHARED_MEMORY c001 LOADER-FACT-002 (37 batches) and RUTA-FACT-002 (19 batches); C007 snapshot drift example", "confidence": "MEDIUM", "falsification_condition": "Read-only batch_registry shows ample labeled anomalies per source.", "unresolved_dependency": "authorized read-only DB inspection"},
+    {"claim": "Data-load anomaly is the strongest Bayes seam.", "type": "INFERENCE", "evidence_source": "Use-case matrix scoring; exchangeability + logged metrics + observability", "confidence": "MEDIUM", "falsification_condition": "Another seam shows a live feedback loop with sufficient comparable data.", "unresolved_dependency": "observation contract"},
+    {"claim": "A probabilistic layer is not justified as a parallel build priority now.", "type": "RECOMMENDATION", "evidence_source": "This assessment (problem_validation + priority_assessment)", "confidence": "MEDIUM_HIGH", "falsification_condition": "A seam demonstrably beats rules on logged data.", "unresolved_dependency": "Codex validation; Bastian decision"}
+  ],
+  "scope_and_parallel_lanes": {
+    "did_not_modify_or_block": ["RUTA_RUTERO load", "KPIONE2 format analysis", "frequency loads", "CG-005", "loaders", "Supabase", "Docker"],
+    "limited_to": ["research", "design", "prioritization"]
+  }
+}
