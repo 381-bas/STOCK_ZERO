@@ -1,0 +1,59 @@
+{
+  "phase": "CODEX_PLATFORM_001B_WORKTREE_PILOT_AND_PLATFORM005B_CORRECTION",
+  "source_design_phase": "CODEX_PLATFORM_001A_WORKTREE_DESIGN_NO_APPLY",
+  "recorded_at_local": "2026-06-13",
+  "authority": "Bastian",
+  "decisions": [
+    {
+      "id": "PLATFORM001A-D001",
+      "decision": "OPTION_E_HYBRID is approved as the initial topology.",
+      "effect": "Use the primary checkout as LOCAL_OPERATIONAL and use isolated worktrees for implementation and independent review."
+    },
+    {
+      "id": "PLATFORM001A-D002",
+      "decision": "The primary checkout remains LOCAL_OPERATIONAL.",
+      "effect": "Inherited dirty files in the primary checkout are fingerprinted and left untouched by this pilot."
+    },
+    {
+      "id": "PLATFORM001A-D003",
+      "decision": "PLATFORM_005B is the first worktree pilot.",
+      "effect": "The load observation correction is implemented in an isolated branch/worktree."
+    },
+    {
+      "id": "PLATFORM001A-D004",
+      "decision": "The pilot worktree is ephemeral but must remain available for inspection after the phase.",
+      "effect": "No cleanup or worktree removal occurs in this phase."
+    },
+    {
+      "id": "PLATFORM001A-D005",
+      "decision": "Use one branch per write worktree.",
+      "effect": "The authorized branch is codex/PLATFORM_005B-load-observation-correction."
+    },
+    {
+      "id": "PLATFORM001A-D006",
+      "decision": "Do not create .codex configuration until the real Codex UI schema is verified.",
+      "effect": "This pilot creates PowerShell tooling but no .codex directory."
+    },
+    {
+      "id": "PLATFORM001A-D007",
+      "decision": "STOCK_ZERO_DATA_ROOT is the future standard data pointer but is not needed for this pilot.",
+      "effect": "No data root is configured and no real data is accessed."
+    },
+    {
+      "id": "PLATFORM001A-D008",
+      "decision": "Direct push to main is not authorized for this change.",
+      "effect": "Only the pilot branch may be pushed; merge remains pending independent validation."
+    }
+  ],
+  "constraints": {
+    "db_access": "none",
+    "docker": false,
+    "loaders": false,
+    "sql": false,
+    "real_data": false,
+    "secrets": false,
+    "main_push": false,
+    "merge": false,
+    "force_push": false
+  }
+}
