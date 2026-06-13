@@ -1,0 +1,539 @@
+{
+  "contract_id": "CG005B_ROUTE_REPLACEMENT_CONTRACT",
+  "schema_version": 1,
+  "phase": "FASE_CG005B_ROUTE_WEEK_REPLACEMENT_CONTRACT_NO_APPLY",
+  "status": "NEEDS_BASTIAN_DECISION",
+  "created_at": "2026-06-13",
+  "created_by": "Codex",
+  "implementation_authorized": false,
+  "loader_execution_authorized": false,
+  "db_writes_authorized": false,
+  "supabase_writes_authorized": false,
+  "policy": {
+    "name": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1",
+    "effective_week_start": "2026-06-08",
+    "effective_week_end": "2026-06-14",
+    "meaning": "The route file is a complete authoritative snapshot for the whole effective week. There is no intra-week validity period."
+  },
+  "evidence": {
+    "preflight": {
+      "phase": "control_gestion_v2",
+      "final_verdict": "warn",
+      "warnings": [
+        "git_worktree_not_clean",
+        "kernel_02_head_mismatch"
+      ],
+      "db_role": "stock_zero_codex_ro",
+      "transaction_read_only": "on",
+      "blockers": []
+    },
+    "source_workbook": {
+      "path": "data/DB_GLOBAL_INVENTARIO.xlsx",
+      "sheet": "RUTA_RUTERO",
+      "source": "DB_GLOBAL_INVENTARIO.xlsx:RUTA_RUTERO",
+      "sha256": "454F3CF414B031FB793CA6298CF03638C2EDE3B53B918E6ACAB636C9B4B6AD83",
+      "rows": 3542,
+      "schema_signature": "832a275e3a2d24e9c1b0f5b38d2083e94bc91e0165e7f4e6a0ba20c27f58f232",
+      "source_check_verdict": "warn",
+      "source_check_blockers": [],
+      "extra_columns": [
+        {
+          "name": "EQUIPO",
+          "classification": "IGNORED_SAFE"
+        },
+        {
+          "name": "GGG-VT",
+          "classification": "IGNORED_SAFE"
+        },
+        {
+          "name": "MOD_NUM",
+          "classification": "IGNORED_SAFE"
+        }
+      ]
+    },
+    "cg005a_validated_facts": {
+      "workbook_rows": 3542,
+      "current_db_rows": 3568,
+      "stale_source_rows": 26,
+      "same_source_row_different_grain": 3342,
+      "same_grain_different_source_row": 3237,
+      "exact_duplicates": 3,
+      "grain_duplicate_excess": 34,
+      "frequency_day_mismatches": 1309,
+      "altas": 44,
+      "bajas": 70,
+      "cambios_reponedor": 681,
+      "current_loader_week": "inferred_from_loaded_at",
+      "current_public_upsert_key": [
+        "source",
+        "source_row"
+      ]
+    },
+    "db_readonly_route_preflight": {
+      "command": "scripts/cg_readonly_extract.py route-preflight",
+      "role": "stock_zero_codex_ro",
+      "transaction_read_only": "on",
+      "writes_attempted": false,
+      "dsn_printed": false,
+      "total_batches": 19,
+      "latest_batch_id": 19,
+      "latest_batch_loaded_at": "2026-06-08T04:56:04.328773+00:00",
+      "latest_batch_rows": 3568,
+      "current_public_rows": 3568,
+      "current_public_max_source_row": 3569,
+      "resolved_target_week_rows": 3535,
+      "resolved_target_week_distinct_route_batches": 1,
+      "resolved_target_week_grain_duplicate_excess": 0
+    },
+    "repo_static_evidence": [
+      "scripts/load_ruta_rutero_from_excel.py uses public.ruta_rutero ON CONFLICT (source, source_row).",
+      "scripts/load_ruta_rutero_from_excel.py records source_row from IdRow when present, otherwise row index + 2.",
+      "scripts/load_ruta_rutero_from_excel.py infers effective_week_start from loaded_at in America/Santiago.",
+      "scripts/cg_canonical_build_local.py uses an explicit route_source_plan with week_start and source_ruta_batch_ids.",
+      "scripts/refresh_control_gestion_v2_incremental.py uses cg_core.v_rr_frecuencia_base_resuelta_v2 and carries both visitas_exigidas_semana and day plan fields.",
+      "app/db.py uses public.ruta_rutero through RUTA_TABLE for inventory/client selector flows and uses Control Gestion v2 mart/view surfaces for CG."
+    ]
+  },
+  "duplicate_analysis": {
+    "grain": [
+      "COD_RT",
+      "CLIENTE"
+    ],
+    "groups": 34,
+    "grain_duplicate_excess": 34,
+    "exact_duplicate_excess": 3,
+    "class_counts": {
+      "EXACT_DUPLICATE": 3,
+      "DIFFERENT_ROUTE_PERSON": 31,
+      "DIFFERENT_MODALITY": 30,
+      "DIFFERENT_FREQUENCY": 19,
+      "DIFFERENT_DAY_PATTERN": 26,
+      "DIFFERENT_LOCAL_METADATA": 0,
+      "MULTIPLE_OPERATIONAL_ROWS": 31,
+      "UNEXPLAINED": 0
+    },
+    "distinguishing_columns": {
+      "route_person_fields": 31,
+      "modalidad": 30,
+      "day_pattern": 26,
+      "frequency": 19,
+      "local_metadata": 0
+    },
+    "answers": {
+      "cod_rt_cliente_is_logical_compliance_grain": true,
+      "more_than_one_physical_row_may_be_legitimate": "Yes, but only as input-level operational detail. The resolved weekly compliance surface must collapse deterministically to one logical route-frequency record per effective_week_start + COD_RT + CLIENTE unless Bastian explicitly approves multirow semantics.",
+      "exact_duplicates_can_be_excluded_without_semantic_change": "Technically yes for current/resolved surfaces because all business fields match, but Bastian should approve whether exact duplicate rows remain in immutable history as source evidence.",
+      "non_exact_duplicate_distinguishers": [
+        "route/person fields",
+        "MODALIDAD",
+        "LUNES..DOMINGO pattern",
+        "VECES POR SEMANA"
+      ],
+      "stable_physical_key_needed": "A stable physical key is not required for replacement semantics. Immutable batch_id + source_row is enough for audit. Current replacement must be snapshot-scoped, not source_row-upsert-scoped."
+    },
+    "anonymous_examples": {
+      "multiple_operational_rows": [
+        {
+          "grain_hash": "09c4a036c0e5",
+          "rows": 2,
+          "source_rows": [
+            3066,
+            3080
+          ],
+          "classes": [
+            "DIFFERENT_ROUTE_PERSON",
+            "DIFFERENT_MODALITY",
+            "MULTIPLE_OPERATIONAL_ROWS"
+          ],
+          "row_hashes": [
+            "c5ee20d19730",
+            "1cda0e68e5ab"
+          ]
+        },
+        {
+          "grain_hash": "15b5b5a7a8c4",
+          "rows": 2,
+          "source_rows": [
+            477,
+            519
+          ],
+          "classes": [
+            "DIFFERENT_ROUTE_PERSON",
+            "DIFFERENT_DAY_PATTERN",
+            "MULTIPLE_OPERATIONAL_ROWS"
+          ],
+          "row_hashes": [
+            "b17800615fc9",
+            "eb6b0028f0fd"
+          ]
+        },
+        {
+          "grain_hash": "184d4ae8f18d",
+          "rows": 2,
+          "source_rows": [
+            2511,
+            2609
+          ],
+          "classes": [
+            "DIFFERENT_ROUTE_PERSON",
+            "DIFFERENT_MODALITY",
+            "DIFFERENT_DAY_PATTERN",
+            "MULTIPLE_OPERATIONAL_ROWS"
+          ],
+          "row_hashes": [
+            "8a66819cf1f1",
+            "11c601bd8f1b"
+          ]
+        }
+      ],
+      "exact_duplicates": [
+        {
+          "grain_hash": "61ae244bd677",
+          "rows": 2,
+          "source_rows": [
+            3016,
+            3017
+          ],
+          "row_hashes": [
+            "8f047b08bf82",
+            "8f047b08bf82"
+          ]
+        },
+        {
+          "grain_hash": "c4fc64025a39",
+          "rows": 2,
+          "source_rows": [
+            3013,
+            3014
+          ],
+          "row_hashes": [
+            "926aa87d6cea",
+            "926aa87d6cea"
+          ]
+        },
+        {
+          "grain_hash": "f51f5f35c494",
+          "rows": 2,
+          "source_rows": [
+            2998,
+            2999
+          ],
+          "row_hashes": [
+            "83ea0a0dea8b",
+            "83ea0a0dea8b"
+          ]
+        }
+      ]
+    }
+  },
+  "frequency_analysis": {
+    "mismatches": 1309,
+    "bucket_counts": {
+      "frequency_greater_than_days": 44,
+      "frequency_less_than_days": 1265,
+      "zero_frequency_with_days": 0,
+      "positive_frequency_without_days": 1,
+      "non_binary_day_flags": 0,
+      "monthly_or_exception_pattern": 1309,
+      "unexplained": 0
+    },
+    "current_mart_usage": {
+      "weekly_count_authority": "cg_core.v_rr_frecuencia_base_resuelta_v2.visitas_exigidas_semana, sourced from RUTA_RUTERO VECES POR SEMANA",
+      "day_plan_authority": "LUNES..DOMINGO plan fields are carried as LUNES_PLAN..DOMINGO_PLAN and compared with daily flags in mart exports/checklists"
+    },
+    "canonical_builder_usage": {
+      "weekly_count_authority": "route_week_snapshot.frecuencia, sourced from RUTA_RUTERO veces_por_semana",
+      "day_plan_authority": "route_week_snapshot lunes..domingo, surfaced as *_PLAN in canonical outputs"
+    },
+    "recommended_authority": {
+      "weekly_obligation_count": "VECES POR SEMANA",
+      "day_distribution": "LUNES..DOMINGO",
+      "mismatch_treatment": "warning_contract_exception_not_load_blocker"
+    },
+    "blocking": false,
+    "reason_not_blocking": "The current mart and canonical builder already preserve both fields. The mismatch is business semantics, not a loader safety failure, as long as it is surfaced and reviewed."
+  },
+  "load_strategy_options": [
+    {
+      "id": "OPTION_A_ROW_UPSERT",
+      "description": "Keep source + source_row as current public upsert key.",
+      "correction": "reject",
+      "compatibility": "partial",
+      "risk": "high",
+      "rollback": "weak",
+      "consumer_impact": "low code impact but unsafe data semantics",
+      "auditability": "poor for replacement",
+      "complexity": "low",
+      "policy_alignment": "no",
+      "rationale": "CG005A proved 26 stale source rows and 3342 source_row identity changes. This cannot represent full-week replacement."
+    },
+    {
+      "id": "OPTION_B_BUSINESS_KEY_UPSERT",
+      "description": "Upsert current surface by a derived business key such as COD_RT + CLIENTE.",
+      "correction": "reject_for_now",
+      "compatibility": "partial",
+      "risk": "medium_high",
+      "rollback": "medium",
+      "consumer_impact": "medium",
+      "auditability": "medium",
+      "complexity": "medium",
+      "policy_alignment": "partial",
+      "rationale": "COD_RT + CLIENTE is the logical compliance grain, but the file has 34 duplicate groups. A business-key upsert would collapse or overwrite multirow input before Bastian decides semantics."
+    },
+    {
+      "id": "OPTION_C_FULL_SOURCE_REPLACEMENT",
+      "description": "Treat each file as complete current source and replace all current public rows for source.",
+      "correction": "valid_but_incomplete",
+      "compatibility": "good for public current surface",
+      "risk": "medium",
+      "rollback": "medium",
+      "consumer_impact": "low for public.ruta_rutero consumers",
+      "auditability": "medium",
+      "complexity": "medium",
+      "policy_alignment": "good for current surface",
+      "rationale": "Fixes stale rows and reordering risk, but alone does not pin effective week or preserve immutable historical route lineage."
+    },
+    {
+      "id": "OPTION_D_IMMUTABLE_BATCH_ONLY",
+      "description": "Stop maintaining public.ruta_rutero and resolve route exclusively from immutable batches.",
+      "correction": "valid_long_term_not_minimal",
+      "compatibility": "poor without runtime/mv changes",
+      "risk": "medium",
+      "rollback": "good",
+      "consumer_impact": "high",
+      "auditability": "high",
+      "complexity": "high",
+      "policy_alignment": "high for Control Gestion",
+      "rationale": "Best historical lineage model, but app/db.py and cliente/inventory flows still consume public.ruta_rutero."
+    },
+    {
+      "id": "OPTION_E_HYBRID",
+      "description": "Immutable batch history plus full replacement of current public source plus explicit week-batch assignment.",
+      "correction": "selected",
+      "compatibility": "high",
+      "risk": "controlled",
+      "rollback": "strong",
+      "consumer_impact": "low_to_medium",
+      "auditability": "high",
+      "complexity": "medium",
+      "policy_alignment": "high",
+      "rationale": "Preserves public.ruta_rutero for existing consumers, keeps immutable batch evidence, removes source_row residue risk, and makes weekly route selection explicit."
+    }
+  ],
+  "selected_load_strategy": {
+    "id": "OPTION_E_HYBRID",
+    "name": "Batch historico inmutable + reemplazo completo de superficie vigente + asignacion explicita semana-batch",
+    "current_surface_rule": "Delete/replace the complete public.ruta_rutero source slice inside the same transaction after staging and before commit. Do not upsert by source_row.",
+    "history_rule": "Never delete immutable cg_core.ruta_rutero_load_rows or batch metadata as part of normal replacement.",
+    "resolved_week_rule": "Resolve Control Gestion through explicit effective_week_start to ruta_batch_id assignment rather than loaded_at inference.",
+    "duplicate_rule": "Preserve source rows in immutable history. For current/resolved surfaces, exact duplicate collapse and non-exact multirow aggregation need Bastian decision before implementation."
+  },
+  "explicit_week_strategy_options": [
+    {
+      "id": "ADD_EFFECTIVE_WEEK_TO_BATCH",
+      "evaluation": "Useful but too rigid by itself. It makes single-week loads simple, but does not model reassignments, rollback, or possible future multi-week reuse cleanly."
+    },
+    {
+      "id": "WEEK_BATCH_ASSIGNMENT_TABLE",
+      "evaluation": "Selected. It records effective_week_start, route_batch_id, policy_version, assignment status, input hash, resolved surface hash, and previous assignment for rollback."
+    },
+    {
+      "id": "EXTERNAL_MANIFEST_ONLY",
+      "evaluation": "Reject as sole authority. It helps audit, but DB views and refreshes need DB-visible truth."
+    },
+    {
+      "id": "CONTINUE_LOADED_AT_INFERENCE",
+      "evaluation": "Reject. It can assign the wrong week if the load runs after the target week and cannot represent retroactive replacement policy."
+    }
+  ],
+  "explicit_week_strategy": {
+    "id": "WEEK_BATCH_ASSIGNMENT_TABLE",
+    "minimum_columns": [
+      "effective_week_start date",
+      "route_policy_version text",
+      "ruta_batch_id bigint",
+      "assignment_status text",
+      "input_file_name text",
+      "input_file_sha256 text",
+      "schema_signature text",
+      "resolved_surface_hash text",
+      "assigned_at timestamptz",
+      "assigned_by text",
+      "replaces_ruta_batch_id bigint",
+      "rollback_of_assignment_id bigint null",
+      "notes text"
+    ],
+    "current_view_impact": "v_ruta_rutero_load_batch_week_v2 or a successor should prefer explicit assignments; loaded_at inference may remain only as legacy/backfill fallback with a visible source flag.",
+    "historical_compatibility": "Existing 19 batches can remain inferable until explicitly assigned; no historical mutation is required for this design phase."
+  },
+  "transaction_contract": {
+    "ready": true,
+    "default_mode": "dry_run_no_write",
+    "pseudoflow": [
+      "Run source-check and block on missing critical columns.",
+      "Compute workbook SHA-256 and schema_signature before any DB action.",
+      "Normalize workbook into a temp/staging frame and classify exact/grain duplicates.",
+      "Require --effective-week-start 2026-06-08 and validate it is a Monday and matches the intended 2026-06-08..2026-06-14 week.",
+      "Require explicit confirmation token for ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1 before --apply.",
+      "BEGIN.",
+      "Create route batch metadata in pending/cancelled-safe state with source, hash, schema signature, row counts, duplicate metrics, and effective_week_start in notes or new metadata.",
+      "Insert immutable history rows for the batch; keep source_row only as source-file physical audit position.",
+      "Validate inserted history row count, row_hash aggregate, source_row uniqueness, and accepted row count.",
+      "Replace current public.ruta_rutero source slice from the validated staging/history rows. This replacement deletes only the current source slice, never historical batches.",
+      "Write or activate effective_week_start to ruta_batch_id assignment with policy version ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1 and previous assignment reference.",
+      "Run resolved-view postcheck for the target week: rows present, no duplicate logical grains after resolver, expected batch visible, source hash/row count recorded.",
+      "Finalize batch status ok only after public replacement and week assignment checks pass.",
+      "COMMIT.",
+      "Emit JSON with batch id, assignment id, row counts, hashes, postcheck status, rollback metadata, and observation draft."
+    ],
+    "rollback_conditions_before_commit": [
+      "source-check blocker",
+      "hash mismatch versus supplied expected hash",
+      "invalid or missing effective_week_start",
+      "duplicate classification contains UNEXPLAINED groups",
+      "Bastian decision required but not provided",
+      "history insert count mismatch",
+      "current replacement count/hash mismatch",
+      "week assignment fails",
+      "resolved-view postcheck fails",
+      "any DB exception"
+    ],
+    "deletes": [
+      "Only public.ruta_rutero rows for the specific source/current surface inside the replacement transaction."
+    ],
+    "never_deletes": [
+      "cg_core.ruta_rutero_load_rows immutable history",
+      "cg_core.ruta_rutero_load_batch metadata",
+      "prior week-batch assignment records",
+      "raw Control Gestion tables",
+      "mart facts or materialized views outside an explicitly authorized refresh phase"
+    ],
+    "postvalidation_failure": "ROLLBACK if failure occurs before commit. If failure is detected after commit, execute a separate rollback command that reactivates previous week assignment and restores public.ruta_rutero from the previous batch or recorded backup snapshot."
+  },
+  "rollback_contract": {
+    "ready": true,
+    "precommit": "Single transaction rollback restores public.ruta_rutero, batch status, history inserts, and assignment changes.",
+    "postcommit": [
+      "Read previous active assignment for effective_week_start.",
+      "Create rollback metadata row referencing failed assignment.",
+      "Replace public.ruta_rutero source slice from the previous approved batch/history snapshot, or from an explicit current-surface backup created in the apply transaction.",
+      "Reactivate previous effective_week_start assignment.",
+      "Mark failed assignment superseded/rolled_back; do not delete its immutable batch evidence.",
+      "Run the same resolved-view postcheck and emit rollback JSON."
+    ],
+    "required_metadata": [
+      "previous_assignment_id",
+      "previous_ruta_batch_id",
+      "previous_public_surface_hash",
+      "new_assignment_id",
+      "new_ruta_batch_id",
+      "new_public_surface_hash",
+      "rollback_command_inputs"
+    ]
+  },
+  "proposed_cli": {
+    "default": "dry_run_no_write",
+    "command_shape": "python scripts/load_ruta_rutero_from_excel.py --excel data/DB_GLOBAL_INVENTARIO.xlsx --sheet RUTA_RUTERO --source DB_GLOBAL_INVENTARIO.xlsx:RUTA_RUTERO --effective-week-start YYYY-MM-DD [--source-check-only|--dry-run|--apply] --confirm-weekly-replacement ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1 --json-out <path>",
+    "required_for_apply": [
+      "--effective-week-start",
+      "--apply",
+      "--confirm-weekly-replacement ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1",
+      "--expected-workbook-sha256",
+      "--json-out"
+    ],
+    "modes": {
+      "--source-check-only": "No DB write; validates workbook shape and source-check contract.",
+      "--dry-run": "Default; computes hashes, duplicate/frequency classification, planned deletes/inserts, and expected postchecks without writes.",
+      "--apply": "DB write path, not authorized by this contract; must be separately approved."
+    },
+    "json_output_minimum": [
+      "mode",
+      "source",
+      "effective_week_start",
+      "input_file_sha256",
+      "schema_signature",
+      "input_rows",
+      "accepted_rows",
+      "exact_duplicate_rows",
+      "grain_duplicate_rows",
+      "planned_public_delete_count",
+      "planned_public_insert_count",
+      "route_batch_id",
+      "assignment_id",
+      "post_load_validation_status",
+      "rollback_metadata",
+      "dsn_printed=false"
+    ]
+  },
+  "consumer_impact": [
+    {
+      "consumer": "app/db.py RUTA_TABLE / public.ruta_rutero selectors and inventory/client helpers",
+      "classification": "compatible_if_hybrid_keeps_public_current_surface",
+      "impact": "Requires no immediate runtime change if public.ruta_rutero remains current and fully replaced per source. Would require change under immutable-batch-only."
+    },
+    {
+      "consumer": "sql/03_cliente_scope_materialized_views.sql public.ruta_rutero joins",
+      "classification": "compatible_if_public_current_surface_replaced",
+      "impact": "Materialized views must be refreshed only in an explicitly authorized phase; contract itself does not refresh."
+    },
+    {
+      "consumer": "scripts/refresh_control_gestion_v2_incremental.py -> cg_core.v_rr_frecuencia_base_resuelta_v2",
+      "classification": "requires_db_view_contract_change",
+      "impact": "The script can remain stable if view columns stay compatible, but the DB view must use explicit week-batch assignment instead of loaded_at inference."
+    },
+    {
+      "consumer": "scripts/cg_canonical_build_local.py route_source_plan / cg_core.ruta_rutero_load_rows",
+      "classification": "compatible",
+      "impact": "Already models explicit week_start and source_ruta_batch_ids."
+    },
+    {
+      "consumer": "scripts/cg_readonly_extract.py route-preflight",
+      "classification": "compatible_with_future_extension",
+      "impact": "Can report current public/history and resolved week evidence. Future implementation may add explicit assignment metrics."
+    },
+    {
+      "consumer": "DB views cg_core.v_ruta_rutero_load_batch_week_v2 and cg_core.v_rr_frecuencia_base_resuelta_v2",
+      "classification": "requires_change",
+      "impact": "Must prefer explicit assignment for forward loads; loaded_at may remain legacy fallback."
+    },
+    {
+      "consumer": "sql/04, sql/05, sql/08 draft SQL",
+      "classification": "legacy_or_draft",
+      "impact": "Useful evidence for existing semantics; not runtime implementation authority."
+    }
+  ],
+  "bastian_decisions": [
+    {
+      "id": "BD-CG005B-001",
+      "decision": "Whether the 31 non-exact COD_RT + CLIENTE duplicate groups are legitimate multiple operational rows or workbook defects.",
+      "technical_default": "Treat them as MULTIPLE_OPERATIONAL_ROWS candidates, preserve in history, and block automatic logical collapse until approved."
+    },
+    {
+      "id": "BD-CG005B-002",
+      "decision": "Whether the 3 exact duplicate rows may be excluded from current/resolved surfaces while still preserving them in immutable history.",
+      "technical_default": "Safe to dedupe exact duplicates for current/resolved surfaces after approval."
+    },
+    {
+      "id": "BD-CG005B-003",
+      "decision": "Whether VECES POR SEMANA or the sum of LUNES-DOMINGO is the business authority when they differ.",
+      "technical_default": "Keep VECES POR SEMANA as weekly count authority and LUNES-DOMINGO as day plan authority, warning on mismatch."
+    },
+    {
+      "id": "BD-CG005B-004",
+      "decision": "Whether the 70 bajas versus current surface are expected removals for week 2026-06-08.",
+      "technical_default": "Treat bajas as expected full-snapshot removals only after Bastian approval."
+    }
+  ],
+  "decision_summary": {
+    "result": "NEEDS_BASTIAN_DECISION",
+    "contract_ready_for_implementation_after_decisions": true,
+    "technical_blockers": [],
+    "business_decisions_required": [
+      "BD-CG005B-001",
+      "BD-CG005B-002",
+      "BD-CG005B-003",
+      "BD-CG005B-004"
+    ],
+    "next_step": "ChatGPT/Bastian review"
+  }
+}
