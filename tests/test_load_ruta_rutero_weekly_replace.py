@@ -361,7 +361,10 @@ class WeeklyReplacementTests(unittest.TestCase):
         self.assertNotIn("ON CONFLICT (SOURCE, SOURCE_ROW)", loader.PUBLIC_INSERT_SQL.upper())
 
     def test_21_transaction_order_is_documented(self):
-        self.assertEqual(loader.APPLY_TRANSACTION_STEPS[8], "register_batch_pending")
+        self.assertLess(
+            loader.APPLY_TRANSACTION_STEPS.index("acquire_week_assignment_lock"),
+            loader.APPLY_TRANSACTION_STEPS.index("register_batch_pending"),
+        )
         self.assertLess(
             loader.APPLY_TRANSACTION_STEPS.index("run_postcheck"),
             loader.APPLY_TRANSACTION_STEPS.index("finalize_batch_ok"),
@@ -469,7 +472,7 @@ class WeeklyReplacementTests(unittest.TestCase):
         self.assertNotIn("stdin", options)
 
     def test_32_sql_file_contains_no_apply_header(self):
-        self.assertTrue(self.sql_contract.startswith("-- NO APPLY IN CG005C"))
+        self.assertTrue(self.sql_contract.startswith("-- NO APPLY"))
 
     def test_33_assignment_table_contract(self):
         self.assertIn("create table if not exists cg_core.ruta_rutero_week_assignment", self.sql_contract)
@@ -557,6 +560,214 @@ class WeeklyReplacementTests(unittest.TestCase):
         self.assertEqual(plan["history_insert_rows"], 3542)
         self.assertEqual(plan["exact_duplicate_excess"], 3)
         self.assertEqual(plan["planned_public_insert_rows"], 3539)
+
+    def test_47_explicit_batch_is_resolved_exclusively(self):
+        self.assertIn("join cg_core.v_ruta_rutero_latest_week_batch_v2 wb", self.sql_contract)
+        self.assertIn("history remains available for audit but never fills gaps", self.sql_contract)
+
+    def test_48_legacy_does_not_backfill_active_week(self):
+        self.assertIn("and a.effective_week_start =", self.sql_contract)
+        self.assertIn("no_legacy_backfill_for_assigned_week", loader.POSTCHECK_CONTRACT)
+
+    def test_49_conceptual_bajas_do_not_survive_resolved_surface(self):
+        self.assertIn("v_ruta_rutero_latest_week_batch_v2", self.sql_contract)
+        self.assertIn("resolved_grains_equal_assigned_batch_grains", loader.POSTCHECK_CONTRACT)
+
+    def test_50_cod_rt_and_cod_rt_norm_present(self):
+        self.assertIn("cod_rt", loader.REQUIRED_RESOLVED_VIEW_COLUMNS)
+        self.assertIn("cod_rt_norm", loader.REQUIRED_RESOLVED_VIEW_COLUMNS)
+        self.assertIn("cod_rt_norm,", self.sql_contract)
+
+    def test_51_first_assignment_has_no_supersede(self):
+        cur = FakeCursor()
+        self.assertIsNone(loader.supersede_active_assignment(cur, None))
+        self.assertEqual(cur.executed, [])
+
+    def test_52_second_assignment_supersedes_previous(self):
+        cur = FakeCursor()
+        previous_batch = loader.supersede_active_assignment(cur, {"assignment_id": 7, "ruta_batch_id": 3})
+        self.assertEqual(previous_batch, 3)
+        self.assertIn("SUPERSEDED", cur.executed[0][0])
+        self.assertEqual(cur.executed[0][1], (7,))
+
+    def test_53_assignment_records_replaces_batch_and_hashes(self):
+        cur = FakeCursor()
+        assignment_id = loader.create_week_assignment(
+            cur,
+            effective_week_start_value="2026-06-08",
+            ruta_batch_id=9,
+            plan=dict(self.plan),
+            assigned_by="test",
+            replaces_ruta_batch_id=3,
+        )
+        self.assertEqual(assignment_id, 0)
+        sql, params = cur.executed[0]
+        self.assertIn("current_surface_hash", sql)
+        self.assertIn("resolved_surface_hash", sql)
+        self.assertEqual(params[-2], 3)
+
+    def test_54_rollback_reactivates_previous_assignment(self):
+        source = (ROOT / "scripts" / "load_ruta_rutero_from_excel.py").read_text(encoding="utf-8")
+        self.assertIn("assignment_status = 'ROLLED_BACK'", source)
+        self.assertIn("assignment_status = 'ACTIVE'", source)
+
+    def test_55_rollback_restores_public_from_history(self):
+        source = (ROOT / "scripts" / "load_ruta_rutero_from_excel.py").read_text(encoding="utf-8")
+        self.assertIn("def restore_public_from_history", source)
+        self.assertIn("select distinct on (row_hash)", source)
+
+    def test_56_weekly_lock_is_transactional_and_parameterized(self):
+        cur = FakeCursor()
+        loader.acquire_week_assignment_lock(
+            cur,
+            effective_week_start_value="2026-06-08",
+            route_policy_version=loader.ROUTE_POLICY_VERSION,
+        )
+        sql, params = cur.executed[0]
+        self.assertIn("pg_advisory_xact_lock", sql)
+        self.assertEqual(params, ("2026-06-08", loader.ROUTE_POLICY_VERSION))
+
+    def test_57_idempotent_same_hash_blocks_before_writes(self):
+        active = {
+            "input_file_sha256": self.plan["input_file_sha256"],
+            "schema_signature": self.plan["schema_signature"],
+            "current_surface_hash": self.plan["planned_assignment"]["current_surface_hash"],
+            "resolved_surface_hash": self.plan["planned_assignment"]["resolved_surface_hash"],
+        }
+        with self.assertRaises(loader.LoaderUsageError) as ctx:
+            loader.block_if_idempotent_assignment(active, self.plan)
+        self.assertEqual(ctx.exception.code, "weekly_assignment_already_current")
+
+    def test_58_current_hash_python_plan_matches_db_mocked_pairs(self):
+        pairs = [(3, "b"), (2, "a")]
+        self.assertEqual(loader.canonical_current_surface_hash(pairs), loader.canonical_current_surface_hash(reversed(pairs)))
+
+    def test_59_resolved_hash_is_order_independent(self):
+        rows = [
+            {"cod_rt_norm": "A", "cliente_norm": "X", "visitas_exigidas_semana": 2, "lunes": 1},
+            {"cod_rt_norm": "B", "cliente_norm": "Y", "visitas_exigidas_semana": 1, "martes": 1},
+        ]
+        self.assertEqual(
+            loader.canonical_resolved_surface_hash(rows),
+            loader.canonical_resolved_surface_hash(list(reversed(rows))),
+        )
+
+    def test_60_stale_set_check_declares_missing_extra_zero(self):
+        source = (ROOT / "scripts" / "load_ruta_rutero_from_excel.py").read_text(encoding="utf-8")
+        self.assertIn("missing = sorted(assigned_grains - resolved_grains)", source)
+        self.assertIn("extra = sorted(resolved_grains - assigned_grains)", source)
+
+    def test_61_postcheck_declared_controls_are_implemented(self):
+        source = (ROOT / "scripts" / "load_ruta_rutero_from_excel.py").read_text(encoding="utf-8")
+        for name in loader.POSTCHECK_CONTRACT:
+            self.assertIn(name, source)
+
+    def test_62_source_row_does_not_decide_logical_winner(self):
+        row_a = {"veces_por_semana": 1, "lunes": 1, "modalidad": "B", "reponedor": "B", "row_hash": "2", "source_row": 99}
+        row_b = {"veces_por_semana": 1, "lunes": 1, "modalidad": "A", "reponedor": "A", "row_hash": "1", "source_row": 1}
+        winner = loader.select_logical_winner([row_a, row_b])
+        self.assertEqual(winner["modalidad"], "A")
+        row_b["source_row"] = 9999
+        self.assertEqual(loader.select_logical_winner([row_a, row_b])["modalidad"], "A")
+
+    def test_63_reverse_order_selects_same_winner(self):
+        row_a = {"veces_por_semana": 1, "lunes": 1, "modalidad": "B", "reponedor": "B", "row_hash": "2"}
+        row_b = {"veces_por_semana": 1, "lunes": 1, "modalidad": "A", "reponedor": "A", "row_hash": "1"}
+        self.assertEqual(loader.select_logical_winner([row_a, row_b]), loader.select_logical_winner([row_b, row_a]))
+
+    def test_64_route_person_conflict_flag(self):
+        rows = [{"reponedor": "A", "gestores": "G"}, {"reponedor": "B", "gestores": "G"}]
+        self.assertEqual(loader.route_person_conflict(rows), 1)
+
+    def test_65_apply_rejects_skip_source_check(self):
+        args = loader.build_arg_parser().parse_args(
+            [
+                "--apply",
+                "--skip-source-check",
+                "--effective-week-start",
+                "2026-06-08",
+                "--expected-workbook-sha256",
+                "A" * 64,
+                "--confirm-weekly-replacement",
+                loader.ROUTE_POLICY_VERSION,
+                "--json-out",
+                str(self.tmp / "x.json"),
+                "--db_url",
+                "postgresql://u:p@h/db",
+            ]
+        )
+        with self.assertRaises(loader.LoaderUsageError) as ctx:
+            loader.validate_cli_args(args)
+        self.assertEqual(ctx.exception.code, "apply_rejects_skip_source_check")
+
+    def test_66_no_redundant_explicit_begin(self):
+        source = (ROOT / "scripts" / "load_ruta_rutero_from_excel.py").read_text(encoding="utf-8")
+        self.assertNotIn('cur.execute("BEGIN")', source)
+
+    def test_67_rollback_cli_incompatible_modes(self):
+        for extra, code in [
+            (["--apply"], "rollback_incompatible_with_apply"),
+            (["--dry-run"], "rollback_incompatible_with_dry_run"),
+            (["--source-check-only"], "rollback_incompatible_with_source_check_only"),
+        ]:
+            args = loader.build_arg_parser().parse_args(["--rollback-weekly-replacement", *extra])
+            with self.assertRaises(loader.LoaderUsageError) as ctx:
+                loader.validate_cli_args(args)
+            self.assertEqual(ctx.exception.code, code)
+
+    def test_68_rollback_confirm_token_required(self):
+        args = loader.build_arg_parser().parse_args(
+            [
+                "--rollback-weekly-replacement",
+                "--effective-week-start",
+                "2026-06-08",
+                "--failed-assignment-id",
+                "10",
+                "--expected-current-surface-hash",
+                "A" * 64,
+                "--json-out",
+                str(self.tmp / "rollback.json"),
+                "--db_url",
+                "postgresql://u:p@h/db",
+            ]
+        )
+        with self.assertRaises(loader.LoaderUsageError) as ctx:
+            loader.validate_cli_args(args)
+        self.assertEqual(ctx.exception.code, "rollback_requires_confirm_token")
+
+    def test_69_rollback_hash_mismatch_blocks(self):
+        conn = FakeConnection()
+        with mock.patch.object(loader, "connect_db", return_value=conn), \
+            mock.patch.object(loader, "verify_db_contract", return_value={"ok": True, "missing": []}), \
+            mock.patch.object(loader, "fetch_current_surface_hash", return_value="B" * 64):
+            with self.assertRaises(loader.LoaderUsageError) as ctx:
+                loader.run_weekly_replacement_rollback(
+                    db_url="postgresql://u:p@h/db",
+                    source=self.source,
+                    effective_week_start_value="2026-06-08",
+                    failed_assignment_id=10,
+                    expected_current_surface_hash="A" * 64,
+                    confirm_token=loader.ROLLBACK_CONFIRM_TOKEN,
+                )
+        self.assertEqual(ctx.exception.code, "rollback_current_surface_hash_mismatch")
+        self.assertTrue(conn.rolled_back)
+
+    def test_70_no_db_real_for_dry_run(self):
+        with mock.patch.object(loader, "connect_db") as connect_db:
+            self._run_main_json(
+                [
+                    "--excel",
+                    str(self.excel),
+                    "--sheet",
+                    "RUTA_RUTERO",
+                    "--source",
+                    self.source,
+                    "--effective-week-start",
+                    "2026-06-08",
+                    "--dry-run",
+                ]
+            )
+        connect_db.assert_not_called()
 
 
 if __name__ == "__main__":

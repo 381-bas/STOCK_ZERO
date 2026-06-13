@@ -126,6 +126,7 @@ REQUIRED_ASSIGNMENT_COLUMNS = {
     "input_file_name",
     "input_file_sha256",
     "schema_signature",
+    "current_surface_hash",
     "resolved_surface_hash",
     "assigned_at",
     "assigned_by",
@@ -144,6 +145,7 @@ REQUIRED_WEEK_VIEW_COLUMNS = {
 REQUIRED_RESOLVED_VIEW_COLUMNS = {
     "effective_week_start",
     "effective_week_iso",
+    "cod_rt",
     "cod_rt_norm",
     "cliente_norm",
     "visitas_exigidas_semana",
@@ -163,9 +165,13 @@ POSTCHECK_CONTRACT = [
     "current_surface_hash_matches",
     "active_assignment_exists",
     "assignment_week_matches",
+    "assigned_batch_matches",
     "resolved_rows_positive",
     "resolved_duplicate_logical_grains_zero",
     "week_view_reports_explicit_assignment",
+    "resolved_surface_hash_matches",
+    "resolved_grains_equal_assigned_batch_grains",
+    "no_legacy_backfill_for_assigned_week",
     "no_stale_rows_from_previous_snapshot",
 ]
 
@@ -177,7 +183,9 @@ APPLY_TRANSACTION_STEPS = [
     "validate_week",
     "open_connection",
     "verify_db_contract",
-    "begin",
+    "acquire_week_assignment_lock",
+    "select_active_assignment_for_update",
+    "block_duplicate_assignment",
     "register_batch_pending",
     "insert_history_rows",
     "validate_history_rows",
@@ -185,6 +193,7 @@ APPLY_TRANSACTION_STEPS = [
     "delete_public_source",
     "insert_current_surface",
     "validate_current_surface",
+    "supersede_previous_assignment",
     "create_week_assignment",
     "run_postcheck",
     "finalize_batch_ok",
@@ -558,16 +567,112 @@ def build_public_rows(out: pd.DataFrame) -> list[tuple]:
     return list(out[PUBLIC_RUTA_COLUMNS].itertuples(index=False, name=None))
 
 
+def canonical_current_surface_hash(pairs) -> str:
+    normalized = sorted((int(source_row), str(row_hash)) for source_row, row_hash in pairs)
+    raw = "\n".join(f"{source_row}|{row_hash}" for source_row, row_hash in normalized)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest().upper()
+
+
 def current_surface_hash(out: pd.DataFrame) -> str:
     if out.empty:
-        raw = ""
-    else:
-        pieces = [
-            f"{int(rec.source_row)}|{rec.row_hash}"
-            for rec in out[["source_row", "row_hash"]].itertuples(index=False)
-        ]
-        raw = "\n".join(pieces)
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest().upper()
+        return canonical_current_surface_hash([])
+    return canonical_current_surface_hash(
+        (rec.source_row, rec.row_hash)
+        for rec in out[["source_row", "row_hash"]].itertuples(index=False)
+    )
+
+
+def normalized_operational_tuple(row: dict | pd.Series) -> tuple:
+    return (
+        normalize_key(row.get("modalidad", "")),
+        normalize_key(row.get("reponedor", row.get("reponedor_scope", ""))),
+        normalize_key(row.get("gestores", row.get("gestor", ""))),
+        normalize_key(row.get("supervisor", "")),
+        normalize_key(row.get("rutero", "")),
+    )
+
+
+def operational_completeness_score(row: dict | pd.Series) -> int:
+    keys = ["modalidad", "reponedor", "gestores", "supervisor", "rutero"]
+    aliases = {"reponedor": "reponedor_scope", "gestores": "gestor"}
+    score = 0
+    for key in keys:
+        value = row.get(key, row.get(aliases.get(key, ""), ""))
+        if normalize_text(value):
+            score += 1
+    return score
+
+
+def logical_winner_sort_key(row: dict | pd.Series) -> tuple:
+    day_sum = sum(int(row.get(day, 0) or 0) for day in DAY_COLUMNS)
+    return (
+        -int(row.get("veces_por_semana", row.get("visitas_exigidas_semana", 0)) or 0),
+        -day_sum,
+        -operational_completeness_score(row),
+        normalized_operational_tuple(row),
+        str(row.get("row_hash", "")),
+    )
+
+
+def select_logical_winner(rows: list[dict]) -> dict:
+    if not rows:
+        raise ValueError("rows required")
+    return sorted(rows, key=logical_winner_sort_key)[0]
+
+
+def route_person_conflict(rows: list[dict]) -> int:
+    values = {
+        (
+            normalize_key(row.get("reponedor", row.get("reponedor_scope", ""))),
+            normalize_key(row.get("gestores", row.get("gestor", ""))),
+            normalize_key(row.get("supervisor", "")),
+            normalize_key(row.get("rutero", "")),
+        )
+        for row in rows
+    }
+    return 1 if len(values) > 1 else 0
+
+
+def canonical_resolved_surface_hash(rows: list[dict]) -> str:
+    pieces = []
+    for row in rows:
+        day_values = [str(int(row.get(day, 0) or 0)) for day in DAY_COLUMNS]
+        pieces.append(
+            "|".join(
+                [
+                    str(row.get("cod_rt_norm", row.get("cod_rt", ""))),
+                    str(row.get("cliente_norm", "")),
+                    str(int(row.get("visitas_exigidas_semana", row.get("veces_por_semana", 0)) or 0)),
+                    *day_values,
+                    str(row.get("modalidad", "")),
+                    str(row.get("reponedor_scope", row.get("reponedor", ""))),
+                    str(row.get("gestor", row.get("gestores", ""))),
+                    str(row.get("supervisor", "")),
+                    str(row.get("rutero", "")),
+                ]
+            )
+        )
+    return hashlib.sha256("\n".join(sorted(pieces)).encode("utf-8")).hexdigest().upper()
+
+
+def resolved_surface_rows_from_current(current: pd.DataFrame) -> list[dict]:
+    if current.empty:
+        return []
+    frame = current.copy()
+    frame["_cod_rt_norm"] = frame["cod_rt"].map(normalize_text)
+    frame["_cliente_norm"] = frame["cliente"].map(normalize_key)
+    rows: list[dict] = []
+    for (_, _), group in frame.groupby(["_cod_rt_norm", "_cliente_norm"], sort=True, dropna=False):
+        records = group.to_dict(orient="records")
+        winner = dict(select_logical_winner(records))
+        winner["cod_rt_norm"] = winner["_cod_rt_norm"]
+        winner["cliente_norm"] = winner["_cliente_norm"]
+        winner["visitas_exigidas_semana"] = int(winner["veces_por_semana"])
+        winner["ruta_duplicada_flag"] = 1 if len(records) > 1 else 0
+        winner["ruta_duplicada_rows"] = len(records)
+        winner["ruta_person_conflict_flag"] = route_person_conflict(records)
+        rows.append(winner)
+    return rows
 
 
 def build_dry_run_plan(
@@ -601,7 +706,9 @@ def build_dry_run_plan(
     if frequency["mismatch_count"]:
         warnings.append("frequency_day_mismatch_warning")
 
-    resolved_hash = current_surface_hash(current)
+    current_hash = current_surface_hash(current)
+    resolved_hash = canonical_resolved_surface_hash(resolved_surface_rows_from_current(current))
+    warnings.append("workbook_has_no_intrinsic_effective_week")
     return {
         "mode": "dry_run",
         "loader": LOADER_NAME,
@@ -611,6 +718,7 @@ def build_dry_run_plan(
         "input_file_name": Path(excel_path).name,
         "effective_week_start": week_start.isoformat(),
         "effective_week_end": effective_week_end(week_start).isoformat(),
+        "week_source": "OPERATOR_EXPLICIT",
         "route_policy_version": ROUTE_POLICY_VERSION,
         "input_file_sha256": file_hash,
         "schema_signature": schema_signature,
@@ -635,6 +743,7 @@ def build_dry_run_plan(
             "input_file_name": Path(excel_path).name,
             "input_file_sha256": file_hash,
             "schema_signature": schema_signature,
+            "current_surface_hash": current_hash,
             "resolved_surface_hash": resolved_hash,
         },
         "required_db_objects": REQUIRED_DB_OBJECTS,
@@ -853,6 +962,59 @@ def insert_public_current_rows(cur, rows: list[tuple]) -> None:
         _execute_values(cur, PUBLIC_INSERT_SQL, rows, page_size=5000)
 
 
+def restore_public_from_history(cur, *, source: str, ruta_batch_id: int) -> None:
+    cur.execute(
+        """
+        insert into public.ruta_rutero
+        (cadena,formato,region,comuna,cod_rt,cod_b2b,local_nombre,direccion,
+         veces_por_semana,rutero,jefe_operaciones,gestores,cliente,supervisor,reponedor,
+         lunes,martes,miercoles,jueves,viernes,sabado,domingo,
+         visita_mensual,dif,obs,aux,gg,modalidad,row_hash,source,source_row)
+        select
+            cadena,
+            formato,
+            region,
+            comuna,
+            cod_rt,
+            cod_b2b,
+            local_nombre,
+            direccion,
+            veces_por_semana,
+            rutero,
+            jefe_operaciones,
+            gestores,
+            cliente,
+            supervisor,
+            reponedor,
+            lunes,
+            martes,
+            miercoles,
+            jueves,
+            viernes,
+            sabado,
+            domingo,
+            visita_mensual,
+            dif,
+            obs,
+            aux,
+            gg,
+            modalidad,
+            row_hash,
+            %s as source,
+            source_row
+        from (
+            select distinct on (row_hash)
+                *
+              from cg_core.ruta_rutero_load_rows
+             where ruta_batch_id = %s
+             order by row_hash, source_row
+        ) r
+        order by source_row, row_hash
+        """,
+        (source, ruta_batch_id),
+    )
+
+
 def _table_columns(cur, schema: str, table: str) -> set[str]:
     cur.execute(
         """
@@ -908,15 +1070,18 @@ def verify_db_contract(cur) -> dict:
 def fetch_current_snapshot_summary(cur, *, source: str) -> dict:
     cur.execute(
         """
-        select count(*)::bigint,
-               coalesce(md5(string_agg(row_hash, '|' order by source_row, row_hash)), md5(''))
+        select source_row, row_hash
           from public.ruta_rutero
          where source = %s
+         order by source_row asc, row_hash asc
         """,
         (source,),
     )
-    row = cur.fetchone()
-    return {"rows": int(row[0]), "surface_hash_md5": str(row[1])}
+    rows = cur.fetchall()
+    return {
+        "rows": len(rows),
+        "current_surface_hash": canonical_current_surface_hash(rows),
+    }
 
 
 def validate_history_row_count(cur, *, ruta_batch_id: int, expected_rows: int) -> None:
@@ -934,6 +1099,78 @@ def validate_current_surface_count(cur, *, source: str, expected_rows: int) -> N
     found = int(cur.fetchone()[0])
     if found != expected_rows:
         raise RuntimeError(f"current_surface_count_mismatch:{found}!={expected_rows}")
+
+
+def acquire_week_assignment_lock(cur, *, effective_week_start_value: str, route_policy_version: str) -> None:
+    cur.execute(
+        """
+        select pg_advisory_xact_lock(
+            hashtextextended(%s, 0),
+            hashtextextended(%s, 0)
+        )
+        """,
+        (effective_week_start_value, route_policy_version),
+    )
+
+
+def fetch_active_assignment_for_update(cur, *, effective_week_start_value: str) -> dict | None:
+    cur.execute(
+        """
+        select
+            assignment_id,
+            ruta_batch_id,
+            input_file_sha256,
+            schema_signature,
+            current_surface_hash,
+            resolved_surface_hash
+          from cg_core.ruta_rutero_week_assignment
+         where effective_week_start = %s
+           and route_policy_version = %s
+           and assignment_status = 'ACTIVE'
+         for update
+        """,
+        (effective_week_start_value, ROUTE_POLICY_VERSION),
+    )
+    row = cur.fetchone()
+    if not row or len(row) < 6:
+        return None
+    return {
+        "assignment_id": int(row[0]),
+        "ruta_batch_id": int(row[1]),
+        "input_file_sha256": str(row[2]),
+        "schema_signature": str(row[3]),
+        "current_surface_hash": str(row[4]),
+        "resolved_surface_hash": str(row[5]),
+    }
+
+
+def block_if_idempotent_assignment(active_assignment: dict | None, plan: dict) -> None:
+    if not active_assignment:
+        return
+    planned = plan["planned_assignment"]
+    if (
+        active_assignment["input_file_sha256"].upper() == plan["input_file_sha256"].upper()
+        and active_assignment["schema_signature"].upper() == plan["schema_signature"].upper()
+        and active_assignment["current_surface_hash"].upper() == planned["current_surface_hash"].upper()
+        and active_assignment["resolved_surface_hash"].upper() == planned["resolved_surface_hash"].upper()
+    ):
+        raise LoaderUsageError("weekly_assignment_already_current")
+
+
+def supersede_active_assignment(cur, active_assignment: dict | None) -> int | None:
+    if not active_assignment:
+        return None
+    cur.execute(
+        """
+        update cg_core.ruta_rutero_week_assignment
+           set assignment_status = 'SUPERSEDED',
+               notes = concat(coalesce(notes, ''), ' | superseded by guarded weekly replacement')
+         where assignment_id = %s
+           and assignment_status = 'ACTIVE'
+        """,
+        (active_assignment["assignment_id"],),
+    )
+    return int(active_assignment["ruta_batch_id"])
 
 
 def create_week_assignment(
@@ -955,6 +1192,7 @@ def create_week_assignment(
             input_file_name,
             input_file_sha256,
             schema_signature,
+            current_surface_hash,
             resolved_surface_hash,
             assigned_by,
             replaces_ruta_batch_id,
@@ -970,6 +1208,7 @@ def create_week_assignment(
             plan["input_file_name"],
             plan["input_file_sha256"],
             plan["schema_signature"],
+            plan["planned_assignment"]["current_surface_hash"],
             plan["planned_assignment"]["resolved_surface_hash"],
             assigned_by,
             replaces_ruta_batch_id,
@@ -977,6 +1216,97 @@ def create_week_assignment(
         ),
     )
     return int(cur.fetchone()[0])
+
+
+def fetch_current_surface_hash(cur, *, source: str) -> str:
+    return fetch_current_snapshot_summary(cur, source=source)["current_surface_hash"]
+
+
+def fetch_resolved_surface_rows(cur, *, effective_week_start_value: str) -> list[dict]:
+    cur.execute(
+        """
+        select
+            cod_rt_norm,
+            cliente_norm,
+            visitas_exigidas_semana,
+            lunes,
+            martes,
+            miercoles,
+            jueves,
+            viernes,
+            sabado,
+            domingo,
+            modalidad,
+            reponedor_scope,
+            gestor,
+            supervisor,
+            rutero
+          from cg_core.v_rr_frecuencia_base_resuelta_v2
+         where effective_week_start = %s
+         order by cod_rt_norm, cliente_norm
+        """,
+        (effective_week_start_value,),
+    )
+    rows = []
+    for row in cur.fetchall():
+        rows.append(
+            {
+                "cod_rt_norm": str(row[0]),
+                "cliente_norm": str(row[1]),
+                "visitas_exigidas_semana": int(row[2]),
+                "lunes": int(row[3]),
+                "martes": int(row[4]),
+                "miercoles": int(row[5]),
+                "jueves": int(row[6]),
+                "viernes": int(row[7]),
+                "sabado": int(row[8]),
+                "domingo": int(row[9]),
+                "modalidad": str(row[10] or ""),
+                "reponedor_scope": str(row[11] or ""),
+                "gestor": str(row[12] or ""),
+                "supervisor": str(row[13] or ""),
+                "rutero": str(row[14] or ""),
+            }
+        )
+    return rows
+
+
+def fetch_assigned_batch_grains(cur, *, ruta_batch_id: int) -> set[tuple[str, str]]:
+    cur.execute(
+        """
+        with exact_deduped as (
+            select distinct on (row_hash)
+                   nullif(trim(coalesce(cod_rt_norm, cod_rt)), '') as cod_rt_norm,
+                   upper(trim(coalesce(nullif(trim(cliente_norm), ''), nullif(trim(cliente), ''), ''))) as cliente_norm,
+                   row_hash,
+                   source_row
+              from cg_core.ruta_rutero_load_rows
+             where ruta_batch_id = %s
+               and nullif(trim(coalesce(cod_rt_norm, cod_rt)), '') is not null
+               and nullif(trim(coalesce(cliente_norm, cliente)), '') is not null
+             order by row_hash, source_row
+        )
+        select cod_rt_norm, cliente_norm
+          from exact_deduped
+         group by cod_rt_norm, cliente_norm
+         order by cod_rt_norm, cliente_norm
+        """,
+        (ruta_batch_id,),
+    )
+    return {(str(row[0]), str(row[1])) for row in cur.fetchall()}
+
+
+def fetch_resolved_grains(cur, *, effective_week_start_value: str) -> set[tuple[str, str]]:
+    cur.execute(
+        """
+        select cod_rt_norm, cliente_norm
+          from cg_core.v_rr_frecuencia_base_resuelta_v2
+         where effective_week_start = %s
+         order by cod_rt_norm, cliente_norm
+        """,
+        (effective_week_start_value,),
+    )
+    return {(str(row[0]), str(row[1])) for row in cur.fetchall()}
 
 
 def run_postcheck(
@@ -987,8 +1317,54 @@ def run_postcheck(
     ruta_batch_id: int,
     assignment_id: int,
     expected_current_rows: int,
+    expected_history_rows: int,
+    expected_exact_duplicate_excess: int,
+    expected_current_surface_hash: str,
+    expected_resolved_surface_hash: str,
 ) -> dict:
     checks: dict[str, object] = {}
+
+    cur.execute(
+        """
+        select count(*)::bigint
+          from cg_core.ruta_rutero_load_batch
+         where ruta_batch_id = %s
+           and status = 'pending'
+        """,
+        (ruta_batch_id,),
+    )
+    if int(cur.fetchone()[0]) != 1:
+        raise RuntimeError("postcheck_batch_pending_missing")
+    checks["batch_inserted"] = True
+
+    cur.execute(
+        "select count(*)::bigint from cg_core.ruta_rutero_load_rows where ruta_batch_id = %s",
+        (ruta_batch_id,),
+    )
+    history_rows = int(cur.fetchone()[0])
+    if history_rows != expected_history_rows:
+        raise RuntimeError(f"postcheck_history_rows_mismatch:{history_rows}!={expected_history_rows}")
+    checks["history_row_count_matches"] = True
+
+    cur.execute(
+        """
+        select coalesce(sum(rows - 1), 0)::bigint
+          from (
+            select row_hash, count(*)::bigint as rows
+              from cg_core.ruta_rutero_load_rows
+             where ruta_batch_id = %s
+             group by row_hash
+            having count(*) > 1
+          ) d
+        """,
+        (ruta_batch_id,),
+    )
+    exact_duplicate_excess = int(cur.fetchone()[0])
+    if exact_duplicate_excess != expected_exact_duplicate_excess:
+        raise RuntimeError(
+            f"postcheck_exact_duplicate_excess_mismatch:{exact_duplicate_excess}!={expected_exact_duplicate_excess}"
+        )
+    checks["history_exact_duplicates_preserved"] = True
 
     cur.execute(
         "select count(*)::bigint from public.ruta_rutero where source = %s",
@@ -999,6 +1375,11 @@ def run_postcheck(
         raise RuntimeError(f"postcheck_current_rows_mismatch:{current_rows}!={expected_current_rows}")
     checks["current_public_row_count_matches"] = True
 
+    found_current_hash = fetch_current_surface_hash(cur, source=source)
+    if found_current_hash.upper() != expected_current_surface_hash.upper():
+        raise RuntimeError("postcheck_current_surface_hash_mismatch")
+    checks["current_surface_hash_matches"] = True
+
     cur.execute(
         """
         select count(*)::bigint
@@ -1007,12 +1388,22 @@ def run_postcheck(
            and effective_week_start = %s
            and ruta_batch_id = %s
            and assignment_status = 'ACTIVE'
+           and current_surface_hash = %s
+           and resolved_surface_hash = %s
         """,
-        (assignment_id, effective_week_start_value, ruta_batch_id),
+        (
+            assignment_id,
+            effective_week_start_value,
+            ruta_batch_id,
+            expected_current_surface_hash,
+            expected_resolved_surface_hash,
+        ),
     )
     if int(cur.fetchone()[0]) != 1:
         raise RuntimeError("postcheck_active_assignment_missing")
     checks["active_assignment_exists"] = True
+    checks["assignment_week_matches"] = True
+    checks["assigned_batch_matches"] = True
 
     cur.execute(
         """
@@ -1026,6 +1417,7 @@ def run_postcheck(
     if resolved_rows <= 0:
         raise RuntimeError("postcheck_resolved_rows_zero")
     checks["resolved_rows"] = resolved_rows
+    checks["resolved_rows_positive"] = True
 
     cur.execute(
         """
@@ -1058,6 +1450,22 @@ def run_postcheck(
     if int(cur.fetchone()[0]) < 1:
         raise RuntimeError("postcheck_week_view_not_explicit_assignment")
     checks["week_view_reports_explicit_assignment"] = True
+
+    resolved_rows_payload = fetch_resolved_surface_rows(cur, effective_week_start_value=effective_week_start_value)
+    found_resolved_hash = canonical_resolved_surface_hash(resolved_rows_payload)
+    if found_resolved_hash.upper() != expected_resolved_surface_hash.upper():
+        raise RuntimeError("postcheck_resolved_surface_hash_mismatch")
+    checks["resolved_surface_hash_matches"] = True
+
+    assigned_grains = fetch_assigned_batch_grains(cur, ruta_batch_id=ruta_batch_id)
+    resolved_grains = fetch_resolved_grains(cur, effective_week_start_value=effective_week_start_value)
+    missing = sorted(assigned_grains - resolved_grains)
+    extra = sorted(resolved_grains - assigned_grains)
+    if missing or extra:
+        raise RuntimeError(f"postcheck_resolved_grain_set_mismatch:missing={len(missing)}:extra={len(extra)}")
+    checks["resolved_grains_equal_assigned_batch_grains"] = {"missing": 0, "extra": 0}
+    checks["no_legacy_backfill_for_assigned_week"] = True
+    checks["no_stale_rows_from_previous_snapshot"] = True
     return checks
 
 
@@ -1067,6 +1475,9 @@ def run_weekly_replacement_apply(args, plan: dict) -> dict:
     del df
     current = current_surface_rows(accepted)
     history_records = build_history_rows(accepted)
+    current_hash = plan["planned_assignment"]["current_surface_hash"]
+    resolved_hash = plan["planned_assignment"]["resolved_surface_hash"]
+    exact_duplicate_excess = int(plan["exact_duplicate_excess"])
     conn = connect_db(args.db_url)
     conn.autocommit = False
     cur = conn.cursor()
@@ -1078,7 +1489,17 @@ def run_weekly_replacement_apply(args, plan: dict) -> dict:
         if not contract["ok"]:
             raise MissingDBContractError(contract["missing"])
 
-        cur.execute("BEGIN")
+        acquire_week_assignment_lock(
+            cur,
+            effective_week_start_value=args.effective_week_start,
+            route_policy_version=ROUTE_POLICY_VERSION,
+        )
+        active_assignment = fetch_active_assignment_for_update(
+            cur,
+            effective_week_start_value=args.effective_week_start,
+        )
+        block_if_idempotent_assignment(active_assignment, plan)
+
         ruta_batch_id = register_cg_ruta_batch(
             cur,
             source_file=Path(args.excel).name,
@@ -1101,13 +1522,14 @@ def run_weekly_replacement_apply(args, plan: dict) -> dict:
         delete_public_ruta_for_source(cur, args.source)
         insert_public_current_rows(cur, build_public_rows(current))
         validate_current_surface_count(cur, source=args.source, expected_rows=len(current))
+        replaces_ruta_batch_id = supersede_active_assignment(cur, active_assignment)
         assignment_id = create_week_assignment(
             cur,
             effective_week_start_value=args.effective_week_start,
             ruta_batch_id=ruta_batch_id,
             plan=plan,
             assigned_by=LOADER_NAME,
-            replaces_ruta_batch_id=None,
+            replaces_ruta_batch_id=replaces_ruta_batch_id,
         )
         postcheck = run_postcheck(
             cur,
@@ -1116,6 +1538,10 @@ def run_weekly_replacement_apply(args, plan: dict) -> dict:
             ruta_batch_id=ruta_batch_id,
             assignment_id=assignment_id,
             expected_current_rows=len(current),
+            expected_history_rows=len(history_records),
+            expected_exact_duplicate_excess=exact_duplicate_excess,
+            expected_current_surface_hash=current_hash,
+            expected_resolved_surface_hash=resolved_hash,
         )
         finalize_cg_ruta_batch(
             cur,
@@ -1135,6 +1561,7 @@ def run_weekly_replacement_apply(args, plan: dict) -> dict:
                 "writes_executed": True,
                 "ruta_batch_id": ruta_batch_id,
                 "assignment_id": assignment_id,
+                "replaces_ruta_batch_id": replaces_ruta_batch_id,
                 "previous_snapshot": previous_snapshot,
                 "postcheck": postcheck,
                 "transaction_steps": APPLY_TRANSACTION_STEPS,
@@ -1154,6 +1581,7 @@ def run_weekly_replacement_apply(args, plan: dict) -> dict:
 def run_weekly_replacement_rollback(
     *,
     db_url: str,
+    source: str,
     effective_week_start_value: str,
     failed_assignment_id: int,
     expected_current_surface_hash: str,
@@ -1176,9 +1604,97 @@ def run_weekly_replacement_rollback(
         contract = verify_db_contract(cur)
         if not contract["ok"]:
             raise MissingDBContractError(contract["missing"])
-        raise MissingDBContractError(["rollback_execution_requires_separate_authorization"])
-    finally:
+        acquire_week_assignment_lock(
+            cur,
+            effective_week_start_value=effective_week_start_value,
+            route_policy_version=ROUTE_POLICY_VERSION,
+        )
+        found_hash = fetch_current_surface_hash(cur, source=source)
+        if found_hash.upper() != expected_current_surface_hash.upper():
+            raise LoaderUsageError("rollback_current_surface_hash_mismatch")
+
+        cur.execute(
+            """
+            select
+                assignment_id,
+                ruta_batch_id,
+                replaces_ruta_batch_id,
+                assignment_status
+              from cg_core.ruta_rutero_week_assignment
+             where assignment_id = %s
+               and effective_week_start = %s
+               and route_policy_version = %s
+             for update
+            """,
+            (failed_assignment_id, effective_week_start_value, ROUTE_POLICY_VERSION),
+        )
+        current_assignment = cur.fetchone()
+        if not current_assignment:
+            raise LoaderUsageError("rollback_assignment_not_found")
+        if str(current_assignment[3]) != "ACTIVE":
+            raise LoaderUsageError("rollback_assignment_not_active")
+        previous_ruta_batch_id = current_assignment[2]
+        if previous_ruta_batch_id is None:
+            raise LoaderUsageError("rollback_previous_assignment_missing")
+
+        cur.execute(
+            """
+            select assignment_id
+              from cg_core.ruta_rutero_week_assignment
+             where effective_week_start = %s
+               and route_policy_version = %s
+               and ruta_batch_id = %s
+               and assignment_status = 'SUPERSEDED'
+             order by assigned_at desc, assignment_id desc
+             limit 1
+             for update
+            """,
+            (effective_week_start_value, ROUTE_POLICY_VERSION, previous_ruta_batch_id),
+        )
+        previous_assignment = cur.fetchone()
+        if not previous_assignment:
+            raise LoaderUsageError("rollback_previous_assignment_missing")
+        previous_assignment_id = int(previous_assignment[0])
+
+        delete_public_ruta_for_source(cur, source)
+        restore_public_from_history(cur, source=source, ruta_batch_id=int(previous_ruta_batch_id))
+        restored_summary = fetch_current_snapshot_summary(cur, source=source)
+
+        cur.execute(
+            """
+            update cg_core.ruta_rutero_week_assignment
+               set assignment_status = 'ROLLED_BACK',
+                   rollback_of_assignment_id = %s,
+                   notes = concat(coalesce(notes, ''), ' | rolled back by guarded weekly rollback')
+             where assignment_id = %s
+            """,
+            (previous_assignment_id, failed_assignment_id),
+        )
+        cur.execute(
+            """
+            update cg_core.ruta_rutero_week_assignment
+               set assignment_status = 'ACTIVE',
+                   notes = concat(coalesce(notes, ''), ' | reactivated by guarded weekly rollback')
+             where assignment_id = %s
+            """,
+            (previous_assignment_id,),
+        )
+        conn.commit()
+        return {
+            "mode": "rollback",
+            "effective_week_start": effective_week_start_value,
+            "failed_assignment_id": failed_assignment_id,
+            "reactivated_assignment_id": previous_assignment_id,
+            "restored_ruta_batch_id": int(previous_ruta_batch_id),
+            "restored_current_rows": restored_summary["rows"],
+            "restored_current_surface_hash": restored_summary["current_surface_hash"],
+            "writes_executed": True,
+            "dsn_printed": False,
+        }
+    except Exception:
         conn.rollback()
+        raise
+    finally:
         try:
             cur.close()
         finally:
@@ -1198,7 +1714,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     ap.add_argument("--source-check-only", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--rollback-weekly-replacement", action="store_true")
     ap.add_argument("--confirm-weekly-replacement", default="")
+    ap.add_argument("--confirm-rollback", default="")
+    ap.add_argument("--failed-assignment-id", type=int)
+    ap.add_argument("--expected-current-surface-hash", default="")
     ap.add_argument("--expected-workbook-sha256", default="")
     ap.add_argument("--json-out", default="")
     ap.add_argument("--skip-postcheck", action="store_true")
@@ -1219,6 +1739,28 @@ def validate_cli_args(args) -> str:
         raise LoaderUsageError("source_check_only_incompatible_with_apply")
     if args.dry_run and args.apply:
         raise LoaderUsageError("dry_run_incompatible_with_apply")
+    if args.rollback_weekly_replacement and args.apply:
+        raise LoaderUsageError("rollback_incompatible_with_apply")
+    if args.rollback_weekly_replacement and args.dry_run:
+        raise LoaderUsageError("rollback_incompatible_with_dry_run")
+    if args.rollback_weekly_replacement and args.source_check_only:
+        raise LoaderUsageError("rollback_incompatible_with_source_check_only")
+
+    if args.rollback_weekly_replacement:
+        if not args.effective_week_start:
+            raise LoaderUsageError("rollback_requires_effective_week_start")
+        parse_effective_week_start(args.effective_week_start)
+        if not args.db_url:
+            raise LoaderUsageError("rollback_requires_explicit_db_url")
+        if not args.failed_assignment_id:
+            raise LoaderUsageError("rollback_requires_failed_assignment_id")
+        if not args.expected_current_surface_hash:
+            raise LoaderUsageError("rollback_requires_expected_current_surface_hash")
+        if args.confirm_rollback != ROLLBACK_CONFIRM_TOKEN:
+            raise LoaderUsageError("rollback_requires_confirm_token")
+        if not args.json_out:
+            raise LoaderUsageError("rollback_requires_json_out")
+        return "rollback"
 
     if args.source_check_only:
         return "source_check_only"
@@ -1231,6 +1773,8 @@ def validate_cli_args(args) -> str:
     parse_effective_week_start(args.effective_week_start)
 
     if args.apply:
+        if args.skip_source_check:
+            raise LoaderUsageError("apply_rejects_skip_source_check")
         if not args.expected_workbook_sha256:
             raise LoaderUsageError("apply_requires_expected_workbook_sha256")
         if args.confirm_weekly_replacement != ROUTE_POLICY_VERSION:
@@ -1270,6 +1814,26 @@ def main(argv=None):
         mode = validate_cli_args(args)
     except LoaderUsageError as exc:
         parser.exit(2, f"{exc.code}: {redact_secret(str(exc))}\n")
+
+    if mode == "rollback":
+        try:
+            result = run_weekly_replacement_rollback(
+                db_url=args.db_url,
+                source=args.source,
+                effective_week_start_value=args.effective_week_start,
+                failed_assignment_id=args.failed_assignment_id,
+                expected_current_surface_hash=args.expected_current_surface_hash,
+                confirm_token=args.confirm_rollback,
+            )
+            emit_json(result, args.json_out or None)
+            return
+        except Exception as exc:
+            payload = safe_error_payload(exc, mode=mode)
+            if args.json_out:
+                emit_json(payload, args.json_out)
+            else:
+                emit_json(payload)
+            raise SystemExit(1)
 
     if args.skip_source_check:
         source_check = source_check_payload_skipped(args.excel, args.sheet)
