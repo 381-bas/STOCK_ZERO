@@ -1,0 +1,30 @@
+{
+  "phase": "CG005F",
+  "decision": "CLOSED_WITH_TWO_REQUIRED_CORRECTIONS",
+  "closed_by": [
+    "ChatGPT",
+    "Bastian"
+  ],
+  "source_commit": "e5939a9b8fa553b87b997dca46839fa783f6b05e",
+  "corrected_findings": [
+    "F-01",
+    "F-02",
+    "F-03",
+    "F-05",
+    "F-06",
+    "F-07",
+    "F-09",
+    "F-10",
+    "F-11"
+  ],
+  "open_findings": {
+    "F-04": "PARTIAL",
+    "F-08": "FAILED"
+  },
+  "route_loader_apply_ready": false,
+  "local_lab_authorized": false,
+  "ddl_authorized": false,
+  "supabase_apply_authorized": false,
+  "next_phase": "CG005G_ROUTE_LOCK_AND_ROLLBACK_CORRECTION_NO_APPLY",
+  "following_validation": "CG005H_F04_F08_TARGETED_REVALIDATION"
+}

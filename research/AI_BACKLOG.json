@@ -319,6 +319,30 @@
       "cleanup_authorized": false
     },
     {
+      "id": "ROUTE-002",
+      "title": "Cierre de advisory lock y rollback postcheck del reemplazo semanal",
+      "category": "ROUTE",
+      "status": "PARTIAL",
+      "implementation_authorized": false,
+      "local_lab_authorized": false,
+      "ddl_authorized": false,
+      "apply_authorized": false,
+      "supabase_writes_authorized": false,
+      "evidence": [
+        "source commit e5939a9",
+        "CG005F corrected 9 findings: F-01, F-02, F-03, F-05, F-06, F-07, F-09, F-10, and F-11.",
+        "F-04 remains PARTIAL: rollback lacks full pre-commit postcheck.",
+        "F-08 remains FAILED: advisory lock uses an invalid pg_advisory_xact_lock(bigint,bigint) signature.",
+        "70/70 tests passed, but no real PostgreSQL execution was performed.",
+        "No DB, no DDL, no apply, and no Supabase writes were authorized.",
+        "Claude independent validation: research/CG005F_CORRECTION_REVALIDATION.json and research/reports/CLAUDE_CG005F_CORRECTION_REVALIDATION.md."
+      ],
+      "baseline_commit": "e5939a9b8fa553b87b997dca46839fa783f6b05e",
+      "last_validation_phase": "FASE_AI_MEMORY_03_ABSORB_AND_CLOSE_CG005F",
+      "source_commit": "e5939a9b8fa553b87b997dca46839fa783f6b05e",
+      "required_next_action": "Corregir exclusivamente F-08 y F-04 en un worktree no-apply; despues ejecutar revalidacion Claude dirigida. El laboratorio PostgreSQL local permanece bloqueado hasta cerrar ambos."
+    },
+    {
       "id": "ARCH-001",
       "title": "Domain seam Inventory / Control Gestion",
       "category": "ARCHITECTURE",
@@ -395,6 +419,6 @@
       "implementation_authorized": false
     }
   ],
-  "last_updated_by_phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
-  "last_updated_at": "2026-06-12"
+  "last_updated_by_phase": "FASE_AI_MEMORY_03_ABSORB_AND_CLOSE_CG005F",
+  "last_updated_at": "2026-06-13"
 }

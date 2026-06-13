@@ -577,5 +577,134 @@
       "sql_changes_authorized": false
     },
     "next_gate": "Run a future explicitly authorized real-week dual-run shadow before any build registry, forward apply, production canary, Supabase write, cleanup, or retention decision."
+  },
+  "cg005f_route_week_replacement_validation": {
+    "status": "VALIDATED_WITH_CORRECTIONS",
+    "phase": "FASE_AI_MEMORY_03_ABSORB_AND_CLOSE_CG005F",
+    "source_commit": "e5939a9b8fa553b87b997dca46839fa783f6b05e",
+    "source_files": [
+      "research/CG005F_CORRECTION_REVALIDATION.json",
+      "research/reports/CLAUDE_CG005F_CORRECTION_REVALIDATION.md",
+      "research/CG005B_BASTIAN_DECISIONS.json",
+      "research/CG005D_INDEPENDENT_IMPLEMENTATION_VALIDATION.json"
+    ],
+    "absorbed_at": "2026-06-13",
+    "summary": {
+      "corrected_findings": [
+        "F-01",
+        "F-02",
+        "F-03",
+        "F-05",
+        "F-06",
+        "F-07",
+        "F-09",
+        "F-10",
+        "F-11"
+      ],
+      "partial_findings": [
+        "F-04"
+      ],
+      "failed_findings": [
+        "F-08"
+      ],
+      "tests": {
+        "ran": 70,
+        "passed": 70,
+        "failed": 0,
+        "style": "mostly mock/static; no real PostgreSQL execution"
+      },
+      "route_loader_apply_ready": false,
+      "local_postgresql_still_required_for_behavioral_proof": true
+    },
+    "findings": [
+      {
+        "id": "cg005f_route_week_replacement_validation",
+        "domain": "ROUTE",
+        "status": "VALIDATED_WITH_CORRECTIONS",
+        "statement": "CG005F closes the route weekly replacement revalidation with nine findings corrected, F-04 partial, F-08 failed, and 70/70 tests passing, but the tests are mostly mock/static and local PostgreSQL remains required for later behavioral proof.",
+        "evidence": [
+          "research/CG005F_CORRECTION_REVALIDATION.json verdict=VALIDATED_WITH_CORRECTIONS",
+          "F-01, F-02, F-03, F-05, F-06, F-07, F-09, F-10, and F-11 are CORRECTED.",
+          "F-04 is PARTIAL and F-08 is FAILED.",
+          "tests ran=70 passed=70 failed=0; no real PostgreSQL execution.",
+          "No DB, no DDL, no apply, and no Supabase writes were authorized."
+        ],
+        "source_commit": "e5939a9b8fa553b87b997dca46839fa783f6b05e",
+        "validated_by": [
+          "Claude independent validation",
+          "ChatGPT + Bastian closure request",
+          "Codex memory absorption"
+        ],
+        "implementation_authorized": false,
+        "db_writes_authorized": false,
+        "local_lab_authorized": false,
+        "ddl_authorized": false,
+        "apply_authorized": false,
+        "next_required_action": "Corregir exclusivamente F-08 y F-04 en un worktree no-apply antes de cualquier laboratorio PostgreSQL local o apply."
+      },
+      {
+        "id": "cg005f_advisory_lock_signature",
+        "domain": "ROUTE",
+        "status": "FAILED_REQUIRES_CORRECTION",
+        "statement": "The implementation conceptually calls pg_advisory_xact_lock(bigint, bigint) by passing two hashtextextended results; PostgreSQL exposes pg_advisory_xact_lock(bigint) and pg_advisory_xact_lock(integer, integer), so the current two-bigint signature has no valid overload.",
+        "evidence": [
+          "research/CG005F_CORRECTION_REVALIDATION.json validation_8_f08_lock classification=INVALID_SIGNATURE",
+          "acquire_week_assignment_lock uses pg_advisory_xact_lock(hashtextextended(%s, 0), hashtextextended(%s, 0)).",
+          "hashtextextended(text, bigint) returns bigint.",
+          "PostgreSQL function resolution has no pg_advisory_xact_lock(bigint, bigint) overload.",
+          "The failure occurs before writes and therefore fails closed; mocked tests do not validate catalog signature."
+        ],
+        "source_commit": "e5939a9b8fa553b87b997dca46839fa783f6b05e",
+        "validated_by": [
+          "Claude independent validation",
+          "ChatGPT + Bastian closure request",
+          "Codex memory absorption"
+        ],
+        "implementation_authorized": false,
+        "db_writes_authorized": false,
+        "local_lab_authorized": false,
+        "ddl_authorized": false,
+        "apply_authorized": false,
+        "next_required_action": "Use one deterministic bigint advisory-lock key per week/contract, or a true two-int form, and validate it against local PostgreSQL only after explicit authorization."
+      },
+      {
+        "id": "cg005f_rollback_full_postcheck",
+        "domain": "ROUTE",
+        "status": "PARTIAL_REQUIRES_CORRECTION",
+        "statement": "Rollback restoration is present but incomplete because it commits without proving restored hash equality, weekly view consistency, resolved view consistency, missing/extra grains equal zero, and final equivalence before commit.",
+        "evidence": [
+          "research/CG005F_CORRECTION_REVALIDATION.json validation_5_f04_rollback classification=PARTIAL",
+          "Rollback restores public.ruta_rutero from previous batch history, marks current assignment ROLLED_BACK, and reactivates the previous assignment.",
+          "It does not assert restored current_surface_hash equals the previous assignment stored hash.",
+          "It does not revalidate weekly/resolved views or resolved-vs-assigned grain sets before commit.",
+          "tests 54/55 assert source substrings rather than full rollback behavior."
+        ],
+        "source_commit": "e5939a9b8fa553b87b997dca46839fa783f6b05e",
+        "validated_by": [
+          "Claude independent validation",
+          "ChatGPT + Bastian closure request",
+          "Codex memory absorption"
+        ],
+        "implementation_authorized": false,
+        "db_writes_authorized": false,
+        "local_lab_authorized": false,
+        "ddl_authorized": false,
+        "apply_authorized": false,
+        "next_required_action": "Run all rollback postchecks before commit and abort on any difference."
+      }
+    ],
+    "authority": {
+      "implementation_authorized": false,
+      "db_writes_authorized": false,
+      "local_lab_authorized": false,
+      "ddl_authorized": false,
+      "apply_authorized": false,
+      "supabase_writes_authorized": false,
+      "loaders_authorized": false,
+      "runtime_changes_authorized": false,
+      "sql_changes_authorized": false
+    },
+    "next_phase": "CG005G_ROUTE_LOCK_AND_ROLLBACK_CORRECTION_NO_APPLY",
+    "following_validation": "CG005H_F04_F08_TARGETED_REVALIDATION"
   }
 }
