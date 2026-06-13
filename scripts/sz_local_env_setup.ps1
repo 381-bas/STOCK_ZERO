@@ -2,6 +2,7 @@ param(
     [switch]$DryRun,
     [switch]$CreateVenv,
     [switch]$RunImportSmoke,
+    [switch]$AllowSystemPythonSmoke,
     [switch]$Pretty
 )
 
@@ -43,9 +44,26 @@ function Get-Python312 {
     return @($candidates | Select-Object -Unique)
 }
 
+function Test-PythonImport {
+    param(
+        [string]$PythonExe,
+        [string]$ImportName
+    )
+    $oldErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & $PythonExe -c "import $ImportName" *> $null
+        return ($LASTEXITCODE -eq 0)
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
+}
+
 try {
     $repoRoot = Get-RepoRoot
+    $repoName = Split-Path -Leaf $repoRoot
     $venvPath = Join-Path $repoRoot ".venv"
+    $venvPython = Join-Path $venvPath "Scripts\python.exe"
     $requirementsPath = Join-Path $repoRoot "requirements.txt"
     $python312 = @(Get-Python312)
     $effectiveDryRun = $true
@@ -66,7 +84,11 @@ try {
 
     $actions = @()
     $errors = @()
+    $warnings = @()
     $venvCreated = $false
+    $environmentSource = "NONE"
+    $environmentReproducible = $false
+
     if ($CreateVenv) {
         $actions += "create_venv_under_worktree"
         $resolvedRoot = [System.IO.Path]::GetFullPath($repoRoot)
@@ -91,19 +113,22 @@ try {
     if ($RunImportSmoke) {
         $actions += "run_import_smoke"
         $pythonForSmoke = $null
-        $venvPython = Join-Path $venvPath "Scripts\python.exe"
         if (Test-Path -LiteralPath $venvPython) {
             $pythonForSmoke = $venvPython
-        } elseif ($python312.Count -gt 0) {
+            $environmentSource = "WORKTREE_VENV"
+            $environmentReproducible = $true
+        } elseif ($AllowSystemPythonSmoke -and $python312.Count -gt 0) {
             $pythonForSmoke = $python312[0]
+            $environmentSource = "SYSTEM_PYTHON"
+            $environmentReproducible = $false
+            $warnings += "system_python_not_worktree_reproducible"
+        } else {
+            $errors += "worktree_venv_required"
         }
 
-        if (-not $pythonForSmoke) {
-            $errors += "python_for_import_smoke_not_found"
-        } else {
+        if ($pythonForSmoke) {
             foreach ($name in $requiredImports) {
-                & $pythonForSmoke -c "import $name" 2>$null
-                $importSmoke[$name] = ($LASTEXITCODE -eq 0)
+                $importSmoke[$name] = Test-PythonImport -PythonExe $pythonForSmoke -ImportName $name
             }
         }
     }
@@ -111,7 +136,9 @@ try {
     $payload = [ordered]@{
         ok = ($errors.Count -eq 0)
         dry_run = $effectiveDryRun
-        repo_root = $repoRoot
+        repo_name = $repoName
+        path_redacted = $true
+        root_relative = "."
         powershell = [ordered]@{
             edition = $PSVersionTable.PSEdition
             version = $PSVersionTable.PSVersion.ToString()
@@ -124,6 +151,9 @@ try {
         venv_created = $venvCreated
         create_venv_requested = [bool]$CreateVenv
         import_smoke_requested = [bool]$RunImportSmoke
+        allow_system_python_smoke = [bool]$AllowSystemPythonSmoke
+        environment_source = $environmentSource
+        environment_reproducible = $environmentReproducible
         required_imports = $requiredImports
         import_smoke = $importSmoke
         actions = $actions
@@ -131,7 +161,9 @@ try {
         db_access = "none"
         docker_executed = $false
         data_copy = $false
+        kernels_copied = $false
         git_modified = $false
+        warnings = $warnings
         errors = $errors
     }
 
@@ -140,5 +172,10 @@ try {
     }
     Write-JsonResult $payload 0
 } catch {
-    Write-JsonResult @{ ok = $false; error = "setup_failed"; error_type = $_.Exception.GetType().Name } 2
+    Write-JsonResult @{
+        ok = $false
+        error = "setup_failed"
+        error_type = $_.Exception.GetType().Name
+        errors = @("setup_failed")
+    } 2
 }
