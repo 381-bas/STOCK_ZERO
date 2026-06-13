@@ -1,8 +1,9 @@
 {
   "protocol_id": "AI_RESEARCH_PROTOCOL_STOCK_ZERO_V1",
-  "schema_version": 1,
+  "schema_version": 2,
   "created_by_phase": "FASE_AI_MEMORY_00_BOOTSTRAP_AND_ABSORPTION",
   "created_at": "2026-06-10",
+  "last_updated": "2026-06-13",
   "approved_baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
   "purpose": "Shared technical memory protocol for Claude, Codex, ChatGPT, and Bastian. This memory records validated research, unresolved hypotheses, and investigation backlog without granting implementation authority.",
   "roles": {
@@ -101,5 +102,67 @@
       "research/AI_BACKLOG.json"
     ],
     "note": "Required reading does not change permission limits and does not authorize implementation, DB access, commit, or push."
+  },
+  "blind_prompt_routing": {
+    "status": "ACTIVE",
+    "authority": "Bastian",
+    "purpose": "Separate execution-resource selection from the task instructions so model and reasoning choices do not predispose the evaluated agent.",
+    "assistant_behavior": {
+      "recommendation_block_required_before_agent_prompts": true,
+      "recommendation_block_is_for_bastian_only": true,
+      "do_not_copy_recommendation_into_prompt": true,
+      "bastian_selects_model_and_reasoning_in_ui": true
+    },
+    "recommendation_fields": [
+      "agent",
+      "task_class",
+      "recommended_model",
+      "reasoning_level",
+      "expected_cost",
+      "quality_target",
+      "reason",
+      "escalation_condition"
+    ],
+    "prompt_may_include": [
+      "quality_target",
+      "acceptance_criteria",
+      "evidence_requirements",
+      "scope",
+      "prohibitions"
+    ],
+    "prompt_must_not_include_by_default": [
+      "selected_model",
+      "selected_reasoning_level",
+      "expected_conclusion",
+      "claims that one provider or model should outperform another"
+    ],
+    "post_task_observation": {
+      "model_actual_may_be_recorded_after_completion": true,
+      "reasoning_actual_may_be_recorded_after_completion": true,
+      "agent_must_not_self-rank_against_other_models": true,
+      "single_task_result_does_not_establish_model_superiority": true
+    },
+    "rules": [
+      "ChatGPT must provide model/reasoning guidance outside the agent prompt.",
+      "Bastian chooses the actual model and reasoning level.",
+      "The blind task prompt must not reveal that choice by default.",
+      "Model identity may be recorded after completion as observational metadata.",
+      "A single task cannot establish model superiority.",
+      "quality_target may remain inside the task because it defines the required output contract, not the execution resource.",
+      "Model routing guidance does not authorize implementation, DB, commit, or push."
+    ]
+  },
+  "probabilistic_decision_support": {
+    "status": "OBSERVE_ONLY",
+    "implementation_justified": false,
+    "production_justified": false,
+    "validated_candidate": "UC-DL-01",
+    "candidate_description": "Per-source data-load batch anomaly assessment.",
+    "pilot_ready": false,
+    "current_method": "RULES_ONLY_PLUS_OBSERVATION",
+    "future_comparator": "DETERMINISTIC_SCORECARD_BEFORE_PROBABILISTIC_BAND",
+    "causal_claims_authorized": false,
+    "active_operational_horizon": "H1",
+    "active_gate": "CG-005"
   }
 }

@@ -1,0 +1,129 @@
+{
+  "contract_id": "AI_LOAD_OBSERVATION_CONTRACT_V1",
+  "schema_version": 1,
+  "status": "ACTIVE_OBSERVE_ONLY",
+  "authority": "Bastian",
+  "purpose": "Collect comparable per-load evidence before deciding whether deterministic or probabilistic anomaly support is justified.",
+  "candidate_use_case": "UC-DL-01",
+  "model_fitting_authorized": false,
+  "production_use_authorized": false,
+  "active_operational_horizon": "H1",
+  "active_gate": "CG-005",
+  "sources": [
+    "RUTA_RUTERO",
+    "KPIONE2",
+    "POWER_APP",
+    "KPIONE"
+  ],
+  "required_fields": [
+    "observation_id",
+    "recorded_at",
+    "source",
+    "effective_week_start",
+    "operation_type",
+    "input_file_name",
+    "input_file_sha256",
+    "schema_signature",
+    "input_rows",
+    "accepted_rows",
+    "rejected_rows",
+    "exact_duplicate_rows",
+    "grain_duplicate_rows",
+    "missing_required_rows",
+    "source_check_verdict",
+    "loader_executed",
+    "db_write_executed",
+    "post_load_validation_status",
+    "anomaly_label",
+    "anomaly_reason",
+    "evidence_refs",
+    "recorded_by",
+    "reviewed_by",
+    "implementation_authorized"
+  ],
+  "optional_fields": [
+    "batch_id",
+    "route_batch_id",
+    "raw_batch_ids",
+    "minimum_date",
+    "maximum_date",
+    "affected_weeks",
+    "new_key_count",
+    "removed_key_count",
+    "changed_key_count",
+    "parity_missing_keys",
+    "parity_extra_keys",
+    "parity_value_differences",
+    "rollback_required",
+    "rollback_executed",
+    "rework_rounds",
+    "elapsed_minutes",
+    "notes"
+  ],
+  "label_contract": {
+    "field": "anomaly_label",
+    "default": "UNREVIEWED",
+    "allowed_values": [
+      "UNREVIEWED",
+      "CLEAN",
+      "EXPECTED_CHANGE",
+      "ANOMALOUS",
+      "INVALID_INPUT",
+      "LOAD_FAILURE",
+      "POST_LOAD_REGRESSION"
+    ],
+    "rules": [
+      "UNREVIEWED is the default.",
+      "CLEAN requires post-load validation.",
+      "ANOMALOUS requires anomaly_reason and evidence_refs.",
+      "Do not derive the label from a feature that is later used to evaluate it without declaring leakage risk.",
+      "Do not change prior labels without preserving review history.",
+      "Do not invent historical labels."
+    ],
+    "validation_rules": {
+      "CLEAN": {
+        "requires_post_load_validation": true
+      },
+      "ANOMALOUS": {
+        "requires_anomaly_reason": true,
+        "requires_evidence_refs": true
+      }
+    }
+  },
+  "quality_rules": [
+    "Unknown fields must remain null.",
+    "Do not estimate rows or dates.",
+    "Record input hash before load.",
+    "Record effective week explicitly.",
+    "Differentiate source-check, loader execution, and post-load validation.",
+    "A warning does not automatically equal an anomaly.",
+    "An expected business change does not equal an anomaly.",
+    "Do not trigger loads to increase the sample."
+  ],
+  "privacy_rules": [
+    "No DSN.",
+    "No credentials.",
+    "No payloads.",
+    "No personal names.",
+    "No customer or store rows.",
+    "Only aggregate metrics and technical references.",
+    "The ledger may live in Git only if it respects these rules."
+  ],
+  "reevaluation_triggers": {
+    "threshold_type": "HEURISTIC_NOT_FORMAL_PROOF",
+    "review_after_total_observations": 20,
+    "review_after_source_observations": 10,
+    "review_after_confirmed_anomalies": 3,
+    "first_comparison": "RULES_ONLY_VS_DETERMINISTIC_SCORECARD",
+    "probabilistic_layer_condition": "Only evaluate a probabilistic layer if a distribution can change a decision and beat the deterministic baseline."
+  },
+  "forbidden_uses": [
+    "Do not fit models from this contract.",
+    "Do not use observations for production decisions.",
+    "Do not execute loaders to create observations.",
+    "Do not write Supabase.",
+    "Do not store DSNs, credentials, payloads, personal names, customer rows, or store rows.",
+    "Do not backfill or invent historical observations.",
+    "Do not treat heuristic thresholds as formal statistical proof."
+  ]
+}
