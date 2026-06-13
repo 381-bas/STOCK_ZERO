@@ -1,0 +1,203 @@
+{
+  "phase": "CODEX_PLATFORM_001B_WORKTREE_PILOT_AND_PLATFORM005B_CORRECTION",
+  "schema_version": 1,
+  "status": "VALIDATED_PENDING_COMMIT_AND_PUSH",
+  "quality_target": "Q4_DECISION_GRADE",
+  "baseline_commit": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+  "worktree": {
+    "path": "C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/PLATFORM_005B",
+    "branch": "codex/PLATFORM_005B-load-observation-correction",
+    "created": true,
+    "creation_seconds": 0.325,
+    "initial_size_bytes": 1907002,
+    "current_size_bytes": 2059519,
+    "disk_delta_bytes": 152517,
+    "ignored_local_files_absent": [
+      ".env",
+      ".local_secrets",
+      "data",
+      ".venv",
+      ".codex"
+    ],
+    "left_for_inspection": true
+  },
+  "primary_checkout_fingerprint": {
+    "path": "C:/Users/basti/Desktop/STOCK_ZERO",
+    "head_before": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+    "head_after": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+    "branch_before": "main",
+    "branch_after": "main",
+    "origin_main_before_fetch": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+    "modified_tracked_hashes_before": [
+      {
+        "path": "scripts/load_control_gestion_raw_v17.py",
+        "sha256": "aca053b97879cf9169752a40d9d00f375314cea7d3a8cec16e5202cc629af478"
+      }
+    ],
+    "modified_tracked_hashes_after": [
+      {
+        "path": "scripts/load_control_gestion_raw_v17.py",
+        "sha256": "aca053b97879cf9169752a40d9d00f375314cea7d3a8cec16e5202cc629af478"
+      }
+    ],
+    "untracked_roots_before": [
+      "evidence/",
+      "research/claude/",
+      "sql/09_control_gestion_kpione2_raw_dryrun_draft.sql",
+      "sql/10_control_gestion_kpione2_forward_recovery_lab_draft.sql"
+    ],
+    "untracked_roots_after": [
+      "evidence/",
+      "research/claude/",
+      "sql/09_control_gestion_kpione2_raw_dryrun_draft.sql",
+      "sql/10_control_gestion_kpione2_forward_recovery_lab_draft.sql"
+    ],
+    "checkout_size_bytes_before": 4965930797,
+    "unchanged": true,
+    "dirty_main_incidents": 0
+  },
+  "remote_sync": {
+    "fetch_origin_executed": true,
+    "origin_main_after_fetch": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+    "local_main_ahead_behind_after_fetch": "0 0",
+    "remote_branch_existed_before_create": false
+  },
+  "platform_tooling": {
+    "audit_script": true,
+    "setup_script": true,
+    "codex_config_created": false,
+    "default_setup_is_dry_run": true,
+    "installs_requirements": false,
+    "touches_git": false,
+    "touches_db": false,
+    "touches_docker": false,
+    "setup_seconds": 1.181
+  },
+  "platform005b": {
+    "status": "implemented",
+    "f001_path_scope": true,
+    "f002_types_and_consistency": true,
+    "f003_cli_json_consistency": true,
+    "f004_observation_id_event_identity": true,
+    "f005_shapes": true,
+    "f006_privacy": true,
+    "f007_label_operation_matrix": true,
+    "f008_evidence_refs": true,
+    "f009_json_errors": true
+  },
+  "validation": {
+    "worktree_preflight": {
+      "phase": "generic",
+      "skip_db": true,
+      "final_verdict": "warn",
+      "blockers": [],
+      "warnings": [
+        "git_worktree_not_clean_before_commits",
+        "01_kernel_global_v1_4_3.json_missing",
+        "kernel_02_missing",
+        "03_iterative_ledger_v1_6_5.json_missing",
+        "04_project_direction_kernel_stock_zero_v1_0_5.json_missing",
+        "STOCK_ZERO_3JSON_AUDIT_MATRIX_20260331_v2_2.json_missing",
+        "CONTROL_GESTION_IMPLEMENTATION_KERNEL_V2_4.json_missing"
+      ],
+      "scanner_syntax_errors": 0,
+      "scanner_read_errors": 0
+    },
+    "audit_script": {
+      "exit_code": 0,
+      "ok": true,
+      "presence": {
+        ".venv": false,
+        ".env": false,
+        ".local_secrets": false,
+        "data": false,
+        "evidence": false
+      }
+    },
+    "setup_dry_run": {
+      "exit_code": 0,
+      "ok": true,
+      "dry_run": true,
+      "venv_created": false,
+      "installs_performed": false,
+      "db_access": "none",
+      "docker_executed": false
+    },
+    "py_compile": {
+      "command": "python -m py_compile scripts/sz_load_observation.py",
+      "exit_code": 0
+    },
+    "worktree_tooling_tests": {
+      "collected": 20,
+      "passed": 20,
+      "failed": 0
+    },
+    "observation_tests": {
+      "collected": 115,
+      "passed": 115,
+      "failed": 0,
+      "skipped": 1,
+      "skip_reason": "Windows symlink privilege unavailable"
+    },
+    "combined_tests": {
+      "collected": 135,
+      "passed": 135,
+      "failed": 0,
+      "skipped": 1
+    },
+    "manual_draft_validate": {
+      "draft_exit_1": 0,
+      "draft_exit_2": 0,
+      "validate_exit": 0,
+      "deterministic": true,
+      "observation_id": "LOADOBS-RUTA_RUTERO-2026-06-08-PREFLIGHT-5b9ce27ce494",
+      "validate_status": "ok"
+    },
+    "ledger": {
+      "path": "research/AI_LOAD_OBSERVATION_LEDGER.jsonl",
+      "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256_after": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "unchanged": true
+    },
+    "git_diff_check": {
+      "exit_code": 0,
+      "warnings": [
+        "LF will be replaced by CRLF on selected changed files"
+      ]
+    }
+  },
+  "safety": {
+    "db_access": "none",
+    "db_writes": false,
+    "docker_executed": false,
+    "loaders_executed": false,
+    "sql_executed": false,
+    "secrets_printed": false,
+    "main_push": false,
+    "merge": false,
+    "force_push": false
+  },
+  "commits": [
+    {
+      "message": "research: record Codex worktree platform decisions",
+      "sha": "ea226a684c5dd07fd3448ed5a19ceb475b5f731b",
+      "status": "created"
+    },
+    {
+      "message": "platform: add safe Codex worktree pilot",
+      "status": "pending"
+    },
+    {
+      "message": "tooling: correct load observation safety blockers",
+      "status": "pending"
+    }
+  ],
+  "push": {
+    "branch_only": true,
+    "branch": "codex/PLATFORM_005B-load-observation-correction",
+    "main_push": false,
+    "force_push": false,
+    "status": "pending"
+  },
+  "next_step": "Independent review of branch before merge"
+}
