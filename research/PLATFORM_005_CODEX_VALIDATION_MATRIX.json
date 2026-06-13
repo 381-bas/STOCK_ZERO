@@ -1,0 +1,267 @@
+{
+  "phase": "FASE_PLATFORM_005_CODEX_INDEPENDENT_LOAD_OBSERVATION_VALIDATION",
+  "baseline_commit": "9f19cca04164bd01b2a58a782671ce001a6da61c",
+  "validated_at_local": "2026-06-13T14:45:28-04:00",
+  "verdict": "BLOCKED_BEFORE_FIRST_USE",
+  "quality": {
+    "target": "Q4_DECISION_GRADE",
+    "achieved": true,
+    "confidence": "HIGH"
+  },
+  "integrity": {
+    "commit_exists": true,
+    "commit_changed_files_exact": true,
+    "commit_changed_files": [
+      ".claude/skills/sz-load-observation/SKILL.md",
+      "scripts/sz_load_observation.py",
+      "tests/test_sz_load_observation.py"
+    ],
+    "compile": true,
+    "tests_collected": 47,
+    "tests_passed": 47,
+    "tests_failed": 0,
+    "skill_frontmatter_valid": true,
+    "disable_model_invocation": true,
+    "allowed_tools_only_script": true,
+    "standard_library_only": true,
+    "forbidden_imports_found": [],
+    "subprocess_found": false,
+    "shell_true_found": false,
+    "file_write_api_found": false
+  },
+  "contract_parity": {
+    "required_fields_match": true,
+    "optional_fields_match": true,
+    "labels_match": true,
+    "sources_match": true,
+    "default_label_match": true,
+    "implementation_authorized_false": true,
+    "privacy_rules_exactly_enforced": false,
+    "reevaluation_independent": true
+  },
+  "privacy": {
+    "path_scope_safe": false,
+    "secret_content_blocked": false,
+    "pii_blocked": false,
+    "value_leakage": true,
+    "notes": [
+      "Synthetic DSN, email, payload_json, customer/store keys, and row-object arrays were blocked.",
+      "Synthetic generic token field, URL query token, and personal-name free text were accepted.",
+      "Synthetic benign text containing the substring secret was blocked as a false positive."
+    ]
+  },
+  "semantic_validation": {
+    "types_enforced": false,
+    "counts_consistent": false,
+    "input_cli_consistency": false,
+    "observation_id_suitable": false,
+    "labels_consistent": false
+  },
+  "determinism": {
+    "draft_identical": true,
+    "validate_identical": true
+  },
+  "ledger": {
+    "initial_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "initial_size_bytes": 0,
+    "final_size_bytes": 0,
+    "unchanged": true,
+    "records": 0
+  },
+  "first_use_ready": false,
+  "findings_summary": {
+    "blocker": 4,
+    "high": 3,
+    "medium": 2,
+    "low": 0
+  },
+  "findings": [
+    {
+      "id": "PLATFORM005-F001",
+      "severity": "BLOCKER",
+      "component": "path_input",
+      "fact": "read_json_path accepts any filesystem path that is_file() and below 5 MB, then reads it before any privacy scan or repository/sensitive-path guard.",
+      "evidence": [
+        "scripts/sz_load_observation.py:389-397",
+        "temp probe: absolute external JSON accepted",
+        "temp probe: traversal path accepted",
+        "temp probe: synthetic .env filename accepted",
+        "temp probe: synthetic .local_secrets path accepted",
+        "temp probe: synthetic credentials.json accepted"
+      ],
+      "consequence": "The tool can read prohibited or sensitive paths if invoked with those paths, even when it does not print the original file content.",
+      "reproducible_scenario": "Create a synthetic valid JSON phase file in %TEMP% named .env or credentials.json and pass it as --phase-json; the script emits a candidate.",
+      "required_correction": "Reject absolute external paths, traversal, symlink escapes, .env, .env.*, .local_secrets, credentials-like filenames, data/, evidence/, and any path outside the allowed repo scope before opening the file.",
+      "blocks_first_use": true,
+      "confidence": "HIGH"
+    },
+    {
+      "id": "PLATFORM005-F002",
+      "severity": "BLOCKER",
+      "component": "record_semantics",
+      "fact": "draft and validate accept semantically invalid candidates because numeric counts, booleans, dates, hash format, optional collection types, and cross-field count consistency are not enforced.",
+      "evidence": [
+        "scripts/sz_load_observation.py:331-343",
+        "scripts/sz_load_observation.py:359-383",
+        "scripts/sz_load_observation.py:435-465",
+        "temp probe: input_rows as text accepted",
+        "temp probe: accepted_rows negative accepted",
+        "temp probe: accepted_rows greater than input_rows accepted",
+        "temp probe: loader_executed and db_write_executed as strings accepted",
+        "temp probe: short, non-hex, null, and empty input_file_sha256 accepted"
+      ],
+      "consequence": "The script can produce or validate a candidate that matches field presence but violates the observation contract's technical meaning.",
+      "reproducible_scenario": "Pass SHAPE B with input_rows='100', accepted_rows=-1, or input_file_sha256='abc'; draft exits 0 and emits UNREVIEWED.",
+      "required_correction": "Add schema validation for all required and optional fields, including nonnegative integer counts, count relationships, booleans, ISO dates, SHA-256 hex length, list element types, and nullability rules.",
+      "blocks_first_use": true,
+      "confidence": "HIGH"
+    },
+    {
+      "id": "PLATFORM005-F003",
+      "severity": "BLOCKER",
+      "component": "input_cli_consistency",
+      "fact": "The script accepts source, effective_week_start, and operation_type from CLI and ignores contradictory values present in SHAPE A or SHAPE B phase JSON.",
+      "evidence": [
+        "scripts/sz_load_observation.py:406-429",
+        "temp probe: phase source RUTA_RUTERO with CLI source KPIONE2 emitted source KPIONE2",
+        "temp probe: phase week 2026-06-08 with CLI week 2026-06-15 emitted 2026-06-15",
+        "temp probe: phase operation DRY_RUN with CLI APPLY emitted APPLY"
+      ],
+      "consequence": "Evidence from one source, week, or operation can be labeled as another, which is a material traceability failure before ledger use.",
+      "reproducible_scenario": "Place source='RUTA_RUTERO' in the phase JSON but invoke draft with --source KPIONE2; the emitted candidate uses KPIONE2 without contradiction.",
+      "required_correction": "If phase JSON contains source, effective_week_start, operation_type, or file hash fields, require exact agreement with CLI arguments or fail closed with a JSON error.",
+      "blocks_first_use": true,
+      "confidence": "HIGH"
+    },
+    {
+      "id": "PLATFORM005-F004",
+      "severity": "BLOCKER",
+      "component": "observation_id",
+      "fact": "observation_id is deterministic but not a reliable unique identity when input_file_sha256 is null, empty, malformed, or when the same source/week/operation/file is observed repeatedly.",
+      "evidence": [
+        "scripts/sz_load_observation.py:305-308",
+        "scripts/sz_load_observation.py:361",
+        "temp probe: null hash and empty hash produced the same ID",
+        "temp probe: same file, source, week, operation with different recorded_at produced the same ID",
+        "temp probe: malformed hash values were accepted"
+      ],
+      "consequence": "The future ledger could conflate distinct observations or depend on invalid file identity values.",
+      "reproducible_scenario": "Draft two candidates with identical source/week/operation and missing hash; both receive the same LOADOBS identifier.",
+      "required_correction": "Require a valid SHA-256 input hash for ledger-suitable candidates and define whether observation_id is an idempotency key or event identity; include an explicit attempt/run discriminator if event uniqueness is required.",
+      "blocks_first_use": true,
+      "confidence": "HIGH"
+    },
+    {
+      "id": "PLATFORM005-F005",
+      "severity": "HIGH",
+      "component": "shape_extraction",
+      "fact": "Shape detection and extraction accept partial or accidental SHAPE B objects and silently choose canonical fields over contradictory aliases.",
+      "evidence": [
+        "scripts/sz_load_observation.py:81-86",
+        "scripts/sz_load_observation.py:314-343",
+        "temp probe: object with only input_rows accepted",
+        "temp probe: object with only schema_signature accepted",
+        "temp probe: canonical db_write_executed=true and alias writes_executed=false emitted db_write_executed=true"
+      ],
+      "consequence": "A non-load JSON object or contradictory dry-run aggregate can become a candidate with many null technical fields or silently selected values.",
+      "reproducible_scenario": "Pass {'schema_signature':'not really a load result'} as phase JSON; draft exits 0 and emits a candidate with null metrics.",
+      "required_correction": "Require a minimal complete shape signature, reject canonical/alias contradictions, and fail when required technical fields are absent.",
+      "blocks_first_use": true,
+      "confidence": "HIGH"
+    },
+    {
+      "id": "PLATFORM005-F006",
+      "severity": "HIGH",
+      "component": "privacy",
+      "fact": "Privacy checks are substring and key heuristics; they catch several forbidden classes but miss generic token-like fields, URL query secrets, and personal-name free text while also blocking benign text containing the substring secret.",
+      "evidence": [
+        "scripts/sz_load_observation.py:92-104",
+        "scripts/sz_load_observation.py:123-152",
+        "temp probe: service_token-style synthetic field accepted",
+        "temp probe: URL query token accepted",
+        "temp probe: synthetic personal name in notes accepted and emitted",
+        "temp probe: synthetic personal name in anomaly_reason accepted and emitted",
+        "temp probe: benign text with secret substring rejected"
+      ],
+      "consequence": "The output can contain private free text, and safe benign text can be rejected unpredictably.",
+      "reproducible_scenario": "Invoke draft with --notes containing a synthetic personal name; the output includes the note.",
+      "required_correction": "Constrain free-text fields, broaden credential/token detection, sanitize or reject URL query strings, and define a documented privacy allowlist rather than raw substring matching.",
+      "blocks_first_use": true,
+      "confidence": "HIGH"
+    },
+    {
+      "id": "PLATFORM005-F007",
+      "severity": "HIGH",
+      "component": "label_rules",
+      "fact": "Label rules enforce presence for some labels but allow several contradictory operational states.",
+      "evidence": [
+        "scripts/sz_load_observation.py:240-299",
+        "temp probe: CLEAN in PREFLIGHT with loader_executed=true accepted",
+        "temp probe: CLEAN in POST_LOAD_VALIDATION without db_write_executed accepted",
+        "temp probe: APPLY with loader_executed=false and UNREVIEWED accepted",
+        "temp probe: LOAD_FAILURE with post_load_validation_status OK accepted",
+        "temp probe: POST_LOAD_REGRESSION without db_write_executed accepted"
+      ],
+      "consequence": "Labels do not guarantee coherent source-check, dry-run, apply, and post-validation semantics.",
+      "reproducible_scenario": "Invoke draft with label LOAD_FAILURE, loader_executed=true, post_load_validation_status=OK, reason, and evidence; the script emits the label.",
+      "required_correction": "Define and enforce operation-specific invariants for SOURCE_CHECK, PREFLIGHT, DRY_RUN, APPLY, POST_LOAD_VALIDATION, ROLLBACK, and each label.",
+      "blocks_first_use": false,
+      "confidence": "HIGH"
+    },
+    {
+      "id": "PLATFORM005-F008",
+      "severity": "MEDIUM",
+      "component": "evidence_refs",
+      "fact": "Evidence refs are syntax-validated but existence and bounded length are not checked.",
+      "evidence": [
+        "scripts/sz_load_observation.py:107-110",
+        "scripts/sz_load_observation.py:211-234",
+        "temp probe: syntactically valid nonexistent commit accepted",
+        "temp probe: syntactically valid nonexistent phase accepted",
+        "temp probe: syntactically valid nonexistent research path accepted",
+        "temp probe: very long research ref accepted"
+      ],
+      "consequence": "The candidate can cite evidence that does not exist. This is a limitation rather than a contract breach if existence is intentionally out of scope.",
+      "reproducible_scenario": "Pass --evidence-ref research/DOES_NOT_EXIST.json with an ANOMALOUS label; draft accepts the ref.",
+      "required_correction": "Either document evidence_refs as syntax-only or add optional existence checks and a maximum length.",
+      "blocks_first_use": false,
+      "confidence": "HIGH"
+    },
+    {
+      "id": "PLATFORM005-F009",
+      "severity": "MEDIUM",
+      "component": "cli_errors",
+      "fact": "argparse errors occur before the ObsError JSON wrapper and can emit usage text to stderr with no JSON stdout.",
+      "evidence": [
+        "scripts/sz_load_observation.py:510-520",
+        "temp probe: draft with missing required arguments returned argparse usage on stderr",
+        "temp probe: unknown subcommand returned argparse usage on stderr"
+      ],
+      "consequence": "The skill guarantee of JSON-only output is not true for malformed CLI invocations.",
+      "reproducible_scenario": "Call python scripts/sz_load_observation.py draft without required options; argparse emits usage text instead of a JSON error object.",
+      "required_correction": "Wrap argument parsing or subclass ArgumentParser.error to emit normalized JSON errors.",
+      "blocks_first_use": false,
+      "confidence": "HIGH"
+    }
+  ],
+  "commands_run": [
+    "python scripts/sz_preflight.py --phase generic --root . --skip-db --json-out $env:TEMP\\sz_preflight_platform005_codex.json",
+    "git rev-parse --verify 9f19cca04164bd01b2a58a782671ce001a6da61c",
+    "git diff-tree --no-commit-id --name-only -r 9f19cca04164bd01b2a58a782671ce001a6da61c",
+    "python -m py_compile scripts/sz_load_observation.py",
+    "python -m unittest discover -s tests -p \"test_sz_load_observation.py\" -v",
+    "temp-only Python harness importing scripts/sz_load_observation.py and creating synthetic fixtures in %TEMP%"
+  ],
+  "db_access": {
+    "used": false,
+    "mode": "none",
+    "writes_attempted": false,
+    "dsn_printed": false
+  },
+  "network_access": false,
+  "files_modified": [
+    "research/PLATFORM_005_CODEX_VALIDATION_MATRIX.json",
+    "research/reports/CODEX_PLATFORM_005_LOAD_OBSERVATION_VALIDATION.md"
+  ]
+}
