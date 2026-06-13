@@ -18,7 +18,18 @@
       "DISPUTED",
       "REJECTED"
     ],
-    "c002_g0_notice": "No backlog item is APPROVED or IMPLEMENTED while CG-PARITY-G0 remains PARTIAL/open."
+    "c002_g0_notice": "No backlog item is APPROVED or IMPLEMENTED while CG-PARITY-G0 remains PARTIAL/open.",
+    "allowed_statuses_after_c006_c007": [
+      "INVESTIGATE",
+      "VALIDATED",
+      "VALIDATED_LOCAL",
+      "PARTIAL",
+      "DISPUTED",
+      "REJECTED",
+      "READY",
+      "BLOCKED"
+    ],
+    "c006_c007_notice": "Canonical builder readiness is local/shadow readiness only; it does not authorize Supabase writes, production apply, cleanup, retention, loader execution, or runtime changes."
   },
   "items": [
     {
@@ -105,20 +116,28 @@
       "id": "DB-002",
       "title": "Justificacion de JOIN, hashes y raw duplicado",
       "category": "DB",
-      "status": "DISPUTED",
+      "status": "BLOCKED",
       "evidence": [
         "Requested as shared research backlog item.",
         "C001 Codex validation disputes payload_json removal because DB views consume it.",
         "C001 Codex validation confirms CG loader hash-skip/batch_registry behavior.",
         "C001 Codex validation confirms incremental refresh commit occurs before post-commit ANALYZE.",
         "C002 memory update: DB-002 remains blocked for retention while CG-PARITY-G0 is PARTIAL/open.",
-        "No Supabase cleanup, payload_json removal, raw retention, or storage work is authorized by C002 B0."
+        "No Supabase cleanup, payload_json removal, raw retention, or storage work is authorized by C002 B0.",
+        "C006/C007 validated the canonical builder locally but did not authorize cleanup, retention, Supabase writes, production apply, or raw deletion.",
+        "DB-002 remains blocked for cleanup until explicit future authorization after shadow/canary gates."
       ],
       "baseline_commit": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
       "implementation_authorized": false,
-      "last_validation_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
-      "required_next_action": "Keep retention/storage work blocked until daily and weekly parity G0 are closed.",
-      "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2"
+      "last_validation_phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
+      "required_next_action": "Keep cleanup, retention, storage work, payload_json removal, and Supabase writes blocked; design-only/read-only catalog work still requires explicit phase authorization.",
+      "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+      "source_commits": [
+        "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+        "1504bf65294803121818a0f99df97109fce48cd3",
+        "33af624abefa44a67037d56b5be8f93fed7812a1"
+      ],
+      "cleanup_blocked": true
     },
     {
       "id": "CODE-001",
@@ -174,43 +193,130 @@
       "evidence": [
         "CG-PARITY-001 validated net surplus root cause.",
         "CG-PARITY-002 validated need for explicit affected_date_window.",
-        "C002 B0 E1 removed all extra keys with fecha_visita >= 2026-05-11."
+        "C002 B0 E1 removed all extra keys with fecha_visita >= 2026-05-11.",
+        "C006 canonical contract pins affected weeks, raw source batches, route policy, source precedence, and daily/weekly builder versions.",
+        "C007 packaged builder reproduced the C006 contract deterministically across repeated runs and clean-room validation."
       ],
       "baseline_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
       "implementation_authorized": false,
-      "last_validation_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+      "last_validation_phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
       "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
-      "required_next_action": "Define and test explicit affected_date_window before any future mart reconstruction."
+      "source_commits": [
+        "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+        "1504bf65294803121818a0f99df97109fce48cd3",
+        "33af624abefa44a67037d56b5be8f93fed7812a1"
+      ],
+      "required_next_action": "Use the validated canonical temporal contract as the basis for a future explicitly authorized real-week shadow; no production apply is authorized."
     },
     {
       "id": "CG-003",
       "title": "Politica versionada de snapshot RUTA_RUTERO",
       "category": "CONTROL_GESTION",
-      "status": "PARTIAL",
+      "status": "VALIDATED_LOCAL",
       "evidence": [
         "CG-ROUTE-SNAPSHOT-001: week 2026-06-01 aligns better with ruta_batch 16/17 than batch 18.",
-        "Route16 dedup reduced value differences but did not close parity."
+        "Route16 dedup reduced value differences but did not close parity.",
+        "C006 pins the weekly route policy as ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1 for the canonical local build.",
+        "C007 validates route/person differences as explained legacy provenance differences, not alert-impacting differences."
       ],
       "baseline_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
       "implementation_authorized": false,
-      "last_validation_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+      "last_validation_phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
       "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
-      "required_next_action": "Define authoritative route snapshot policy by week before closing G0."
+      "source_commits": [
+        "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+        "1504bf65294803121818a0f99df97109fce48cd3",
+        "33af624abefa44a67037d56b5be8f93fed7812a1"
+      ],
+      "required_next_action": "Carry the validated local route snapshot into future shadow evidence; Bastian semantic route policy and production apply remain separate gates."
     },
     {
       "id": "CG-004",
       "title": "Weekly derivado desde daily staged",
       "category": "CONTROL_GESTION",
-      "status": "PARTIAL",
+      "status": "VALIDATED_LOCAL",
       "evidence": [
         "CG-WEEKLY-001: weekly view is inefficient as raw reconstruction surface.",
-        "One-week materialization timed out at 180s; full weekly timed out at 900s."
+        "One-week materialization timed out at 180s; full weekly timed out at 900s.",
+        "C006 validates weekly canonical output derived from canonical daily, with rows=6799, duplicate_keys=0, and deterministic hash.",
+        "C007 clean-room validation reproduced the weekly canonical output exactly."
       ],
       "baseline_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
       "implementation_authorized": false,
-      "last_validation_phase": "FASE_AI_MEMORY_01_ABSORB_C002_B0_PARITY_ROOTCAUSE",
+      "last_validation_phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
       "source_commit": "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
-      "required_next_action": "Rebuild weekly parity from staged daily and route surfaces in local lab before storage work."
+      "source_commits": [
+        "506ca6ac2b2413cf417f239f65b735db06a9b4e2",
+        "1504bf65294803121818a0f99df97109fce48cd3",
+        "33af624abefa44a67037d56b5be8f93fed7812a1"
+      ],
+      "required_next_action": "Use weekly-from-canonical-daily as the local validated surface for a future real-week dual-run shadow; no mart apply is authorized."
+    },
+    {
+      "id": "CG-005",
+      "title": "Dual-run shadow de semana real CG canonical",
+      "category": "CONTROL_GESTION",
+      "status": "READY",
+      "evidence": [
+        "C007 verdict is SHADOW_READY for the packaged local-only canonical builder.",
+        "C007 semantic parity reports no ALERT differences versus legacy baseline for the C007 weeks.",
+        "C007 explicitly records no Supabase writes, no production apply, no cleanup, and no retention action authorized."
+      ],
+      "required_next_action": "Run a future explicitly authorized real-week dual-run shadow using a real load; keep Supabase and production writes unauthorized until that phase exists.",
+      "baseline_commit": "33af624abefa44a67037d56b5be8f93fed7812a1",
+      "last_validation_phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
+      "source_commits": [
+        "1504bf65294803121818a0f99df97109fce48cd3",
+        "33af624abefa44a67037d56b5be8f93fed7812a1"
+      ],
+      "implementation_authorized": false,
+      "supabase_writes_authorized": false,
+      "production_apply_authorized": false,
+      "cleanup_authorized": false
+    },
+    {
+      "id": "CG-006",
+      "title": "Build registry and forward apply design",
+      "category": "CONTROL_GESTION",
+      "status": "INVESTIGATE",
+      "evidence": [
+        "C006 records an explicit build context with raw batches, route policy, precedence version, and daily/weekly builder versions.",
+        "C007 packages the builder as local-only tooling and validates deterministic rebuilds.",
+        "No build registry, forward apply, Supabase write, or production mutation was authorized by C006/C007."
+      ],
+      "required_next_action": "Design registry and forward-apply contract after CG-005 shadow evidence; keep this item design-only until explicitly authorized.",
+      "baseline_commit": "33af624abefa44a67037d56b5be8f93fed7812a1",
+      "last_validation_phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
+      "source_commits": [
+        "1504bf65294803121818a0f99df97109fce48cd3",
+        "33af624abefa44a67037d56b5be8f93fed7812a1"
+      ],
+      "implementation_authorized": false,
+      "supabase_writes_authorized": false,
+      "production_apply_authorized": false,
+      "cleanup_authorized": false
+    },
+    {
+      "id": "CG-007",
+      "title": "Production canary posterior al shadow",
+      "category": "CONTROL_GESTION",
+      "status": "BLOCKED",
+      "evidence": [
+        "C007 marks the builder shadow-ready, not production-ready.",
+        "C007 records no Supabase writes, no production apply, and no cleanup/retention authorization.",
+        "Production canary must come after a successful real-week dual-run shadow and explicit Bastian authorization."
+      ],
+      "required_next_action": "Wait for CG-005 shadow and CG-006 design evidence, then request explicit canary authorization; do not run production canary from backlog alone.",
+      "baseline_commit": "33af624abefa44a67037d56b5be8f93fed7812a1",
+      "last_validation_phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
+      "source_commits": [
+        "1504bf65294803121818a0f99df97109fce48cd3",
+        "33af624abefa44a67037d56b5be8f93fed7812a1"
+      ],
+      "implementation_authorized": false,
+      "supabase_writes_authorized": false,
+      "production_apply_authorized": false,
+      "cleanup_authorized": false
     },
     {
       "id": "ARCH-001",
@@ -289,6 +395,6 @@
       "implementation_authorized": false
     }
   ],
-  "last_updated_by_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
-  "last_updated_at": "2026-06-11"
+  "last_updated_by_phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
+  "last_updated_at": "2026-06-12"
 }

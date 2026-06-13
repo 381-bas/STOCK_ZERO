@@ -433,5 +433,149 @@
       "implementation_authorized": false
     },
     "next_gate": "G0 remains open: resolve the one missing KPIONE2 key on 2026-05-15, define the authoritative route snapshot policy for week 2026-06-01, then rebuild weekly from staged daily/route surfaces before any storage or retention work."
+  },
+  "c006_c007_canonical_builder": {
+    "status": "SHADOW_READY_NO_PROD_WRITES",
+    "phase": "FASE_AI_MEMORY_02_ABSORB_C006_C007_CANONICAL_BUILDER",
+    "source_commits": [
+      "1504bf65294803121818a0f99df97109fce48cd3",
+      "33af624abefa44a67037d56b5be8f93fed7812a1"
+    ],
+    "source_files": [
+      "research/C006_CANONICAL_FORWARD_BUILD.json",
+      "research/C007_CANONICAL_BUILDER_VALIDATION.json",
+      "research/reports/CODEX_C006_CANONICAL_FORWARD_BUILD.md",
+      "research/reports/CODEX_C007_CANONICAL_BUILDER_VALIDATION.md"
+    ],
+    "absorbed_at": "2026-06-12",
+    "canonical_contract": {
+      "build_context_id": "CG_CANONICAL_BUILD_CONTEXT_V1_C006_W20260518_W20260601",
+      "affected_weeks": [
+        "2026-05-18",
+        "2026-06-01"
+      ],
+      "raw_batch_ids_by_source": {
+        "KPIONE": 19,
+        "KPIONE2": 38,
+        "POWER_APP": 26
+      },
+      "route_policy_version": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1",
+      "source_precedence_version": "CG_SOURCE_PRECEDENCE_V2_KPIONE2_POWER_APP_KPIONE_AUDIT",
+      "daily_builder_version": "CG_DAILY_CANONICAL_PINNED_RAW_ROUTE_V1",
+      "weekly_builder_version": "CG_WEEKLY_FROM_CANONICAL_DAILY_ROUTE_V1"
+    },
+    "findings": [
+      {
+        "id": "CG-CANONICAL-001",
+        "status": "VALIDATED",
+        "claim": "El builder canonico local produce daily y weekly deterministas con inputs, batches raw, snapshot semanal y versiones explicitas.",
+        "evidence": [
+          "C006 canonical context records affected weeks, raw batches, route policy, source precedence, and builder versions.",
+          "C006 daily rows=7484, duplicate_keys=0, full_row_hash=fdde399cd6f74d5cdc4fb5a251b4a40c.",
+          "C006 weekly rows=6799, duplicate_keys=0, full_row_hash=6180e2f8c4f4bd133053421c32219788."
+        ]
+      },
+      {
+        "id": "CG-CANONICAL-002",
+        "status": "VALIDATED",
+        "claim": "Tres ejecuciones y un clean-room producen hashes identicos.",
+        "evidence": [
+          "C006 deterministic repeated runs: daily_full_row_hash variants=1 and weekly_full_row_hash variants=1.",
+          "C006 clean-room daily and weekly matched canonical exactly.",
+          "C007 repeated runs and clean-room comparison matched C006 outputs exactly."
+        ]
+      },
+      {
+        "id": "CG-CANONICAL-003",
+        "status": "VALIDATED",
+        "claim": "El builder esta empaquetado en scripts/cg_canonical_build_local.py, es local-only y rechaza hosts Supabase/no locales.",
+        "evidence": [
+          "C007 builder_script=scripts/cg_canonical_build_local.py.",
+          "C007 local_only_enforced=true with accepted hosts localhost, 127.0.0.1, and ::1.",
+          "C007 Supabase and non-local DSNs rejected without printing DSNs or committing credentials."
+        ]
+      },
+      {
+        "id": "CG-CANONICAL-004",
+        "status": "VALIDATED_WITH_FIXTURES",
+        "claim": "Los ocho escenarios de fuentes y precedencia pasan en fixtures controlados.",
+        "evidence": [
+          "C007 fixture scenarios passed=8 and failed=0.",
+          "Scenarios covered KPIONE2_ONLY, POWER_APP_FALLBACK, KPIONE2_POWER_APP_OVERLAP, KPIONE_AUDIT_ONLY, DOUBLE_MARK, TRIPLE_SOURCE_OVERLAP, EVIDENCE_OUTSIDE_ROUTE, and ROUTE_WITHOUT_EVIDENCE."
+        ]
+      },
+      {
+        "id": "CG-SEMANTIC-001",
+        "status": "VALIDATED",
+        "claim": "No existen diferencias de ALERT contra el baseline legacy para las semanas C007.",
+        "evidence": [
+          "C007 semantic parity: ALERT class keys=0 and cells=0 versus C002 baseline for weeks 2026-05-18 and 2026-06-01."
+        ]
+      },
+      {
+        "id": "CG-SEMANTIC-002",
+        "status": "EXPLAINED_DIFFERENCE",
+        "claim": "Las diferencias ROUTE_PERSON corresponden a la superficie semanal canonica y a procedencia legacy no reconstruible.",
+        "evidence": [
+          "C007 ROUTE_PERSON differences: keys=1188 and cells=3511.",
+          "C007 explains them through canonical weekly route surface and C005 legacy route/person provenance limits."
+        ]
+      },
+      {
+        "id": "CG-SEMANTIC-003",
+        "status": "EXPLAINED_DIFFERENCE",
+        "claim": "Las diferencias SOURCE_METRIC/VISIT_METRIC corresponden al snapshot KPIONE2 pineado y no alteran alertas.",
+        "evidence": [
+          "C007 SOURCE_METRIC differences: keys=23 and cells=23.",
+          "C007 VISIT_METRIC differences: keys=23 and cells=65.",
+          "C007 records no alert impact from these differences."
+        ]
+      },
+      {
+        "id": "CG-SHADOW-001",
+        "status": "READY",
+        "claim": "El builder esta preparado para dual-run shadow sobre una carga real futura, pero no esta autorizado para writes Supabase ni produccion.",
+        "evidence": [
+          "C007 verdict SHADOW_READY.",
+          "C007 local writes were limited to local PostgreSQL schemas c007_canonical and c007_clean_room.",
+          "C007 reports no Supabase writes, no production apply, no cleanup, and no retention action authorized."
+        ]
+      }
+    ],
+    "determinism": {
+      "daily_rows": 7484,
+      "daily_duplicate_keys": 0,
+      "daily_business_semantic_hash": "4837c0ab073d765f177641355178a51f",
+      "weekly_rows": 6799,
+      "weekly_duplicate_keys": 0,
+      "weekly_business_semantic_hash": "4569d8b74285a073c2f152491657a9c2",
+      "repeated_run_variants": 1,
+      "clean_room_match": true
+    },
+    "semantic_parity": {
+      "common_keys": 7484,
+      "missing_keys": 0,
+      "extra_keys": 0,
+      "normalization_only_keys": 7484,
+      "business_diff_keys": 1211,
+      "business_diff_cells": 3599,
+      "alert_diff_keys": 0,
+      "alert_diff_cells": 0,
+      "explained_differences": [
+        "ROUTE_PERSON differences come from canonical weekly route surface and unreconstructible legacy route/person provenance.",
+        "SOURCE_METRIC and VISIT_METRIC differences come from the pinned KPIONE2 snapshot and do not alter alerts."
+      ]
+    },
+    "authority": {
+      "implementation_authorized": false,
+      "supabase_writes_authorized": false,
+      "production_apply_authorized": false,
+      "cleanup_authorized": false,
+      "retention_authorized": false,
+      "loaders_authorized": false,
+      "runtime_changes_authorized": false,
+      "sql_changes_authorized": false
+    },
+    "next_gate": "Run a future explicitly authorized real-week dual-run shadow before any build registry, forward apply, production canary, Supabase write, cleanup, or retention decision."
   }
 }
