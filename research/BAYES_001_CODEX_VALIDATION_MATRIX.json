@@ -1,0 +1,220 @@
+{
+  "document_id": "BAYES_001_CODEX_VALIDATION_MATRIX",
+  "schema_version": 1,
+  "phase": "FASE_BAYES_001_CODEX_INDEPENDENT_VALIDATION_NO_IMPLEMENTATION",
+  "created_at": "2026-06-13",
+  "validator": "Codex",
+  "baseline_commit_requested": "1e08ac20c3a3a812bcb2790d01f097eb022d3cbb",
+  "head_validated": "1e08ac20c3a3a812bcb2790d01f097eb022d3cbb",
+  "source_artifacts": [
+    "research/BAYES_001_INDEPENDENT_ASSESSMENT.json",
+    "research/BAYES_001_USE_CASE_MATRIX.json",
+    "research/reports/CLAUDE_BAYES_001_INDEPENDENT_ASSESSMENT.md"
+  ],
+  "authority": {
+    "implementation_authorized": false,
+    "db_access": "none",
+    "docker_access": false,
+    "loaders_authorized": false,
+    "supabase_access": false,
+    "runtime_changes_authorized": false,
+    "files_created_by_codex": [
+      "research/BAYES_001_CODEX_VALIDATION_MATRIX.json",
+      "research/reports/CODEX_BAYES_001_INDEPENDENT_VALIDATION.md"
+    ]
+  },
+  "verdict": "VALIDATED_WITH_CORRECTIONS",
+  "executive_validation": "The main conclusion is supported: a Bayesian decision-support layer is not yet justified, and DO_NOT_BUILD now plus OBSERVE_ONLY for UC-DL-01 is superior to building a probabilistic layer today. Corrections are required for baseline metadata, stale G0 wording, confidence calibration, and the heuristic nature of the proposed observation threshold.",
+  "integrity": {
+    "commit_exists": true,
+    "head_matches_requested_commit": true,
+    "commit_added_exact_three_claude_artifacts": true,
+    "json_valid": true,
+    "source_artifacts_present": true,
+    "secret_scan_result": "NO_SECRET_OR_DSN_DETECTED_IN_SOURCE_ARTIFACTS",
+    "personal_data_scan_result": "NO_ROW_LEVEL_PERSONAL_DATA_DETECTED; ONLY POLICY TEXT ABOUT PERSONAL DATA WAS FOUND",
+    "implementation_authorized_false": true,
+    "baseline_metadata_correction_required": true,
+    "baseline_metadata_note": "The phase validates commit 1e08ac20c3a3a812bcb2790d01f097eb022d3cbb, but Claude's JSON/report fields state baseline_commit=e5eef29c5a8726f93438695ce0fb7e3987710886. This is documentary metadata drift, not a reversal of the substantive conclusion."
+  },
+  "central_claims": [
+    {
+      "id": "C1",
+      "claim": "Current Inventory and Control Gestion surfaces are mostly deterministic.",
+      "classification": "SUPPORTED",
+      "evidence": [
+        "app/screens/reposicion.py _row_indicadores uses fixed checks on Venta(+7), NEGATIVO, RIESGO DE QUIEBRE, and OTROS.",
+        "app/screens/control_gestion.py renders fixed ALERTA/CUMPLE/INCUMPLE surfaces from mart outputs.",
+        "research/C007_CANONICAL_BUILDER_VALIDATION.json reports deterministic repeated and clean-room canonical outputs."
+      ],
+      "limits": "No DB or app/db.py read was authorized in this phase, so this validates the allowed runtime surfaces and research artifacts only."
+    },
+    {
+      "id": "C2",
+      "claim": "There is no functional implementation of decision_and_action_tracking today.",
+      "classification": "SUPPORTED",
+      "evidence": [
+        "research/AI_CAPABILITY_MAP.json has decision_and_action_tracking with current_implementation=[] and implementation_authorized=false.",
+        "Allowed app screens inspected do not expose an action/outcome write workflow."
+      ]
+    },
+    {
+      "id": "C3",
+      "claim": "Architecture and phase decisions are poorly comparable and path-dependent.",
+      "classification": "SUPPORTED",
+      "evidence": [
+        "research/AI_PROJECT_HORIZON.json defines dependency-gated H0-H5 horizons and Bastian decision points.",
+        "H1/H2/H3/H4 dependencies make phase selection a sequenced governance problem rather than an exchangeable repeated trial."
+      ],
+      "limits": "This is an architectural inference, not a measured statistical result."
+    },
+    {
+      "id": "C4",
+      "claim": "Load reliability is the most repetitive and observable candidate surface.",
+      "classification": "SUPPORTED",
+      "evidence": [
+        "research/AI_SHARED_MEMORY.json records cg_audit.batch_registry behavior and 37 CG batches.",
+        "research/AI_SHARED_MEMORY.json records ruta_rutero_load_batch rows=19.",
+        "scripts/refresh_control_gestion_v2_incremental.py exposes repeated dry-run/apply validation status surfaces."
+      ],
+      "limits": "No live DB recount was authorized."
+    },
+    {
+      "id": "C5",
+      "claim": "There are too few observations and anomaly labels to justify a probabilistic layer now.",
+      "classification": "PARTIAL",
+      "evidence": [
+        "The repo memory supports small aggregate batch counts and no action/outcome ledger.",
+        "The reviewed artifacts do not identify a labeled bad/good batch corpus."
+      ],
+      "limits": "Exact per-source labeled anomaly counts require a future read-only DB/evidence phase; this phase could not inspect DB or heavy evidence."
+    },
+    {
+      "id": "C6",
+      "claim": "There is insufficient evidence that Bayes would beat a rule or scorecard today.",
+      "classification": "SUPPORTED",
+      "evidence": [
+        "No use case in research/BAYES_001_USE_CASE_MATRIX.json is marked BAYES_SUITABLE_NOW.",
+        "UC-DL-01 still needs labels and a deterministic fixed-band baseline.",
+        "UC-PA-01 and UC-PA-02 require absent action/outcome tracking before a probabilistic comparison is meaningful."
+      ]
+    },
+    {
+      "id": "C7",
+      "claim": "The personal-growth rail must remain separate and private.",
+      "classification": "SUPPORTED",
+      "evidence": [
+        "research/BAYES_001_INDEPENDENT_ASSESSMENT.json sets a private boundary and states no personal data was written.",
+        "research/BAYES_001_USE_CASE_MATRIX.json keeps UC-PG-01 conceptual/private with no repository data capture."
+      ]
+    }
+  ],
+  "central_claim_counts": {
+    "supported": 6,
+    "partial": 1,
+    "disputed": 0,
+    "rejected": 0,
+    "not_verifiable": 0
+  },
+  "alternatives": {
+    "alternatives_reviewed": [
+      "RULES_ONLY",
+      "DETERMINISTIC_SCORECARD",
+      "BAYESIAN_DECISION_SUPPORT",
+      "HYBRID",
+      "DO_NOT_BUILD"
+    ],
+    "fairly_compared": true,
+    "undue_favoring_detected": false,
+    "finding": "The assessment gives Bayes and HYBRID a future role where uncertainty and feedback loops exist, while favoring rules/scorecards for current safety gates and deterministic surfaces. That weighting is proportionate to the evidence.",
+    "correction": "The report should explicitly say DO_NOT_BUILD means no probabilistic implementation now, not no future measurement or comparison."
+  },
+  "use_case_matrix_audit": {
+    "use_case_count": 12,
+    "internal_consistency": "MOSTLY_CONSISTENT",
+    "criteria_duplication": [
+      "outcome_observability, data_availability, and measurement_cost partly overlap",
+      "implementation_cost and measurement_cost partly overlap for uninstrumented product cases"
+    ],
+    "values_without_direct_evidence": [
+      "Exact 1-5 scores are judgement calls and not independently measured.",
+      "20-30 clean and 3-5 anomalous batch thresholds are reasonable heuristics, not statistically derived sample-size calculations."
+    ],
+    "aggregation_bias": "LOW_TO_MEDIUM; no total score was used as an automatic decision, but high-impact product cases still need narrative gating because action data is absent.",
+    "omitted_cases": [
+      "A future downstream probability consumer in app/db.py was not checked because app/db.py was outside the allowed read list.",
+      "Exact historically labeled bad batches were not checked because DB and heavy evidence were prohibited."
+    ],
+    "rules_sufficient_cases": [
+      "UC-AW-02",
+      "UC-EN-01",
+      "UC-EN-02",
+      "UC-DL-02",
+      "UC-DL-03"
+    ],
+    "probability_could_change_decision_later": [
+      "UC-DL-01 if labeled batch outcomes accrue and a predictive band beats fixed bands",
+      "UC-PA-02 if action/outcome tracking plus privacy and causal design exist",
+      "UC-PA-03 only after a concrete consuming decision is defined"
+    ]
+  },
+  "uc_dl_01": {
+    "best_first_candidate_when_justified": true,
+    "pilot_ready": false,
+    "observation_contract_justified": true,
+    "metrics_available_enough_for_observation": true,
+    "metrics_available_enough_for_model": false,
+    "labels_status": "LABELS_MUST_BE_CREATED_OR_CONFIRMED",
+    "minimum_observation_threshold_assessment": "REASONABLE_HEURISTIC_NOT_FORMALLY_JUSTIFIED",
+    "deterministic_baseline_required": true,
+    "pilot_status_should_remain": "NO_PILOT_YET",
+    "future_comparison_trigger": "After normal operations produce per-source labeled batch outcomes, run a read-only retrospective comparison of fixed deterministic bands vs predictive bands at equal recall; require lower false-positive rate without missing labeled bad batches."
+  },
+  "priority": {
+    "conceptual": "LOW_MEDIUM",
+    "instrumentation": "LOW_MEDIUM_OBSERVE_ONLY",
+    "implementation": "NONE_NOW",
+    "production": "NONE_NOW",
+    "interference_with_active_lanes": false,
+    "active_lanes_checked": [
+      "RUTA_RUTERO",
+      "nuevo formato KPIONE2",
+      "cargas de frecuencia",
+      "CG-005",
+      "H1"
+    ]
+  },
+  "quality": {
+    "quality_target": "Q4_DECISION_GRADE",
+    "quality_achieved_by_codex": "Q3_DECISION_GRADE_WITH_CORRECTIONS",
+    "confidence": "MEDIUM_HIGH",
+    "contract_adherence": "HIGH",
+    "evidence_quality": "MEDIUM_HIGH",
+    "validation_strength": "MEDIUM_HIGH_FOR_ALLOWED_SCOPE",
+    "alternative_fairness": "HIGH",
+    "falsifiability": "HIGH",
+    "causal_discipline": "HIGH",
+    "operational_utility": "MEDIUM_HIGH",
+    "confidence_calibration": "IMPROVED_BY_DOWNGRADING_Q4_TO_Q3_WITH_CORRECTIONS",
+    "corrections_required": [
+      "Correct Claude artifact baseline metadata or annotate why e5eef29 is the research baseline while 1e08ac20 is the commit under validation.",
+      "Replace stale G0 production-priority reference with H1/CG-005 active horizon wording.",
+      "Mark 20-30 clean and 3-5 anomalous observations as a heuristic trigger, not a proven sample-size threshold.",
+      "Preserve NO_PILOT_YET until deterministic fixed-band baseline and labels exist."
+    ],
+    "rework_required": "DOCUMENTARY_ONLY"
+  },
+  "temporal_correction": {
+    "g0_reference_stale": true,
+    "active_horizon": "H1",
+    "material_impact": false,
+    "requires_documentary_correction": true,
+    "finding": "The report states production priority collides with active gates including G0 parity and CG-005. The live horizon is H1 with CG-005 active. The conclusion remains unchanged because implementation/production remain NONE_NOW."
+  },
+  "final_assessment": {
+    "not_yet_justified_supported": true,
+    "do_not_build_now_plus_observe_only_superior": true,
+    "result": "VALIDATED_WITH_CORRECTIONS",
+    "next_step": "ChatGPT/Bastian review"
+  }
+}
