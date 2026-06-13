@@ -47,6 +47,7 @@ ALLOWLISTED_SUBCOMMANDS = (
     "baseline-weekly",
     "baseline-audit",
     "c001-profile",
+    "route-preflight",
     "all",
 )
 
@@ -101,6 +102,25 @@ C001_PROFILE_TERMS = (
     "kpione2_raw",
     "power_app_raw",
 )
+
+ROUTE_PREFLIGHT_SOURCE_FILE = "DB_GLOBAL_INVENTARIO.xlsx"
+ROUTE_PREFLIGHT_SOURCE_SHEET = "RUTA_RUTERO"
+ROUTE_PREFLIGHT_SOURCE = f"{ROUTE_PREFLIGHT_SOURCE_FILE}:{ROUTE_PREFLIGHT_SOURCE_SHEET}"
+ROUTE_PREFLIGHT_WEEK_START = "2026-06-08"
+ROUTE_WEEK_RELATIONS = (
+    "cg_core.v_rr_frecuencia_base_resuelta_v2",
+    "cg_core.v_ruta_rutero_load_batch_week_v2",
+)
+ROUTE_WEEK_COLUMN_CANDIDATES = (
+    "effective_week_start",
+    "week_start",
+    "semana_inicio",
+    "fecha_semana",
+    "semana",
+)
+ROUTE_BATCH_COLUMN_CANDIDATES = ("ruta_batch_id", "source_ruta_batch_id", "batch_id")
+ROUTE_COD_COLUMN_CANDIDATES = ("cod_rt_norm", "cod_rt", "cod_kpi_one")
+ROUTE_CLIENTE_COLUMN_CANDIDATES = ("cliente_norm", "cliente")
 
 DAILY_SPLIT_HINTS = ("fecha", "dia", "date", "created_at", "ingested_at")
 WEEKLY_SPLIT_HINTS = ("semana", "week", "week_start", "periodo")
@@ -954,6 +974,434 @@ def c001_profile(conn: Any) -> dict[str, Any]:
     }
 
 
+def lower_column_map(columns: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return {str(column["column_name"]).lower(): column for column in columns}
+
+
+def first_existing_column(columns: Sequence[dict[str, Any]], candidates: Sequence[str]) -> dict[str, Any] | None:
+    by_lower = lower_column_map(columns)
+    for candidate in candidates:
+        column = by_lower.get(candidate.lower())
+        if column:
+            return column
+    return None
+
+
+def route_public_current_surface(cur: Any) -> dict[str, Any]:
+    qualified_name = "public.ruta_rutero"
+    payload: dict[str, Any] = {"relation": qualified_name, "exists": relation_exists(cur, qualified_name)}
+    if not payload["exists"]:
+        return payload
+
+    columns = get_columns(cur, qualified_name)
+    payload["columns"] = columns
+    required_columns = {"source", "source_row", "cod_rt", "cliente", "rutero", "row_hash", "ingested_at"}
+    available = set(lower_column_map(columns))
+    missing = sorted(required_columns - available)
+    payload["missing_columns"] = missing
+    if missing:
+        return payload
+
+    execute_static(
+        cur,
+        "route_public_current_source_metrics",
+        """
+        SELECT
+            COUNT(*)::bigint AS rows,
+            COUNT(DISTINCT source)::bigint AS distinct_sources,
+            MIN(source_row)::bigint AS min_source_row,
+            MAX(source_row)::bigint AS max_source_row,
+            COUNT(DISTINCT source_row)::bigint AS distinct_source_rows,
+            COUNT(DISTINCT NULLIF(row_hash, ''))::bigint AS distinct_row_hashes,
+            (COUNT(*) - COUNT(DISTINCT NULLIF(row_hash, '')))::bigint AS exact_duplicate_excess_by_row_hash,
+            (
+                COUNT(*) - COUNT(DISTINCT (
+                    COALESCE(NULLIF(BTRIM(cod_rt::text), ''), '<NULL>')
+                    || CHR(31) ||
+                    COALESCE(NULLIF(UPPER(BTRIM(cliente::text)), ''), '<NULL>')
+                ))
+            )::bigint AS grain_duplicate_excess_cod_rt_cliente,
+            COUNT(*) FILTER (WHERE NULLIF(BTRIM(cod_rt::text), '') IS NULL)::bigint AS missing_cod_rt,
+            COUNT(*) FILTER (WHERE NULLIF(BTRIM(rutero::text), '') IS NULL)::bigint AS missing_rutero,
+            COUNT(*) FILTER (WHERE NULLIF(BTRIM(cliente::text), '') IS NULL)::bigint AS missing_cliente,
+            MAX(ingested_at) AS max_ingested_at
+        FROM public.ruta_rutero
+        WHERE source = %s
+        """,
+        (ROUTE_PREFLIGHT_SOURCE,),
+    )
+    payload["source_metrics"] = fetch_all_dicts(cur)[0]
+
+    execute_static(
+        cur,
+        "route_public_current_sources",
+        """
+        SELECT
+            source::text,
+            COUNT(*)::bigint AS rows,
+            MIN(source_row)::bigint AS min_source_row,
+            MAX(source_row)::bigint AS max_source_row,
+            MAX(ingested_at) AS max_ingested_at
+        FROM public.ruta_rutero
+        GROUP BY source
+        ORDER BY rows DESC, source
+        LIMIT 10
+        """,
+    )
+    payload["source_distribution"] = fetch_all_dicts(cur)
+
+    execute_static(
+        cur,
+        "route_public_current_privacy_safe_signatures",
+        """
+        SELECT
+            source_row::bigint AS source_row,
+            MD5(
+                COALESCE(NULLIF(BTRIM(cod_rt::text), ''), '<NULL>')
+                || CHR(31) ||
+                COALESCE(NULLIF(UPPER(BTRIM(cliente::text)), ''), '<NULL>')
+            ) AS grain_hash,
+            MD5(COALESCE(NULLIF(BTRIM(cod_rt::text), ''), '<NULL>')) AS cod_hash,
+            MD5(COALESCE(NULLIF(UPPER(BTRIM(cliente::text)), ''), '<NULL>')) AS cliente_hash,
+            NULLIF(row_hash, '') AS exact_hash,
+            MD5(COALESCE(NULLIF(UPPER(BTRIM(gestores::text)), ''), '<NULL>')) AS gestor_hash,
+            MD5(COALESCE(NULLIF(UPPER(BTRIM(supervisor::text)), ''), '<NULL>')) AS supervisor_hash,
+            MD5(COALESCE(NULLIF(UPPER(BTRIM(jefe_operaciones::text)), ''), '<NULL>')) AS jefe_operaciones_hash,
+            MD5(COALESCE(NULLIF(UPPER(BTRIM(rutero::text)), ''), '<NULL>')) AS rutero_hash,
+            MD5(COALESCE(NULLIF(UPPER(BTRIM(reponedor::text)), ''), '<NULL>')) AS reponedor_hash,
+            MD5(COALESCE(NULLIF(UPPER(BTRIM(modalidad::text)), ''), '<NULL>')) AS modalidad_hash,
+            COALESCE(veces_por_semana, 0)::int AS frecuencia,
+            CONCAT(
+                COALESCE(lunes, 0)::int,
+                COALESCE(martes, 0)::int,
+                COALESCE(miercoles, 0)::int,
+                COALESCE(jueves, 0)::int,
+                COALESCE(viernes, 0)::int,
+                COALESCE(sabado, 0)::int,
+                COALESCE(domingo, 0)::int
+            ) AS dias_mask,
+            MD5(CONCAT_WS(
+                CHR(31),
+                COALESCE(NULLIF(UPPER(BTRIM(cadena::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(formato::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(region::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(comuna::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(cod_b2b::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(local_nombre::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(direccion::text)), ''), '<NULL>')
+            )) AS local_hash,
+            MD5(CONCAT_WS(
+                CHR(31),
+                COALESCE(NULLIF(UPPER(BTRIM(cadena::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(formato::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(region::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(comuna::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(BTRIM(cod_rt::text), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(cod_b2b::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(local_nombre::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(direccion::text)), ''), '<NULL>'),
+                COALESCE(veces_por_semana, 0)::text,
+                COALESCE(NULLIF(UPPER(BTRIM(rutero::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(jefe_operaciones::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(gestores::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(cliente::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(supervisor::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(reponedor::text)), ''), '<NULL>'),
+                COALESCE(lunes, 0)::text,
+                COALESCE(martes, 0)::text,
+                COALESCE(miercoles, 0)::text,
+                COALESCE(jueves, 0)::text,
+                COALESCE(viernes, 0)::text,
+                COALESCE(sabado, 0)::text,
+                COALESCE(domingo, 0)::text,
+                COALESCE(visita_mensual, 0)::text,
+                COALESCE(dif, 0)::text,
+                COALESCE(NULLIF(UPPER(BTRIM(obs::text)), ''), '<NULL>'),
+                COALESCE(NULLIF(UPPER(BTRIM(aux::text)), ''), '<NULL>'),
+                COALESCE(gg, 0)::text,
+                COALESCE(NULLIF(UPPER(BTRIM(modalidad::text)), ''), '<NULL>')
+            )) AS normalized_business_hash
+        FROM public.ruta_rutero
+        WHERE source = %s
+        ORDER BY grain_hash, source_row
+        """,
+        (ROUTE_PREFLIGHT_SOURCE,),
+    )
+    payload["privacy_safe_signatures"] = fetch_all_dicts(cur)
+    return payload
+
+
+def route_history_profile(cur: Any) -> dict[str, Any]:
+    batch_relation = "cg_core.ruta_rutero_load_batch"
+    rows_relation = "cg_core.ruta_rutero_load_rows"
+    payload: dict[str, Any] = {
+        "batch_relation": batch_relation,
+        "rows_relation": rows_relation,
+        "batch_exists": relation_exists(cur, batch_relation),
+        "rows_exists": relation_exists(cur, rows_relation),
+    }
+    if not payload["batch_exists"] or not payload["rows_exists"]:
+        return payload
+
+    payload["batch_columns"] = get_columns(cur, batch_relation)
+    execute_static(
+        cur,
+        "route_history_batch_summary",
+        """
+        SELECT
+            COUNT(*)::bigint AS total_batches,
+            MAX(loaded_at) AS max_loaded_at
+        FROM cg_core.ruta_rutero_load_batch
+        WHERE source_file = %s
+          AND source_sheet = %s
+        """,
+        (ROUTE_PREFLIGHT_SOURCE_FILE, ROUTE_PREFLIGHT_SOURCE_SHEET),
+    )
+    payload["batch_summary"] = fetch_all_dicts(cur)[0]
+
+    execute_static(
+        cur,
+        "route_history_recent_batches",
+        """
+        WITH recent AS (
+            SELECT
+                ruta_batch_id,
+                source_file,
+                source_sheet,
+                loader_name,
+                loaded_rows,
+                status,
+                loaded_at
+            FROM cg_core.ruta_rutero_load_batch
+            WHERE source_file = %s
+              AND source_sheet = %s
+            ORDER BY loaded_at DESC NULLS LAST, ruta_batch_id DESC
+            LIMIT 12
+        ),
+        row_profile AS (
+            SELECT
+                ruta_batch_id,
+                COUNT(*)::bigint AS history_rows,
+                MIN(source_row)::bigint AS min_source_row,
+                MAX(source_row)::bigint AS max_source_row,
+                COUNT(DISTINCT source_row)::bigint AS distinct_source_rows,
+                COUNT(DISTINCT NULLIF(row_hash, ''))::bigint AS distinct_row_hashes,
+                (COUNT(*) - COUNT(DISTINCT NULLIF(row_hash, '')))::bigint AS exact_duplicate_excess_by_row_hash,
+                (
+                    COUNT(*) - COUNT(DISTINCT (
+                        COALESCE(NULLIF(BTRIM(cod_rt::text), ''), '<NULL>')
+                        || CHR(31) ||
+                        COALESCE(NULLIF(UPPER(BTRIM(cliente::text)), ''), '<NULL>')
+                    ))
+                )::bigint AS grain_duplicate_excess_cod_rt_cliente,
+                COUNT(*) FILTER (WHERE NULLIF(BTRIM(cod_rt::text), '') IS NULL)::bigint AS missing_cod_rt,
+                COUNT(*) FILTER (WHERE NULLIF(BTRIM(rutero::text), '') IS NULL)::bigint AS missing_rutero,
+                COUNT(*) FILTER (WHERE NULLIF(BTRIM(cliente::text), '') IS NULL)::bigint AS missing_cliente,
+                MIN(source_ingested_at) AS min_source_ingested_at,
+                MAX(source_ingested_at) AS max_source_ingested_at
+            FROM cg_core.ruta_rutero_load_rows
+            WHERE ruta_batch_id IN (SELECT ruta_batch_id FROM recent)
+            GROUP BY ruta_batch_id
+        )
+        SELECT
+            recent.ruta_batch_id,
+            recent.source_file,
+            recent.source_sheet,
+            recent.loader_name,
+            recent.loaded_rows,
+            recent.status,
+            recent.loaded_at,
+            row_profile.history_rows,
+            row_profile.min_source_row,
+            row_profile.max_source_row,
+            row_profile.distinct_source_rows,
+            row_profile.distinct_row_hashes,
+            row_profile.exact_duplicate_excess_by_row_hash,
+            row_profile.grain_duplicate_excess_cod_rt_cliente,
+            row_profile.missing_cod_rt,
+            row_profile.missing_rutero,
+            row_profile.missing_cliente,
+            row_profile.min_source_ingested_at,
+            row_profile.max_source_ingested_at
+        FROM recent
+        LEFT JOIN row_profile USING (ruta_batch_id)
+        ORDER BY recent.loaded_at DESC NULLS LAST, recent.ruta_batch_id DESC
+        """,
+        (ROUTE_PREFLIGHT_SOURCE_FILE, ROUTE_PREFLIGHT_SOURCE_SHEET),
+    )
+    payload["recent_batches"] = fetch_all_dicts(cur)
+
+    execute_static(
+        cur,
+        "route_history_latest_grain_dupes",
+        """
+        WITH latest AS (
+            SELECT ruta_batch_id
+            FROM cg_core.ruta_rutero_load_batch
+            WHERE source_file = %s
+              AND source_sheet = %s
+            ORDER BY loaded_at DESC NULLS LAST, ruta_batch_id DESC
+            LIMIT 1
+        ),
+        grain_counts AS (
+            SELECT
+                MD5(
+                    COALESCE(NULLIF(BTRIM(cod_rt::text), ''), '<NULL>')
+                    || CHR(31) ||
+                    COALESCE(NULLIF(UPPER(BTRIM(cliente::text)), ''), '<NULL>')
+                ) AS grain_hash,
+                COUNT(*)::bigint AS duplicate_rows,
+                MIN(source_row)::bigint AS min_source_row,
+                MAX(source_row)::bigint AS max_source_row
+            FROM cg_core.ruta_rutero_load_rows
+            WHERE ruta_batch_id IN (SELECT ruta_batch_id FROM latest)
+            GROUP BY 1
+            HAVING COUNT(*) > 1
+        )
+        SELECT grain_hash, duplicate_rows, min_source_row, max_source_row
+        FROM grain_counts
+        ORDER BY duplicate_rows DESC, grain_hash
+        LIMIT 10
+        """,
+        (ROUTE_PREFLIGHT_SOURCE_FILE, ROUTE_PREFLIGHT_SOURCE_SHEET),
+    )
+    payload["latest_batch_grain_duplicate_examples"] = fetch_all_dicts(cur)
+
+    execute_static(
+        cur,
+        "route_history_latest_row_hash_dupes",
+        """
+        WITH latest AS (
+            SELECT ruta_batch_id
+            FROM cg_core.ruta_rutero_load_batch
+            WHERE source_file = %s
+              AND source_sheet = %s
+            ORDER BY loaded_at DESC NULLS LAST, ruta_batch_id DESC
+            LIMIT 1
+        ),
+        row_hash_counts AS (
+            SELECT
+                row_hash,
+                COUNT(*)::bigint AS duplicate_rows,
+                MIN(source_row)::bigint AS min_source_row,
+                MAX(source_row)::bigint AS max_source_row
+            FROM cg_core.ruta_rutero_load_rows
+            WHERE ruta_batch_id IN (SELECT ruta_batch_id FROM latest)
+              AND NULLIF(row_hash, '') IS NOT NULL
+            GROUP BY row_hash
+            HAVING COUNT(*) > 1
+        )
+        SELECT row_hash, duplicate_rows, min_source_row, max_source_row
+        FROM row_hash_counts
+        ORDER BY duplicate_rows DESC, row_hash
+        LIMIT 10
+        """,
+        (ROUTE_PREFLIGHT_SOURCE_FILE, ROUTE_PREFLIGHT_SOURCE_SHEET),
+    )
+    payload["latest_batch_row_hash_duplicate_examples"] = fetch_all_dicts(cur)
+    return payload
+
+
+def route_week_relation_profile(cur: Any, qualified_name: str) -> dict[str, Any]:
+    payload: dict[str, Any] = {"relation": qualified_name, "exists": relation_exists(cur, qualified_name)}
+    if not payload["exists"]:
+        return payload
+
+    columns = get_columns(cur, qualified_name)
+    payload["columns"] = columns
+    week_column = first_existing_column(columns, ROUTE_WEEK_COLUMN_CANDIDATES)
+    batch_column = first_existing_column(columns, ROUTE_BATCH_COLUMN_CANDIDATES)
+    cod_column = first_existing_column(columns, ROUTE_COD_COLUMN_CANDIDATES)
+    cliente_column = first_existing_column(columns, ROUTE_CLIENTE_COLUMN_CANDIDATES)
+    payload["detected_columns"] = {
+        "week": week_column["column_name"] if week_column else None,
+        "batch": batch_column["column_name"] if batch_column else None,
+        "cod": cod_column["column_name"] if cod_column else None,
+        "cliente": cliente_column["column_name"] if cliente_column else None,
+    }
+
+    quoted = quote_qualified(qualified_name)
+    execute_static(cur, "route_week_relation_count", f"SELECT COUNT(*)::bigint AS rows FROM {quoted}")
+    payload["row_count"] = fetch_all_dicts(cur)[0]["rows"]
+    if not week_column:
+        return payload
+
+    week_col = quote_ident(str(week_column["column_name"]))
+    batch_expr = (
+        f"COUNT(DISTINCT {quote_ident(str(batch_column['column_name']))})::bigint"
+        if batch_column
+        else "NULL::bigint"
+    )
+    grain_expr = "NULL::bigint"
+    if cod_column and cliente_column:
+        cod_col = quote_ident(str(cod_column["column_name"]))
+        cliente_col = quote_ident(str(cliente_column["column_name"]))
+        grain_expr = f"""
+            (
+                COUNT(*) - COUNT(DISTINCT (
+                    COALESCE(NULLIF(BTRIM({cod_col}::text), ''), '<NULL>')
+                    || CHR(31) ||
+                    COALESCE(NULLIF(UPPER(BTRIM({cliente_col}::text)), ''), '<NULL>')
+                ))
+            )::bigint
+        """
+
+    execute_static(
+        cur,
+        "route_week_relation_recent_weeks",
+        f"""
+        SELECT
+            {week_col}::text AS week_value,
+            COUNT(*)::bigint AS rows,
+            {batch_expr} AS distinct_route_batches,
+            {grain_expr} AS grain_duplicate_excess_cod_rt_cliente
+        FROM {quoted}
+        GROUP BY {week_col}::text
+        ORDER BY week_value DESC
+        LIMIT 16
+        """,
+    )
+    payload["recent_weeks"] = fetch_all_dicts(cur)
+
+    execute_static(
+        cur,
+        "route_week_relation_target_week",
+        f"""
+        SELECT
+            {week_col}::text AS week_value,
+            COUNT(*)::bigint AS rows,
+            {batch_expr} AS distinct_route_batches,
+            {grain_expr} AS grain_duplicate_excess_cod_rt_cliente
+        FROM {quoted}
+        WHERE {week_col}::text = %s
+        GROUP BY {week_col}::text
+        """,
+        (ROUTE_PREFLIGHT_WEEK_START,),
+    )
+    payload["target_week"] = fetch_all_dicts(cur)
+    return payload
+
+
+def route_preflight(conn: Any) -> dict[str, Any]:
+    with conn.cursor() as cur:
+        payload = {
+            "scope": {
+                "source_file": ROUTE_PREFLIGHT_SOURCE_FILE,
+                "source_sheet": ROUTE_PREFLIGHT_SOURCE_SHEET,
+                "source": ROUTE_PREFLIGHT_SOURCE,
+                "target_week_start": ROUTE_PREFLIGHT_WEEK_START,
+                "row_level_payloads_included": False,
+                "privacy_safe_hashed_row_signatures_included": True,
+                "free_sql_allowed": False,
+                "arbitrary_tables_allowed": False,
+            },
+            "public_current_surface": route_public_current_surface(cur),
+            "history": route_history_profile(cur),
+            "week_relations": [route_week_relation_profile(cur, relation) for relation in ROUTE_WEEK_RELATIONS],
+        }
+    return payload
+
+
 def run_command(command: str, out_root: Path | None, sample_limit: int | None, max_buckets: int | None) -> dict[str, Any]:
     conn, source = connect_readonly()
     try:
@@ -984,6 +1432,8 @@ def run_command(command: str, out_root: Path | None, sample_limit: int | None, m
             result["baseline_audit"] = baseline_audit(conn, out_root, sample_limit, max_buckets)
         elif command == "c001-profile":
             result["c001_profile"] = c001_profile(conn)
+        elif command == "route-preflight":
+            result["route_preflight"] = route_preflight(conn)
         elif command == "all":
             if out_root is None:
                 raise ExtractorBlock("OUTPUT_ROOT_REQUIRED")
@@ -1025,7 +1475,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        out_root = None if args.command == "c001-profile" else ensure_output_root(args.output_root)
+        out_root = None if args.command in ("c001-profile", "route-preflight") else ensure_output_root(args.output_root)
         result = run_command(args.command, out_root, args.sample_limit, args.max_buckets)
         print(json.dumps(result, ensure_ascii=False, indent=2, default=json_default))
         return 0

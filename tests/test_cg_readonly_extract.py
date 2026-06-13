@@ -168,6 +168,7 @@ class CgReadonlyExtractTests(unittest.TestCase):
                 "baseline-weekly",
                 "baseline-audit",
                 "c001-profile",
+                "route-preflight",
                 "all",
             },
         )
@@ -180,6 +181,15 @@ class CgReadonlyExtractTests(unittest.TestCase):
         ):
             self.assertEqual(ext.main(["--output-root", "outside_evidence", "c001-profile"]), 0)
         run_command.assert_called_once_with("c001-profile", None, None, None)
+
+    def test_route_preflight_does_not_require_output_root(self) -> None:
+        with (
+            mock.patch.object(ext, "ensure_output_root", side_effect=AssertionError("output root should not be used")),
+            mock.patch.object(ext, "run_command", return_value={"verdict": "OK"}) as run_command,
+            mock.patch("sys.stdout"),
+        ):
+            self.assertEqual(ext.main(["--output-root", "outside_evidence", "route-preflight"]), 0)
+        run_command.assert_called_once_with("route-preflight", None, None, None)
 
 
 if __name__ == "__main__":
