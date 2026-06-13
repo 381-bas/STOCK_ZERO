@@ -1,318 +1,333 @@
 {
-  "document_id": "AI_PROJECT_HORIZON_STOCK_ZERO",
-  "schema_version": 1,
-  "status": "ACTIVE_DIRECTION",
-  "promoted_by_phase": "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
-  "promoted_at": "2026-06-11",
-  "runtime_code_baseline": "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
-  "source_proposal_commit": "7fa6b13ba15333f1e82e5d26301c3b3285b7f8b7",
-  "source_files": [
-    "research/AI_PROJECT_HORIZON_PROPOSAL.json",
-    "research/AI_CAPABILITY_MAP_PROPOSAL.json",
-    "research/reports/CLAUDE_C003_PRODUCT_EVOLUTION_REV2.md",
-    "research/AI_SHARED_MEMORY.json",
-    "research/AI_BACKLOG.json",
-    "research/C001_CODEX_VALIDATION_MATRIX.json",
-    "research/C002_IMPLEMENTATION_PORTFOLIO.json",
-    "research/C002_B0_PARITY_ROOTCAUSE.json",
-    "runtime code, loaders, tests, and kernels reviewed read-only"
-  ],
-  "authority": {
-    "implementation_authorized": false,
-    "db_access": "none",
-    "docker_access": false,
-    "loaders_authorized": false,
-    "runtime_changes_authorized": false,
-    "sql_changes_authorized": false,
-    "repo_strategy": "same_repo_incremental_only",
-    "no_big_bang": true,
-    "no_second_repository_authorized": true
-  },
-  "stable_parameters": [
-    "start_date",
-    "end_date",
-    "raw_batch_identifiers_by_source",
-    "route_snapshot",
-    "source_precedence_version",
-    "build_version",
-    "expected_parity"
-  ],
-  "corrections_applied": [
-    {
-      "id": "C003-HORIZON-CORR-001",
-      "statement": "The DB catalog may advance in parallel with H0 when explicitly authorized and read-only; only retention, deletion, and cleanup remain blocked by open G0."
-    },
-    {
-      "id": "C003-HORIZON-CORR-002",
-      "statement": "Bastian decides semantic route validity and route policy; Codex resolves the technical snapshot lineage that produced each materialization."
-    },
-    {
-      "id": "C003-HORIZON-CORR-003",
-      "statement": "payload_json is REQUIRED_CURRENT_SURFACE and may be replaced only after equivalent parity and consumer migration, not treated as canonical forever."
-    },
-    {
-      "id": "C003-HORIZON-CORR-004",
-      "statement": "Specific dates, row counts, and batch numbers are evidence snapshots, not durable horizon rules."
-    },
-    {
-      "id": "C003-HORIZON-CORR-005",
-      "statement": "STOCK_ZERO becomes LEGACY_STABLE gradually; it is not obsolete and remains the working app while capabilities are validated."
-    }
-  ],
-  "evidence_snapshots": [
-    {
-      "id": "C002-B0-DAILY-WINDOW",
-      "type": "validated_evidence_not_contract_rule",
-      "details": {
-        "observed_productive_start_date": "2026-05-11",
-        "observed_extra_date_window": "2026-04-27..2026-05-10",
-        "observed_extra_keys_removed_by_window_filter": 13470,
-        "observed_missing_keys_remaining": 1,
-        "observed_value_differences_remaining": 56
-      },
-      "source": "research/C002_B0_PARITY_ROOTCAUSE.json"
-    },
-    {
-      "id": "C002-B0-ROUTE-SNAPSHOT",
-      "type": "validated_evidence_not_contract_rule",
-      "details": {
-        "observed_week": "2026-06-01",
-        "baseline_appeared_closer_to_batches": [
-          "16",
-          "17"
-        ],
-        "local_lab_used_batch": "18",
-        "decision_owner": "Bastian for semantic policy; Codex for technical lineage"
-      },
-      "source": "research/C002_B0_PARITY_ROOTCAUSE.json"
-    },
-    {
-      "id": "C002-B0-WEEKLY-PERF",
-      "type": "validated_evidence_not_contract_rule",
-      "details": {
-        "observed_timeout_seconds": 900,
-        "cause_class": "weekly recomputation from raw/event scope instead of staged daily surface"
-      },
-      "source": "research/C002_B0_PARITY_ROOTCAUSE.json"
-    }
-  ],
-  "direction_change_conditions": [
-    "A horizon may change only after a new validated finding is promoted into AI_SHARED_MEMORY or AI_BACKLOG with evidence and baseline commit.",
-    "Any proposal to delete, retain, or archive Supabase raw data requires G0 closed, an authoritative DB catalog, and explicit Bastian approval.",
-    "Any proposal to create a new repository, run a big-bang rewrite, or obsolete STOCK_ZERO requires a separate Bastian decision phase.",
-    "Any payload_json replacement requires proven equivalent consumers and parity; removal by assumption is rejected.",
-    "Any route-snapshot rule must separate semantic policy chosen by Bastian from technical lineage reconstructed by Codex."
-  ],
-  "bastian_decision_points": [
-    {
-      "id": "BDP-ROUTE-POLICY",
-      "question": "Which route snapshot policy is semantically authoritative for weeks where materialization and latest route diverge?",
-      "blocks": [
-        "H0 route parity closure",
-        "H1 contract finalization"
-      ]
-    },
-    {
-      "id": "BDP-LOCAL-PG-DESTRUCTION",
-      "question": "When is the local PostgreSQL laboratory safely destroyable and rebuildable from git plus evidence manifests?",
-      "blocks": [
-        "Docker/local_pg cleanup only"
-      ]
-    },
-    {
-      "id": "BDP-DOMAIN-SEAM",
-      "question": "Approve scope and timing for separating Inventory and Control Gestion at capability-interface level inside the same repo.",
-      "blocks": [
-        "H2 implementation work"
-      ]
-    },
-    {
-      "id": "BDP-PRODUCTIZATION",
-      "question": "Whether generic temporal-contract capabilities should become product surfaces after evidence-backed decision pack.",
-      "blocks": [
-        "H5 productization experiments"
-      ]
-    }
-  ],
-  "horizons": [
-    {
-      "id": "H0",
-      "name": "Parity Closure and Temporal Contract Foundation",
-      "status": "ACTIVE",
-      "objective": "Close Control Gestion parity and capture the temporal declarations required for deterministic reconstruction.",
-      "target_direction": [
-        "KEEP_LEGACY_APP",
-        "KEEP_LAB"
-      ],
-      "allowed_work": [
-        "Read-only validation and local-lab parity diagnosis when explicitly authorized.",
-        "Define affected date window, source batch set, route snapshot, precedence version, build version, and staged daily contract as parameters.",
-        "Investigate DB catalog and consumers in parallel when the phase is explicitly read-only and no retention or cleanup is attempted.",
-        "Document route snapshot lineage and unresolved parity gaps."
-      ],
-      "forbidden_work": [
-        "Supabase cleanup, raw retention, raw deletion, archive execution, or payload_json removal.",
-        "Runtime refactor, capability extraction, new repository, or big-bang rewrite.",
-        "Treating latest raw or latest route as an implicit reconstruction contract."
-      ],
-      "gates": [
-        "Daily parity exact for the declared window under expected_parity.",
-        "Weekly parity reproduced from staged daily and route surfaces.",
-        "Route policy decision recorded separately from technical batch lineage.",
-        "All temporal declarations recorded as versioned reconstruction parameters."
-      ],
-      "evidence": [
-        "C002_B0_PARITY_ROOTCAUSE.json",
-        "C002_IMPLEMENTATION_PORTFOLIO.json"
-      ],
-      "no_fixed_dates_in_contract": true
-    },
-    {
-      "id": "H1",
-      "name": "Contract Registry and DB Catalog",
-      "status": "NEXT_DIRECTION",
-      "objective": "Make temporal contracts and DB object dependencies explicit without authorizing retention or deletion.",
-      "target_direction": [
-        "KEEP_INTERNAL_TOOLING",
-        "EXTRACT_SHARED_SERVICE"
-      ],
-      "allowed_work": [
-        "Version contract declarations as data/config under git.",
-        "Build authoritative DB object and consumer catalog under explicit read-only authorization.",
-        "Classify raw as necessary, reconstructable, or historical only after parity evidence exists."
-      ],
-      "forbidden_work": [
-        "Deleting, archiving, compacting, or retaining raw data by action before G0 is closed and Bastian approves.",
-        "Assuming payload_json has zero consumers.",
-        "Changing loaders or SQL without a separate implementation phase."
-      ],
-      "gates": [
-        "Contract registry names all stable parameters and evidence snapshots.",
-        "DB catalog includes payload_json, row_hash, route history, and mart consumers at sufficient granularity.",
-        "Retention remains design-only until G0 and catalog gates close."
-      ],
-      "evidence": [
-        "C001_CODEX_VALIDATION_MATRIX.json",
-        "AI_BACKLOG DB-001/DB-002"
-      ]
-    },
-    {
-      "id": "H2",
-      "name": "Domain Seam: Inventory and Control Gestion",
-      "status": "FUTURE_DIRECTION",
-      "objective": "Describe Inventory and Control Gestion as independent capabilities behind stable interfaces inside STOCK_ZERO.",
-      "target_direction": [
-        "EXTRACT_DOMAIN",
-        "EXTRACT_SHARED_SERVICE"
-      ],
-      "allowed_work": [
-        "Design read-only capability interfaces after contracts and catalog are reliable.",
-        "Separate shared Route Master from Control Gestion-only semantics.",
-        "Confirm static-only functions with runtime smoke before any cleanup proposal."
-      ],
-      "forbidden_work": [
-        "Moving app/db.py responsibilities without explicit implementation approval.",
-        "Duplicating shared route data into separate ungoverned domains.",
-        "Removing legacy Streamlit consumers before replacement parity exists."
-      ],
-      "gates": [
-        "Inventory and Control Gestion interfaces are independently describable and testable.",
-        "Shared Route Master ownership and route policy are documented.",
-        "Runtime smoke confirms candidate dead code before any cleanup."
-      ],
-      "evidence": [
-        "app/services/stock.py",
-        "app/screens/reposicion.py",
-        "app/screens/control_gestion.py",
-        "app/db.py"
-      ]
-    },
-    {
-      "id": "H3",
-      "name": "Adapter and Persistence Boundaries",
-      "status": "FUTURE_DIRECTION",
-      "objective": "Formalize source adapters and persistence adapters after domain interfaces and temporal contracts are stable.",
-      "target_direction": [
-        "EXTRACT_ADAPTER"
-      ],
-      "allowed_work": [
-        "Define source adapter contracts for Control Gestion sources.",
-        "Define persistence adapter contracts for mart staging and materialization.",
-        "Keep current loaders as legacy execution paths until explicitly replaced."
-      ],
-      "forbidden_work": [
-        "Rewriting loaders or SQL from the map alone.",
-        "Treating KPIONE2-specific fields as generic product contract without configuration.",
-        "Removing payload_json before equivalent surface and parity are proven."
-      ],
-      "gates": [
-        "A new source can be described as adapter input without changing the domain reconstruction contract.",
-        "Persistence contract declares build_version and expected parity.",
-        "Legacy loader remains guarded unless a specific phase authorizes change."
-      ],
-      "evidence": [
-        "scripts/load_control_gestion_raw_v17.py",
-        "scripts/refresh_control_gestion_v2_incremental.py"
-      ]
-    },
-    {
-      "id": "H4",
-      "name": "Headless Capability and Observability Layer",
-      "status": "FUTURE_DIRECTION",
-      "objective": "Expose validated read capabilities without mandatory Streamlit dependency and make runtime fallback visible.",
-      "target_direction": [
-        "EXTRACT_DOMAIN",
-        "FUTURE_CAPABILITY"
-      ],
-      "allowed_work": [
-        "Design a headless read interface for one validated capability.",
-        "Design runtime observability for V2/B3 mode and fallback paths.",
-        "Keep Streamlit as a stable consumer while headless interfaces are proven."
-      ],
-      "forbidden_work": [
-        "Replacing the UI or changing user workflows from this contract alone.",
-        "Silently changing fallback behavior.",
-        "Claiming product readiness before runtime and parity evidence exist."
-      ],
-      "gates": [
-        "At least one capability can be described without importing Streamlit.",
-        "B3 fallback activation is observable in design and tests.",
-        "Legacy app remains behaviorally stable."
-      ],
-      "evidence": [
-        "app/Home.py",
-        "app/screens/control_gestion.py",
-        "app/exports.py"
-      ]
-    },
-    {
-      "id": "H5",
-      "name": "Product Decision Tower and Legacy Stable Transition",
-      "status": "FUTURE_DECISION",
-      "objective": "Prepare an evidence-backed Bastian decision pack for generic reusable capabilities while STOCK_ZERO remains legacy stable.",
-      "target_direction": [
-        "KEEP_LEGACY_APP",
-        "FUTURE_CAPABILITY"
-      ],
-      "allowed_work": [
-        "Define future KPI, alert, and decision/action tracking capabilities as proposals only.",
-        "Separate generic temporal-contract engine from Retail Trust-specific configuration and UI.",
-        "Plan gradual legacy-stable transition with rollback points."
-      ],
-      "forbidden_work": [
-        "Opening a second repository without a separate decision phase.",
-        "Big-bang rewrite or obsoleting STOCK_ZERO.",
-        "Implementing product capabilities from a research map alone."
-      ],
-      "gates": [
-        "Bastian receives decision pack with options, risks, and evidence.",
-        "Any product experiment has explicit scope, approval, and rollback.",
-        "No capability is APPROVED or IMPLEMENTED by this horizon file."
-      ],
-      "evidence": [
-        "AI_CAPABILITY_MAP.json",
-        "AI_BACKLOG.json"
-      ]
-    }
-  ]
+    "document_id":  "AI_PROJECT_HORIZON_STOCK_ZERO",
+    "schema_version":  1,
+    "status":  "ACTIVE_DIRECTION",
+    "promoted_by_phase":  "FASE_AI_C003_CODEX_VALIDATE_AND_PROMOTE_PROJECT_HORIZON",
+    "promoted_at":  "2026-06-11",
+    "runtime_code_baseline":  "2c135a7be1d813a2c914f43b26b0579504a7f8a5",
+    "source_proposal_commit":  "7fa6b13ba15333f1e82e5d26301c3b3285b7f8b7",
+    "source_files":  [
+                         "research/AI_PROJECT_HORIZON_PROPOSAL.json",
+                         "research/AI_CAPABILITY_MAP_PROPOSAL.json",
+                         "research/reports/CLAUDE_C003_PRODUCT_EVOLUTION_REV2.md",
+                         "research/AI_SHARED_MEMORY.json",
+                         "research/AI_BACKLOG.json",
+                         "research/C001_CODEX_VALIDATION_MATRIX.json",
+                         "research/C002_IMPLEMENTATION_PORTFOLIO.json",
+                         "research/C002_B0_PARITY_ROOTCAUSE.json",
+                         "runtime code, loaders, tests, and kernels reviewed read-only"
+                     ],
+    "authority":  {
+                      "implementation_authorized":  false,
+                      "db_access":  "none",
+                      "docker_access":  false,
+                      "loaders_authorized":  false,
+                      "runtime_changes_authorized":  false,
+                      "sql_changes_authorized":  false,
+                      "repo_strategy":  "same_repo_incremental_only",
+                      "no_big_bang":  true,
+                      "no_second_repository_authorized":  true
+                  },
+    "stable_parameters":  [
+                              "start_date",
+                              "end_date",
+                              "raw_batch_identifiers_by_source",
+                              "route_snapshot",
+                              "source_precedence_version",
+                              "build_version",
+                              "expected_parity"
+                          ],
+    "corrections_applied":  [
+                                {
+                                    "id":  "C003-HORIZON-CORR-001",
+                                    "statement":  "The DB catalog may advance in parallel with H0 when explicitly authorized and read-only; only retention, deletion, and cleanup remain blocked by open G0."
+                                },
+                                {
+                                    "id":  "C003-HORIZON-CORR-002",
+                                    "statement":  "Bastian decides semantic route validity and route policy; Codex resolves the technical snapshot lineage that produced each materialization."
+                                },
+                                {
+                                    "id":  "C003-HORIZON-CORR-003",
+                                    "statement":  "payload_json is REQUIRED_CURRENT_SURFACE and may be replaced only after equivalent parity and consumer migration, not treated as canonical forever."
+                                },
+                                {
+                                    "id":  "C003-HORIZON-CORR-004",
+                                    "statement":  "Specific dates, row counts, and batch numbers are evidence snapshots, not durable horizon rules."
+                                },
+                                {
+                                    "id":  "C003-HORIZON-CORR-005",
+                                    "statement":  "STOCK_ZERO becomes LEGACY_STABLE gradually; it is not obsolete and remains the working app while capabilities are validated."
+                                }
+                            ],
+    "evidence_snapshots":  [
+                               {
+                                   "id":  "C002-B0-DAILY-WINDOW",
+                                   "type":  "validated_evidence_not_contract_rule",
+                                   "details":  {
+                                                   "observed_productive_start_date":  "2026-05-11",
+                                                   "observed_extra_date_window":  "2026-04-27..2026-05-10",
+                                                   "observed_extra_keys_removed_by_window_filter":  13470,
+                                                   "observed_missing_keys_remaining":  1,
+                                                   "observed_value_differences_remaining":  56
+                                               },
+                                   "source":  "research/C002_B0_PARITY_ROOTCAUSE.json"
+                               },
+                               {
+                                   "id":  "C002-B0-ROUTE-SNAPSHOT",
+                                   "type":  "validated_evidence_not_contract_rule",
+                                   "details":  {
+                                                   "observed_week":  "2026-06-01",
+                                                   "baseline_appeared_closer_to_batches":  [
+                                                                                               "16",
+                                                                                               "17"
+                                                                                           ],
+                                                   "local_lab_used_batch":  "18",
+                                                   "decision_owner":  "Bastian for semantic policy; Codex for technical lineage"
+                                               },
+                                   "source":  "research/C002_B0_PARITY_ROOTCAUSE.json"
+                               },
+                               {
+                                   "id":  "C002-B0-WEEKLY-PERF",
+                                   "type":  "validated_evidence_not_contract_rule",
+                                   "details":  {
+                                                   "observed_timeout_seconds":  900,
+                                                   "cause_class":  "weekly recomputation from raw/event scope instead of staged daily surface"
+                                               },
+                                   "source":  "research/C002_B0_PARITY_ROOTCAUSE.json"
+                               }
+                           ],
+    "direction_change_conditions":  [
+                                        "A horizon may change only after a new validated finding is promoted into AI_SHARED_MEMORY or AI_BACKLOG with evidence and baseline commit.",
+                                        "Any proposal to delete, retain, or archive Supabase raw data requires G0 closed, an authoritative DB catalog, and explicit Bastian approval.",
+                                        "Any proposal to create a new repository, run a big-bang rewrite, or obsolete STOCK_ZERO requires a separate Bastian decision phase.",
+                                        "Any payload_json replacement requires proven equivalent consumers and parity; removal by assumption is rejected.",
+                                        "Any route-snapshot rule must separate semantic policy chosen by Bastian from technical lineage reconstructed by Codex."
+                                    ],
+    "bastian_decision_points":  [
+                                    {
+                                        "id":  "BDP-ROUTE-POLICY",
+                                        "question":  "Which route snapshot policy is semantically authoritative for weeks where materialization and latest route diverge?",
+                                        "blocks":  [
+                                                       "H0 route parity closure",
+                                                       "H1 contract finalization"
+                                                   ]
+                                    },
+                                    {
+                                        "id":  "BDP-LOCAL-PG-DESTRUCTION",
+                                        "question":  "When is the local PostgreSQL laboratory safely destroyable and rebuildable from git plus evidence manifests?",
+                                        "blocks":  [
+                                                       "Docker/local_pg cleanup only"
+                                                   ]
+                                    },
+                                    {
+                                        "id":  "BDP-DOMAIN-SEAM",
+                                        "question":  "Approve scope and timing for separating Inventory and Control Gestion at capability-interface level inside the same repo.",
+                                        "blocks":  [
+                                                       "H2 implementation work"
+                                                   ]
+                                    },
+                                    {
+                                        "id":  "BDP-PRODUCTIZATION",
+                                        "question":  "Whether generic temporal-contract capabilities should become product surfaces after evidence-backed decision pack.",
+                                        "blocks":  [
+                                                       "H5 productization experiments"
+                                                   ]
+                                    }
+                                ],
+    "horizons":  [
+                     {
+                         "id":  "H0",
+                         "name":  "Historical Parity Forensics and Canonical Foundation",
+                         "status":  "CLOSED",
+                         "objective":  "Close historical Control Gestion parity forensics and establish the reproducible forward canonical builder as the next operating baseline.",
+                         "result":  {
+                                        "legacy_forensics":  "closed with documented non-reproducibility",
+                                        "canonical_builder":  "reproducible locally",
+                                        "packaged_builder":  "shadow-ready",
+                                        "production_writes_authorized":  false
+                                    },
+                         "target_direction":  [
+                                                  "KEEP_LEGACY_APP",
+                                                  "KEEP_LAB"
+                                              ],
+                         "allowed_work":  [
+                                              "Use C006/C007 evidence as historical context for future explicitly authorized shadow validation.",
+                                              "Preserve legacy facts as historical facts and diagnostics."
+                                          ],
+                         "forbidden_work":  [
+                                                "No Supabase writes, production apply, cleanup, retention, raw deletion, archive execution, or payload_json removal is authorized by this closure.",
+                                                "Do not mark the canonical builder production-ready from local reproducibility alone.",
+                                                "Do not rewrite, delete, or retire legacy facts from this horizon closure."
+                                            ],
+                         "gates":  [
+                                       "Closed by documented legacy non-reproducibility, local canonical reproducibility, packaged builder shadow readiness, and no production writes authorized."
+                                   ],
+                         "evidence":  [
+                                          "research/C006_CANONICAL_FORWARD_BUILD.json",
+                                          "research/C007_CANONICAL_BUILDER_VALIDATION.json",
+                                          "research/reports/CODEX_C006_CANONICAL_FORWARD_BUILD.md",
+                                          "research/reports/CODEX_C007_CANONICAL_BUILDER_VALIDATION.md",
+                                          "research/AI_SHARED_MEMORY.json c006_c007_canonical_builder",
+                                          "research/AI_BACKLOG.json CG-002/CG-003/CG-004/CG-005/CG-006/CG-007/DB-002"
+                                      ],
+                         "no_fixed_dates_in_contract":  true
+                     },
+                     {
+                         "id":  "H1",
+                         "name":  "Real Week Dual-Run Shadow",
+                         "status":  "ACTIVE",
+                         "objective":  "Ejecutar el builder canonico sobre una semana real futura y comparar contra el flujo legacy sin escribir en Supabase.",
+                         "gate":  "CG-005",
+                         "required_inputs":  [
+                                                 "real KPIONE2 source",
+                                                 "authoritative RUTA_RUTERO",
+                                                 "effective week",
+                                                 "source hashes",
+                                                 "legacy output"
+                                             ],
+                         "success":  [
+                                         "key parity explained",
+                                         "alert parity",
+                                         "pending parity",
+                                         "route/person differences consistent with weekly policy",
+                                         "no unexpected business metric differences",
+                                         "reproducible build context"
+                                     ],
+                         "target_direction":  [
+                                                  "KEEP_LEGACY_APP",
+                                                  "KEEP_INTERNAL_TOOLING",
+                                                  "KEEP_LAB"
+                                              ],
+                         "allowed_work":  [
+                                              "Run or evaluate a future explicitly authorized dual-run shadow using declared real-week inputs.",
+                                              "Compare canonical outputs against legacy outputs without Supabase writes.",
+                                              "Record reproducible build context, source hashes, route snapshot, source precedence, and semantic parity evidence."
+                                          ],
+                         "forbidden_work":  [
+                                                "No Supabase writes, production apply, cleanup, retention, raw deletion, archive execution, or payload_json removal.",
+                                                "No loader, refresh, SQL, runtime, kernel, or evidence mutation without a separate explicit phase.",
+                                                "No production-ready claim from H1 alone."
+                                            ],
+                         "gates":  [
+                                       "CG-005 remains READY and is the active operational gate.",
+                                       "Dual-run shadow uses real KPIONE2 source, authoritative RUTA_RUTERO, effective week, source hashes, and legacy output.",
+                                       "Outputs satisfy explained key parity, alert parity, pending parity, expected route/person differences, no unexpected business metric differences, and reproducible build context."
+                                   ],
+                         "evidence":  [
+                                          "research/AI_BACKLOG.json CG-005",
+                                          "research/AI_SHARED_MEMORY.json c006_c007_canonical_builder",
+                                          "research/C007_CANONICAL_BUILDER_VALIDATION.json"
+                                      ],
+                         "implementation_authorized":  false,
+                         "supabase_writes_authorized":  false,
+                         "production_apply_authorized":  false,
+                         "cleanup_authorized":  false,
+                         "retention_authorized":  false
+                     },
+                     {
+                         "id":  "H2",
+                         "name":  "Build Registry and Forward Apply Design",
+                         "status":  "PENDING",
+                         "dependency":  "H1",
+                         "objective":  "Design the build registry and forward-apply contract only after real-week shadow evidence exists.",
+                         "gate":  "CG-006",
+                         "target_direction":  [
+                                                  "KEEP_INTERNAL_TOOLING",
+                                                  "EXTRACT_ADAPTER"
+                                              ],
+                         "allowed_work":  [
+                                              "Design-only registry and forward-apply contract after H1 evidence."
+                                          ],
+                         "forbidden_work":  [
+                                                "No forward apply, Supabase write, production mutation, cleanup, or retention from H2 design alone."
+                                            ],
+                         "evidence":  [
+                                          "research/AI_BACKLOG.json CG-006"
+                                      ],
+                         "implementation_authorized":  false,
+                         "supabase_writes_authorized":  false,
+                         "production_apply_authorized":  false
+                     },
+                     {
+                         "id":  "H3",
+                         "name":  "Production Canary",
+                         "status":  "BLOCKED",
+                         "dependency":  "H1 + H2 + explicit Bastian authorization",
+                         "objective":  "Prepare a tightly scoped production canary only after successful shadow, registry/apply design, rollback plan, and explicit Bastian authorization.",
+                         "gate":  "CG-007",
+                         "target_direction":  [
+                                                  "KEEP_LEGACY_APP",
+                                                  "KEEP_INTERNAL_TOOLING"
+                                              ],
+                         "allowed_work":  [
+                                              "Canary planning only after dependencies are satisfied and explicit authorization exists."
+                                          ],
+                         "forbidden_work":  [
+                                                "No production canary, production apply, Supabase write, cleanup, or retention is authorized while H3 is BLOCKED."
+                                            ],
+                         "evidence":  [
+                                          "research/AI_BACKLOG.json CG-007"
+                                      ],
+                         "implementation_authorized":  false,
+                         "supabase_writes_authorized":  false,
+                         "production_apply_authorized":  false
+                     },
+                     {
+                         "id":  "H4",
+                         "name":  "Supabase Retention and Cleanup",
+                         "status":  "BLOCKED",
+                         "dependency":  "successful canary + rollback + catalog decision",
+                         "objective":  "Evaluate Supabase retention and cleanup only after a successful canary, rollback proof, authoritative catalog, and explicit Bastian decision.",
+                         "gate":  "DB-002",
+                         "target_direction":  [
+                                                  "KEEP_INTERNAL_TOOLING"
+                                              ],
+                         "allowed_work":  [
+                                              "Read-only catalog/design work only when a separate phase explicitly authorizes it."
+                                          ],
+                         "forbidden_work":  [
+                                                "No Supabase cleanup, raw retention, raw deletion, archive execution, payload_json removal, or legacy fact retirement.",
+                                                "No assumption that payload_json has zero consumers."
+                                            ],
+                         "evidence":  [
+                                          "research/AI_BACKLOG.json DB-002"
+                                      ],
+                         "implementation_authorized":  false,
+                         "supabase_writes_authorized":  false,
+                         "cleanup_authorized":  false,
+                         "retention_authorized":  false,
+                         "payload_json_removal_authorized":  false
+                     },
+                     {
+                         "id":  "H5",
+                         "name":  "Decision Tower Product Evolution",
+                         "status":  "FUTURE",
+                         "objective":  "Prepare future product evolution only after shadow, canary, and governance gates prove the Control Gestion core.",
+                         "scope":  [
+                                       "control gestion as core",
+                                       "inventory as contextual snapshot",
+                                       "alerts",
+                                       "action tracking",
+                                       "workforce direction"
+                                   ],
+                         "target_direction":  [
+                                                  "KEEP_LEGACY_APP",
+                                                  "FUTURE_CAPABILITY"
+                                              ],
+                         "allowed_work":  [
+                                              "Decision-pack and product-design proposals only; no runtime implementation from this horizon file."
+                                          ],
+                         "forbidden_work":  [
+                                                "No new repository without a separate Bastian decision.",
+                                                "No big-bang rewrite or obsoleting STOCK_ZERO.",
+                                                "No production capability implementation from research direction alone."
+                                            ],
+                         "evidence":  [
+                                          "research/AI_CAPABILITY_MAP.json",
+                                          "research/AI_BACKLOG.json PRODUCT-001"
+                                      ],
+                         "implementation_authorized":  false,
+                         "no_second_repository_authorized":  true
+                     }
+                 ]
 }
