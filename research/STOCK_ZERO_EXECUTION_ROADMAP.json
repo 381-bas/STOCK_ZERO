@@ -1,0 +1,583 @@
+{
+  "plan_id": "STOCK_ZERO_EXECUTION_ROADMAP_V1",
+  "schema_version": 1,
+  "status": "ACTIVE",
+  "created_at": "2026-06-13",
+  "authority": [
+    "Bastian",
+    "ChatGPT"
+  ],
+  "planning_baseline": {
+    "main_commit": "b2e68695a8bc2daf75930cf502c86c7dd87c2b52",
+    "platform_branch": "codex/PLATFORM_005B-load-observation-correction",
+    "platform_branch_head": "6a965ec4b5b02d6de9d839f475a63697ac226f15",
+    "active_horizon": "H1_REAL_WEEK_DUAL_RUN_SHADOW",
+    "route_closure": "CG005F_CLOSED_WITH_TWO_REQUIRED_CORRECTIONS"
+  },
+  "mission": "Finish the reliability path for RUTA_RUTERO and Control Gestion, prove the engineering system in real work, perform a controlled Supabase transition, and unlock the next product-development phase without adding unnecessary platform complexity.",
+  "operating_principles": [
+    "Be effective, simple, methodological and evidence-driven.",
+    "Maintain at most two active lanes: one operational lane and one platform or product lane.",
+    "Use the largest coherent scope that remains auditable, reversible and isolated.",
+    "A backlog item is not authorization.",
+    "No production write, DDL, cleanup or retention action occurs without an explicit phase and rollback contract.",
+    "Do not create additional skills, hooks, MCP servers, subagents or governance layers until the existing tooling is used in real work and its benefit is measured.",
+    "Close findings and update shared state in the same execution cycle when materially necessary; avoid separate memory-only phases unless evidence changes authority or gates.",
+    "After one implementation and one independent validation, proceed if there are no BLOCKER or HIGH findings. Do not create review chains for documentary LOW findings.",
+    "The objective is product readiness, not permanent platform construction."
+  ],
+  "current_state": {
+    "platform": {
+      "status": "BRANCH_READY_FOR_CLAUDE_REVIEW",
+      "completed": [
+        "Worktree implementation isolation proven",
+        "Detached review worktree proven",
+        "Primary checkout protected from pilot writes",
+        "Worktree audit tooling generalized",
+        "Local environment setup safe in dry-run",
+        "Load observation skill F001-F009 corrected",
+        "Observation ledger remains empty and unchanged"
+      ],
+      "open": [
+        "Claude independent branch review",
+        "Controlled rebase onto current origin/main",
+        "Repeat tests after rebase",
+        "Merge preparation and integration",
+        "First real use of sz-load-observation"
+      ]
+    },
+    "route_and_control_gestion": {
+      "status": "NOT_APPLY_READY",
+      "corrected_findings": [
+        "F-01",
+        "F-02",
+        "F-03",
+        "F-05",
+        "F-06",
+        "F-07",
+        "F-09",
+        "F-10",
+        "F-11"
+      ],
+      "open_findings": {
+        "F-04": "Rollback restoration exists but lacks full pre-commit postvalidation.",
+        "F-08": "Advisory lock uses an invalid PostgreSQL bigint,bigint signature."
+      },
+      "authorizations": {
+        "local_lab": false,
+        "ddl": false,
+        "apply": false,
+        "supabase_writes": false,
+        "cleanup": false,
+        "retention": false
+      }
+    },
+    "product": {
+      "status": "WAITING_FOR_OPERATIONAL_READINESS_GATE",
+      "direction": [
+        "Control Gestion becomes the predominant operational domain.",
+        "Inventory becomes a smaller, isolated read capability.",
+        "Shared route data becomes a reusable service surface.",
+        "The app evolves toward a Decision Tower with alerts, actions, owners and outcomes."
+      ]
+    }
+  },
+  "lane_policy": {
+    "maximum_active_lanes": 2,
+    "lane_1": {
+      "name": "OPERATIONAL",
+      "current_focus": "RUTA_RUTERO_F04_F08_TO_REAL_SHADOW"
+    },
+    "lane_2": {
+      "name": "PLATFORM_THEN_PRODUCT",
+      "current_focus": "PLATFORM_BRANCH_REVIEW_MERGE_FIRST_USE",
+      "transition_rule": "After the platform branch is merged and used once, freeze platform expansion and replace this lane with PRODUCT_V2."
+    }
+  },
+  "execution_queue": [
+    {
+      "order": 1,
+      "phase_id": "CLAUDE_PLATFORM_006",
+      "lane": "PLATFORM_THEN_PRODUCT",
+      "name": "Independent branch review",
+      "status": "READY",
+      "objective": "Independently review the complete platform branch, worktree tooling and load-observation skill without merge or writes.",
+      "entry_criteria": [
+        "Platform branch head is 6a965ec or a documented successor.",
+        "Main contains CG005F closure and shared-memory absorption.",
+        "Implementation worktree is clean."
+      ],
+      "exit_criteria": [
+        "No BLOCKER or HIGH security/semantic findings, or a bounded correction list exists.",
+        "Main divergence and overlap are classified.",
+        "Unique tests, skips and documentary drift are reported.",
+        "Verdict is READY_FOR_MERGE_PREPARATION or a single bounded correction is specified."
+      ],
+      "stop_rule": "No second broad review if there are no BLOCKER or HIGH findings."
+    },
+    {
+      "order": 2,
+      "phase_id": "PLATFORM_007_MERGE_PREPARATION",
+      "lane": "PLATFORM_THEN_PRODUCT",
+      "name": "Controlled rebase, retest and merge preparation",
+      "status": "BLOCKED_BY_CLAUDE_PLATFORM_006",
+      "objective": "Rebase the platform branch onto current origin/main, repeat all relevant tests, verify ledger integrity and prepare a controlled merge.",
+      "entry_criteria": [
+        "Claude branch review accepted or bounded corrections completed.",
+        "origin/main and branch heads recorded.",
+        "No unresolved worktree conflict."
+      ],
+      "required_checks": [
+        "Rebase without force or hidden conflict resolution.",
+        "Worktree tooling tests pass.",
+        "Load-observation tests pass.",
+        "Ledger hash remains unchanged.",
+        "No RUTA_RUTERO, SQL or operational files enter the merge unexpectedly.",
+        "Diff against main is reviewed by file and commit."
+      ],
+      "exit_criteria": [
+        "Branch is clean and current with main.",
+        "Tests pass after rebase.",
+        "Merge scope is exact.",
+        "Bastian and ChatGPT authorize merge."
+      ]
+    },
+    {
+      "order": 3,
+      "phase_id": "PLATFORM_008_FIRST_REAL_USE",
+      "lane": "PLATFORM_THEN_PRODUCT",
+      "name": "First real use and value measurement",
+      "status": "BLOCKED_BY_PLATFORM_MERGE",
+      "objective": "Use the integrated worktree process and sz-load-observation once on safe completed load evidence, then measure whether the tooling reduces effort and risk.",
+      "entry_criteria": [
+        "Platform branch merged into main.",
+        "A completed safe phase JSON exists.",
+        "No secrets, PII, payloads or row collections are required."
+      ],
+      "exit_criteria": [
+        "One UNREVIEWED candidate is generated and validated.",
+        "The skill does not write the ledger.",
+        "Manual steps removed and time spent are recorded.",
+        "A separate authorized phase decides whether to append the observation.",
+        "Platform expansion is frozen after this first use."
+      ]
+    },
+    {
+      "order": 4,
+      "phase_id": "CG005G_ROUTE_LOCK_AND_ROLLBACK_CORRECTION_NO_APPLY",
+      "lane": "OPERATIONAL",
+      "name": "Correct F-08 advisory lock and F-04 rollback postcheck",
+      "status": "READY",
+      "objective": "Correct only the two remaining route-replacement findings in an isolated write worktree without DB, DDL or apply.",
+      "required_changes": {
+        "F-08": [
+          "Use one deterministic bigint advisory-lock key for contract, source and effective week.",
+          "Keep apply and rollback on the same lock-key algorithm.",
+          "Add tests for deterministic key construction and SQL signature shape."
+        ],
+        "F-04": [
+          "Before rollback commit, compare restored current-surface hash to the previous assignment.",
+          "Validate active and rolled-back assignment states.",
+          "Validate weekly and resolved views.",
+          "Validate missing and extra logical grains equal zero.",
+          "Abort the transaction on any mismatch."
+        ]
+      },
+      "exit_criteria": [
+        "Only F-04/F-08-related files changed.",
+        "No DB, DDL, apply or rollback executed.",
+        "Targeted and existing tests pass.",
+        "Branch is ready for targeted Claude validation."
+      ]
+    },
+    {
+      "order": 5,
+      "phase_id": "CG005H_F04_F08_TARGETED_REVALIDATION",
+      "lane": "OPERATIONAL",
+      "name": "Targeted independent revalidation",
+      "status": "BLOCKED_BY_CG005G",
+      "objective": "Validate only advisory-lock correctness and full rollback postchecks; do not reopen the nine closed findings.",
+      "exit_criteria": [
+        "F-04 is CORRECTED.",
+        "F-08 is CORRECTED.",
+        "No new BLOCKER or HIGH finding exists.",
+        "Local PostgreSQL laboratory is explicitly authorized as the next phase."
+      ],
+      "stop_rule": "If both findings are corrected and there are no BLOCKER/HIGH findings, end static review and proceed to the local lab."
+    },
+    {
+      "order": 6,
+      "phase_id": "CG005I_M_LOCAL_POSTGRESQL_LAB",
+      "lane": "OPERATIONAL",
+      "name": "Five-step behavioral local laboratory",
+      "status": "BLOCKED_BY_CG005H",
+      "subphases": [
+        {
+          "id": "CG005I",
+          "name": "Apply SQL 11 contract locally",
+          "proof": "Schema, constraints, views and advisory-lock signature execute in local PostgreSQL only."
+        },
+        {
+          "id": "CG005J",
+          "name": "Load snapshot A",
+          "proof": "First weekly assignment is active, hashes match and resolved grains are correct."
+        },
+        {
+          "id": "CG005K",
+          "name": "Replace with snapshot B for the same week",
+          "proof": "A becomes SUPERSEDED, B becomes ACTIVE, removals do not reappear and no stale rows survive."
+        },
+        {
+          "id": "CG005L",
+          "name": "Rollback B to A",
+          "proof": "All rollback postchecks pass before commit and A is restored exactly."
+        },
+        {
+          "id": "CG005M",
+          "name": "Clean-room rebuild",
+          "proof": "Git, SQL, manifest and explicit parameters reproduce identical hashes and logical grains."
+        }
+      ],
+      "exit_criteria": [
+        "All five subphases pass.",
+        "No unexplained key or value difference remains in the route surface.",
+        "Rollback is behaviorally proven.",
+        "Classification becomes LOCAL_LAB_VALIDATED.",
+        "Supabase remains unchanged."
+      ]
+    },
+    {
+      "order": 7,
+      "phase_id": "CG005N_Q_SUPABASE_CONTROLLED_ROUTE_LOAD",
+      "lane": "OPERATIONAL",
+      "name": "Controlled Supabase transition",
+      "status": "BLOCKED_BY_LOCAL_LAB",
+      "subphases": [
+        {
+          "id": "CG005N",
+          "name": "DDL contract apply",
+          "authorization": "Separate explicit Bastian authorization",
+          "proof": "DDL objects exist and read-only contract checks pass before data load."
+        },
+        {
+          "id": "CG005O",
+          "name": "Productive dry-run",
+          "proof": "Exact file hash, week, changes, planned rows, assignments and rollback target match the approved plan."
+        },
+        {
+          "id": "CG005P",
+          "name": "Guarded apply",
+          "authorization": "Explicit confirmation token, expected hash, week and mandatory postcheck",
+          "proof": "Transaction commits only after all guards and postchecks pass."
+        },
+        {
+          "id": "CG005Q",
+          "name": "Postvalidation",
+          "proof": "History, current surface, assignment, resolved view, hashes and other weeks remain correct."
+        }
+      ],
+      "exit_criteria": [
+        "Week 2026-06-08 route snapshot is explicitly assigned and postvalidated.",
+        "No stale or legacy-backfilled grain exists.",
+        "Rollback target is proven and available.",
+        "A safe phase JSON is available for the first load observation."
+      ]
+    },
+    {
+      "order": 8,
+      "phase_id": "CG_IMPACT_001_ROUTE_TO_COMPLIANCE",
+      "lane": "OPERATIONAL",
+      "name": "Measure impact on Control Gestion",
+      "status": "BLOCKED_BY_ROUTE_POSTVALIDATION",
+      "objective": "Explain how the authoritative route replacement changes daily and weekly compliance without accepting unexplained technical differences.",
+      "comparison_surfaces": [
+        "Route logical grains and owners",
+        "Daily fact",
+        "Weekly fact",
+        "Alerts",
+        "Compliance percentages",
+        "Pending visits",
+        "Clients and stores added or removed",
+        "Responsible-person changes",
+        "Frequency and day-distribution changes"
+      ],
+      "allowed_difference_classes": [
+        "EXPECTED_ROUTE_CHANGE",
+        "EXPECTED_WEEKLY_REMOVAL",
+        "EXPECTED_WEEKLY_ADDITION",
+        "RESPONSIBLE_CHANGE",
+        "FREQUENCY_CHANGE",
+        "DAY_DISTRIBUTION_CHANGE",
+        "RAW_SOURCE_CHANGE"
+      ],
+      "blocking_difference_class": "UNEXPLAINED",
+      "exit_criteria": [
+        "Every material before/after difference has an evidence-backed class.",
+        "No duplicate logical grain exists.",
+        "No unintended impact on other weeks exists.",
+        "Business-facing summary is available."
+      ]
+    },
+    {
+      "order": 9,
+      "phase_id": "CG005_REAL_SHADOW",
+      "lane": "OPERATIONAL",
+      "name": "Real-week canonical dual-run shadow",
+      "status": "BLOCKED_BY_IMPACT_VALIDATION",
+      "objective": "Run the current materialized flow and the canonical C006/C007 builder in parallel without overwriting productive facts.",
+      "required_outputs": [
+        "Input lineage",
+        "Keys and values diff",
+        "Alert diff",
+        "Owner diff",
+        "Compliance diff",
+        "Runtime and query cost",
+        "Business-semantic classifications",
+        "Unexplained technical differences"
+      ],
+      "exit_criteria": [
+        "No unexplained technical difference remains.",
+        "Business differences are accepted or rejected explicitly.",
+        "Canonical builder is approved or returned for one bounded correction.",
+        "CG-006 registry design may begin."
+      ]
+    },
+    {
+      "order": 10,
+      "phase_id": "CG006_BUILD_REGISTRY",
+      "lane": "OPERATIONAL",
+      "name": "Persist explicit build lineage",
+      "status": "BLOCKED_BY_REAL_SHADOW",
+      "required_fields": [
+        "build_id",
+        "affected_date_window",
+        "affected_weeks",
+        "raw_batch_ids",
+        "route_batch_id",
+        "route_policy_version",
+        "builder_version",
+        "input_hashes",
+        "daily_hash",
+        "weekly_hash",
+        "created_at",
+        "status"
+      ],
+      "exit_criteria": [
+        "No productive build depends on implicit latest.",
+        "Every build can be reconstructed from explicit lineage.",
+        "CG-007 canary contract is ready."
+      ]
+    },
+    {
+      "order": 11,
+      "phase_id": "CG007_CANARY",
+      "lane": "OPERATIONAL",
+      "name": "Bounded production canary",
+      "status": "BLOCKED_BY_BUILD_REGISTRY",
+      "objective": "Apply the canonical build contract to one bounded week or date window with rollback and observability.",
+      "exit_criteria": [
+        "Canary postchecks pass.",
+        "Rollback remains available.",
+        "Runtime is acceptable.",
+        "No unexplained business regression exists.",
+        "Supabase sanitation gates may open."
+      ]
+    },
+    {
+      "order": 12,
+      "phase_id": "DB_SANITATION_001_004",
+      "lane": "OPERATIONAL",
+      "name": "Evidence-based Supabase sanitation",
+      "status": "BLOCKED_BY_CANARY",
+      "levels": [
+        {
+          "id": "DB_SANITATION_001",
+          "name": "Catalog and lineage",
+          "actions": [
+            "Inventory tables, views, materialized views, functions, indexes, constraints, RLS, sizes, producers and consumers.",
+            "Classify REQUIRED_CURRENT, REQUIRED_HISTORY, RECONSTRUCTIBLE, AUDIT_ONLY, ORPHAN_CANDIDATE and UNKNOWN."
+          ]
+        },
+        {
+          "id": "DB_SANITATION_002",
+          "name": "Optimization without deletion",
+          "actions": [
+            "Fix missing indexes and expensive joins.",
+            "Prefer persisted daily/weekly surfaces over raw recomputation.",
+            "Measure query plans and timeouts."
+          ]
+        },
+        {
+          "id": "DB_SANITATION_003",
+          "name": "Retention and archival",
+          "actions": [
+            "Archive only evidence-backed reconstructible or unused batches.",
+            "Require manifest, counts, hashes, consumer analysis and rollback."
+          ]
+        },
+        {
+          "id": "DB_SANITATION_004",
+          "name": "Deprecation",
+          "actions": [
+            "Retire legacy views/functions only after zero-consumer or replacement proof.",
+            "Keep payload_json until an alternative surface reaches parity."
+          ]
+        }
+      ],
+      "exit_criteria": [
+        "Storage growth is controlled.",
+        "No required current or historical surface is removed.",
+        "Runtime queries improve measurably.",
+        "DB-002 can close."
+      ]
+    },
+    {
+      "order": 13,
+      "phase_id": "PRODUCT_V2_ENTRY",
+      "lane": "PLATFORM_THEN_PRODUCT",
+      "name": "Enter the next app-development phase",
+      "status": "BLOCKED_BY_PRODUCT_READINESS_GATE",
+      "product_tracks": [
+        {
+          "id": "PRODUCT_V2_DOMAIN_SEAMS",
+          "objective": "Separate inventory, control_gestion, shared_route and decision_tower capabilities inside the same repository."
+        },
+        {
+          "id": "PRODUCT_V2_INVENTORY_REDUCTION",
+          "objective": "Reduce Inventory to an isolated latest-snapshot read capability without controlling the app architecture."
+        },
+        {
+          "id": "PRODUCT_V2_CONTROL_GESTION_CORE",
+          "objective": "Make compliance, pending work, recurrence, owners, freshness and weekly comparison the main operational domain."
+        },
+        {
+          "id": "PRODUCT_V2_DECISION_TOWER",
+          "objective": "Add alert, priority, owner, action, due date, status and outcome tracking to direct the workforce."
+        },
+        {
+          "id": "PRODUCT_V2_HEADLESS_DOMAIN",
+          "objective": "Extract domain rules, builders, queries, services and exports so Streamlit becomes a presentation consumer rather than the business-logic container."
+        }
+      ]
+    }
+  ],
+  "readiness_gates": {
+    "GATE_PLATFORM_PROVEN": {
+      "opens_when": [
+        "Platform branch merged after independent review and retest.",
+        "Worktree process used successfully at least twice.",
+        "sz-load-observation used once without ledger write or privacy issue."
+      ],
+      "effect": "Freeze platform expansion and treat current tooling as operational infrastructure."
+    },
+    "GATE_ROUTE_APPLY_READY": {
+      "opens_when": [
+        "F-04 and F-08 corrected and targeted-review approved.",
+        "Five-step local PostgreSQL laboratory passes.",
+        "Rollback is behaviorally proven."
+      ],
+      "effect": "Allow a separately authorized Supabase DDL and dry-run sequence."
+    },
+    "GATE_PRODUCT_V2_READY": {
+      "opens_when": [
+        "Authoritative RUTA_RUTERO week is postvalidated in Supabase.",
+        "Impact on Control Gestion is fully classified with no UNEXPLAINED material difference.",
+        "Real canonical shadow is accepted or has one bounded correction plan.",
+        "Platform tooling is integrated and frozen."
+      ],
+      "effect": "ChatGPT declares STOCK_ZERO ready for new product implementations. Product V2 may start while canary and sanitation continue as the operational lane."
+    },
+    "GATE_SUPABASE_CLEANUP": {
+      "opens_when": [
+        "Canonical canary passes.",
+        "Build registry is active.",
+        "Catalog and lineage classify every candidate object/batch.",
+        "Backup, manifest and rollback are defined."
+      ],
+      "effect": "Allow retention, archival and deprecation phases; payload_json remains protected until replacement parity."
+    }
+  },
+  "phase_closure_contract": {
+    "required_outputs": [
+      "phase_id and verdict",
+      "baseline and final commit",
+      "facts, inferences and unresolved unknowns",
+      "files modified",
+      "DB/Docker/apply status",
+      "tests and unique-test count",
+      "warnings and blockers",
+      "next gate"
+    ],
+    "state_update_rule": "When a phase materially changes gates, update this roadmap, AI_SHARED_MEMORY and AI_BACKLOG in the same closure commit where practical. Do not create a separate absorption phase for non-material documentary changes.",
+    "review_rule": "One implementation review plus one independent review is the normal maximum. Continue only for BLOCKER/HIGH or directly reproducible material defects."
+  },
+  "engineering_metrics": {
+    "capture_per_phase": [
+      "elapsed_minutes",
+      "implementation_rounds",
+      "independent_review_rounds",
+      "material_defects_found",
+      "unique_tests",
+      "test_executions",
+      "files_outside_scope",
+      "worktree_collisions",
+      "dirty_main_incidents",
+      "manual_steps_removed",
+      "prompt_reuse",
+      "rollback_proven",
+      "unexplained_data_differences"
+    ],
+    "success_direction": {
+      "elapsed_minutes": "down after first comparable repetition",
+      "implementation_rounds": "one or two",
+      "independent_review_rounds": "one",
+      "files_outside_scope": "zero",
+      "worktree_collisions": "zero",
+      "dirty_main_incidents": "zero new incidents",
+      "manual_steps_removed": "up",
+      "rollback_proven": "true before production apply",
+      "unexplained_data_differences": "zero before product readiness"
+    }
+  },
+  "do_not_do_now": [
+    "Do not create more skills, hooks, MCP servers, subagents or automated model selectors.",
+    "Do not refactor the whole Streamlit app before the product-readiness gate.",
+    "Do not clean Supabase before the canary and lineage catalog.",
+    "Do not remove payload_json without replacement parity.",
+    "Do not delete inherited dirty-main files as part of unrelated phases.",
+    "Do not rerun closed CG005A-F investigations except the targeted F-04/F-08 validation.",
+    "Do not use latest raw or latest route as an implicit temporal contract.",
+    "Do not let platform validation become the primary project."
+  ],
+  "immediate_next_actions": [
+    {
+      "priority": 1,
+      "action": "Execute CLAUDE_PLATFORM_006 using current main b2e68695 and platform branch 6a965ec."
+    },
+    {
+      "priority": 2,
+      "action": "Create an isolated worktree for CG005G from current origin/main and correct only F-04/F-08."
+    },
+    {
+      "priority": 3,
+      "action": "Run CG005H targeted Claude revalidation and stop static review if both findings close."
+    },
+    {
+      "priority": 4,
+      "action": "Run the five-step local PostgreSQL lab."
+    },
+    {
+      "priority": 5,
+      "action": "Prepare controlled Supabase DDL, dry-run, apply and postvalidation phases."
+    }
+  ],
+  "definition_of_done": {
+    "route_path": "RUTA_RUTERO weekly replacement, second replacement and rollback are proven locally and one authorized Supabase week is postvalidated.",
+    "control_gestion_path": "Route impact is explained and the canonical real-week shadow has no unexplained technical difference.",
+    "platform_path": "Worktrees and load-observation tooling are merged, used and frozen from further expansion.",
+    "supabase_path": "Build registry and canary are active before cleanup; sanitation is evidence-based and reversible.",
+    "product_path": "ChatGPT and Bastian open GATE_PRODUCT_V2_READY and begin Control Gestion core, reduced Inventory and Decision Tower implementation."
+  },
+  "implementation_authorized": false,
+  "note": "This roadmap is the active sequencing and readiness contract. Individual phases still require explicit authorization."
+}
