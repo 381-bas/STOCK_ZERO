@@ -1,80 +1,88 @@
 {
   "phase": "CODEX_PLATFORM_001B_WORKTREE_PILOT_AND_PLATFORM005B_CORRECTION",
-  "schema_version": 1,
-  "status": "VALIDATED_PENDING_COMMIT_AND_PUSH",
+  "schema_version": 2,
+  "status": "COMPLETED_PENDING_INDEPENDENT_REVIEW",
   "quality_target": "Q4_DECISION_GRADE",
+  "evidence_updated_by_phase": "CODEX_PLATFORM_001D_WORKTREE_TOOLING_CORRECTION_NO_MERGE",
   "baseline_commit": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
   "worktree": {
-    "path": "C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/PLATFORM_005B",
+    "repo_name": "PLATFORM_005B",
     "branch": "codex/PLATFORM_005B-load-observation-correction",
     "created": true,
-    "creation_seconds": 0.325,
-    "initial_size_bytes": 1907002,
-    "current_size_bytes": 2059519,
-    "disk_delta_bytes": 152517,
+    "clean_after_001B": true,
+    "left_for_inspection": true,
+    "path_redacted": true,
     "ignored_local_files_absent": [
       ".env",
       ".local_secrets",
       "data",
       ".venv",
       ".codex"
-    ],
-    "left_for_inspection": true
+    ]
   },
   "primary_checkout_fingerprint": {
-    "path": "C:/Users/basti/Desktop/STOCK_ZERO",
-    "head_before": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
-    "head_after": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
-    "branch_before": "main",
-    "branch_after": "main",
-    "origin_main_before_fetch": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
-    "modified_tracked_hashes_before": [
+    "repo_name": "STOCK_ZERO",
+    "path_redacted": true,
+    "head_before_001B": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+    "head_after_001B": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+    "branch_before_001B": "main",
+    "branch_after_001B": "main",
+    "modified_tracked_hashes_before_001B": [
       {
         "path": "scripts/load_control_gestion_raw_v17.py",
         "sha256": "aca053b97879cf9169752a40d9d00f375314cea7d3a8cec16e5202cc629af478"
       }
     ],
-    "modified_tracked_hashes_after": [
+    "modified_tracked_hashes_after_001B": [
       {
         "path": "scripts/load_control_gestion_raw_v17.py",
         "sha256": "aca053b97879cf9169752a40d9d00f375314cea7d3a8cec16e5202cc629af478"
       }
     ],
-    "untracked_roots_before": [
+    "untracked_roots_after_001B": [
       "evidence/",
       "research/claude/",
       "sql/09_control_gestion_kpione2_raw_dryrun_draft.sql",
       "sql/10_control_gestion_kpione2_forward_recovery_lab_draft.sql"
     ],
-    "untracked_roots_after": [
-      "evidence/",
-      "research/claude/",
-      "sql/09_control_gestion_kpione2_raw_dryrun_draft.sql",
-      "sql/10_control_gestion_kpione2_forward_recovery_lab_draft.sql"
-    ],
-    "checkout_size_bytes_before": 4965930797,
-    "unchanged": true,
-    "dirty_main_incidents": 0
+    "unchanged_during_001B": true
   },
-  "remote_sync": {
-    "fetch_origin_executed": true,
-    "origin_main_after_fetch": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
-    "local_main_ahead_behind_after_fetch": "0 0",
-    "remote_branch_existed_before_create": false
-  },
-  "platform_tooling": {
-    "audit_script": true,
-    "setup_script": true,
-    "codex_config_created": false,
-    "default_setup_is_dry_run": true,
-    "installs_requirements": false,
-    "touches_git": false,
-    "touches_db": false,
-    "touches_docker": false,
-    "setup_seconds": 1.181
+  "implementation_commits": [
+    {
+      "message": "research: record Codex worktree platform decisions",
+      "sha": "ea226a684c5dd07fd3448ed5a19ceb475b5f731b",
+      "status": "created"
+    },
+    {
+      "message": "platform: add safe Codex worktree pilot",
+      "sha": "ca35f3fc74309148ac55ef0b3ff639527adb7970",
+      "status": "created"
+    },
+    {
+      "message": "tooling: correct load observation safety blockers",
+      "sha": "3277692c95bfc706498028eb271c7a71b84620b3",
+      "status": "created"
+    },
+    {
+      "message": "platform: generalize safe worktree tooling",
+      "sha": "08d186741934bdf7ec4c1347752d48370744efaa",
+      "status": "created_by_001D"
+    },
+    {
+      "message": "research: finalize worktree pilot evidence",
+      "sha": "self_commit_reported_in_final_screen",
+      "status": "created_by_001D"
+    }
+  ],
+  "branch": {
+    "name": "codex/PLATFORM_005B-load-observation-correction",
+    "pushed_branch": true,
+    "main_push": false,
+    "merge": false,
+    "force_push": false,
+    "final_branch_head": "commit containing this evidence; exact SHA is reported in the final Codex screen output"
   },
   "platform005b": {
-    "status": "implemented",
     "f001_path_scope": true,
     "f002_types_and_consistency": true,
     "f003_cli_json_consistency": true,
@@ -86,72 +94,29 @@
     "f009_json_errors": true
   },
   "validation": {
-    "worktree_preflight": {
-      "phase": "generic",
-      "skip_db": true,
-      "final_verdict": "warn",
-      "blockers": [],
-      "warnings": [
-        "git_worktree_not_clean_before_commits",
-        "01_kernel_global_v1_4_3.json_missing",
-        "kernel_02_missing",
-        "03_iterative_ledger_v1_6_5.json_missing",
-        "04_project_direction_kernel_stock_zero_v1_0_5.json_missing",
-        "STOCK_ZERO_3JSON_AUDIT_MATRIX_20260331_v2_2.json_missing",
-        "CONTROL_GESTION_IMPLEMENTATION_KERNEL_V2_4.json_missing"
-      ],
-      "scanner_syntax_errors": 0,
-      "scanner_read_errors": 0
-    },
-    "audit_script": {
-      "exit_code": 0,
-      "ok": true,
-      "presence": {
-        ".venv": false,
-        ".env": false,
-        ".local_secrets": false,
-        "data": false,
-        "evidence": false
-      }
-    },
-    "setup_dry_run": {
-      "exit_code": 0,
-      "ok": true,
-      "dry_run": true,
-      "venv_created": false,
-      "installs_performed": false,
-      "db_access": "none",
-      "docker_executed": false
-    },
-    "py_compile": {
-      "command": "python -m py_compile scripts/sz_load_observation.py",
-      "exit_code": 0
-    },
-    "worktree_tooling_tests": {
+    "worktree_tooling_tests_001B": {
       "collected": 20,
       "passed": 20,
       "failed": 0
     },
-    "observation_tests": {
+    "observation_tests_001B": {
       "collected": 115,
       "passed": 115,
       "failed": 0,
-      "skipped": 1,
-      "skip_reason": "Windows symlink privilege unavailable"
-    },
-    "combined_tests": {
-      "collected": 135,
-      "passed": 135,
-      "failed": 0,
       "skipped": 1
     },
-    "manual_draft_validate": {
-      "draft_exit_1": 0,
-      "draft_exit_2": 0,
-      "validate_exit": 0,
-      "deterministic": true,
-      "observation_id": "LOADOBS-RUTA_RUTERO-2026-06-08-PREFLIGHT-5b9ce27ce494",
-      "validate_status": "ok"
+    "worktree_tooling_tests_after_001D": {
+      "collected": 25,
+      "passed": 23,
+      "failed": 0,
+      "skipped": 2,
+      "skips": "detached-only checks are exercised in the detached review worktree"
+    },
+    "observation_tests_after_001D": {
+      "collected": 115,
+      "passed": 115,
+      "failed": 0,
+      "skipped": 1
     },
     "ledger": {
       "path": "research/AI_LOAD_OBSERVATION_LEDGER.jsonl",
@@ -159,12 +124,29 @@
       "sha256_after": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "unchanged": true
     },
-    "git_diff_check": {
-      "exit_code": 0,
-      "warnings": [
-        "LF will be replaced by CRLF on selected changed files"
+    "preflight": {
+      "phase": "generic",
+      "skip_db": true,
+      "final_verdict": "warn",
+      "blockers": [],
+      "expected_warnings": [
+        "kernel files missing in clean worktree"
       ]
     }
+  },
+  "kernels": {
+    "kernels_missing_in_clean_worktree": "expected_external_dependency",
+    "does_not_affect": [
+      "load observation skill tests",
+      "tooling read-only behavior",
+      "py_compile"
+    ],
+    "may_affect": [
+      "full preflight modes requiring project kernels",
+      "historical or productive phases that require local kernels"
+    ],
+    "future_proposal": "KERNEL_REFERENCE_ROOT",
+    "implemented_now": false
   },
   "safety": {
     "db_access": "none",
@@ -173,31 +155,7 @@
     "loaders_executed": false,
     "sql_executed": false,
     "secrets_printed": false,
-    "main_push": false,
-    "merge": false,
-    "force_push": false
+    "skill_files_modified_by_001D": []
   },
-  "commits": [
-    {
-      "message": "research: record Codex worktree platform decisions",
-      "sha": "ea226a684c5dd07fd3448ed5a19ceb475b5f731b",
-      "status": "created"
-    },
-    {
-      "message": "platform: add safe Codex worktree pilot",
-      "status": "pending"
-    },
-    {
-      "message": "tooling: correct load observation safety blockers",
-      "status": "pending"
-    }
-  ],
-  "push": {
-    "branch_only": true,
-    "branch": "codex/PLATFORM_005B-load-observation-correction",
-    "main_push": false,
-    "force_push": false,
-    "status": "pending"
-  },
-  "next_step": "Independent review of branch before merge"
+  "next_step": "Claude independent review of complete branch"
 }

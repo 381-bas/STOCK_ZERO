@@ -1,0 +1,117 @@
+{
+  "phase": "CODEX_PLATFORM_001D_WORKTREE_TOOLING_CORRECTION_NO_MERGE",
+  "schema_version": 1,
+  "status": "CORRECTIONS_IMPLEMENTED_PENDING_PUSH_AND_DETACHED_REVIEW",
+  "quality_target": "Q4_DECISION_GRADE",
+  "authorized_branch": "codex/PLATFORM_005B-load-observation-correction",
+  "baseline_head_before_001D": "3277692c95bfc706498028eb271c7a71b84620b3",
+  "tooling_correction_commit": {
+    "message": "platform: generalize safe worktree tooling",
+    "sha": "08d186741934bdf7ec4c1347752d48370744efaa"
+  },
+  "evidence_commit": {
+    "message": "research: finalize worktree pilot evidence",
+    "sha": "self_commit_reported_in_final_screen"
+  },
+  "corrections": {
+    "audit_branch_generalized": true,
+    "detached_supported": true,
+    "absolute_paths_redacted": true,
+    "system_python_false_green_removed": true,
+    "evidence_finalized": true,
+    "kernels_externalized_as_known_dependency": true
+  },
+  "audit_tooling": {
+    "expected_branch_optional": true,
+    "branch_mismatch_error": "branch_mismatch",
+    "detached_default_error": "detached_not_allowed",
+    "detached_allowed_by_switch": "AllowDetached",
+    "baseline_exact_head_compare": true,
+    "absolute_paths_default": false,
+    "absolute_paths_switch": "IncludeAbsolutePaths",
+    "git_errors_normalized": true,
+    "read_only": true
+  },
+  "setup_tooling": {
+    "default_dry_run": true,
+    "run_import_smoke_requires_worktree_venv_by_default": true,
+    "system_python_requires_explicit_switch": "AllowSystemPythonSmoke",
+    "system_python_environment_reproducible": false,
+    "worktree_venv_environment_reproducible": true,
+    "requirements_install": false,
+    "db_access": "none",
+    "docker_executed": false,
+    "data_copy": false,
+    "absolute_python_path_in_public_json": false
+  },
+  "kernels": {
+    "kernels_missing_in_clean_worktree": "expected_external_dependency",
+    "does_not_affect": [
+      "load observation skill tests",
+      "tooling read-only behavior",
+      "py_compile"
+    ],
+    "may_affect": [
+      "full preflight modes requiring project kernels",
+      "historical or productive phases that require local kernels"
+    ],
+    "future_proposal": "KERNEL_REFERENCE_ROOT",
+    "implemented_now": false
+  },
+  "branch_mode_validation": {
+    "tooling_tests_collected": 25,
+    "tooling_tests_passed": 23,
+    "tooling_tests_failed": 0,
+    "tooling_tests_skipped": 2,
+    "tooling_skips": "detached-only tests are exercised in the detached review worktree",
+    "skill_tests_collected": 115,
+    "skill_tests_passed": 115,
+    "skill_tests_failed": 0,
+    "skill_tests_skipped": 1,
+    "ledger_sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ledger_sha256_after": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ledger_unchanged": true
+  },
+  "preflight": {
+    "phase": "generic",
+    "skip_db": true,
+    "final_verdict": "warn",
+    "blockers": [],
+    "expected_warnings": [
+      "git_worktree_not_clean_before_commit",
+      "kernel files missing in clean worktree"
+    ]
+  },
+  "primary_checkout": {
+    "initial_head_observed_this_phase": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+    "later_head_observed_this_phase": "e5939a9b8fa553b87b997dca46839fa783f6b05e",
+    "branch": "main",
+    "tracked_dirty_hash_preserved": true,
+    "tracked_dirty_hash": "aca053b97879cf9169752a40d9d00f375314cea7d3a8cec16e5202cc629af478",
+    "untracked_roots_preserved": true,
+    "codex_modified_primary_checkout": false,
+    "warning": "primary checkout HEAD changed externally during 001D; no revert or main mutation was performed"
+  },
+  "scope_control": {
+    "skill_files_modified": [],
+    "ledger_modified": false,
+    "db_access": "none",
+    "docker_executed": false,
+    "loaders_executed": false,
+    "sql_executed": false,
+    "main_push": false,
+    "merge": false
+  },
+  "post_push_detached_review": {
+    "status": "pending_at_evidence_commit",
+    "review_worktree": "PLATFORM_005B_REVIEW_2",
+    "expected_checks": [
+      "audit with AllowDetached and ExpectedBaseline",
+      "tooling tests",
+      "skill tests",
+      "ledger hash",
+      "clean removal without prune"
+    ]
+  },
+  "next_step": "Push branch, run detached review worktree validation, then Claude independent review"
+}
