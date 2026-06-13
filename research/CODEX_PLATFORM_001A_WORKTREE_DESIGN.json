@@ -1,0 +1,818 @@
+{
+  "phase": "CODEX_PLATFORM_001A_WORKTREE_DESIGN_NO_APPLY",
+  "schema_version": 1,
+  "created_at_local": "2026-06-13",
+  "verdict": "DESIGN_READY",
+  "quality": {
+    "target": "Q4_DECISION_GRADE",
+    "achieved": "Q4_DECISION_GRADE",
+    "confidence": "HIGH"
+  },
+  "authority": {
+    "implementation_authorized": false,
+    "worktrees_created": 0,
+    "branches_created": 0,
+    "db_access": "none",
+    "docker_executed": false,
+    "dependency_installation": false,
+    "codex_folder_modified": false,
+    "secrets_read": false
+  },
+  "current_state": {
+    "head": "5c5a19dab46fbea754ea105573003b6747c814dc",
+    "head_short": "5c5a19d",
+    "branch": "main",
+    "origin_main_known_local": "5c5a19dab46fbea754ea105573003b6747c814dc",
+    "origin_main_known_without_fetch": true,
+    "origin_main_is_ancestor_of_head": true,
+    "existing_worktrees": 1,
+    "worktrees": [
+      {
+        "path": "C:/Users/basti/Desktop/STOCK_ZERO",
+        "head": "5c5a19dab46fbea754ea105573003b6747c814dc",
+        "branch": "main"
+      }
+    ],
+    "local_branches": [
+      "main"
+    ],
+    "remote_branches_known_local": [
+      "origin/HEAD -> origin/main",
+      "origin/main"
+    ],
+    "primary_dirty": true,
+    "codex_folder_exists": false,
+    "devcontainer_exists": true,
+    "docker_compose_files_found": [],
+    "requirements_files": [
+      "requirements.txt"
+    ],
+    "python_runtime_observed": "Python 3.12.10",
+    "py_launcher_versions_observed": [
+      "3.14",
+      "3.12"
+    ],
+    "git_config_keys_observed": [
+      "core.repositoryformatversion",
+      "core.filemode",
+      "core.bare",
+      "core.logallrefupdates",
+      "core.symlinks",
+      "core.ignorecase",
+      "remote.origin.url",
+      "remote.origin.fetch",
+      "branch.main.remote",
+      "branch.main.merge",
+      "branch.main.vscode-merge-base"
+    ]
+  },
+  "inventory": {
+    "preflight": {
+      "phase": "generic",
+      "initial_final_verdict": "warn",
+      "initial_warnings": [
+        "git_worktree_not_clean",
+        "kernel_02_head_mismatch"
+      ],
+      "scanner_syntax_errors": 0,
+      "scanner_read_errors": 0
+    },
+    "status_short_classified": {
+      "tracked_modified": [
+        "scripts/load_control_gestion_raw_v17.py"
+      ],
+      "untracked": [
+        "evidence/",
+        "research/claude/",
+        "sql/09_control_gestion_kpione2_raw_dryrun_draft.sql",
+        "sql/10_control_gestion_kpione2_forward_recovery_lab_draft.sql"
+      ],
+      "ignored_relevant": [
+        ".claude/settings.local.json",
+        ".env",
+        ".local_secrets/",
+        ".venv/",
+        "Documentos/",
+        "data/",
+        "evidence/* heavy CSV/parquet/local_pg outputs",
+        "app/**/__pycache__/",
+        "scripts/__pycache__/",
+        "tests/__pycache__/"
+      ]
+    },
+    "approx_sizes_bytes": {
+      "checkout_total": 4965858979,
+      "git_metadata": 1296252032,
+      "venv": 429418961,
+      "data": 56057926,
+      "evidence": 3181055614,
+      "documentos": 76046,
+      "local_secrets": 160,
+      "app": 795300,
+      "scripts": 879518,
+      "tests": 254675,
+      "research": 832281,
+      "sql": 218395,
+      "devcontainer": 1056,
+      "streamlit_config": 33
+    },
+    "local_paths_new_worktree_would_not_have": [
+      ".env",
+      ".local_secrets/codex_ro.env",
+      ".venv/",
+      "data/",
+      "Documentos/",
+      "ignored heavy evidence payloads",
+      "__pycache__ directories",
+      "any local Docker/PostgreSQL runtime state under ignored evidence paths"
+    ],
+    "dependency_surface": {
+      "requirements_txt": [
+        "streamlit",
+        "pandas",
+        "python-dotenv",
+        "SQLAlchemy>=2.0",
+        "psycopg2-binary",
+        "openpyxl",
+        "reportlab",
+        "plotly"
+      ],
+      "venv_python": "3.12.10",
+      "devcontainer_image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
+      "devcontainer_post_attach": "streamlit run app/Home.py on port 8501"
+    },
+    "data_files_names_only": [
+      "data/CUMPLIMIENTO_FRECUENCIA.xlsx",
+      "data/DB_GLOBAL_HISTORICO.xlsx",
+      "data/DB_GLOBAL_INVENTARIO.xlsx",
+      "data/photo-excel-admin_1780430761513.xlsx",
+      "data/photo-excel-admin_1781324795316.xlsx",
+      "data/photo-excel-admin_1781325078910.xlsx",
+      "data/CONCURSO/"
+    ],
+    "loader_default_paths_observed": [
+      "scripts/load_control_gestion_raw_v17.py default data/CUMPLIMIENTO_FRECUENCIA.xlsx",
+      "scripts/load_fact_from_excel.py default data/DB_GLOBAL_INVENTARIO.xlsx",
+      "scripts/load_ruta_rutero_from_excel.py default data/DB_GLOBAL_INVENTARIO.xlsx"
+    ],
+    "environment_presence_no_values": {
+      "DB_URL_APP": false,
+      "DB_URL_LOAD": false,
+      "DB_URL": false,
+      "DB_URL_CODEX_RO": false,
+      "DB_URL_FALLBACK": false,
+      "STOCK_ZERO_DATA_ROOT": false,
+      "STREAMLIT_RUNTIME": false,
+      "STREAMLIT_CLOUD": false,
+      "IS_STREAMLIT_CLOUD": false
+    },
+    "shared_external_services": {
+      "docker": "Not executed. Devcontainer file exists; no compose file found in inspected repo scope.",
+      "postgresql_local": "Not contacted. Local PostgreSQL-oriented code exists and ignored evidence/local_pg state exists.",
+      "supabase": "Not contacted. App and loaders use DB_URL_* variables when explicitly authorized.",
+      "streamlit": "Not started. Runtime entry is streamlit_app.py/app/Home.py; devcontainer auto-starts Streamlit when used."
+    }
+  },
+  "topology_options": [
+    {
+      "id": "OPTION_A_CODEX_MANAGED_EPHEMERAL",
+      "summary": "One Codex-managed worktree per thread/phase.",
+      "isolation": "HIGH",
+      "ease": "HIGH when created from UI, MEDIUM for local parity with Claude",
+      "windows_compatibility": "HIGH if setup avoids symlinks and relies on PowerShell",
+      "disk_cost": "MEDIUM per worktree plus venv/data decisions",
+      "setup": "Best with versioned safe setup script and no automatic DB/Docker/data copy",
+      "branching": "Usually detached HEAD initially; create branch only when writing",
+      "handoff": "Good for committed/staged Git state, weak for ignored files",
+      "ignored_data": "Not transferred; must use external references or tracked fixtures",
+      "secrets": "Must not inherit or copy by default",
+      "docker": "Shared daemon risk if used by multiple worktrees",
+      "debugging": "Good for code/test isolation; less good for local service state",
+      "recovery": "Good if commits exist; untracked/ignored files need explicit checklist",
+      "cleanup": "Good for disposable work",
+      "risk_of_loss": "LOW with commits, MEDIUM with untracked changes",
+      "claude_compatibility": "Conceptually compatible but not identical to Claude local skills",
+      "codex_compatibility": "HIGH",
+      "auditability": "HIGH if baseline_commit/status/diff are recorded",
+      "maintenance_complexity": "MEDIUM",
+      "assessment": "Good default for isolated implementation and independent review."
+    },
+    {
+      "id": "OPTION_B_CODEX_PERMANENT_WORKTREE",
+      "summary": "One or more long-lived Codex worktrees.",
+      "isolation": "MEDIUM",
+      "ease": "MEDIUM",
+      "windows_compatibility": "HIGH if no symlinks",
+      "disk_cost": "MEDIUM to HIGH",
+      "setup": "Can amortize setup cost but accumulates hidden state",
+      "branching": "Must avoid checking out the same branch in two worktrees",
+      "handoff": "Good only with disciplined branches",
+      "ignored_data": "Can accumulate local drift",
+      "secrets": "Higher accidental persistence risk",
+      "docker": "Tempting but risky if mixed with unrelated work",
+      "debugging": "Good for recurrent platform tooling",
+      "recovery": "Requires retention and audit policy",
+      "cleanup": "Harder because state becomes valuable",
+      "risk_of_loss": "MEDIUM",
+      "claude_compatibility": "MEDIUM",
+      "codex_compatibility": "HIGH",
+      "auditability": "MEDIUM unless regularly reset",
+      "maintenance_complexity": "HIGH",
+      "assessment": "Premature except possibly one LOCAL_LAB after a pilot proves value."
+    },
+    {
+      "id": "OPTION_C_MANUAL_GIT_WORKTREE",
+      "summary": "Use git worktree commands directly.",
+      "isolation": "HIGH",
+      "ease": "MEDIUM to LOW",
+      "windows_compatibility": "HIGH for normal worktrees; symlinks/junctions remain conditional",
+      "disk_cost": "MEDIUM",
+      "setup": "Explicit and auditable but manual",
+      "branching": "Clear branch rules required",
+      "handoff": "Git-native, not Codex-thread-native",
+      "ignored_data": "Not transferred",
+      "secrets": "Manual provisioning required",
+      "docker": "Shared daemon risk remains",
+      "debugging": "Good for power users",
+      "recovery": "Strong if commands are recorded",
+      "cleanup": "Manual but predictable",
+      "risk_of_loss": "LOW with checklist, HIGH without",
+      "claude_compatibility": "HIGH as a plain filesystem checkout",
+      "codex_compatibility": "MEDIUM to HIGH",
+      "auditability": "HIGH",
+      "maintenance_complexity": "MEDIUM",
+      "assessment": "Good fallback when Codex-managed UI behavior is insufficient or unavailable."
+    },
+    {
+      "id": "OPTION_D_LOCAL_CHECKOUT_ONLY",
+      "summary": "Continue using only C:/Users/basti/Desktop/STOCK_ZERO.",
+      "isolation": "LOW",
+      "ease": "HIGH short-term",
+      "windows_compatibility": "HIGH",
+      "disk_cost": "LOW",
+      "setup": "Already present",
+      "branching": "Simple but collision-prone",
+      "handoff": "Simple only while one phase is active",
+      "ignored_data": "All local state available but not reproducible",
+      "secrets": "Available but high blast radius",
+      "docker": "Simple but shared",
+      "debugging": "Good for Bastian operational use",
+      "recovery": "Weak when many untracked items accumulate",
+      "cleanup": "Risky",
+      "risk_of_loss": "HIGH during concurrent phases",
+      "claude_compatibility": "HIGH",
+      "codex_compatibility": "HIGH",
+      "auditability": "LOW when dirty-main is normal",
+      "maintenance_complexity": "LOW initially, HIGH over time",
+      "assessment": "Keep only as LOCAL_OPERATIONAL, not as the default for concurrent agent work."
+    },
+    {
+      "id": "OPTION_E_HYBRID",
+      "summary": "Main checkout for local operations, ephemeral worktrees for implementation/review, one deliberate lab when authorized.",
+      "isolation": "HIGH where needed, LOW only for Bastian-local operations",
+      "ease": "MEDIUM",
+      "windows_compatibility": "HIGH with no symlink requirement",
+      "disk_cost": "CONTROLLED",
+      "setup": "Safe setup for code worktrees; lab setup separate and explicit",
+      "branching": "One branch per write worktree; detached HEAD for pure validation",
+      "handoff": "Use commits/branches/PRs for code, checklist for ignored dependencies",
+      "ignored_data": "External references, tracked fixtures, or worktree-local temp only",
+      "secrets": "Lane-specific env injection, never copied",
+      "docker": "Single lab ownership, never automatic",
+      "debugging": "Good balance",
+      "recovery": "Strong if cleanup checklist is followed",
+      "cleanup": "Ephemeral by default; permanent only after evidence",
+      "risk_of_loss": "LOW to MEDIUM",
+      "claude_compatibility": "HIGH conceptually; Claude can use manual worktree or main checkout",
+      "codex_compatibility": "HIGH",
+      "auditability": "HIGH",
+      "maintenance_complexity": "MEDIUM",
+      "assessment": "Recommended."
+    }
+  ],
+  "selected_topology": {
+    "id": "OPTION_E_HYBRID",
+    "decision": "Use the main checkout only as LOCAL_OPERATIONAL and evidence hub; use short-lived worktrees for CODEX_IMPLEMENTATION and INDEPENDENT_REVIEW; create one LOCAL_LAB worktree only after explicit authorization; keep PLATFORM_TOOLING in ephemeral worktrees until recurrence proves a permanent lane is worth it.",
+    "why": [
+      "It stops dirty-main from being the normal place for unrelated agent changes.",
+      "It recognizes that ignored local files, data, secrets, and lab state do not move with Git handoff.",
+      "It supports larger work by scaling isolation to risk instead of creating one worktree per tiny task.",
+      "It avoids prematurely maintaining permanent worktrees."
+    ]
+  },
+  "lane_design": [
+    {
+      "id": "LOCAL_OPERATIONAL",
+      "host": "primary checkout",
+      "worktree_required": false,
+      "purpose": "Bastian manual operations, real Excel files, local secrets, productive commands when explicitly authorized, and final inspection.",
+      "allowed_baselines": [
+        "main local with known dirty state",
+        "explicit commit after Bastian review"
+      ],
+      "credentials": [
+        "DB_URL_APP only for app/runtime when Bastian authorizes",
+        "DB_URL_LOAD only for explicitly authorized productive loader phases",
+        "DB_URL_CODEX_RO only for read-only checks when explicitly authorized"
+      ],
+      "data": "May reference real local data read-only or productively only under explicit phase authorization.",
+      "notes": "This lane must not be treated as clean just because future worktrees exist."
+    },
+    {
+      "id": "CODEX_IMPLEMENTATION",
+      "host": "ephemeral Codex-managed or manual git worktree",
+      "worktree_required": true,
+      "purpose": "Scoped code or research-artifact implementation with exact staged set.",
+      "allowed_baselines": [
+        "origin/main known local after user-approved sync",
+        "explicit commit SHA",
+        "feature branch if the task is explicitly a continuation"
+      ],
+      "credentials": [],
+      "data": "Tracked fixtures or synthetic temp files by default; real data only read-only with explicit decision.",
+      "notes": "Create a branch only when writing. Use detached HEAD for read-only validation."
+    },
+    {
+      "id": "INDEPENDENT_REVIEW",
+      "host": "clean worktree from exact commit",
+      "worktree_required": true,
+      "purpose": "Adversarial validation of a commit without inheriting dirty-main or author-local artifacts.",
+      "allowed_baselines": [
+        "exact commit SHA under review"
+      ],
+      "credentials": [],
+      "data": "Synthetic fixtures or tracked files only unless task explicitly authorizes read-only data names/sizes.",
+      "notes": "Should not create branch unless review produces authorized report artifacts."
+    },
+    {
+      "id": "LOCAL_LAB",
+      "host": "one permanent or semi-permanent manual worktree, not created yet",
+      "worktree_required": "conditional",
+      "purpose": "Docker/PostgreSQL clean-room rebuilds and local-only parity laboratories.",
+      "allowed_baselines": [
+        "explicit lab contract commit",
+        "feature branch lab/<phase_id>-<slug> when lab scripts are being changed"
+      ],
+      "credentials": [
+        "local PostgreSQL DSN only",
+        "DB_URL_CODEX_RO only for authorized read-only extracts",
+        "never DB_URL_LOAD or DB_URL_APP by default"
+      ],
+      "data": "External reference to data/evidence roots or generated lab outputs under ignored worktree-local paths.",
+      "notes": "Prefer a single lab owner/phase at a time to avoid shared Docker/PostgreSQL collisions."
+    },
+    {
+      "id": "PLATFORM_TOOLING",
+      "host": "ephemeral implementation worktree initially",
+      "worktree_required": "conditional",
+      "purpose": "Versioned safe setup scripts, skills, validation helpers, and Local Environment action definitions without product logic changes.",
+      "allowed_baselines": [
+        "origin/main known local",
+        "explicit platform phase commit"
+      ],
+      "credentials": [],
+      "data": "No real data. Synthetic fixtures only.",
+      "notes": "Do not make this permanent until two or more real platform phases reuse it."
+    }
+  ],
+  "baseline_policy": {
+    "new_implementation": "Start from origin/main known local only after checking status and whether origin/main is ancestor of HEAD. If network sync is needed, ask Bastian before fetch/pull/rebase.",
+    "independent_validation": "Start from exact commit SHA under review, preferably detached HEAD, with baseline_commit recorded in the report.",
+    "historical_reproduction": "Start from exact historical commit. Do not rebase; preserve the commit being reproduced.",
+    "db_lab": "Start from explicit lab contract commit. Do not infer local_pg state is reproducible unless rebuild recipe and manifests prove it.",
+    "local_changes_allowed": "Only LOCAL_OPERATIONAL may intentionally start from dirty local state, and the inherited dirty files must be listed before work.",
+    "local_changes_prohibited": "CODEX_IMPLEMENTATION and INDEPENDENT_REVIEW must not begin from dirty-main as their implicit baseline.",
+    "baseline_recording": [
+      "baseline_commit",
+      "branch_or_detached",
+      "origin_main_known_local",
+      "status_short_before",
+      "worktree_path",
+      "ignored_dependencies"
+    ],
+    "origin_advanced_detection": "Use local refs first; if push is rejected as non-fast-forward, stop and ask Bastian. Do not auto-fetch/rebase in guarded phases.",
+    "agent_remote_publish": "If another agent publishes while work is in progress, stop integration, record local branch HEAD, compare only after explicit sync authorization.",
+    "rebase_policy": "Rebase only after Bastian authorizes integration. Never rebase independent validation or historical reproduction work."
+  },
+  "branch_policy": {
+    "branch_per_write_worktree": true,
+    "same_branch_two_worktrees_forbidden": true,
+    "default_prefixes": {
+      "codex_implementation": "codex/<phase_id>-<slug>",
+      "research": "research/<phase_id>-<slug>",
+      "lab": "lab/<phase_id>-<slug>",
+      "platform": "codex/<phase_id>-platform-<slug>"
+    },
+    "worktree_name": "<lane>-<phase_id>-<slug>",
+    "phase_id": "Use the exact phase id from the prompt, shortened only for filesystem safety.",
+    "slug": "Short noun phrase for the target, lowercase ASCII, hyphen-separated.",
+    "date": "Add date only for long-running lab/permanent lanes where retention requires it.",
+    "detached_head": "Use for read-only reviews and historical reproduction.",
+    "create_branch_here": "Use when the task authorizes file writes or commits from a worktree.",
+    "handoff": "Use for committed or intentionally staged Git state plus checklist; never rely on it for ignored data/secrets.",
+    "pull_request": "Use for multi-file implementation, risky runtime changes, or cross-agent review. Direct main push can continue only for explicitly scoped research artifacts or small validated changes when prompt authorizes it.",
+    "github_direct_commit_conflict": "If GitHub/main advances, do not force push; stop and provide Bastian merge/rebase choices."
+  },
+  "ignored_file_policy": {
+    ".venv": {
+      "classification": "RECREATE",
+      "rule": "Never copy blindly. Recreate per strategy or use external shared cache."
+    },
+    ".env": {
+      "classification": "COPY_NEVER",
+      "rule": "Never copy, read, stage, or transfer through handoff."
+    },
+    ".env.*": {
+      "classification": "COPY_NEVER",
+      "rule": "Only .env.example may be versioned. Other env files stay local."
+    },
+    ".local_secrets": {
+      "classification": "COPY_NEVER",
+      "rule": "Names/existence may be inspected; content never read unless a specific safe helper is authorized."
+    },
+    "data": {
+      "classification": "EXTERNAL_REFERENCE",
+      "rule": "Real workbooks stay in main/local data root. Worktrees use STOCK_ZERO_DATA_ROOT or explicit read-only path when authorized."
+    },
+    "evidence": {
+      "classification": "SHARED_READ_ONLY",
+      "rule": "Heavy historical evidence is not copied. New evidence must be phase-scoped and explicitly authorized."
+    },
+    "caches": {
+      "classification": "WORKTREE_LOCAL",
+      "rule": "__pycache__, pytest cache, Streamlit cache, and build caches may be deleted only inside disposable worktrees after status check."
+    },
+    "outputs_temporales": {
+      "classification": "WORKTREE_LOCAL",
+      "rule": "Use %TEMP% by default. Persistent outputs require explicit artifact path."
+    },
+    "docker_volumes": {
+      "classification": "UNKNOWN",
+      "rule": "Never delete automatically. Name and owner must be documented by LOCAL_LAB phase."
+    },
+    "local_config": {
+      "classification": "WORKTREE_LOCAL",
+      "rule": ".streamlit/config.toml and editor settings may be local unless intentionally versioned."
+    },
+    "generated": {
+      "classification": "UNKNOWN",
+      "rule": "Generated SQL/reports/evidence are classified by phase before staging."
+    }
+  },
+  "python_environment_strategy": {
+    "selected": "PY_C_CENTRAL_CACHE_PER_WORKTREE_VENV",
+    "recommendation": "Use a separate .venv per worktree, backed by shared pip/cache directories. Do not copy the main .venv.",
+    "comparison": {
+      "PY_A_PER_WORKTREE_VENV": "Most reproducible and isolated, but slower and duplicates packages.",
+      "PY_B_SHARED_VENV": "Fast and small, but path collisions and dependency drift can cross-contaminate lanes.",
+      "PY_C_CENTRAL_CACHE_PER_WORKTREE_VENV": "Best initial balance: isolated envs with shared download/build cache.",
+      "PY_D_SYSTEM_PYTHON": "Lowest setup but weak reproducibility and high collision risk."
+    },
+    "windows_rules": [
+      "Use PowerShell setup.",
+      "Detect Python 3.12 first for parity with current .venv.",
+      "Allow Python 3.11 only for devcontainer compatibility tasks after smoke.",
+      "Avoid symlinks.",
+      "Do not install dependencies automatically unless setup phase explicitly authorizes it."
+    ]
+  },
+  "data_access_strategy": {
+    "selected": "STOCK_ZERO_DATA_ROOT plus tracked fixtures",
+    "options": {
+      "absolute_paths": "Explicit but brittle and personal-machine-specific.",
+      "STOCK_ZERO_DATA_ROOT": "Preferred for authorized data access; value is local and not printed.",
+      "ignored_manifest": "Useful later for local machine setup, but must not store secrets or customer rows.",
+      "partial_fixture_copy": "Good for tests; only synthetic or sanitized tracked fixtures.",
+      "symlink_or_junction": "Not initial default because Windows permissions and deletion semantics are risky.",
+      "no_access": "Default for review/platform work."
+    },
+    "task_classes": {
+      "no_data_needed": [
+        "platform design",
+        "code review",
+        "unit tests with synthetic fixtures",
+        "skills/docs/tooling"
+      ],
+      "tracked_fixtures": [
+        "schema tests",
+        "loader parser tests",
+        "contract tests"
+      ],
+      "real_data_read_only": [
+        "explicit data lineage audits",
+        "source-check phases",
+        "authorized dry-run preparation"
+      ],
+      "never_background": [
+        "loader apply",
+        "product refresh",
+        "DB write phases",
+        "long local-lab rebuilds without Bastian monitoring"
+      ]
+    }
+  },
+  "secret_strategy": {
+    "principles": [
+      "No secrets are copied into worktrees.",
+      "No secret values are printed.",
+      "Presence checks report booleans only.",
+      "Lane-specific env injection beats inheritance from the main shell."
+    ],
+    "variables_by_lane": {
+      "LOCAL_OPERATIONAL": [
+        "DB_URL_APP when app/runtime is authorized",
+        "DB_URL_LOAD when productive loader is explicitly authorized",
+        "DB_URL_CODEX_RO for read-only checks"
+      ],
+      "CODEX_IMPLEMENTATION": [],
+      "INDEPENDENT_REVIEW": [],
+      "LOCAL_LAB": [
+        "local PostgreSQL DSN when lab phase is authorized",
+        "DB_URL_CODEX_RO only for explicit read-only extract"
+      ],
+      "PLATFORM_TOOLING": []
+    },
+    "verification": "Use scripts/codex_ro_env_check.py or preflight helpers for DB-aware phases; otherwise use name-only/presence-only checks."
+  },
+  "docker_strategy": {
+    "selected": "Single explicit LOCAL_LAB owner; no automatic Docker from setup.",
+    "rules": [
+      "Docker daemon is shared across worktrees.",
+      "Use phase-specific project/container/schema names.",
+      "Use non-default ports only when parallel services are intentionally needed.",
+      "Volumes are never removed by automated cleanup.",
+      "docker compose down -v is forbidden unless Bastian authorizes the exact lab.",
+      "Only one agent may mutate the same local PostgreSQL lab at a time.",
+      "Clean-room reproducibility must be shown by rebuild scripts, manifests, hashes, and no reliance on hidden local_pg state."
+    ]
+  },
+  "local_environment": {
+    "setup_design_ready": true,
+    "schema_verified_locally": false,
+    "schema_note": "No .codex folder exists in the repo, so 001B must verify the Local Environment schema through the Codex UI before committing any .codex configuration.",
+    "setup_script_concept": [
+      "PowerShell only.",
+      "Print repo root, branch, HEAD, and Python candidate.",
+      "Refuse to run DB, Docker, loaders, refresh, or data copy.",
+      "Create or select per-worktree .venv only in authorized implementation phase.",
+      "Install requirements only when the setup phase explicitly allows dependency installation.",
+      "Run import smoke for streamlit, pandas, sqlalchemy, psycopg2, openpyxl, reportlab, plotly.",
+      "Run scanner or targeted smoke only, not full tests by default.",
+      "Fail with JSON-ish concise output and no secrets."
+    ],
+    "safe_actions": [
+      "Git Status",
+      "Preflight Generic",
+      "Scanner Only",
+      "Unit Tests Targeted",
+      "JSON Validate Research Artifact"
+    ],
+    "conditional_actions": [
+      "Preflight Control Gestion No DB",
+      "Full Tests",
+      "Route Source Check",
+      "Route Dry Run",
+      "Canonical Builder Local",
+      "Streamlit",
+      "Docker Lab Start",
+      "Git Push"
+    ],
+    "forbidden_actions": [
+      "Loader Apply",
+      "Product Refresh",
+      "Supabase Write",
+      "Docker Down Volume Delete",
+      "Git Reset/Clean/Stash",
+      "Git Add All",
+      "Secret Print",
+      "Automatic Data Copy"
+    ]
+  },
+  "handoff_contract": {
+    "ready": true,
+    "flows": {
+      "worktree_to_local": "Commit or exact diff plus checklist; ignored dependencies listed separately.",
+      "local_to_worktree": "Prefer commit/branch baseline; do not copy dirty-main files unless explicitly scoped.",
+      "worktree_to_branch_pr": "Push branch or open PR when change is multi-file/risky.",
+      "commit_created": "Record commit SHA, staged files, tests, preflight, and residual risk.",
+      "changes_without_commit": "Do not hand off as implicit state; provide patch/diff and untracked file list.",
+      "ignored_files": "Never assumed transferred."
+    },
+    "mandatory_checklist": [
+      "baseline_commit",
+      "status_short",
+      "diff_stat",
+      "staged_set",
+      "tests_or_preflight",
+      "files_modified",
+      "commits",
+      "ignored_dependencies",
+      "next_action"
+    ]
+  },
+  "cleanup_contract": {
+    "ready": true,
+    "archive_thread_when": [
+      "commit/push/PR and report are complete",
+      "no uncommitted or untracked work remains in that worktree",
+      "Bastian has review pointer"
+    ],
+    "preserve_worktree_when": [
+      "lab state is expensive and documented",
+      "debugging needs continuation",
+      "unpublished branch exists"
+    ],
+    "make_permanent_when": [
+      "same lane is reused at least twice",
+      "setup time dominates",
+      "hidden state is documented and intentionally retained"
+    ],
+    "before_remove": [
+      "git status --short",
+      "git log branch vs upstream",
+      "git diff",
+      "list untracked files",
+      "confirm no ignored local artifacts are needed"
+    ],
+    "safe_prune": "Run git worktree prune only after listing worktrees and confirming no path contains needed uncommitted work.",
+    "retention": "Ephemeral worktrees: remove after merge/review. Lab worktrees: explicit expiry or next lab decision.",
+    "never_auto_delete": [
+      "data/",
+      ".local_secrets/",
+      ".env*",
+      "Docker volumes",
+      "local_pg directories",
+      "untracked research/evidence not classified by Bastian"
+    ],
+    "emergency": {
+      "lost_worktree": "Check git reflog and branch refs before deletion; search for commits by timestamp.",
+      "branch_locked": "Use different branch or remove inactive worktree only after status check.",
+      "rebase_conflict": "Abort only if user explicitly authorizes; otherwise preserve branch and ask.",
+      "handoff_incomplete": "Stop integration and rebuild checklist from source worktree.",
+      "setup_failed": "Do not repair globally; capture setup log and leave worktree intact.",
+      "obsolete_baseline": "Record baseline and ask whether to rebase, merge, or restart."
+    }
+  },
+  "legacy_dirty_checkout_plan": [
+    {
+      "path": "scripts/load_control_gestion_raw_v17.py",
+      "status": "UNKNOWN",
+      "classification": "ACTIVE_VALID_WORK_OR_SECURITY_REVIEW",
+      "action": "Do not modify. Bastian/owning phase must decide whether this tracked loader change is valid, superseded, or needs separate validation."
+    },
+    {
+      "path": "evidence/",
+      "status": "untracked plus many ignored heavy artifacts",
+      "classification": "RESEARCH_UNABSORBED",
+      "action": "Do not move/delete. Classify by phase, manifest, and sensitivity before any Git action."
+    },
+    {
+      "path": "research/claude/",
+      "status": "untracked",
+      "classification": "RESEARCH_UNABSORBED",
+      "action": "Do not absorb automatically. Review against AI_RESEARCH_PROTOCOL before promotion."
+    },
+    {
+      "path": "sql/09_control_gestion_kpione2_raw_dryrun_draft.sql",
+      "status": "untracked",
+      "classification": "UNKNOWN",
+      "action": "Do not stage. Needs explicit SQL/design phase."
+    },
+    {
+      "path": "sql/10_control_gestion_kpione2_forward_recovery_lab_draft.sql",
+      "status": "untracked",
+      "classification": "UNKNOWN",
+      "action": "Do not stage. Needs explicit SQL/design phase."
+    }
+  ],
+  "recommended_pilot": {
+    "selected": "PLATFORM_005B sz-load-observation correction",
+    "why": "It is scoped, currently blocked before first use, has clear tests, and can prove isolation, setup, targeted tests, commit, handoff, and cleanup without touching DB/Docker/data.",
+    "not_selected": {
+      "CG005F_revalidation": "Better for independent review but may need current dirty/evidence context.",
+      "CG005G_local_lab": "Too much Docker/PostgreSQL state for first platform pilot.",
+      "small_documental_task": "Too low risk to validate the worktree system fully.",
+      "no_pilot_yet": "Unnecessary because a good low-risk correction candidate exists."
+    },
+    "pilot_metrics": [
+      "worktree creation time",
+      "setup time",
+      "targeted tests pass/fail",
+      "files outside scope",
+      "dirty-main unchanged",
+      "commit/handoff success",
+      "cleanup time",
+      "disk delta"
+    ]
+  },
+  "metrics": {
+    "baseline": [
+      "collisions: count cross-phase file overlap incidents",
+      "files_outside_scope: count modified/staged paths not in prompt",
+      "setup_time_minutes",
+      "disk_usage_delta_bytes",
+      "rework_rounds",
+      "prompt_length_chars_for_repeated_setup",
+      "test_reproducibility: same target test result across worktrees",
+      "handoff_failures",
+      "dirty_main_incidents",
+      "cleanup_time_minutes"
+    ],
+    "progress_rule": "Adopt next platform layer only when it reduces at least one cost/risk metric without increasing unbounded maintenance."
+  },
+  "mandatory_critique": {
+    "can_worktrees_add_complexity_without_solving_problem": "Yes. Worktrees isolate tracked checkout state but do not solve ignored data, secrets, Docker volumes, local DB state, or dirty-main debt.",
+    "still_depends_on_primary_checkout": "Real Excel files, local secrets, Bastian operational commands, existing dirty research/evidence, and final human inspection.",
+    "ignored_files_make_reproducibility_misleading": ".env, .local_secrets, data, evidence payloads, .venv, Docker/local_pg state, caches, and generated outputs.",
+    "codex_design_not_shareable_with_claude": "Codex-managed Local Environment UI schema and handoff mechanics may not map directly to Claude; shared rules must live in Git-visible docs/scripts, not private UI state.",
+    "automatic_local_environment_risks": "Accidental installs, hidden DB/Docker starts, inherited credentials, expensive tests, data copy, and false confidence from green setup.",
+    "do_not_automate": "Loader apply, product refresh, DB writes, Supabase changes, Docker volume deletion, force push, broad cleanup, data/secret copy.",
+    "permanent_worktrees_premature": "Yes except a future LOCAL_LAB after a pilot; permanent lanes can accumulate hidden state.",
+    "lowest_sufficient_complexity": "Hybrid with ephemeral implementation/review worktrees, main as operational lane, and one explicit lab only when needed."
+  },
+  "implementation_phase_001b": {
+    "ready": true,
+    "goal": "Implement the minimal safe worktree/Local Environment pilot without applying product changes.",
+    "files_that_may_be_created_after_approval": [
+      "scripts/sz_local_env_setup.ps1",
+      "scripts/sz_worktree_audit.ps1",
+      "research/CODEX_PLATFORM_001B_IMPLEMENTATION.json",
+      "research/reports/CODEX_PLATFORM_001B_IMPLEMENTATION.md",
+      ".codex/* only after UI schema is verified locally"
+    ],
+    "ui_configuration_to_verify": [
+      "Exact .codex Local Environment schema",
+      "How setup scripts are linked to Codex-managed worktrees",
+      "How safe actions are declared",
+      "How handoff represents ignored files"
+    ],
+    "versionable_scripts": [
+      "PowerShell setup/check scripts with no secrets and no DB/Docker execution",
+      "Status/preflight/action wrappers"
+    ],
+    "local_ignored_scripts": [
+      "machine-specific env loaders",
+      "data root manifests if they contain personal paths or sensitive names"
+    ],
+    "actions_to_start_with": [
+      "Git Status",
+      "Preflight Generic",
+      "Scanner Only",
+      "Unit Tests Targeted"
+    ],
+    "tests": [
+      "JSON validity",
+      "PowerShell syntax",
+      "setup dry-run without install",
+      "targeted unit test in pilot worktree",
+      "dirty-main unchanged check"
+    ],
+    "first_worktree": "PLATFORM_005B sz-load-observation correction worktree, branch codex/PLATFORM_005B-load-observation-correction, if Bastian approves.",
+    "rollback": [
+      "Do not delete worktree until status is clean or committed.",
+      "Remove only created .codex/scripts files via exact paths.",
+      "Preserve branch and report if setup fails."
+    ],
+    "expected_staged_set": [
+      "Only approved 001B files"
+    ],
+    "expected_commit": "platform: add safe Codex worktree environment"
+  },
+  "bastian_decisions": [
+    "Approve OPTION_E_HYBRID as the operating topology.",
+    "Approve whether direct push to main remains allowed for exact-scope research artifacts.",
+    "Approve PLATFORM_005B as first worktree pilot or choose another pilot.",
+    "Decide whether LOCAL_LAB should ever be permanent before CG005G.",
+    "Decide whether STOCK_ZERO_DATA_ROOT should become the standard local data pointer.",
+    "Confirm whether .codex Local Environment configuration may be versioned after UI schema verification."
+  ],
+  "commands_run": [
+    "python scripts/sz_preflight.py --phase generic --root . --skip-db --json-out $env:TEMP\\sz_preflight_codex_platform001a.json",
+    "git rev-parse HEAD",
+    "git rev-parse --abbrev-ref HEAD",
+    "git rev-parse --verify origin/main",
+    "git merge-base --is-ancestor origin/main HEAD",
+    "git status --short",
+    "git status --short --ignored=matching",
+    "git worktree list --porcelain",
+    "git branch --list -vv",
+    "git branch -r -vv",
+    "git config --local --list --name-only",
+    "git remote",
+    "python --version",
+    "py -0p",
+    "requirements/config/docker/test/preflight inventory commands",
+    "name-only and size-only local sensitive directory inventory"
+  ],
+  "validation": {
+    "json_valid": true,
+    "no_credential_values_recorded": true,
+    "no_secret_content_read": true,
+    "no_worktree_created": true,
+    "no_branch_created": true,
+    "codex_folder_intact_or_absent": true,
+    "no_dependency_installation": true,
+    "no_db": true,
+    "no_docker": true
+  }
+}
