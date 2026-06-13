@@ -1,0 +1,352 @@
+{
+  "phase": "FASE_C007_CANONICAL_BUILDER_PACKAGING_AND_SEMANTIC_PARITY_NO_SUPABASE_WRITE",
+  "verdict": "SHADOW_READY",
+  "baseline": {
+    "head_before_commit": "1504bf65294803121818a0f99df97109fce48cd3",
+    "origin_main_before_commit": "1504bf65294803121818a0f99df97109fce48cd3",
+    "input_contract": "research/C006_CANONICAL_FORWARD_BUILD.json",
+    "legacy_forensics_status": "CLOSED_WITH_DOCUMENTED_NON_REPRODUCIBILITY"
+  },
+  "builder": {
+    "script": "scripts/cg_canonical_build_local.py",
+    "created": true,
+    "local_only_enforced": true,
+    "dsn_policy": {
+      "accepted_hosts": [
+        "localhost",
+        "127.0.0.1",
+        "::1"
+      ],
+      "supabase_dsn_rejected": true,
+      "non_local_dsn_rejected": true,
+      "dsn_printed": false,
+      "credentials_in_git": false
+    },
+    "context_validation": {
+      "accepts_build_context_json": true,
+      "forbidden_tokens": [
+        "latest",
+        "current",
+        "implicit",
+        "auto winner"
+      ],
+      "forbidden_tokens_blocked": true,
+      "raw_batch_registry_validated": true,
+      "raw_snapshot_hashes_validated": true,
+      "route_snapshot_constructed": true,
+      "daily_constructed": true,
+      "weekly_constructed": true,
+      "loaders_executed": false,
+      "product_refresh_executed": false
+    },
+    "hash_contract": {
+      "key_hash": {
+        "daily_columns": [
+          "fecha_visita",
+          "cod_rt",
+          "cliente_norm"
+        ],
+        "weekly_columns": [
+          "SEMANA_INICIO",
+          "COD_RT",
+          "CLIENTE_NORM_FILTER"
+        ]
+      },
+      "business_semantic_hash": {
+        "daily_excludes": [
+          "run_no",
+          "match_quality",
+          "registro_fuera_cruce"
+        ],
+        "weekly_excludes": [
+          "run_no",
+          "SEMANA_INICIO_KEY",
+          "GESTOR_NORM_FILTER",
+          "RUTERO_NORM_FILTER",
+          "LOCAL_NORM_FILTER",
+          "CLIENTE_NORM_FILTER",
+          "ALERTA_NORM_FILTER"
+        ]
+      },
+      "technical_full_row_hash": {
+        "daily_excludes": [
+          "run_no"
+        ],
+        "weekly_excludes": [
+          "run_no"
+        ]
+      },
+      "hash_algorithm": "md5(string_agg(md5(concat_ws(chr(31), normalized_columns)), '' order by key_columns))"
+    }
+  },
+  "raw_lineage": [
+    {
+      "source_key": "KPIONE",
+      "batch_id": 19,
+      "loaded_rows": 75124,
+      "selected_window_rows_before_route_match": 0,
+      "snapshot_hash": "8931d1f7d05701fa9731e0dd1b160155e1127977a475ec43399c2eac9d7f9cf5",
+      "validated": true
+    },
+    {
+      "source_key": "KPIONE2",
+      "batch_id": 38,
+      "loaded_rows": 45736,
+      "selected_window_rows_before_route_match": 14289,
+      "daily_raw_rows_represented_after_route_match": 7579,
+      "snapshot_hash": "1d031758011678c52fada8712e91807d68ebc825064865829fa32c7de6f9e675",
+      "validated": true
+    },
+    {
+      "source_key": "POWER_APP",
+      "batch_id": 26,
+      "loaded_rows": 5497,
+      "selected_window_rows_before_route_match": 0,
+      "snapshot_hash": "fe4eaf1d3f7ca384eecddfff6a1cbe10427d512df38f3dbb150d443592f036a9",
+      "validated": true
+    }
+  ],
+  "route_lineage": {
+    "rows": 6799,
+    "duplicate_keys": 0,
+    "weeks": [
+      {
+        "week_start": "2026-05-18",
+        "rows": 3318,
+        "source_ruta_batch_ids": [
+          13
+        ],
+        "route_week_snapshot_version_id": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1|C006|2026-05-18",
+        "c007_surface_hash": "a106c7d04b614730108ac6b00710ebdf",
+        "c006_surface_hash_reference": "d77324afd998852dd636092ff2bf538f"
+      },
+      {
+        "week_start": "2026-06-01",
+        "rows": 3481,
+        "source_ruta_batch_ids": [
+          15,
+          18
+        ],
+        "route_week_snapshot_version_id": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1|C006|2026-06-01",
+        "c007_surface_hash": "db089d4a3a830a4d7280fbac67ae3afb",
+        "c006_surface_hash_reference": "3cb74f4e4c830d0cd953dbb5dd8008ed"
+      }
+    ],
+    "note": "C007 defines a new route row_hash contract; C006 route surface hashes are retained as references. Daily and weekly outputs compare exact against C006."
+  },
+  "semantic_parity": {
+    "comparison": "c007_canonical.daily_canonical run 1 vs c002_b0.baseline_daily for weeks 2026-05-18 and 2026-06-01",
+    "common_keys": 7484,
+    "missing_from_canonical": 0,
+    "extra_in_canonical": 0,
+    "technical_only_keys": 0,
+    "null_empty_only_keys": 0,
+    "normalization_only_keys": 7484,
+    "business_diff_keys": 1211,
+    "business_diff_cells": 3599,
+    "classes": [
+      {
+        "class": "TECHNICAL_ONLY",
+        "keys": 0,
+        "cells": 0,
+        "operational_impact": "none"
+      },
+      {
+        "class": "NULL_EMPTY_ONLY",
+        "keys": 0,
+        "cells": 0,
+        "operational_impact": "none after normalization"
+      },
+      {
+        "class": "NORMALIZATION",
+        "keys": 7484,
+        "cells": 14968,
+        "columns": [
+          {
+            "column": "match_quality",
+            "keys": 7484,
+            "cells": 7484
+          },
+          {
+            "column": "registro_fuera_cruce",
+            "keys": 7484,
+            "cells": 7484
+          }
+        ],
+        "operational_impact": "not counted as business_semantic_diff; no visit, source, route assignment, or alert change"
+      },
+      {
+        "class": "ROUTE_PERSON",
+        "keys": 1188,
+        "cells": 3511,
+        "columns": [
+          {
+            "column": "gestor",
+            "keys": 1182,
+            "cells": 1182
+          },
+          {
+            "column": "gestor_norm",
+            "keys": 1182,
+            "cells": 1182
+          },
+          {
+            "column": "supervisor",
+            "keys": 707,
+            "cells": 707
+          },
+          {
+            "column": "jefe_operaciones",
+            "keys": 433,
+            "cells": 433
+          },
+          {
+            "column": "local_nombre",
+            "keys": 7,
+            "cells": 7
+          }
+        ],
+        "operational_impact": "ownership/display/filter attribution differs from legacy for affected route-person fields",
+        "explanation": "C005 closed legacy route/person provenance as documented non-reproducibility; C007 uses the explicit forward route snapshot contract."
+      },
+      {
+        "class": "SOURCE_METRIC",
+        "keys": 23,
+        "cells": 23,
+        "columns": [
+          {
+            "column": "kpione2_rows_dia",
+            "keys": 23,
+            "cells": 23
+          }
+        ],
+        "operational_impact": "audit/source count differs for 23 keys",
+        "explanation": "C005 validated this as raw snapshot drift: KPIONE2 batch 33 matched legacy while batches 34-38 match the local canonical count."
+      },
+      {
+        "class": "VISIT_METRIC",
+        "keys": 23,
+        "cells": 65,
+        "columns": [
+          {
+            "column": "raw_evidence_count",
+            "keys": 23,
+            "cells": 23
+          },
+          {
+            "column": "same_source_multimark",
+            "keys": 19,
+            "cells": 19
+          },
+          {
+            "column": "persona_conflicto_rows_dia",
+            "keys": 23,
+            "cells": 23
+          }
+        ],
+        "operational_impact": "audit/multimark/person-conflict counters differ; useful_day and alert path are not changed by these counters",
+        "explanation": "Same KPIONE2 snapshot drift as SOURCE_METRIC."
+      },
+      {
+        "class": "ALERT",
+        "keys": 0,
+        "cells": 0,
+        "operational_impact": "none"
+      },
+      {
+        "class": "OTHER",
+        "keys": 0,
+        "cells": 0,
+        "operational_impact": "none"
+      }
+    ]
+  },
+  "source_coverage": {
+    "scenarios": 8,
+    "passed": 8,
+    "failed": 0,
+    "scenario_ids": [
+      "KPIONE2_ONLY",
+      "POWER_APP_FALLBACK",
+      "KPIONE2_POWER_APP_OVERLAP",
+      "KPIONE_AUDIT_ONLY",
+      "DOUBLE_MARK",
+      "TRIPLE_SOURCE_OVERLAP",
+      "EVIDENCE_OUTSIDE_ROUTE",
+      "ROUTE_WITHOUT_EVIDENCE"
+    ]
+  },
+  "reexecution": {
+    "canonical_schema": "c007_canonical",
+    "canonical_runs": 3,
+    "clean_room_schema": "c007_clean_room",
+    "clean_room_runs": 1,
+    "c006_output_compare": {
+      "daily_left_minus_right": 0,
+      "daily_right_minus_left": 0,
+      "weekly_left_minus_right": 0,
+      "weekly_right_minus_left": 0,
+      "matches": true
+    }
+  },
+  "determinism": {
+    "daily": {
+      "rows": 7484,
+      "duplicate_keys": 0,
+      "key_hash": "d3047ebd1212494648d2dc67988246e5",
+      "business_semantic_hash": "4837c0ab073d765f177641355178a51f",
+      "technical_full_row_hash": "a6a49057ece44629fe6c26987761524a",
+      "row_variants": 1,
+      "key_hash_variants": 1,
+      "business_semantic_hash_variants": 1,
+      "technical_full_row_hash_variants": 1
+    },
+    "weekly": {
+      "rows": 6799,
+      "duplicate_keys": 0,
+      "key_hash": "dc9e0538b4ca27f772f2fa3c5467758e",
+      "business_semantic_hash": "4569d8b74285a073c2f152491657a9c2",
+      "technical_full_row_hash": "fcb38f928c2fdda2c0ee8ee23496071c",
+      "row_variants": 1,
+      "key_hash_variants": 1,
+      "business_semantic_hash_variants": 1,
+      "technical_full_row_hash_variants": 1
+    }
+  },
+  "clean_room": {
+    "matches_canonical": true,
+    "daily_left_minus_right": 0,
+    "daily_right_minus_left": 0,
+    "weekly_left_minus_right": 0,
+    "weekly_right_minus_left": 0,
+    "daily_key_hash": "d3047ebd1212494648d2dc67988246e5",
+    "daily_business_semantic_hash": "4837c0ab073d765f177641355178a51f",
+    "daily_technical_full_row_hash": "a6a49057ece44629fe6c26987761524a",
+    "weekly_key_hash": "dc9e0538b4ca27f772f2fa3c5467758e",
+    "weekly_business_semantic_hash": "4569d8b74285a073c2f152491657a9c2",
+    "weekly_technical_full_row_hash": "fcb38f928c2fdda2c0ee8ee23496071c"
+  },
+  "tests": {
+    "command": "python -m unittest discover -s tests -p \"test_*.py\" -v",
+    "collected": 37,
+    "passed": 36,
+    "failed": 0,
+    "skipped": 1,
+    "skip_reason": "Windows symlink privilege unavailable in existing extractor test"
+  },
+  "supabase_writes": false,
+  "local_writes": true,
+  "files_modified": [
+    "scripts/cg_canonical_build_local.py",
+    "tests/test_cg_canonical_build_local.py",
+    "research/C007_CANONICAL_BUILDER_VALIDATION.json",
+    "research/reports/CODEX_C007_CANONICAL_BUILDER_VALIDATION.md"
+  ],
+  "warnings": [
+    "Preflight warnings were non-blocking: git_worktree_not_clean and kernel_02_head_mismatch.",
+    "C007 route surface hashes differ from C006 route surface hashes because C007 formalizes a new row_hash definition; C006 daily and weekly outputs still compare exact.",
+    "One existing Windows symlink test was skipped due missing privilege."
+  ],
+  "blockers": [],
+  "next_step": "ChatGPT/Bastian review"
+}
