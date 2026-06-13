@@ -1,0 +1,234 @@
+{
+  "document_id": "CG005D_INDEPENDENT_IMPLEMENTATION_VALIDATION",
+  "schema_version": 1,
+  "task_id": "CLAUDE_CG005D_INDEPENDENT_IMPLEMENTATION_VALIDATION",
+  "status": "INDEPENDENT_VALIDATION_NOT_AUTHORITY",
+  "validated_commit": "074ee5ba24fc02099205b25569a5374d3870ac72",
+  "head_at_validation": "1e08ac20c3a3a812bcb2790d01f097eb022d3cbb",
+  "created_at": "2026-06-13",
+  "authority": {
+    "implementation_authorized": false,
+    "ddl_authorized": false,
+    "apply_authorized": false,
+    "db_access": "none",
+    "executed": ["py_compile", "unittest (2 suites)", "isolated python ordering simulation"]
+  },
+  "verdict": "BLOCKED_BEFORE_DDL",
+  "executive_conclusion": "Integrity is strong: the loader compiles, both test suites pass (46/46 weekly; 20 pass + 1 known skip readonly), the default is no-write, the apply guards for week/hash/confirm-token/db_url/postcheck are strong, there is no shell=True, no free-SQL CLI, the DSN is redacted, and sql/11 carries the NO APPLY header. However, the DDL-plus-loader unit cannot yet perform a correct, reproducible, reversible weekly replacement. Three blockers sit at or before the DDL boundary: (1) the resolved view re-admits legacy-inferred batches for an explicitly-assigned week, so deleted grains (the 70 bajas) survive and the replacement policy is silently defeated; (2) the loader's required resolved-view column and its postcheck reference cod_rt_norm, which the sql/11 view does not expose (it exposes cod_rt), so verify_db_contract aborts apply and the duplicate-grain postcheck references a non-existent column; (3) the assignment lifecycle never supersedes the prior ACTIVE row and hardcodes replaces_ruta_batch_id=None, so a second (retroactive) replacement of the same week violates the unique ACTIVE index. Rollback restoration is an unimplemented stub, the postcheck over-claims relative to POSTCHECK_CONTRACT, the written resolved_surface_hash is not comparable to any DB-computed hash, and the multirow tiebreak is source_row/order dependent while BD-CG005B-001 is still open. The earliest failing gate is the DDL itself (the resolved view semantics and the loader/view column contract), so the verdict is BLOCKED_BEFORE_DDL; apply is also separately blocked.",
+  "scope_and_method": {
+    "no_apply": true,
+    "no_db": true,
+    "no_docker": true,
+    "no_sql_executed": true,
+    "no_files_modified_under_validation": true,
+    "files_under_validation": [
+      "scripts/load_ruta_rutero_from_excel.py",
+      "sql/11_control_gestion_route_week_replacement_contract.sql",
+      "tests/test_load_ruta_rutero_weekly_replace.py"
+    ],
+    "working_tree_matches_commit_for_validated_files": true,
+    "method": "Static reading of loader + SQL contract + tests + consumers; executed py_compile and the two named unittest suites against the working tree (identical to 074ee5b for these files); an isolated in-memory python simulation of the resolved-view ORDER BY (no productive file modified)."
+  },
+  "validation_a_integrity": {
+    "commit_exists": true,
+    "contains_expected_loader_sql_tests": true,
+    "commit_changed_files": [
+      "scripts/load_ruta_rutero_from_excel.py",
+      "sql/11_control_gestion_route_week_replacement_contract.sql",
+      "tests/test_load_ruta_rutero_weekly_replace.py"
+    ],
+    "sql_starts_with_no_apply": true,
+    "sql_no_apply_evidence": "sql/11 line 1 '-- NO APPLY IN CG005C'; file wrapped begin; ... rollback;",
+    "compile_ok": true,
+    "weekly_tests": {"ran": 46, "passed": 46, "failed": 0, "skipped": 0, "reproducible": true},
+    "readonly_tests": {"ran": 21, "passed": 20, "failed": 0, "skipped": 1, "skip_reason": "Windows symlink privilege unavailable (pre-existing extractor test)"},
+    "default_is_no_write": true,
+    "default_no_write_evidence": "validate_cli_args: if not args.apply -> args.dry_run=True; main() emits plan and returns for dry_run; test_01 asserts connect_db not called.",
+    "apply_requires_guards": true,
+    "apply_guard_evidence": "validate_cli_args requires --apply + --expected-workbook-sha256 + --confirm-weekly-replacement==ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1 + --json-out + --db_url + not --skip-postcheck.",
+    "no_shell_true": true,
+    "no_free_sql": true,
+    "no_free_sql_evidence": "No subprocess; all SQL is module-level parameterized constants; DELETE is 'DELETE FROM public.ruta_rutero WHERE source = %s'; CLI has no --sql/--stdin (test_31).",
+    "dsn_not_printed": true,
+    "dsn_evidence": "redact_secret() on error strings; dsn_printed=false in plan/result/error payloads; test_28/test_29.",
+    "verdict": "PASS"
+  },
+  "validation_b_replacement_semantics": [
+    {"point": "explicit batch used exclusively as authoritative snapshot", "classification": "PARTIAL", "fact": "The resolver prefers EXPLICIT_ASSIGNMENT per grain, but the resolved view joins v_ruta_rutero_load_batch_week_v2 (union of explicit + legacy), so the explicit batch is not exclusive for the week.", "evidence": "sql/11:200-202 join to v_ruta_rutero_load_batch_week_v2; 92-126 union all explicit_assignment + legacy_inferred."},
+    {"point": "deleted grain cannot reappear from a legacy batch of the same week", "classification": "FAILED", "fact": "legacy_inferred excludes a batch only if THAT batch has an ACTIVE assignment, not if the week is already explicitly assigned; a legacy batch whose loaded_at infers to the assigned week still contributes rows, so a grain absent from the explicit batch survives from the legacy batch.", "evidence": "sql/11:104-120 legacy_inferred NOT EXISTS keyed on a.ruta_batch_id=b.ruta_batch_id only."},
+    {"point": "the 70 deleted grains cease to exist in the resolved surface", "classification": "FAILED", "fact": "Because legacy backfill is not prevented and the postcheck does not compare resolved grains to the new batch, bajas dropped in the new file persist via the legacy-inferred batch.", "evidence": "Resolved view reads cg_core.ruta_rutero_load_rows (immutable history), not public.ruta_rutero; legacy batch rows remain; postcheck (run_postcheck) has no stale/baja check."},
+    {"point": "historical batches available for audit but do not silently fill snapshot gaps", "classification": "FAILED", "fact": "Historical batches both remain for audit AND silently fill gaps in the explicitly-assigned week through the resolved view union.", "evidence": "sql/11:121-126 union all; loader REQUIRED_DB_OBJECTS keeps history; no exclusivity filter."},
+    {"point": "resolved view produces exactly one grain effective_week_start + COD_RT + CLIENTE", "classification": "PROVEN", "fact": "logical_rank partitions by (effective_week_start, cod_rt, cliente_norm) and filters logical_rank=1, yielding one row per grain.", "evidence": "sql/11:209-225 resolved CTE; 259 where logical_rank=1.", "caveat": "The grain is on cliente_norm (normalized), and the loader/postcheck duplicate-grain check references cod_rt_norm which the view does not expose (see F-02)."}
+  ],
+  "validation_c_assignment_lifecycle": {
+    "scenario": "Week 2026-06-08: assignment A ACTIVE; correction creates batch B; B should replace A; A should become SUPERSEDED; B ACTIVE; rollback should reactivate A.",
+    "unique_active_index_present": true,
+    "unique_active_index_evidence": "sql/11:80-82 ux_ruta_rutero_week_assignment_active on (effective_week_start, route_policy_version) where assignment_status='ACTIVE'.",
+    "locking": "MISSING",
+    "locking_evidence": "run_weekly_replacement_apply takes no advisory lock and no SELECT ... FOR UPDATE on the week's assignments.",
+    "order_of_operations": "register batch -> insert history -> validate count -> snapshot previous -> delete public -> insert public -> validate count -> create ACTIVE assignment -> postcheck -> finalize ok -> commit.",
+    "replaces_ruta_batch_id": "HARDCODED_NULL",
+    "replaces_evidence": "run_weekly_replacement_apply calls create_week_assignment(..., replaces_ruta_batch_id=None) at loader line 1110.",
+    "previous_assignment_referenced": false,
+    "supersede_previous_active_implemented": false,
+    "supersede_evidence": "No UPDATE sets a prior ACTIVE assignment to SUPERSEDED anywhere; create_week_assignment only INSERTs status 'ACTIVE'.",
+    "second_replacement_of_same_week": "FAILS",
+    "second_replacement_evidence": "A second ACTIVE insert for the same (week, policy) violates ux_ruta_rutero_week_assignment_active -> IntegrityError -> except -> conn.rollback().",
+    "idempotency": "NONE",
+    "concurrency": "Unprotected; relies on row locks + unique index; risk of deadlock or opaque failure (fails closed, no corruption).",
+    "can_execute_cycle_without_violating_constraints": false,
+    "conclusion": "The first-ever load to a fresh week succeeds, but the named retroactive-replacement cycle (B supersedes A; rollback reactivates A) is not implemented and a same-week re-apply is rejected by the unique ACTIVE index."
+  },
+  "validation_d_multirow_precedence": {
+    "rule": "Resolved logical_rank ORDER BY: EXPLICIT_ASSIGNMENT first, visitas_exigidas desc, (lunes+...+domingo) desc, source_row asc, row_hash asc (sql/11:211-220).",
+    "order_independent": false,
+    "source_row_independent": false,
+    "business_approved": false,
+    "business_approval_evidence": "BD-CG005B-001 (non-exact multirow collapse) is still open in research/CG005B_ROUTE_REPLACEMENT_CONTRACT.json; the resolver already collapses to logical_rank=1, pre-empting the decision.",
+    "fixtures": [
+      {"id": "F-D1", "scenario": "same rows, inverted order (exact duplicate row_hash)", "result": "ORDER_INDEPENDENT", "reason": "exact_dup_rank by (ruta_batch_id, row_hash) collapses to one row with identical content."},
+      {"id": "F-D2", "scenario": "same frequency and day-sum, different persons", "result": "ORDER_DEPENDENT", "reason": "visitas and day-sum tie -> tiebreak source_row asc -> winner flips when Excel order/source_row changes (proven: order1=REPO_A, order2=REPO_B).", "method": "isolated python simulation of the ORDER BY; no productive file modified"},
+      {"id": "F-D3", "scenario": "different modality and responsible, different frequency", "result": "ORDER_INDEPENDENT", "reason": "frequency (visitas) differs -> business field decides deterministically (proven: REPO_C both orders)."}
+    ],
+    "frequency_days_modality_responsibles_preserved": "Per selected logical row only; the unselected operational row is dropped from the resolved surface (preserved only in history).",
+    "stable_between_excel_reorders": "Only when a business field (visitas or day-sum) differs; unstable when persons differ but schedule ties.",
+    "conclusion": "Precedence is deterministic given fixed source_row, but it materially depends on source_row for the person-only-differs class, contradicting the contract statement that source_row must not be material, and it collapses multirow groups before BD-CG005B-001 is decided."
+  },
+  "validation_e_hashes": {
+    "inventory": [
+      {"name": "workbook_sha256", "algorithm": "SHA-256 of full file bytes, uppercase", "columns": "n/a (file bytes)", "order": "n/a", "purpose": "input integrity", "reproducible": true, "comparable": true, "consumer": "apply guard (--expected-workbook-sha256) and assignment.input_file_sha256", "evidence": "loader sha256_file()"},
+      {"name": "schema_signature", "algorithm": "SHA-256 of normalized header keys joined by '|', uppercase", "columns": "workbook header names (normalized)", "order": "workbook column order", "purpose": "schema drift detection", "reproducible": true, "comparable": "not compared to any stored expected signature", "consumer": "assignment.schema_signature (informational)", "evidence": "loader schema_signature_from_columns()"},
+      {"name": "row_hash", "algorithm": "MD5 of BUSINESS_HASH_COLUMNS values joined by '|'", "columns": "27 business columns", "order": "fixed column list", "purpose": "per-row business fingerprint; exact-dup detection; resolver tiebreak", "reproducible": true, "comparable": true, "consumer": "history, public, exact dedup, resolved view", "evidence": "loader md5_row(); BUSINESS_HASH_COLUMNS"},
+      {"name": "python_current_surface_hash", "algorithm": "SHA-256 of 'source_row|row_hash' lines joined by newline, uppercase", "columns": "source_row, row_hash", "order": "current-surface row order (post exact-dedup)", "purpose": "assignment.resolved_surface_hash", "reproducible": true, "comparable": "NOT compared to DB", "consumer": "assignment.resolved_surface_hash", "evidence": "loader current_surface_hash()"},
+      {"name": "db_current_surface_hash", "algorithm": "MD5(string_agg(row_hash, '|' order by source_row, row_hash))", "columns": "row_hash only", "order": "order by source_row, row_hash", "purpose": "previous_snapshot summary", "reproducible": true, "comparable": "NOT comparable to python_current_surface_hash (md5 vs sha256; different column tuple)", "consumer": "result.previous_snapshot (emitted, never checked)", "evidence": "loader fetch_current_snapshot_summary()"},
+      {"name": "assignment_resolved_surface_hash", "algorithm": "= python_current_surface_hash", "columns": "source_row, row_hash of current public surface", "order": "current-surface order", "purpose": "claims to represent the resolved surface", "reproducible": true, "comparable": false, "consumer": "assignment row; never recomputed/compared post-insert", "evidence": "create_week_assignment writes plan['planned_assignment']['resolved_surface_hash']"}
+    ],
+    "written_hash_comparable_to_db_recomputation": false,
+    "comparability_fact": "The hash written to the assignment is Python SHA-256 over source_row|row_hash of the CURRENT public surface; the only DB-side hash (fetch_current_snapshot_summary) is MD5 over row_hash alone. Different algorithm and different columns; no equality check exists. The name 'resolved_surface_hash' is misleading: it does not derive from the resolved weekly view (which collapses to logical grain).",
+    "postcheck_named_vs_implemented": {
+      "postcheck_contract_names": ["batch_inserted", "history_row_count_matches", "current_public_row_count_matches", "current_surface_hash_matches", "active_assignment_exists", "assignment_week_matches", "resolved_rows_positive", "resolved_duplicate_logical_grains_zero", "week_view_reports_explicit_assignment", "no_stale_rows_from_previous_snapshot"],
+      "implemented_in_run_postcheck": ["current_public_row_count_matches", "active_assignment_exists", "assignment_week_matches", "resolved_rows_positive", "resolved_duplicate_logical_grains_zero", "week_view_reports_explicit_assignment"],
+      "implemented_elsewhere_not_in_postcheck": ["history_row_count_matches (validate_history_row_count before postcheck)"],
+      "declared_but_not_implemented": ["current_surface_hash_matches", "no_stale_rows_from_previous_snapshot", "batch_inserted (not re-verified in postcheck)"],
+      "broken": ["resolved_duplicate_logical_grains_zero references cod_rt_norm which the sql/11 resolved view does not expose -> would raise UndefinedColumn at apply time"]
+    },
+    "consistent": false,
+    "postcheck_enforced": false
+  },
+  "validation_f_transaction": {
+    "psycopg2_transaction_start": "conn.autocommit=False then implicit transaction begins on first execute (verify_db_contract); explicit cur.execute('BEGIN') is issued afterwards (redundant, emits a nested-BEGIN warning).",
+    "queries_before_begin": "verify_db_contract runs SELECTs after autocommit=False but before the explicit BEGIN; they are already inside the implicit transaction, so atomicity is unaffected.",
+    "autocommit": false,
+    "locks_needed": "none acquired (no advisory lock / SELECT FOR UPDATE)",
+    "delete_restricted_by_source": true,
+    "delete_evidence": "PUBLIC_DELETE_SQL = 'DELETE FROM public.ruta_rutero WHERE source = %s' (loader; test_18/test_19).",
+    "insert": "execute_values into public.ruta_rutero (no ON CONFLICT; test_20).",
+    "assignment": "INSERT status 'ACTIVE' (no supersede).",
+    "postcheck": "run_postcheck before finalize/commit (test_21/test_23).",
+    "batch_finalization": "finalize_cg_ruta_batch status 'ok' only after postcheck (test_23 asserts finalize not called on postcheck failure).",
+    "rollback_on_exception": true,
+    "rollback_on_exception_evidence": "except Exception: conn.rollback(); raise (loader 1144-1146; test_22/test_24/test_25).",
+    "atomic": true,
+    "concurrency_safe": false,
+    "race_behavior": "Two operators on the same week serialize via row locks on the public source slice and the unique ACTIVE index; the loser errors out (no advisory lock, possible deadlock). Fails closed (no partial commit).",
+    "fail_after_delete": "Same-transaction rollback restores the deleted public rows (no commit yet).",
+    "fail_after_assignment": "Same-transaction rollback discards the assignment and all prior writes."
+  },
+  "validation_g_rollback": {
+    "interface_present": true,
+    "argument_validation_present": true,
+    "argument_validation_evidence": "run_weekly_replacement_rollback validates week (Monday), db_url, failed_assignment_id, expected_current_surface_hash, confirm_token==ROUTE_WEEK_ROLLBACK_V1.",
+    "sql_design_present": true,
+    "sql_design_evidence": "sql/11:261-279 commented rollback transaction design (lock, validate hash, mark ROLLED_BACK, reactivate previous, delete+restore public, postvalidate).",
+    "restoration_implemented": false,
+    "restoration_evidence": "After verify_db_contract, run_weekly_replacement_rollback unconditionally raises MissingDBContractError(['rollback_execution_requires_separate_authorization']) and rolls back; it never restores public.ruta_rutero, never reactivates the previous assignment, never marks the failed assignment ROLLED_BACK.",
+    "restoration_tested": false,
+    "restoration_test_evidence": "test_40 only asserts callable(run_weekly_replacement_rollback) and the confirm-token constant.",
+    "authorization": "Self-blocks with an explicit 'requires separate authorization' error.",
+    "conclusion": "Rollback is interface + argument-validation + commented design only; postcommit restoration is not implemented and not tested."
+  },
+  "validation_h_cli_bypass": [
+    {"guard": "skip source-check", "classification": "PARTIAL", "fact": "--skip-source-check is not rejected with --apply; a skipped source-check returns final_verdict 'warn' (not block), so apply proceeds. Missing critical columns would still fail later inside transform_route_dataframe (fails closed), but the explicit guard is bypassable.", "evidence": "build_arg_parser --skip-source-check; source_check_payload_skipped final_verdict 'warn'; validate_cli_args does not forbid skip+apply."},
+    {"guard": "wrong/incorrect week", "classification": "PARTIAL", "fact": "Week is required and Monday-validated, but not cross-checked against the workbook content or the contracted 2026-06-08..2026-06-14; any Monday is accepted.", "evidence": "parse_effective_week_start checks ISO + Monday only."},
+    {"guard": "omit hash", "classification": "STRONG", "fact": "--apply requires --expected-workbook-sha256 and build_dry_run_plan raises workbook_hash_mismatch on mismatch.", "evidence": "validate_cli_args apply_requires_expected_workbook_sha256; test_05/test_06."},
+    {"guard": "omit postcheck", "classification": "STRONG", "fact": "--apply with --skip-postcheck raises apply_requires_postcheck_enabled.", "evidence": "validate_cli_args."},
+    {"guard": "incorrect confirmation token", "classification": "STRONG", "fact": "--confirm-weekly-replacement must equal ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1.", "evidence": "validate_cli_args apply_requires_exact_confirm_token; test_07."},
+    {"guard": "implicit DB URL", "classification": "STRONG", "fact": "--apply requires explicit --db_url (no env fallback).", "evidence": "validate_cli_args apply_requires_explicit_db_url; test_41."},
+    {"guard": "incompatible DB objects", "classification": "STRONG_BUT_INCONSISTENT", "fact": "verify_db_contract checks relations, assignment/view columns, batch status constraint, and read_only; but it requires resolved-view column cod_rt_norm that sql/11 does not provide, so it fails against the companion DDL (see F-02).", "evidence": "verify_db_contract; REQUIRED_RESOLVED_VIEW_COLUMNS."},
+    {"guard": "accidental legacy path", "classification": "STRONG", "fact": "Legacy flags are argparse.SUPPRESS no-ops; the old write path was removed; non-apply always coerces to dry_run.", "evidence": "build_arg_parser suppressed flags; validate_cli_args."}
+  ],
+  "validation_i_compatibility": {
+    "public_ruta_rutero_columns": {
+      "classification": "COMPATIBLE",
+      "fact": "The new PUBLIC_INSERT_SQL inserts the same column list as the prior loader revision (cadena..modalidad,row_hash,source,source_row). Neither old nor new loader writes *_norm columns to public.ruta_rutero, so app/db.py (rr.cliente_norm) and sql/03 MV (rr.cliente_norm) behavior is unchanged by the column shape. The change is the write STRATEGY (full delete+insert per source vs ON CONFLICT upsert), not the column shape.",
+      "evidence": "git 074ee5b^ public INSERT column list identical to loader PUBLIC_INSERT_SQL; app/db.py:36 RUTA_TABLE; sql/03 line 30 rr.cliente_norm."
+    },
+    "resolved_view_columns_vs_refresh": {
+      "classification": "COMPATIBLE",
+      "fact": "scripts/refresh_control_gestion_v2_incremental.py reads f.cod_rt and f.cliente_norm from v_rr_frecuencia_base_resuelta_v2; sql/11 exposes both cod_rt and cliente_norm.",
+      "evidence": "refresh WEEKLY_FREQ usage f.cod_rt (lines 381/616/645/733), cliente_norm; sql/11:232/237."
+    },
+    "resolved_view_columns_vs_loader": {
+      "classification": "INCOMPATIBLE",
+      "fact": "loader REQUIRED_RESOLVED_VIEW_COLUMNS and run_postcheck require cod_rt_norm, which sql/11's view does not expose (it exposes cod_rt). See blocker F-02.",
+      "evidence": "loader 144-157, 1030-1043; sql/11:226-258."
+    },
+    "canonical_builder": {
+      "classification": "COMPATIBLE",
+      "fact": "scripts/cg_canonical_build_local.py already uses an explicit route_source_plan with week_start and source_ruta_batch_ids; it does not consume the new assignment table.",
+      "evidence": "CG005B contract repo_static_evidence; capability map."
+    },
+    "tracked_views": {
+      "classification": "REQUIRES_CHANGE",
+      "fact": "sql/11 create-or-replace redefines cg_core.v_ruta_rutero_load_batch_week_v2 and v_rr_frecuencia_base_resuelta_v2 to depend on the new assignment table; the existing deployed views must be replaced for the feature, and that replacement carries F-01 (legacy backfill) and F-02 (cod_rt_norm).",
+      "evidence": "sql/11:92-259."
+    },
+    "removed_or_renamed_columns": ["resolved view: cod_rt_norm not exposed (loader/postcheck expect it) -> effectively a rename to cod_rt relative to loader expectations"]
+  },
+  "findings": [
+    {"id": "F-01", "severity": "BLOCKER", "component": "sql/11 v_rr_frecuencia_base_resuelta_v2 + v_ruta_rutero_load_batch_week_v2", "fact": "The resolved view joins the union of explicit + legacy week-batch mappings; legacy_inferred excludes a batch only when THAT batch has an ACTIVE assignment, not when the week is explicitly assigned. A legacy batch whose loaded_at infers to the assigned week still contributes rows, so grains deleted in the explicit batch survive via legacy backfill.", "evidence": "sql/11:104-126 legacy_inferred NOT EXISTS on a.ruta_batch_id=b.ruta_batch_id; resolved view joins v_ruta_rutero_load_batch_week_v2 (union) not v_ruta_rutero_latest_week_batch_v2.", "consequence": "The 70 bajas for week 2026-06-08 persist; the replacement policy is silently defeated and postcheck blesses it.", "reproducible_scenario": "Week 2026-06-08 assigned to new batch B; legacy batch 19 (loaded_at 2026-06-08T04:56Z -> Santiago Mon 2026-06-08) remains legacy-inferred to the same week; a grain present only in batch 19 appears in the resolved surface.", "required_correction": "Resolve each week from the single winning batch (join v_ruta_rutero_latest_week_batch_v2) or exclude legacy_inferred for any week that already has an ACTIVE assignment; add a postcheck comparing resolved grains to the assigned batch.", "blocks_ddl": true, "blocks_apply": true, "confidence": "HIGH"},
+    {"id": "F-02", "severity": "BLOCKER", "component": "loader verify_db_contract / run_postcheck vs sql/11 resolved view", "fact": "loader REQUIRED_RESOLVED_VIEW_COLUMNS and the duplicate-grain postcheck require cod_rt_norm, but the sql/11 resolved view exposes cod_rt (not cod_rt_norm).", "evidence": "loader 144-157 (REQUIRED_RESOLVED_VIEW_COLUMNS includes cod_rt_norm), 1030-1043 (group by cod_rt_norm); sql/11:226-258 selects cod_rt.", "consequence": "verify_db_contract returns missing_resolved_view_column:cod_rt_norm and aborts apply before any write; if bypassed, the duplicate-grain postcheck raises UndefinedColumn. The loader and its companion DDL cannot co-function.", "reproducible_scenario": "Apply sql/11 views, then run --apply: verify_db_contract fails on cod_rt_norm.", "required_correction": "Make the view expose cod_rt_norm, or change loader REQUIRED_RESOLVED_VIEW_COLUMNS and postcheck to cod_rt (matching refresh).", "blocks_ddl": true, "blocks_apply": true, "confidence": "HIGH"},
+    {"id": "F-03", "severity": "BLOCKER", "component": "loader run_weekly_replacement_apply / create_week_assignment", "fact": "The apply never supersedes the prior ACTIVE assignment and hardcodes replaces_ruta_batch_id=None; a second (retroactive) replacement of the same week inserts a second ACTIVE row that violates the unique ACTIVE index.", "evidence": "loader 1104-1111 create_week_assignment(..., replaces_ruta_batch_id=None); create_week_assignment INSERTs status 'ACTIVE' only; sql/11:80-82 unique partial index.", "consequence": "The named retroactive-replacement cycle (B supersedes A; rollback reactivates A) is unimplemented; a same-week re-apply errors and rolls back. Only a first-ever load to a fresh week works.", "reproducible_scenario": "Apply week 2026-06-08 (succeeds while table empty); apply a correction for the same week -> IntegrityError on ux_ruta_rutero_week_assignment_active -> rollback.", "required_correction": "Within the transaction, lock and set the prior ACTIVE assignment for (week, policy) to SUPERSEDED before inserting the new ACTIVE, and set replaces_ruta_batch_id to the prior batch.", "blocks_ddl": false, "blocks_apply": true, "confidence": "HIGH"},
+    {"id": "F-04", "severity": "HIGH", "component": "loader run_weekly_replacement_rollback / sql/11 rollback section", "fact": "Postcommit rollback restoration is not implemented; the function validates arguments then unconditionally raises 'rollback_execution_requires_separate_authorization'. The SQL rollback is commented design only.", "evidence": "loader 1154-1185; sql/11:261-279 comments; test_40 only checks callable.", "consequence": "There is no executable way to restore public.ruta_rutero, reactivate the previous assignment, or mark the failed assignment ROLLED_BACK after a committed bad apply.", "reproducible_scenario": "Call run_weekly_replacement_rollback with valid args -> raises before any restoration.", "required_correction": "Implement and test the postcommit restoration transaction (or forbid apply until it exists).", "blocks_ddl": false, "blocks_apply": true, "confidence": "HIGH"},
+    {"id": "F-05", "severity": "HIGH", "component": "loader POSTCHECK_CONTRACT vs run_postcheck", "fact": "POSTCHECK_CONTRACT lists 10 checks; run_postcheck implements 6, omits current_surface_hash_matches and no_stale_rows_from_previous_snapshot, and its duplicate-grain check references the non-existent cod_rt_norm.", "evidence": "loader 159-170 POSTCHECK_CONTRACT; 982-1061 run_postcheck.", "consequence": "Named integrity guarantees (surface hash, no stale rows) are not enforced; a name in POSTCHECK_CONTRACT does not imply enforcement; legacy backfill (F-01) is not caught.", "reproducible_scenario": "Inspect run_postcheck: no hash comparison, no stale-row query.", "required_correction": "Implement the declared checks (including a stale/baja check) or remove the unimplemented names and reconcile column references.", "blocks_ddl": false, "blocks_apply": true, "confidence": "HIGH"},
+    {"id": "F-06", "severity": "HIGH", "component": "loader hash contract", "fact": "The resolved_surface_hash written to the assignment (Python SHA-256 over source_row|row_hash of the current public surface) is never compared to any DB-computed hash; the only DB hash (fetch_current_snapshot_summary) is MD5 over row_hash alone (different algorithm and columns). The name is misleading (not derived from the resolved weekly view).", "evidence": "loader current_surface_hash() vs fetch_current_snapshot_summary(); create_week_assignment writes resolved_surface_hash; previous_snapshot emitted but unused.", "consequence": "No end-to-end hash equality check exists; the stored hash cannot be exactly compared to a post-insert DB recomputation.", "reproducible_scenario": "Compare the two hash algorithms statically; no comparison code exists.", "required_correction": "Define one canonical surface hash computable identically in Python and SQL, write it, and assert equality in postcheck.", "blocks_ddl": false, "blocks_apply": true, "confidence": "HIGH"},
+    {"id": "F-07", "severity": "HIGH", "component": "sql/11 resolved view logical_rank", "fact": "The multirow tiebreak uses source_row asc; for grains tying on visitas and day-sum but differing in person, the selected route/person flips with Excel order/source_row, and the resolver collapses multirow groups while BD-CG005B-001 is still open.", "evidence": "sql/11:211-220; isolated simulation: order1=REPO_A, order2=REPO_B; CG005B BD-CG005B-001 open.", "consequence": "Non-deterministic route/person attribution across reloads for the person-only-differs class; pre-empts a pending Bastian decision.", "reproducible_scenario": "Two rows, same visitas/day-sum, different reponedor; swap source_row order -> winner changes.", "required_correction": "Add a business-meaningful, source_row-independent tiebreak (or block multirow collapse until BD-CG005B-001 is decided).", "blocks_ddl": false, "blocks_apply": true, "confidence": "HIGH"},
+    {"id": "F-08", "severity": "MEDIUM", "component": "loader run_weekly_replacement_apply", "fact": "No advisory lock or SELECT ... FOR UPDATE on the week's assignments; concurrency is mediated only by row locks and the unique ACTIVE index.", "evidence": "loader 1064-1146 (no lock acquisition).", "consequence": "Two concurrent same-week applies can deadlock or fail opaquely; fails closed (no corruption).", "reproducible_scenario": "Two operators run --apply for the same week concurrently.", "required_correction": "Acquire a transaction-scoped advisory lock keyed on (week, policy) at the start of apply.", "blocks_ddl": false, "blocks_apply": false, "confidence": "MEDIUM"},
+    {"id": "F-09", "severity": "MEDIUM", "component": "loader CLI guards", "fact": "--skip-source-check is not rejected together with --apply; a skipped source-check returns 'warn', so apply proceeds without the source-check contract.", "evidence": "loader build_arg_parser; source_check_payload_skipped; validate_cli_args (no skip+apply guard).", "consequence": "Defense-in-depth is weakened; missing critical columns are caught only later inside transform (fails closed).", "reproducible_scenario": "--apply --skip-source-check with otherwise valid guards.", "required_correction": "Reject --skip-source-check together with --apply.", "blocks_ddl": false, "blocks_apply": false, "confidence": "HIGH"},
+    {"id": "F-10", "severity": "LOW", "component": "loader parse_effective_week_start", "fact": "The week is validated only as ISO + Monday; it is not cross-checked against the workbook content or the contracted 2026-06-08..2026-06-14.", "evidence": "loader 333-342.", "consequence": "An operator can assign any Monday to the load.", "reproducible_scenario": "--apply with a different Monday than intended.", "required_correction": "Optionally validate the week against an expected/contracted week or workbook evidence.", "blocks_ddl": false, "blocks_apply": false, "confidence": "MEDIUM"},
+    {"id": "F-11", "severity": "LOW", "component": "loader run_weekly_replacement_apply", "fact": "Explicit cur.execute('BEGIN') is issued after autocommit=False and after verify_db_contract has already started the transaction, producing a redundant nested-BEGIN warning.", "evidence": "loader 1071-1081.", "consequence": "Cosmetic warning; atomicity preserved.", "reproducible_scenario": "Run apply against a real DB; observe the nested BEGIN warning.", "required_correction": "Remove the explicit BEGIN or move all reads after it.", "blocks_ddl": false, "blocks_apply": false, "confidence": "HIGH"}
+  ],
+  "findings_counts": {"blocker": 3, "high": 4, "medium": 2, "low": 2},
+  "salida_final_fields": {
+    "integrity": {"compile": true, "weekly_tests_passed": 46, "weekly_tests_failed": 0, "readonly_tests_passed": 20, "readonly_tests_failed": 0, "readonly_tests_skipped": 1},
+    "replacement_semantics": {"explicit_batch_exclusive": false, "removed_grains_stay_removed": false, "legacy_backfill_prevented": false},
+    "assignment_lifecycle": {"second_replacement_supported": false, "previous_superseded": false, "rollback_reactivation_supported": false},
+    "multirow_precedence": {"order_independent": false, "source_row_independent": false, "business_approved": false},
+    "hash_contract": {"consistent": false, "postcheck_enforced": false},
+    "transaction": {"atomic": true, "concurrency_safe": false},
+    "rollback": {"interface_present": true, "restoration_implemented": false, "restoration_tested": false},
+    "guards": {"apply_cannot_skip_source_check": false, "week_explicit": true, "hash_required": true, "postcheck_required": true}
+  },
+  "quality_assessment": {
+    "quality_target": "Q4_DECISION_GRADE",
+    "quality_achieved": "Q4_DECISION_GRADE",
+    "contract_adherence": "All nine validation sections (A-I) completed; integrity commands executed; findings matrix with the required fields; no productive files modified; no DB/Docker/SQL/apply; only the two authorized artifacts created.",
+    "test_strength": "Tests pass and guard the dry-run/CLI/dedup contract well, but they mock the DB and assert on SQL-file substrings, so they do NOT exercise the resolver semantics (F-01), the cod_rt_norm contract (F-02), the lifecycle supersede (F-03), or rollback restoration (F-04). Green tests therefore do not establish apply-readiness.",
+    "semantic_correctness": "BLOCKED: legacy backfill defeats the replacement policy; multirow tiebreak is source_row-dependent.",
+    "transaction_safety": "Atomic and fails closed, but unlocked and self-inconsistent with the view contract.",
+    "reversibility": "Not implemented (rollback is a stub).",
+    "compatibility": "public.ruta_rutero column shape preserved; refresh/canonical compatible; loader vs resolved-view column contract is INCOMPATIBLE (cod_rt_norm).",
+    "confidence": "HIGH",
+    "confidence_basis": "Integrity verified by executed commands; semantic findings derived by static reading of self-consistent artifacts and an isolated ordering simulation. The DB-dependent claims (F-01, F-02) are proven by reading the committed SQL/loader but were not run against a live database (no DB access authorized).",
+    "unresolved_items": [
+      "Whether the currently-deployed v_rr_frecuencia_base_resuelta_v2 exposes cod_rt_norm (would change whether F-02 manifests at verify time vs view-replace time); requires read-only DB inspection in an authorized phase.",
+      "Exact count of the 31 non-exact multirow groups that tie on visitas AND day-sum (the order-dependent subset); requires the workbook/DB.",
+      "Whether public.ruta_rutero.cliente_norm/cod_rt_norm are generated columns (assumed yes from identical old/new insert lists); confirm against the live table DDL.",
+      "Codex independent re-validation."
+    ],
+    "rework_required": false
+  },
+  "ddl_authorized": false,
+  "apply_authorized": false,
+  "next_step": "ChatGPT/Bastian review"
+}
