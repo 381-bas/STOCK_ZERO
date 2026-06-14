@@ -1,5 +1,8 @@
+import json
+import re
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -15,6 +18,78 @@ import load_ruta_rutero_from_excel as loader
 
 
 class LocalLabSafetyTests(unittest.TestCase):
+    def test_input_file_code_is_contract_safe(self):
+        self.assertEqual(lab.INPUT_FILE_CODE, "DB_GLOBAL_INVENTARIO_XLSX")
+        self.assertRegex(lab.INPUT_FILE_CODE, r"^[A-Z][A-Z0-9_:-]{0,119}$")
+        self.assertIsNotNone(re.fullmatch(r"^[A-Z][A-Z0-9_:-]{0,119}$", lab.INPUT_FILE_CODE))
+        for forbidden in (".", "/", "\\", " ", "C:", "Users"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, lab.INPUT_FILE_CODE)
+
+    def test_platform_008_observation_uses_technical_input_code(self):
+        import sz_load_observation as obs
+
+        seen = {}
+
+        def fake_run(argv):
+            if argv[0] == "draft":
+                phase_json = Path(argv[argv.index("--phase-json") + 1])
+                phase_payload = json.loads(phase_json.read_text(encoding="utf-8"))
+                draft = phase_payload["observation_draft"]
+                seen["draft"] = draft
+                print(
+                    json.dumps(
+                        {
+                            "observation_id": "OBS_TEST",
+                            "input_file_name": draft["input_file_name"],
+                            "input_file_sha256": draft["input_file_sha256"],
+                            "anomaly_label": draft["anomaly_label"],
+                            "implementation_authorized": draft["implementation_authorized"],
+                        }
+                    )
+                )
+                return 0
+            if argv[0] == "validate":
+                print(json.dumps({"validate": "ok", "observation_id": "OBS_TEST", "record": {}}))
+                return 0
+            raise AssertionError(f"unexpected argv: {argv}")
+
+        lab_summary = {
+            "cg005j": {
+                "workbook_sha256": "A" * 64,
+                "schema_signature": "B" * 64,
+                "snapshot_a_rows": 10,
+                "exact_duplicate_excess": 1,
+                "history_rows": 11,
+                "source_check": "ok",
+            },
+            "cg005k": {
+                "snapshot_b": {
+                    "synthetic_highs": 1,
+                    "removed_logical_grains": 2,
+                    "changed_responsables": 2,
+                    "changed_frequency_or_days": 1,
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as raw:
+            with mock.patch.object(obs, "register_test_input_root", lambda _path: None):
+                with mock.patch.object(obs, "run", side_effect=fake_run):
+                    result = lab.run_platform_008(Path(raw), lab_summary)
+
+        draft = seen["draft"]
+        self.assertEqual(draft["input_file_name"], lab.INPUT_FILE_CODE)
+        self.assertNotEqual(draft["input_file_name"], "DB_GLOBAL_INVENTARIO.xlsx")
+        self.assertEqual(len(draft["input_file_sha256"]), 64)
+        self.assertEqual(draft["input_file_sha256"], "A" * 64)
+        self.assertTrue(result["candidate_validated"])
+        self.assertTrue(result["ledger_unchanged"])
+        self.assertEqual(result["input_file_name"], lab.INPUT_FILE_CODE)
+        self.assertEqual(result["anomaly_label"], "UNREVIEWED")
+        self.assertFalse(result["implementation_authorized"])
+        self.assertFalse(result["ledger_write_executed"])
+        self.assertTrue(result["temporary_candidate_deleted"])
+
     def test_loopback_dsn_is_allowed(self):
         info = lab.parse_loopback_dsn("postgresql://postgres@127.0.0.1:55433/stock_zero_cg005_lab?sslmode=disable")
         self.assertEqual(info.host, "127.0.0.1")

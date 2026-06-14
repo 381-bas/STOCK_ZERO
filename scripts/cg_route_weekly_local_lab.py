@@ -41,6 +41,7 @@ OBS_LEDGER_PATH = ROOT / "research" / "AI_LOAD_OBSERVATION_LEDGER.jsonl"
 PHASE = "CG005I_M_LOCAL_POSTGRESQL_BEHAVIORAL_LAB"
 WEEK = "2026-06-08"
 SOURCE = "DB_GLOBAL_INVENTARIO.xlsx:RUTA_RUTERO"
+INPUT_FILE_CODE = "DB_GLOBAL_INVENTARIO_XLSX"
 SHEET = "RUTA_RUTERO"
 MAIN_DB = "stock_zero_cg005_lab"
 FAILURE_DB = "stock_zero_cg005_lab_failure"
@@ -467,7 +468,8 @@ def run_loader_apply(loader, dsn: str, workbook: Path, expected_hash: str, temp_
         str(json_out),
     ]
     try:
-        loader.main(argv)
+        with contextlib.redirect_stdout(io.StringIO()):
+            loader.main(argv)
     except SystemExit as exc:
         payload = safe_read_json(json_out) if json_out.exists() else {}
         code = payload.get("error_code", f"system_exit_{exc.code}")
@@ -501,7 +503,8 @@ def run_loader_rollback(loader, dsn: str, failed_assignment_id: int, expected_cu
         str(json_out),
     ]
     try:
-        loader.main(argv)
+        with contextlib.redirect_stdout(io.StringIO()):
+            loader.main(argv)
     except SystemExit as exc:
         payload = safe_read_json(json_out) if json_out.exists() else {}
         code = payload.get("error_code", f"system_exit_{exc.code}")
@@ -1028,7 +1031,7 @@ def run_platform_008(temp_root: Path, lab_summary: dict) -> dict:
             "source": "RUTA_RUTERO",
             "effective_week_start": WEEK,
             "operation_type": "POST_LOAD_VALIDATION",
-            "input_file_name": "DB_GLOBAL_INVENTARIO.xlsx",
+            "input_file_name": INPUT_FILE_CODE,
             "input_file_sha256": lab_summary["cg005j"]["workbook_sha256"],
             "schema_signature": lab_summary["cg005j"]["schema_signature"],
             "input_rows": lab_summary["cg005j"]["snapshot_a_rows"] + lab_summary["cg005j"]["exact_duplicate_excess"],
@@ -1116,6 +1119,11 @@ def run_platform_008(temp_root: Path, lab_summary: dict) -> dict:
         "candidate_validated": validation.get("validate") == "ok",
         "ledger_unchanged": before_hash == after_hash,
         "observation_id": observation_id,
+        "input_file_name": candidate.get("input_file_name"),
+        "anomaly_label": candidate.get("anomaly_label"),
+        "implementation_authorized": candidate.get("implementation_authorized"),
+        "ledger_write_executed": False,
+        "temporary_candidate_deleted": not phase_json.exists() and not candidate_json.exists(),
         "validation_status": validation.get("validate"),
         "seconds_elapsed": elapsed,
         "manual_steps_removed": 2,
