@@ -1,0 +1,12 @@
+{
+  "phase": "PLATFORM_008_FIRST_REAL_USE",
+  "source_phase": "CG005I_M_LOCAL_POSTGRESQL_BEHAVIORAL_LAB",
+  "executed": false,
+  "candidate_validated": false,
+  "ledger_unchanged": false,
+  "observation_id": null,
+  "blocked_by": [
+    "snapshot_a_loader_apply_failed"
+  ],
+  "ledger_write_executed": false
+}

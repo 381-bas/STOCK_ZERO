@@ -1,0 +1,82 @@
+{
+  "phase": "CG005I_M_LOCAL_POSTGRESQL_BEHAVIORAL_LAB",
+  "verdict": "BLOCK",
+  "quality": {
+    "target": "Q4_DECISION_GRADE",
+    "achieved": null,
+    "confidence": null
+  },
+  "baseline_commit": "c54e2933251122375336590a931bdbc1e514718a",
+  "branch": "lab/CG005I_M-route-weekly-replacement",
+  "local_postgresql": {
+    "loopback_only": true,
+    "database": "stock_zero_cg005_lab",
+    "failure_database": "stock_zero_cg005_lab_failure",
+    "host": "127.0.0.1",
+    "port": 55433,
+    "version": "17.10 (Debian 17.10-1.pgdg13+1)",
+    "dedicated": true,
+    "supabase_contacted": false,
+    "transaction_read_only": "off"
+  },
+  "docker": {
+    "executed": true,
+    "container_name": "stock_zero_cg005_lab_pg",
+    "container_id": "25f56c151148",
+    "image": "postgres:17"
+  },
+  "cg005i": {
+    "passed": true,
+    "ddl_applied_local": true,
+    "advisory_lock_resolved": true,
+    "concurrency_proven": true,
+    "contract": {
+      "ok": true,
+      "missing": []
+    },
+    "advisory_lock": {
+      "resolved": true,
+      "same_key_blocked_while_held": true,
+      "same_key_acquired_after_release": true,
+      "distinct_key_not_blocked": true,
+      "same_key_blocked_seconds": 0.353,
+      "distinct_key_elapsed_seconds": 0.004
+    },
+    "sql11": {
+      "path": "sql/11_control_gestion_route_week_replacement_contract.sql",
+      "sha256": "145F6E5048C4A9C05409CD88890AE5EB2B0AD9506F38353532651EC75EA2B335",
+      "body_sha256": "01C75690371C3AD6A984A912DA392B43C39C62B2F7FA831FE0330DB060734D21",
+      "no_apply_header": true,
+      "begin_rollback_wrapper": true
+    }
+  },
+  "cg005j": {
+    "passed": false,
+    "snapshot_a_rows": null,
+    "assignment_active": false,
+    "hashes_match": false,
+    "grain_diff": null,
+    "blocked_at": "snapshot_a_apply",
+    "loader_error": "ProgrammingError:the query has 10 placeholders but 11 parameters were passed"
+  },
+  "cg005k": {
+    "passed": false
+  },
+  "cg005l": {
+    "passed": false
+  },
+  "cg005m": {
+    "passed": false
+  },
+  "platform_008": {
+    "executed": false,
+    "candidate_validated": false,
+    "ledger_unchanged": false,
+    "observation_id": null
+  },
+  "warnings": [],
+  "blockers": [
+    "snapshot_a_loader_apply_failed"
+  ],
+  "error_detail": "ProgrammingError:the query has 10 placeholders but 11 parameters were passed"
+}
