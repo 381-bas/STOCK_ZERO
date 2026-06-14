@@ -1101,15 +1101,38 @@ def validate_current_surface_count(cur, *, source: str, expected_rows: int) -> N
         raise RuntimeError(f"current_surface_count_mismatch:{found}!={expected_rows}")
 
 
-def acquire_week_assignment_lock(cur, *, effective_week_start_value: str, route_policy_version: str) -> None:
+def weekly_assignment_lock_key(*, source: str, effective_week_start_value: str, route_policy_version: str) -> int:
+    payload = "|".join(
+        [
+            "route_week_replacement_advisory_lock",
+            route_policy_version,
+            source,
+            effective_week_start_value,
+        ]
+    )
+    raw = int.from_bytes(hashlib.sha256(payload.encode("utf-8")).digest()[:8], byteorder="big", signed=False)
+    if raw >= 2**63:
+        raw -= 2**64
+    return raw
+
+
+def acquire_week_assignment_lock(
+    cur,
+    *,
+    source: str,
+    effective_week_start_value: str,
+    route_policy_version: str,
+) -> None:
+    lock_key = weekly_assignment_lock_key(
+        source=source,
+        effective_week_start_value=effective_week_start_value,
+        route_policy_version=route_policy_version,
+    )
     cur.execute(
         """
-        select pg_advisory_xact_lock(
-            hashtextextended(%s, 0),
-            hashtextextended(%s, 0)
-        )
+        select pg_advisory_xact_lock(%s)
         """,
-        (effective_week_start_value, route_policy_version),
+        (lock_key,),
     )
 
 
@@ -1309,6 +1332,226 @@ def fetch_resolved_grains(cur, *, effective_week_start_value: str) -> set[tuple[
     return {(str(row[0]), str(row[1])) for row in cur.fetchall()}
 
 
+def validate_rollback_assignment_states(
+    cur,
+    *,
+    effective_week_start_value: str,
+    failed_assignment_id: int,
+    previous_assignment_id: int,
+) -> dict:
+    cur.execute(
+        """
+        select
+            count(*) filter (
+                where assignment_id = %s
+                  and assignment_status = 'ACTIVE'
+            )::bigint as previous_active,
+            count(*) filter (
+                where assignment_id = %s
+                  and assignment_status = 'ROLLED_BACK'
+                  and rollback_of_assignment_id = %s
+            )::bigint as failed_rolled_back,
+            count(*) filter (
+                where assignment_status = 'ACTIVE'
+            )::bigint as active_count
+          from cg_core.ruta_rutero_week_assignment
+         where effective_week_start = %s
+           and route_policy_version = %s
+        """,
+        (
+            previous_assignment_id,
+            failed_assignment_id,
+            previous_assignment_id,
+            effective_week_start_value,
+            ROUTE_POLICY_VERSION,
+        ),
+    )
+    row = cur.fetchone()
+    previous_active = int(row[0])
+    failed_rolled_back = int(row[1])
+    active_count = int(row[2])
+    if previous_active != 1:
+        raise RuntimeError("rollback_previous_assignment_not_active")
+    if failed_rolled_back != 1:
+        raise RuntimeError("rollback_failed_assignment_not_rolled_back")
+    if active_count != 1:
+        raise RuntimeError(f"rollback_active_assignment_count:{active_count}")
+    return {
+        "previous_assignment_active": True,
+        "failed_assignment_rolled_back": True,
+        "single_active_assignment": True,
+    }
+
+
+def validate_rollback_current_surface(
+    cur,
+    *,
+    source: str,
+    previous_ruta_batch_id: int,
+    expected_current_surface_hash: str,
+    restored_summary: dict,
+) -> dict:
+    if restored_summary["current_surface_hash"].upper() != expected_current_surface_hash.upper():
+        raise RuntimeError("rollback_restored_current_surface_hash_mismatch")
+    cur.execute(
+        """
+        select count(*)::bigint
+          from (
+            select distinct on (row_hash) row_hash
+              from cg_core.ruta_rutero_load_rows
+             where ruta_batch_id = %s
+             order by row_hash, source_row
+          ) d
+        """,
+        (previous_ruta_batch_id,),
+    )
+    expected_rows = int(cur.fetchone()[0])
+    if int(restored_summary["rows"]) != expected_rows:
+        raise RuntimeError(f"rollback_restored_current_rows_mismatch:{restored_summary['rows']}!={expected_rows}")
+    cur.execute(
+        """
+        select coalesce(sum(rows - 1), 0)::bigint
+          from (
+            select row_hash, count(*)::bigint as rows
+              from public.ruta_rutero
+             where source = %s
+             group by row_hash
+            having count(*) > 1
+          ) d
+        """,
+        (source,),
+    )
+    duplicate_excess = int(cur.fetchone()[0])
+    if duplicate_excess != 0:
+        raise RuntimeError(f"rollback_current_exact_duplicate_excess:{duplicate_excess}")
+    return {
+        "current_surface_hash_matches_previous_assignment": True,
+        "current_public_row_count_matches_restored_batch": True,
+        "current_exact_duplicates_excluded": True,
+    }
+
+
+def validate_rollback_weekly_view(
+    cur,
+    *,
+    effective_week_start_value: str,
+    previous_ruta_batch_id: int,
+) -> dict:
+    cur.execute(
+        """
+        select
+            count(*)::bigint as week_rows,
+            count(*) filter (
+                where ruta_batch_id = %s
+                  and route_week_source = 'EXPLICIT_ASSIGNMENT'
+            )::bigint as restored_rows
+          from cg_core.v_ruta_rutero_load_batch_week_v2
+         where effective_week_start = %s
+        """,
+        (previous_ruta_batch_id, effective_week_start_value),
+    )
+    row = cur.fetchone()
+    week_rows = int(row[0])
+    restored_rows = int(row[1])
+    if week_rows != 1 or restored_rows != 1:
+        raise RuntimeError(f"rollback_week_view_not_restored_batch:week={week_rows}:restored={restored_rows}")
+    return {
+        "weekly_view_uses_restored_batch": True,
+        "weekly_view_effective_week_matches": True,
+    }
+
+
+def validate_rollback_resolved_grains(
+    cur,
+    *,
+    effective_week_start_value: str,
+    previous_ruta_batch_id: int,
+    expected_resolved_surface_hash: str,
+) -> dict:
+    cur.execute(
+        """
+        select count(*)::bigint
+          from (
+            select cod_rt_norm, cliente_norm, count(*)::bigint as rows
+              from cg_core.v_rr_frecuencia_base_resuelta_v2
+             where effective_week_start = %s
+             group by cod_rt_norm, cliente_norm
+            having count(*) > 1
+          ) d
+        """,
+        (effective_week_start_value,),
+    )
+    duplicate_grains = int(cur.fetchone()[0])
+    if duplicate_grains != 0:
+        raise RuntimeError(f"rollback_resolved_duplicate_grains:{duplicate_grains}")
+
+    assigned_grains = fetch_assigned_batch_grains(cur, ruta_batch_id=previous_ruta_batch_id)
+    resolved_grains = fetch_resolved_grains(cur, effective_week_start_value=effective_week_start_value)
+    missing = sorted(assigned_grains - resolved_grains)
+    extra = sorted(resolved_grains - assigned_grains)
+    if missing or extra:
+        raise RuntimeError(f"rollback_resolved_grain_set_mismatch:missing={len(missing)}:extra={len(extra)}")
+
+    resolved_rows_payload = fetch_resolved_surface_rows(cur, effective_week_start_value=effective_week_start_value)
+    found_resolved_hash = canonical_resolved_surface_hash(resolved_rows_payload)
+    if found_resolved_hash.upper() != expected_resolved_surface_hash.upper():
+        raise RuntimeError("rollback_resolved_surface_hash_mismatch")
+
+    return {
+        "resolved_duplicate_logical_grains_zero": True,
+        "resolved_grains_equal_assigned_batch_grains": {"missing": 0, "extra": 0},
+        "resolved_surface_hash_matches_previous_assignment": True,
+    }
+
+
+def run_rollback_postcheck(
+    cur,
+    *,
+    source: str,
+    effective_week_start_value: str,
+    failed_assignment_id: int,
+    previous_assignment_id: int,
+    previous_ruta_batch_id: int,
+    previous_current_surface_hash: str,
+    previous_resolved_surface_hash: str,
+    restored_summary: dict,
+) -> dict:
+    checks: dict[str, object] = {}
+    checks.update(
+        validate_rollback_assignment_states(
+            cur,
+            effective_week_start_value=effective_week_start_value,
+            failed_assignment_id=failed_assignment_id,
+            previous_assignment_id=previous_assignment_id,
+        )
+    )
+    checks.update(
+        validate_rollback_current_surface(
+            cur,
+            source=source,
+            previous_ruta_batch_id=previous_ruta_batch_id,
+            expected_current_surface_hash=previous_current_surface_hash,
+            restored_summary=restored_summary,
+        )
+    )
+    checks.update(
+        validate_rollback_weekly_view(
+            cur,
+            effective_week_start_value=effective_week_start_value,
+            previous_ruta_batch_id=previous_ruta_batch_id,
+        )
+    )
+    checks.update(
+        validate_rollback_resolved_grains(
+            cur,
+            effective_week_start_value=effective_week_start_value,
+            previous_ruta_batch_id=previous_ruta_batch_id,
+            expected_resolved_surface_hash=previous_resolved_surface_hash,
+        )
+    )
+    return checks
+
+
 def run_postcheck(
     cur,
     *,
@@ -1491,6 +1734,7 @@ def run_weekly_replacement_apply(args, plan: dict) -> dict:
 
         acquire_week_assignment_lock(
             cur,
+            source=args.source,
             effective_week_start_value=args.effective_week_start,
             route_policy_version=ROUTE_POLICY_VERSION,
         )
@@ -1606,6 +1850,7 @@ def run_weekly_replacement_rollback(
             raise MissingDBContractError(contract["missing"])
         acquire_week_assignment_lock(
             cur,
+            source=source,
             effective_week_start_value=effective_week_start_value,
             route_policy_version=ROUTE_POLICY_VERSION,
         )
@@ -1639,7 +1884,7 @@ def run_weekly_replacement_rollback(
 
         cur.execute(
             """
-            select assignment_id
+            select assignment_id, current_surface_hash, resolved_surface_hash
               from cg_core.ruta_rutero_week_assignment
              where effective_week_start = %s
                and route_policy_version = %s
@@ -1655,6 +1900,8 @@ def run_weekly_replacement_rollback(
         if not previous_assignment:
             raise LoaderUsageError("rollback_previous_assignment_missing")
         previous_assignment_id = int(previous_assignment[0])
+        previous_current_surface_hash = str(previous_assignment[1])
+        previous_resolved_surface_hash = str(previous_assignment[2])
 
         delete_public_ruta_for_source(cur, source)
         restore_public_from_history(cur, source=source, ruta_batch_id=int(previous_ruta_batch_id))
@@ -1679,6 +1926,17 @@ def run_weekly_replacement_rollback(
             """,
             (previous_assignment_id,),
         )
+        postcheck = run_rollback_postcheck(
+            cur,
+            source=source,
+            effective_week_start_value=effective_week_start_value,
+            failed_assignment_id=failed_assignment_id,
+            previous_assignment_id=previous_assignment_id,
+            previous_ruta_batch_id=int(previous_ruta_batch_id),
+            previous_current_surface_hash=previous_current_surface_hash,
+            previous_resolved_surface_hash=previous_resolved_surface_hash,
+            restored_summary=restored_summary,
+        )
         conn.commit()
         return {
             "mode": "rollback",
@@ -1688,6 +1946,7 @@ def run_weekly_replacement_rollback(
             "restored_ruta_batch_id": int(previous_ruta_batch_id),
             "restored_current_rows": restored_summary["rows"],
             "restored_current_surface_hash": restored_summary["current_surface_hash"],
+            "postcheck": postcheck,
             "writes_executed": True,
             "dsn_printed": False,
         }

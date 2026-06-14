@@ -1,9 +1,12 @@
 import argparse
+import ast
 import contextlib
 import io
+import inspect
 import json
 import sys
 import tempfile
+import textwrap
 import unittest
 from collections import Counter
 from pathlib import Path
@@ -112,6 +115,23 @@ class FakeCursor:
         self.closed = True
 
 
+class ScriptedCursor(FakeCursor):
+    def __init__(self, *, fetchone=None, fetchall=None):
+        super().__init__()
+        self._fetchone = list(fetchone or [])
+        self._fetchall = list(fetchall or [])
+
+    def fetchone(self):
+        if self._fetchone:
+            return self._fetchone.pop(0)
+        return super().fetchone()
+
+    def fetchall(self):
+        if self._fetchall:
+            return self._fetchall.pop(0)
+        return super().fetchall()
+
+
 class FakeConnection:
     def __init__(self):
         self.cursor_obj = FakeCursor()
@@ -131,6 +151,26 @@ class FakeConnection:
 
     def close(self):
         self.closed = True
+
+
+class OrderedConnection(FakeConnection):
+    def __init__(self, order, cursor):
+        super().__init__()
+        self.order = order
+        self.cursor_obj = cursor
+
+    def commit(self):
+        self.order.append("commit")
+        super().commit()
+
+    def rollback(self):
+        self.order.append("rollback")
+        super().rollback()
+
+
+def called_function_names(fn) -> set[str]:
+    tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+    return {node.func.id for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
 
 
 class WeeklyReplacementTests(unittest.TestCase):
@@ -620,12 +660,58 @@ class WeeklyReplacementTests(unittest.TestCase):
         cur = FakeCursor()
         loader.acquire_week_assignment_lock(
             cur,
+            source=self.source,
             effective_week_start_value="2026-06-08",
             route_policy_version=loader.ROUTE_POLICY_VERSION,
         )
         sql, params = cur.executed[0]
         self.assertIn("pg_advisory_xact_lock", sql)
-        self.assertEqual(params, ("2026-06-08", loader.ROUTE_POLICY_VERSION))
+        self.assertEqual(sql.count("%s"), 1)
+        self.assertNotIn("hashtextextended", sql)
+        self.assertNotIn("bigint, bigint", sql.lower())
+        self.assertIsInstance(params[0], int)
+        self.assertEqual(len(params), 1)
+
+    def test_56b_lock_key_is_deterministic_signed_int64(self):
+        key1 = loader.weekly_assignment_lock_key(
+            source=self.source,
+            effective_week_start_value="2026-06-08",
+            route_policy_version=loader.ROUTE_POLICY_VERSION,
+        )
+        key2 = loader.weekly_assignment_lock_key(
+            source=self.source,
+            effective_week_start_value="2026-06-08",
+            route_policy_version=loader.ROUTE_POLICY_VERSION,
+        )
+        self.assertEqual(key1, key2)
+        self.assertGreaterEqual(key1, -(2**63))
+        self.assertLessEqual(key1, 2**63 - 1)
+
+    def test_56c_lock_key_changes_by_week_and_source(self):
+        base = loader.weekly_assignment_lock_key(
+            source=self.source,
+            effective_week_start_value="2026-06-08",
+            route_policy_version=loader.ROUTE_POLICY_VERSION,
+        )
+        other_week = loader.weekly_assignment_lock_key(
+            source=self.source,
+            effective_week_start_value="2026-06-15",
+            route_policy_version=loader.ROUTE_POLICY_VERSION,
+        )
+        other_source = loader.weekly_assignment_lock_key(
+            source="other.xlsx:RUTA_RUTERO",
+            effective_week_start_value="2026-06-08",
+            route_policy_version=loader.ROUTE_POLICY_VERSION,
+        )
+        self.assertNotEqual(base, other_week)
+        self.assertNotEqual(base, other_source)
+
+    def test_56d_apply_and_rollback_use_same_lock_helper(self):
+        self.assertIn("acquire_week_assignment_lock", called_function_names(loader.run_weekly_replacement_apply))
+        self.assertIn("acquire_week_assignment_lock", called_function_names(loader.run_weekly_replacement_rollback))
+        helper_source = inspect.getsource(loader.weekly_assignment_lock_key)
+        self.assertIn("hashlib.sha256", helper_source)
+        self.assertNotIn("hash(", helper_source)
 
     def test_57_idempotent_same_hash_blocks_before_writes(self):
         active = {
@@ -751,6 +837,223 @@ class WeeklyReplacementTests(unittest.TestCase):
                 )
         self.assertEqual(ctx.exception.code, "rollback_current_surface_hash_mismatch")
         self.assertTrue(conn.rolled_back)
+
+    def test_69b_rollback_postchecks_pass_then_commit(self):
+        order = []
+        cursor = ScriptedCursor(
+            fetchone=[
+                [10, 20, 7, "ACTIVE"],
+                [11, "B" * 64, "C" * 64],
+            ]
+        )
+        conn = OrderedConnection(order, cursor)
+
+        def record(name):
+            def _inner(*args, **kwargs):
+                order.append(name)
+                if name == "restore":
+                    return None
+                return {name: True}
+            return _inner
+
+        with mock.patch.object(loader, "connect_db", return_value=conn), \
+            mock.patch.object(loader, "verify_db_contract", return_value={"ok": True, "missing": []}), \
+            mock.patch.object(loader, "fetch_current_surface_hash", return_value="A" * 64), \
+            mock.patch.object(loader, "delete_public_ruta_for_source"), \
+            mock.patch.object(loader, "restore_public_from_history", side_effect=record("restore")), \
+            mock.patch.object(
+                loader,
+                "fetch_current_snapshot_summary",
+                return_value={"rows": 2, "current_surface_hash": "B" * 64},
+            ), \
+            mock.patch.object(loader, "validate_rollback_assignment_states", side_effect=record("assignment")), \
+            mock.patch.object(loader, "validate_rollback_current_surface", side_effect=record("current")), \
+            mock.patch.object(loader, "validate_rollback_weekly_view", side_effect=record("weekly")), \
+            mock.patch.object(loader, "validate_rollback_resolved_grains", side_effect=record("resolved")):
+            result = loader.run_weekly_replacement_rollback(
+                db_url="postgresql://u:p@h/db",
+                source=self.source,
+                effective_week_start_value="2026-06-08",
+                failed_assignment_id=10,
+                expected_current_surface_hash="A" * 64,
+                confirm_token=loader.ROLLBACK_CONFIRM_TOKEN,
+            )
+
+        self.assertTrue(conn.committed)
+        self.assertFalse(conn.rolled_back)
+        self.assertEqual(order, ["restore", "assignment", "current", "weekly", "resolved", "commit"])
+        self.assertEqual(result["postcheck"], {"assignment": True, "current": True, "weekly": True, "resolved": True})
+
+    def test_69c_rollback_hash_mismatch_after_restore_rolls_back_without_commit(self):
+        cursor = ScriptedCursor(
+            fetchone=[
+                [10, 20, 7, "ACTIVE"],
+                [11, "B" * 64, "C" * 64],
+            ]
+        )
+        conn = OrderedConnection([], cursor)
+        with mock.patch.object(loader, "connect_db", return_value=conn), \
+            mock.patch.object(loader, "verify_db_contract", return_value={"ok": True, "missing": []}), \
+            mock.patch.object(loader, "fetch_current_surface_hash", return_value="A" * 64), \
+            mock.patch.object(loader, "delete_public_ruta_for_source"), \
+            mock.patch.object(loader, "restore_public_from_history"), \
+            mock.patch.object(
+                loader,
+                "fetch_current_snapshot_summary",
+                return_value={"rows": 2, "current_surface_hash": "D" * 64},
+            ), \
+            mock.patch.object(loader, "validate_rollback_assignment_states", return_value={"assignment": True}):
+            with self.assertRaises(RuntimeError) as ctx:
+                loader.run_weekly_replacement_rollback(
+                    db_url="postgresql://u:p@h/db",
+                    source=self.source,
+                    effective_week_start_value="2026-06-08",
+                    failed_assignment_id=10,
+                    expected_current_surface_hash="A" * 64,
+                    confirm_token=loader.ROLLBACK_CONFIRM_TOKEN,
+                )
+        self.assertEqual(str(ctx.exception), "rollback_restored_current_surface_hash_mismatch")
+        self.assertTrue(conn.rolled_back)
+        self.assertFalse(conn.committed)
+
+    def test_69d_rollback_assignment_previous_not_active_blocks(self):
+        cur = ScriptedCursor(fetchone=[[0, 1, 1]])
+        with self.assertRaisesRegex(RuntimeError, "rollback_previous_assignment_not_active"):
+            loader.validate_rollback_assignment_states(
+                cur,
+                effective_week_start_value="2026-06-08",
+                failed_assignment_id=10,
+                previous_assignment_id=11,
+            )
+
+    def test_69e_rollback_assignment_failed_not_rolled_back_blocks(self):
+        cur = ScriptedCursor(fetchone=[[1, 0, 1]])
+        with self.assertRaisesRegex(RuntimeError, "rollback_failed_assignment_not_rolled_back"):
+            loader.validate_rollback_assignment_states(
+                cur,
+                effective_week_start_value="2026-06-08",
+                failed_assignment_id=10,
+                previous_assignment_id=11,
+            )
+
+    def test_69f_rollback_assignment_multiple_active_blocks(self):
+        cur = ScriptedCursor(fetchone=[[1, 1, 2]])
+        with self.assertRaisesRegex(RuntimeError, "rollback_active_assignment_count:2"):
+            loader.validate_rollback_assignment_states(
+                cur,
+                effective_week_start_value="2026-06-08",
+                failed_assignment_id=10,
+                previous_assignment_id=11,
+            )
+
+    def test_69g_rollback_missing_grains_block(self):
+        cur = ScriptedCursor(fetchone=[[0]])
+        with mock.patch.object(loader, "fetch_assigned_batch_grains", return_value={("A", "X"), ("B", "Y")}), \
+            mock.patch.object(loader, "fetch_resolved_grains", return_value={("A", "X")}):
+            with self.assertRaisesRegex(RuntimeError, "missing=1:extra=0"):
+                loader.validate_rollback_resolved_grains(
+                    cur,
+                    effective_week_start_value="2026-06-08",
+                    previous_ruta_batch_id=7,
+                    expected_resolved_surface_hash="C" * 64,
+                )
+
+    def test_69h_rollback_extra_grains_block(self):
+        cur = ScriptedCursor(fetchone=[[0]])
+        with mock.patch.object(loader, "fetch_assigned_batch_grains", return_value={("A", "X")}), \
+            mock.patch.object(loader, "fetch_resolved_grains", return_value={("A", "X"), ("B", "Y")}):
+            with self.assertRaisesRegex(RuntimeError, "missing=0:extra=1"):
+                loader.validate_rollback_resolved_grains(
+                    cur,
+                    effective_week_start_value="2026-06-08",
+                    previous_ruta_batch_id=7,
+                    expected_resolved_surface_hash="C" * 64,
+                )
+
+    def test_69i_rollback_duplicate_grains_block(self):
+        cur = ScriptedCursor(fetchone=[[1]])
+        with self.assertRaisesRegex(RuntimeError, "rollback_resolved_duplicate_grains:1"):
+            loader.validate_rollback_resolved_grains(
+                cur,
+                effective_week_start_value="2026-06-08",
+                previous_ruta_batch_id=7,
+                expected_resolved_surface_hash="C" * 64,
+            )
+
+    def test_69j_rollback_weekly_view_other_batch_blocks(self):
+        cur = ScriptedCursor(fetchone=[[1, 0]])
+        with self.assertRaisesRegex(RuntimeError, "rollback_week_view_not_restored_batch"):
+            loader.validate_rollback_weekly_view(
+                cur,
+                effective_week_start_value="2026-06-08",
+                previous_ruta_batch_id=7,
+            )
+
+    def test_69k_rollback_postcheck_exception_rolls_back_without_commit(self):
+        cursor = ScriptedCursor(
+            fetchone=[
+                [10, 20, 7, "ACTIVE"],
+                [11, "B" * 64, "C" * 64],
+            ]
+        )
+        conn = OrderedConnection([], cursor)
+        with mock.patch.object(loader, "connect_db", return_value=conn), \
+            mock.patch.object(loader, "verify_db_contract", return_value={"ok": True, "missing": []}), \
+            mock.patch.object(loader, "fetch_current_surface_hash", return_value="A" * 64), \
+            mock.patch.object(loader, "delete_public_ruta_for_source"), \
+            mock.patch.object(loader, "restore_public_from_history"), \
+            mock.patch.object(
+                loader,
+                "fetch_current_snapshot_summary",
+                return_value={"rows": 2, "current_surface_hash": "B" * 64},
+            ), \
+            mock.patch.object(loader, "run_rollback_postcheck", side_effect=RuntimeError("postcheck boom")):
+            with self.assertRaisesRegex(RuntimeError, "postcheck boom"):
+                loader.run_weekly_replacement_rollback(
+                    db_url="postgresql://u:p@h/db",
+                    source=self.source,
+                    effective_week_start_value="2026-06-08",
+                    failed_assignment_id=10,
+                    expected_current_surface_hash="A" * 64,
+                    confirm_token=loader.ROLLBACK_CONFIRM_TOKEN,
+                )
+        self.assertTrue(conn.rolled_back)
+        self.assertFalse(conn.committed)
+
+    def test_69l_rollback_success_not_reported_before_all_checks(self):
+        order = []
+        cursor = ScriptedCursor(
+            fetchone=[
+                [10, 20, 7, "ACTIVE"],
+                [11, "B" * 64, "C" * 64],
+            ]
+        )
+        conn = OrderedConnection(order, cursor)
+        with mock.patch.object(loader, "connect_db", return_value=conn), \
+            mock.patch.object(loader, "verify_db_contract", return_value={"ok": True, "missing": []}), \
+            mock.patch.object(loader, "fetch_current_surface_hash", return_value="A" * 64), \
+            mock.patch.object(loader, "delete_public_ruta_for_source"), \
+            mock.patch.object(loader, "restore_public_from_history", side_effect=lambda *a, **k: order.append("restore")), \
+            mock.patch.object(
+                loader,
+                "fetch_current_snapshot_summary",
+                return_value={"rows": 2, "current_surface_hash": "B" * 64},
+            ), \
+            mock.patch.object(loader, "validate_rollback_assignment_states", side_effect=lambda *a, **k: order.append("assignment") or {"assignment": True}), \
+            mock.patch.object(loader, "validate_rollback_current_surface", side_effect=lambda *a, **k: order.append("current") or {"current": True}), \
+            mock.patch.object(loader, "validate_rollback_weekly_view", side_effect=lambda *a, **k: order.append("weekly") or {"weekly": True}), \
+            mock.patch.object(loader, "validate_rollback_resolved_grains", side_effect=RuntimeError("resolved failed")):
+            with self.assertRaisesRegex(RuntimeError, "resolved failed"):
+                loader.run_weekly_replacement_rollback(
+                    db_url="postgresql://u:p@h/db",
+                    source=self.source,
+                    effective_week_start_value="2026-06-08",
+                    failed_assignment_id=10,
+                    expected_current_surface_hash="A" * 64,
+                    confirm_token=loader.ROLLBACK_CONFIRM_TOKEN,
+                )
+        self.assertEqual(order, ["restore", "assignment", "current", "weekly", "rollback"])
+        self.assertFalse(conn.committed)
 
     def test_70_no_db_real_for_dry_run(self):
         with mock.patch.object(loader, "connect_db") as connect_db:
