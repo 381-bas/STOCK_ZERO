@@ -116,7 +116,6 @@ try {
         if (Test-Path -LiteralPath $venvPython) {
             $pythonForSmoke = $venvPython
             $environmentSource = "WORKTREE_VENV"
-            $environmentReproducible = $true
         } elseif ($AllowSystemPythonSmoke -and $python312.Count -gt 0) {
             $pythonForSmoke = $python312[0]
             $environmentSource = "SYSTEM_PYTHON"
@@ -129,6 +128,15 @@ try {
         if ($pythonForSmoke) {
             foreach ($name in $requiredImports) {
                 $importSmoke[$name] = Test-PythonImport -PythonExe $pythonForSmoke -ImportName $name
+            }
+            $allRequiredImportsOk = $true
+            foreach ($name in $requiredImports) {
+                if (-not $importSmoke[$name]) {
+                    $allRequiredImportsOk = $false
+                }
+            }
+            if ($environmentSource -eq "WORKTREE_VENV" -and $allRequiredImportsOk) {
+                $environmentReproducible = $true
             }
         }
     }

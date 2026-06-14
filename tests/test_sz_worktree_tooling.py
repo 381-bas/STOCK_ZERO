@@ -172,9 +172,15 @@ class WorktreeToolingTests(unittest.TestCase):
         self._with_temporary_venv(lambda payload: self.assertEqual(payload["environment_source"], "WORKTREE_VENV"))
 
     def test_18_venv_smoke_is_reproducible(self):
-        self._with_temporary_venv(lambda payload: self.assertTrue(payload["environment_reproducible"]))
+        self._with_temporary_venv(lambda payload: self.assertFalse(payload["environment_reproducible"]))
 
-    def test_19_no_requirements_install(self):
+    def test_19_venv_smoke_all_imports_ok_is_reproducible(self):
+        self._with_temporary_venv(
+            lambda payload: self.assertTrue(payload["environment_reproducible"]),
+            populate_imports=True,
+        )
+
+    def test_20_no_requirements_install(self):
         combined = AUDIT.read_text(encoding="utf-8") + SETUP.read_text(encoding="utf-8")
         lowered = combined.lower()
         self.assertNotIn("pip install", lowered)
@@ -182,7 +188,7 @@ class WorktreeToolingTests(unittest.TestCase):
         cp, payload = run_ps(SETUP)
         self.assertFalse(payload["installs_performed"])
 
-    def test_20_no_db(self):
+    def test_21_no_db(self):
         combined = AUDIT.read_text(encoding="utf-8") + SETUP.read_text(encoding="utf-8")
         lowered = combined.lower()
         self.assertNotIn("db_url", lowered)
@@ -190,31 +196,31 @@ class WorktreeToolingTests(unittest.TestCase):
         self.assertNotIn("psql", lowered)
         self.assertEqual(run_ps(SETUP)[1]["db_access"], "none")
 
-    def test_21_no_docker(self):
+    def test_22_no_docker(self):
         combined = AUDIT.read_text(encoding="utf-8") + SETUP.read_text(encoding="utf-8")
         self.assertNotIn("& docker", combined.lower())
         self.assertNotIn("docker compose", combined.lower())
         self.assertFalse(run_ps(SETUP)[1]["docker_executed"])
 
-    def test_22_no_data_copy(self):
+    def test_23_no_data_copy(self):
         combined = AUDIT.read_text(encoding="utf-8") + SETUP.read_text(encoding="utf-8")
         lowered = combined.lower()
         for needle in ("copy-item", "robocopy", "xcopy", "copy data"):
             self.assertNotIn(needle, lowered)
         self.assertFalse(run_ps(SETUP)[1]["data_copy"])
 
-    def test_23_no_codex_created(self):
+    def test_24_no_codex_created(self):
         run_ps(AUDIT, *safe_audit_args())
         run_ps(SETUP)
         self.assertFalse((ROOT / ".codex").exists())
 
-    def test_24_no_kernels_copy(self):
+    def test_25_no_kernels_copy(self):
         cp, payload = run_ps(SETUP)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         self.assertFalse(payload["kernels_copied"])
         self.assertNotIn("KERNEL_REFERENCE_ROOT", SETUP.read_text(encoding="utf-8"))
 
-    def test_25_primary_checkout_unchanged(self):
+    def test_26_primary_checkout_unchanged(self):
         primary = Path(r"C:\Users\basti\Desktop\STOCK_ZERO")
         if primary.exists():
             before = subprocess.check_output(["git", "status", "--short"], cwd=primary, text=True)
@@ -223,12 +229,18 @@ class WorktreeToolingTests(unittest.TestCase):
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             self.assertEqual(before, after)
 
-    def _with_temporary_venv(self, assertion):
+    def _with_temporary_venv(self, assertion, populate_imports: bool = False):
         venv = ROOT / ".venv"
         if venv.exists():
             self.skipTest(".venv exists before test")
         try:
             subprocess.check_call(["python", "-m", "venv", str(venv)], cwd=ROOT)
+            if populate_imports:
+                site_packages = venv / "Lib" / "site-packages"
+                for module in ("streamlit", "pandas", "dotenv", "sqlalchemy", "psycopg2", "openpyxl", "reportlab", "plotly"):
+                    package = site_packages / module
+                    package.mkdir(parents=True, exist_ok=True)
+                    (package / "__init__.py").write_text("", encoding="utf-8")
             cp, payload = run_ps(SETUP, "-RunImportSmoke")
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             assertion(payload)

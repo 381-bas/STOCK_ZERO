@@ -40,7 +40,7 @@ No `.codex/`, `.venv`, ignored data, secrets, DB, Docker, SQL, loaders, merge, o
 - `ca35f3fc74309148ac55ef0b3ff639527adb7970` - `platform: add safe Codex worktree pilot`
 - `3277692c95bfc706498028eb271c7a71b84620b3` - `tooling: correct load observation safety blockers`
 - `08d186741934bdf7ec4c1347752d48370744efaa` - `platform: generalize safe worktree tooling` added by 001D
-- `research: finalize worktree pilot evidence` is the evidence commit containing this finalized report; its exact SHA is reported in the final Codex screen output for 001D.
+- `research: finalize worktree pilot evidence` is represented by `evidence_commit_self_reference=RECORDED_BY_SUCCESSOR_PHASE`; the original reviewed branch head was `6a965ec4b5b02d6de9d839f475a63697ac226f15`.
 
 The branch `codex/PLATFORM_005B-load-observation-correction` was pushed. Main was not pushed and no merge was performed.
 

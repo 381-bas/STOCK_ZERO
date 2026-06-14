@@ -18,6 +18,20 @@ identidad sin hash SHA-256 valido, shapes incompletos, privacidad riesgosa,
 labels incompatibles con la operacion, referencias de evidencia invalidas y
 errores de argumentos.
 
+## Codigos tecnicos
+
+`input_file_name`, `anomaly_reason` y `notes` son identificadores tecnicos,
+no nombres literales de archivos ni texto libre. Deben usar el patron:
+
+`^[A-Z][A-Z0-9_:-]{0,119}$`
+
+No aceptan PII, rutas locales, nombres reales de personas, payloads, ni
+descripciones narrativas. Ejemplos validos:
+
+- `ROUTE_WEEK_2026_06_08`
+- `EXPECTED_WEEKLY_ROUTE_REPLACEMENT`
+- `POSTCHECK_ROW_COUNT_MISMATCH`
+
 ## Ejecucion
 
 !`python scripts/sz_load_observation.py $ARGUMENTS`

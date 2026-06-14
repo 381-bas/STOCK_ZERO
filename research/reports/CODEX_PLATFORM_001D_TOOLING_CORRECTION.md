@@ -46,7 +46,7 @@ Modified files are limited to:
 - fails `-RunImportSmoke` without `.venv` by default using `worktree_venv_required`
 - allows system Python smoke only with `-AllowSystemPythonSmoke`
 - marks system Python smoke as not reproducible
-- marks worktree `.venv` smoke as reproducible
+- marks worktree `.venv` smoke as reproducible only when `RunImportSmoke` executed and all required imports passed
 - does not install requirements
 - does not reveal absolute Python executable paths in public JSON
 
@@ -99,4 +99,4 @@ After the evidence commit and branch push, run a detached review worktree from t
 - ledger hash check
 - clean removal of the detached review worktree without `git worktree prune`
 
-The exact final branch head is reported in the final Codex screen output because a commit cannot reliably embed its own SHA in its tracked contents.
+Self-referential evidence uses `evidence_commit_self_reference=RECORDED_BY_SUCCESSOR_PHASE`; the original reviewed branch head is `6a965ec4b5b02d6de9d839f475a63697ac226f15`.

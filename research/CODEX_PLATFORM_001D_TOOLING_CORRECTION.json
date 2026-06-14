@@ -5,13 +5,15 @@
   "quality_target": "Q4_DECISION_GRADE",
   "authorized_branch": "codex/PLATFORM_005B-load-observation-correction",
   "baseline_head_before_001D": "3277692c95bfc706498028eb271c7a71b84620b3",
+  "original_reviewed_branch_head": "6a965ec4b5b02d6de9d839f475a63697ac226f15",
+  "evidence_commit_self_reference": "RECORDED_BY_SUCCESSOR_PHASE",
   "tooling_correction_commit": {
     "message": "platform: generalize safe worktree tooling",
     "sha": "08d186741934bdf7ec4c1347752d48370744efaa"
   },
   "evidence_commit": {
     "message": "research: finalize worktree pilot evidence",
-    "sha": "self_commit_reported_in_final_screen"
+    "sha": "RECORDED_BY_SUCCESSOR_PHASE"
   },
   "corrections": {
     "audit_branch_generalized": true,
@@ -37,7 +39,7 @@
     "run_import_smoke_requires_worktree_venv_by_default": true,
     "system_python_requires_explicit_switch": "AllowSystemPythonSmoke",
     "system_python_environment_reproducible": false,
-    "worktree_venv_environment_reproducible": true,
+    "worktree_venv_environment_reproducible_when_all_imports_ok": true,
     "requirements_install": false,
     "db_access": "none",
     "docker_executed": false,
