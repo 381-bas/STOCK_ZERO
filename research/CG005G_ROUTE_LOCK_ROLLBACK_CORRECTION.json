@@ -1,0 +1,117 @@
+{
+  "phase": "CG005G_ROUTE_LOCK_AND_ROLLBACK_CORRECTION_NO_APPLY",
+  "task_type": "implementation",
+  "created_at": "2026-06-13T20:39:34-04:00",
+  "baseline": {
+    "origin_main": "e368f83c673509304a40992114046a5eafe11d6c",
+    "worktree": "C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005G",
+    "branch": "codex/CG005G-route-lock-rollback-correction"
+  },
+  "scope": {
+    "corrected_findings": ["F-04", "F-08"],
+    "not_reopened": ["F-01", "F-02", "F-03", "F-05", "F-06", "F-07", "F-09", "F-10", "F-11"],
+    "db_access": "none",
+    "docker_executed": false,
+    "ddl_executed": false,
+    "sql_executed": false,
+    "loader_apply": false,
+    "rollback_executed": false,
+    "supabase": false
+  },
+  "implementation_commit": {
+    "sha": "c440a253dbf0a35a388b8879c7e9627804991a56",
+    "message": "loader: correct route lock and rollback postchecks",
+    "files": [
+      "scripts/load_ruta_rutero_from_excel.py",
+      "tests/test_load_ruta_rutero_weekly_replace.py"
+    ]
+  },
+  "f08_advisory_lock": {
+    "single_bigint_signature": true,
+    "sql_signature": "select pg_advisory_xact_lock(%s)",
+    "deterministic_key": true,
+    "key_material": [
+      "route_week_replacement_advisory_lock",
+      "route_policy_version",
+      "source",
+      "effective_week_start"
+    ],
+    "signed_int64": true,
+    "native_python_hash_used": false,
+    "shared_apply_rollback_helper": true
+  },
+  "f04_rollback": {
+    "full_postcheck_before_commit": true,
+    "postcheck_order": [
+      "restore_public_from_history",
+      "validate_rollback_assignment_states",
+      "validate_rollback_current_surface",
+      "validate_rollback_weekly_view",
+      "validate_rollback_resolved_grains",
+      "commit"
+    ],
+    "assignment_states_validated": true,
+    "hash_validated": true,
+    "current_row_count_validated": true,
+    "exact_duplicates_excluded_validated": true,
+    "weekly_view_validated": true,
+    "resolved_grains_validated": true,
+    "resolved_hash_validated": true,
+    "lineage_validated": true,
+    "fail_closed": true
+  },
+  "tests": {
+    "py_compile": {
+      "command": "python -m py_compile scripts/load_ruta_rutero_from_excel.py",
+      "result": "PASS"
+    },
+    "weekly_replace": {
+      "command": "python -m unittest discover -s tests -p \"test_load_ruta_rutero_weekly_replace.py\" -v",
+      "collected": 84,
+      "passed": 83,
+      "failed": 0,
+      "skipped": 1
+    },
+    "cg_readonly_extract": {
+      "command": "python -m unittest discover -s tests -p \"test_cg_readonly_extract.py\" -v",
+      "collected": 21,
+      "passed": 20,
+      "failed": 0,
+      "skipped": 1
+    },
+    "git_diff_check": "PASS",
+    "unique_tests": 105,
+    "test_executions": 5
+  },
+  "preflight": {
+    "before": {
+      "phase": "generic",
+      "skip_db": true,
+      "final_verdict": "warn",
+      "blockers": [],
+      "warnings": [
+        "01_kernel_global_v1_4_3.json_missing",
+        "kernel_02_missing",
+        "03_iterative_ledger_v1_6_5.json_missing",
+        "04_project_direction_kernel_stock_zero_v1_0_5.json_missing",
+        "STOCK_ZERO_3JSON_AUDIT_MATRIX_20260331_v2_2.json_missing",
+        "CONTROL_GESTION_IMPLEMENTATION_KERNEL_V2_4.json_missing"
+      ]
+    }
+  },
+  "metrics": {
+    "elapsed_minutes": 8,
+    "files_outside_scope": [],
+    "unique_tests": 105,
+    "test_executions": 5,
+    "implementation_rounds": 1,
+    "worktree_collisions": 0,
+    "dirty_main_incidents": 0,
+    "material_defects_closed": 2,
+    "db_status": "none",
+    "docker_status": "not_executed",
+    "write_status": "code_and_evidence_commits_only"
+  },
+  "verdict": "READY_FOR_TARGETED_CLAUDE_REVALIDATION",
+  "next_step": "CG005H_F04_F08_TARGETED_REVALIDATION"
+}
