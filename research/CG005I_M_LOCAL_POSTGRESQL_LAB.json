@@ -1,13 +1,35 @@
 {
-  "phase": "CG005I_M_LOCAL_POSTGRESQL_BEHAVIORAL_LAB",
-  "verdict": "BLOCK",
+  "phase": "CG005J_FIX_ASSIGNMENT_INSERT_ARITY_AND_RESUME_LOCAL_LAB",
+  "source_phase": "CG005I_M_LOCAL_POSTGRESQL_BEHAVIORAL_LAB",
+  "verdict": "PARTIAL",
+  "recorded_at": "2026-06-14T16:34:40.812465Z",
   "quality": {
     "target": "Q4_DECISION_GRADE",
-    "achieved": null,
-    "confidence": null
+    "achieved": "Q4_CG005I_M_VALIDATED_PLATFORM_008_BLOCKED",
+    "confidence": "HIGH"
   },
-  "baseline_commit": "c54e2933251122375336590a931bdbc1e514718a",
-  "branch": "lab/CG005I_M-route-weekly-replacement",
+  "attempts": [
+    {
+      "attempt": 1,
+      "verdict": "BLOCK",
+      "blocker": "assignment_insert_placeholder_arity",
+      "evidence_commit": "eb1433ff9edbca32fcc5b266d324737e0b1811d1"
+    },
+    {
+      "attempt": 2,
+      "verdict": "PARTIAL",
+      "correction_commit": "e4651c50d918be6cd7d56fc0545cb83284209cd1",
+      "result": "CG005I_M_LOCAL_LAB_VALIDATED_PLATFORM_008_BLOCKED"
+    }
+  ],
+  "root_cause": {
+    "confirmed": true,
+    "query_placeholders_before": 10,
+    "query_placeholders_after": 11,
+    "parameters": 11,
+    "notes_persisted": true,
+    "correction_commit": "e4651c50d918be6cd7d56fc0545cb83284209cd1"
+  },
   "local_postgresql": {
     "loopback_only": true,
     "database": "stock_zero_cg005_lab",
@@ -15,68 +37,125 @@
     "host": "127.0.0.1",
     "port": 55433,
     "version": "17.10 (Debian 17.10-1.pgdg13+1)",
+    "transaction_read_only": "off",
     "dedicated": true,
-    "supabase_contacted": false,
-    "transaction_read_only": "off"
-  },
-  "docker": {
-    "executed": true,
-    "container_name": "stock_zero_cg005_lab_pg",
-    "container_id": "25f56c151148",
-    "image": "postgres:17"
+    "supabase_contacted": false
   },
   "cg005i": {
     "passed": true,
     "ddl_applied_local": true,
     "advisory_lock_resolved": true,
     "concurrency_proven": true,
-    "contract": {
-      "ok": true,
-      "missing": []
-    },
-    "advisory_lock": {
-      "resolved": true,
-      "same_key_blocked_while_held": true,
-      "same_key_acquired_after_release": true,
-      "distinct_key_not_blocked": true,
-      "same_key_blocked_seconds": 0.353,
-      "distinct_key_elapsed_seconds": 0.004
-    },
-    "sql11": {
-      "path": "sql/11_control_gestion_route_week_replacement_contract.sql",
-      "sha256": "145F6E5048C4A9C05409CD88890AE5EB2B0AD9506F38353532651EC75EA2B335",
-      "body_sha256": "01C75690371C3AD6A984A912DA392B43C39C62B2F7FA831FE0330DB060734D21",
-      "no_apply_header": true,
-      "begin_rollback_wrapper": true
-    }
+    "sql11_sha256": "145F6E5048C4A9C05409CD88890AE5EB2B0AD9506F38353532651EC75EA2B335"
   },
   "cg005j": {
-    "passed": false,
-    "snapshot_a_rows": null,
-    "assignment_active": false,
-    "hashes_match": false,
-    "grain_diff": null,
-    "blocked_at": "snapshot_a_apply",
-    "loader_error": "ProgrammingError:the query has 10 placeholders but 11 parameters were passed"
+    "passed": true,
+    "snapshot_a_rows": 3539,
+    "history_rows": 3542,
+    "assignment_active": true,
+    "single_active": true,
+    "hashes_match": true,
+    "grain_diff": {
+      "missing": 0,
+      "extra": 0
+    },
+    "notes_persisted": true,
+    "snapshot_a": {
+      "current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+      "resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
+      "rows": 3539,
+      "history_rows": 3542,
+      "exact_duplicate_excess": 3,
+      "resolved_rows": 3508
+    }
   },
   "cg005k": {
-    "passed": false
+    "passed": true,
+    "snapshot_b_rows": 3538,
+    "a_superseded": true,
+    "b_active": true,
+    "replaces_ruta_batch_id": 1,
+    "removals_stay_removed": true,
+    "synthetic_changes_present": true,
+    "hashes_match": true,
+    "grain_diff": {
+      "missing": 0,
+      "extra": 0
+    },
+    "snapshot_b": {
+      "current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
+      "resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
+      "rows": 3538,
+      "history_rows": 3541,
+      "replaces_ruta_batch_id": 1,
+      "resolved_rows": 3507
+    }
   },
   "cg005l": {
-    "passed": false
+    "passed": true,
+    "rollback_restored_a": true,
+    "postchecks_before_commit": true,
+    "intentional_failure_fail_closed": true,
+    "main_assignment_status_counts": {
+      "ACTIVE": 1,
+      "ROLLED_BACK": 1
+    },
+    "failure_assignment_status_counts": {
+      "ACTIVE": 1,
+      "SUPERSEDED": 1
+    }
   },
   "cg005m": {
-    "passed": false
+    "passed": true,
+    "clean_room_rebuilt": true,
+    "business_hashes_identical": true,
+    "unexplained_differences": [],
+    "run1_signature": {
+      "a_current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+      "a_resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
+      "b_current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
+      "b_resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
+      "a_rows": 3539,
+      "b_rows": 3538,
+      "rollback_restored_a": true
+    },
+    "run2_signature": {
+      "a_current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+      "a_resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
+      "b_current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
+      "b_resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
+      "a_rows": 3539,
+      "b_rows": 3538,
+      "rollback_restored_a": true
+    }
   },
   "platform_008": {
-    "executed": false,
+    "executed": true,
     "candidate_validated": false,
-    "ledger_unchanged": false,
-    "observation_id": null
+    "ledger_unchanged": true,
+    "observation_id": null,
+    "manual_steps_removed": 0,
+    "blocked_by": "invalid_technical_code:input_file_name",
+    "ledger_hash_before": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "ledger_hash_after": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
   },
-  "warnings": [],
+  "gates": {
+    "platform_proven": false,
+    "route_apply_ready_for_authorization": false,
+    "supabase_authorized": false,
+    "cleanup_authorized": false
+  },
   "blockers": [
-    "snapshot_a_loader_apply_failed"
+    "platform_008_invalid_technical_code_input_file_name"
   ],
-  "error_detail": "ProgrammingError:the query has 10 placeholders but 11 parameters were passed"
+  "warnings": [
+    "source_check_warn_extra_columns",
+    "loader_stdout_contains_verbose_plan_not_used_as_evidence"
+  ],
+  "privacy": {
+    "dsn_recorded": false,
+    "password_recorded": false,
+    "row_payloads_recorded": false,
+    "personal_paths_recorded": false
+  }
 }
