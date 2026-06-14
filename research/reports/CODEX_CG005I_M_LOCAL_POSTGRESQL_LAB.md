@@ -1,32 +1,37 @@
-# CG005J fix assignment insert arity and resume local lab
+# CG005I-M local PostgreSQL lab
 
-- Verdict: `PARTIAL`
-- Correction commit: `e4651c50d918be6cd7d56fc0545cb83284209cd1`
+- Phase: `CG005I_M_LOCAL_POSTGRESQL_BEHAVIORAL_LAB`
+- Verdict: `LOCAL_LAB_VALIDATED`
+- Baseline: `c54e2933251122375336590a931bdbc1e514718a`
 - PostgreSQL: `17.10 (Debian 17.10-1.pgdg13+1)`
+- Database: `stock_zero_cg005_lab`
 - Supabase contacted: `False`
-- Main push/merge: `False`
 
-## Root Cause
+## Gates
 
-`create_week_assignment` had 10 `%s` placeholders for 11 parameters. The corrected query has 11 placeholders, with `assigned_by`, `replaces_ruta_batch_id`, and `notes` preserved in their intended positions. Local integration confirmed assignment `notes` persisted.
-
-## CG005I-M
-
-- CG005I: passed; SQL 11 applied locally and advisory-lock concurrency was proven.
-- CG005J: passed; Snapshot A assignment is ACTIVE, notes persisted, hashes/rows/week view/grain checks passed.
-- CG005K: passed; Snapshot B superseded A, became ACTIVE, and matched hashes/grain checks.
-- CG005L: passed; rollback restored A and the failure database stayed fail-closed with B ACTIVE.
-- CG005M: passed; clean-room run business signatures matched.
-
-## Platform 008 Blocker
-
-`sz_load_observation draft` rejected the candidate with `invalid_technical_code` on `input_file_name`. No ledger write occurred and no gates were opened.
-
-## Attempts
-
-1. `eb1433ff9edbca32fcc5b266d324737e0b1811d1`: BLOCK, assignment insert placeholder arity.
-2. `e4651c50d918be6cd7d56fc0545cb83284209cd1`: PARTIAL, CG005I-M validated, PLATFORM_008 blocked.
+- `cg005i` passed: `True`
+- `cg005j` passed: `True`
+- `cg005k` passed: `True`
+- `cg005l` passed: `True`
+- `cg005m` passed: `True`
+- `platform_008` passed: `True`
 
 ## Safety
 
-No DSN, password, row payload, customer, store, address, person values, or personal paths are recorded in this report/evidence.
+- No DSN, password, row payload, customer, store, address or person values are recorded.
+- Writes are limited to the dedicated loopback PostgreSQL lab databases.
+- Snapshot B was generated under the OS temp directory and is not recorded in the repo.
+
+## Attempt history
+
+- Attempt 1: `BLOCKED` - Assignment placeholder arity blocked local apply before full lab completion.
+- Attempt 2: `PARTIAL` - CG005I-M local lab validated, but PLATFORM_008 was blocked by input_file_name technical-code validation.
+- Attempt 3: `LOCAL_LAB_VALIDATED` - Final run validated CG005I-M and PLATFORM_008 after using the technical input code.
+
+## Platform 008
+
+- Observation candidate validated: `True`
+- Input file code: `DB_GLOBAL_INVENTARIO_XLSX`
+- Observation ledger unchanged: `True`
+- Ledger write executed: `False`
+- Productive DDL/apply, Supabase writes, cleanup and retention remain unauthorized.

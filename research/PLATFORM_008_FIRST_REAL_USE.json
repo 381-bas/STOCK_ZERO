@@ -1,16 +1,49 @@
 {
   "phase": "PLATFORM_008_FIRST_REAL_USE",
-  "source_phase": "CG005J_FIX_ASSIGNMENT_INSERT_ARITY_AND_RESUME_LOCAL_LAB",
+  "source_phase": "CG005I_M_LOCAL_POSTGRESQL_BEHAVIORAL_LAB",
   "executed": true,
-  "candidate_validated": false,
+  "candidate_validated": true,
   "ledger_unchanged": true,
-  "observation_id": null,
-  "blocked_by": [
-    "invalid_technical_code:input_file_name"
-  ],
+  "observation_id": "LOADOBS-RUTA_RUTERO-2026-06-08-POST_LOAD_VALIDATION-fd1eadb56093",
+  "blocked_by": [],
   "ledger_write_executed": false,
+  "verdict": "LOCAL_LAB_VALIDATED",
+  "quality_achieved": "Q4_DECISION_GRADE",
+  "baseline_commit": "c54e2933251122375336590a931bdbc1e514718a",
+  "branch": "lab/CG005I_M-route-weekly-replacement",
+  "branch_commit": "34668a2be690d435a8187013d040160c6d9c9463",
+  "input_file_name": "DB_GLOBAL_INVENTARIO_XLSX",
+  "anomaly_label": "UNREVIEWED",
+  "implementation_authorized": false,
+  "temporary_candidate_deleted": true,
+  "manual_steps_removed": 2,
   "ledger_hash_before": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
   "ledger_hash_after": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
-  "temporary_candidate_deleted": false,
-  "notes": "sz_load_observation draft rejected DB_GLOBAL_INVENTARIO.xlsx because input_file_name must be a technical code."
+  "attempt_history": [
+    {
+      "attempt": 1,
+      "status": "BLOCKED",
+      "summary": "Assignment placeholder arity blocked local apply before full lab completion.",
+      "resolution": "CG005J fixed assignment insert arity before resuming the lab."
+    },
+    {
+      "attempt": 2,
+      "status": "PARTIAL",
+      "summary": "CG005I-M local lab validated, but PLATFORM_008 was blocked by input_file_name technical-code validation.",
+      "blocked_field": "input_file_name",
+      "blocked_value": "DB_GLOBAL_INVENTARIO.xlsx"
+    },
+    {
+      "attempt": 3,
+      "status": "LOCAL_LAB_VALIDATED",
+      "summary": "Final run validated CG005I-M and PLATFORM_008 after using the technical input code.",
+      "fix_commit": "34668a2be690d435a8187013d040160c6d9c9463",
+      "input_file_code": "DB_GLOBAL_INVENTARIO_XLSX"
+    }
+  ],
+  "supabase_writes_authorized": false,
+  "productive_ddl_authorized": false,
+  "productive_apply_authorized": false,
+  "cleanup_authorized": false,
+  "retention_authorized": false
 }

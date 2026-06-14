@@ -183,7 +183,7 @@
       ]
     }
   },
-  "non_authority_notice": "This file records shared memory only. It does not authorize production DB writes, productive DDL, productive apply, Supabase writes, cleanup, retention, loader execution, SQL execution, commits, or pushes outside explicit phase authority. CG005H authorizes only the local PostgreSQL lab gate.",
+  "non_authority_notice": "This file records shared memory only. It does not authorize production DB writes, productive DDL, productive apply, Supabase writes, cleanup, retention, loader execution, SQL execution, commits, or pushes outside explicit phase authority. CG005I-M validates only the local PostgreSQL lab and PLATFORM_008 first use.",
   "c001_validated_research": {
     "status": "VALIDATED_SCOPE_WITH_LIMITS",
     "phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
@@ -790,5 +790,74 @@
       }
     ],
     "next_phase": "CG005I_M_LOCAL_POSTGRESQL_LAB"
+  },
+  "cg005i_m_local_postgresql_lab": {
+    "status": "LOCAL_LAB_VALIDATED",
+    "phase": "PLATFORM_008B_FIX_TECHNICAL_CODE_AND_FINALIZE_LOCAL_LAB",
+    "baseline_commit": "c54e2933251122375336590a931bdbc1e514718a",
+    "branch": "lab/CG005I_M-route-weekly-replacement",
+    "branch_commit": "34668a2be690d435a8187013d040160c6d9c9463",
+    "source_files": [
+      "research/CG005I_M_LOCAL_POSTGRESQL_LAB.json",
+      "research/reports/CODEX_CG005I_M_LOCAL_POSTGRESQL_LAB.md",
+      "research/PLATFORM_008_FIRST_REAL_USE.json"
+    ],
+    "validated_facts": [
+      "CG005I advisory lock runtime proven in local PostgreSQL.",
+      "CG005J snapshot A apply local proven.",
+      "CG005K same-week replacement proven.",
+      "CG005L rollback and intentional failure fail-closed behavior proven.",
+      "CG005M clean-room hashes identical.",
+      "PLATFORM_008 first real use completed.",
+      "AI_LOAD_OBSERVATION_LEDGER remained unchanged; no ledger write executed."
+    ],
+    "attempt_history": [
+      {
+        "attempt": 1,
+        "status": "BLOCKED",
+        "summary": "Assignment placeholder arity blocked local apply before full lab completion.",
+        "resolution": "CG005J fixed assignment insert arity before resuming the lab."
+      },
+      {
+        "attempt": 2,
+        "status": "PARTIAL",
+        "summary": "CG005I-M local lab validated, but PLATFORM_008 was blocked by input_file_name technical-code validation.",
+        "blocked_field": "input_file_name",
+        "blocked_value": "DB_GLOBAL_INVENTARIO.xlsx"
+      },
+      {
+        "attempt": 3,
+        "status": "LOCAL_LAB_VALIDATED",
+        "summary": "Final run validated CG005I-M and PLATFORM_008 after using the technical input code.",
+        "fix_commit": "34668a2be690d435a8187013d040160c6d9c9463",
+        "input_file_code": "DB_GLOBAL_INVENTARIO_XLSX"
+      }
+    ],
+    "platform_008": {
+      "executed": true,
+      "candidate_validated": true,
+      "ledger_unchanged": true,
+      "observation_id": "LOADOBS-RUTA_RUTERO-2026-06-08-POST_LOAD_VALIDATION-fd1eadb56093",
+      "input_file_name": "DB_GLOBAL_INVENTARIO_XLSX",
+      "anomaly_label": "UNREVIEWED",
+      "implementation_authorized": false,
+      "ledger_write_executed": false,
+      "temporary_candidate_deleted": true,
+      "validation_status": "ok",
+      "seconds_elapsed": 0.031,
+      "manual_steps_removed": 2,
+      "ledger_hash_before": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "ledger_hash_after": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    "authorizations": {
+      "local_lab_authorized": true,
+      "local_lab_completed": true,
+      "productive_ddl_authorized": false,
+      "productive_apply_authorized": false,
+      "supabase_writes_authorized": false,
+      "cleanup_authorized": false,
+      "retention_authorized": false
+    },
+    "next_action": "Prepare CG005N-Q decision package for separate Bastian authorization. No Supabase execution is authorized by this status."
   }
 }

@@ -1,35 +1,13 @@
 {
-  "phase": "CG005J_FIX_ASSIGNMENT_INSERT_ARITY_AND_RESUME_LOCAL_LAB",
-  "source_phase": "CG005I_M_LOCAL_POSTGRESQL_BEHAVIORAL_LAB",
-  "verdict": "PARTIAL",
-  "recorded_at": "2026-06-14T16:34:40.812465Z",
+  "phase": "CG005I_M_LOCAL_POSTGRESQL_BEHAVIORAL_LAB",
+  "verdict": "LOCAL_LAB_VALIDATED",
   "quality": {
     "target": "Q4_DECISION_GRADE",
-    "achieved": "Q4_CG005I_M_VALIDATED_PLATFORM_008_BLOCKED",
+    "achieved": "Q4_DECISION_GRADE",
     "confidence": "HIGH"
   },
-  "attempts": [
-    {
-      "attempt": 1,
-      "verdict": "BLOCK",
-      "blocker": "assignment_insert_placeholder_arity",
-      "evidence_commit": "eb1433ff9edbca32fcc5b266d324737e0b1811d1"
-    },
-    {
-      "attempt": 2,
-      "verdict": "PARTIAL",
-      "correction_commit": "e4651c50d918be6cd7d56fc0545cb83284209cd1",
-      "result": "CG005I_M_LOCAL_LAB_VALIDATED_PLATFORM_008_BLOCKED"
-    }
-  ],
-  "root_cause": {
-    "confirmed": true,
-    "query_placeholders_before": 10,
-    "query_placeholders_after": 11,
-    "parameters": 11,
-    "notes_persisted": true,
-    "correction_commit": "e4651c50d918be6cd7d56fc0545cb83284209cd1"
-  },
+  "baseline_commit": "c54e2933251122375336590a931bdbc1e514718a",
+  "branch": "lab/CG005I_M-route-weekly-replacement",
   "local_postgresql": {
     "loopback_only": true,
     "database": "stock_zero_cg005_lab",
@@ -37,58 +15,73 @@
     "host": "127.0.0.1",
     "port": 55433,
     "version": "17.10 (Debian 17.10-1.pgdg13+1)",
-    "transaction_read_only": "off",
     "dedicated": true,
-    "supabase_contacted": false
+    "supabase_contacted": false,
+    "transaction_read_only": "off"
+  },
+  "docker": {
+    "executed": true,
+    "container_name": "stock_zero_cg005_lab_pg",
+    "container_id": "25f56c151148",
+    "image": "postgres:17"
   },
   "cg005i": {
     "passed": true,
     "ddl_applied_local": true,
     "advisory_lock_resolved": true,
     "concurrency_proven": true,
-    "sql11_sha256": "145F6E5048C4A9C05409CD88890AE5EB2B0AD9506F38353532651EC75EA2B335"
+    "sql11": {
+      "path": "sql/11_control_gestion_route_week_replacement_contract.sql",
+      "sha256": "145F6E5048C4A9C05409CD88890AE5EB2B0AD9506F38353532651EC75EA2B335",
+      "body_sha256": "01C75690371C3AD6A984A912DA392B43C39C62B2F7FA831FE0330DB060734D21",
+      "no_apply_header": true,
+      "begin_rollback_wrapper": true
+    }
   },
   "cg005j": {
     "passed": true,
+    "source_check": "warn",
     "snapshot_a_rows": 3539,
     "history_rows": 3542,
+    "exact_duplicate_excess": 3,
     "assignment_active": true,
-    "single_active": true,
     "hashes_match": true,
     "grain_diff": {
       "missing": 0,
       "extra": 0
     },
-    "notes_persisted": true,
-    "snapshot_a": {
-      "current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
-      "resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
-      "rows": 3539,
-      "history_rows": 3542,
-      "exact_duplicate_excess": 3,
-      "resolved_rows": 3508
-    }
+    "current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+    "resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
+    "workbook_sha256": "454F3CF414B031FB793CA6298CF03638C2EDE3B53B918E6ACAB636C9B4B6AD83",
+    "schema_signature": "832A275E3A2D24E9C1B0F5B38D2083E94BC91E0165E7F4E6A0BA20C27F58F232"
   },
   "cg005k": {
     "passed": true,
+    "source_check": "warn",
     "snapshot_b_rows": 3538,
+    "history_rows": 3541,
     "a_superseded": true,
     "b_active": true,
-    "replaces_ruta_batch_id": 1,
     "removals_stay_removed": true,
-    "synthetic_changes_present": true,
     "hashes_match": true,
     "grain_diff": {
       "missing": 0,
       "extra": 0
     },
+    "current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
+    "resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
     "snapshot_b": {
-      "current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
-      "resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
-      "rows": 3538,
-      "history_rows": 3541,
-      "replaces_ruta_batch_id": 1,
-      "resolved_rows": 3507
+      "transform_version": "CG005K_B_SNAPSHOT_V1",
+      "material_reorder": true,
+      "removed_logical_grains": 2,
+      "changed_responsables": 2,
+      "changed_frequency_or_days": 1,
+      "synthetic_highs": 1,
+      "rows": 3541,
+      "current_rows": 3538,
+      "sha256": "8529E1ACBC32E040D3E745137DB3922F6F1FF037948E3A53CE531EAF52AEA701",
+      "removal_grains_count": 2,
+      "synthetic_grain_marker_hash": "45B49E3EA5582A8867A9E4427BC94A506BA85D6826AA319718C6B5FA084B682E"
     }
   },
   "cg005l": {
@@ -96,66 +89,358 @@
     "rollback_restored_a": true,
     "postchecks_before_commit": true,
     "intentional_failure_fail_closed": true,
-    "main_assignment_status_counts": {
-      "ACTIVE": 1,
-      "ROLLED_BACK": 1
+    "rollback": {
+      "passed": true,
+      "rollback_restored_a": true,
+      "postchecks_before_commit": true,
+      "failed_assignment_id": 2,
+      "reactivated_assignment_id": 1,
+      "restored_ruta_batch_id": 1,
+      "current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+      "grain_diff": {
+        "missing": 0,
+        "extra": 0
+      }
     },
-    "failure_assignment_status_counts": {
-      "ACTIVE": 1,
-      "SUPERSEDED": 1
+    "intentional_failure": {
+      "passed": true,
+      "method": "postcheck_exception_in_lab_runner",
+      "error_code": "intentional_failure_postcheck",
+      "commit_executed": false,
+      "rollback_executed": true,
+      "b_remained_active": true,
+      "state_preserved": true
     }
   },
   "cg005m": {
     "passed": true,
     "clean_room_rebuilt": true,
     "business_hashes_identical": true,
-    "unexplained_differences": [],
-    "run1_signature": {
-      "a_current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
-      "a_resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
-      "b_current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
-      "b_resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
-      "a_rows": 3539,
-      "b_rows": 3538,
-      "rollback_restored_a": true
-    },
-    "run2_signature": {
-      "a_current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
-      "a_resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
-      "b_current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
-      "b_resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
-      "a_rows": 3539,
-      "b_rows": 3538,
-      "rollback_restored_a": true
-    }
+    "unexplained_differences": []
   },
   "platform_008": {
     "executed": true,
-    "candidate_validated": false,
+    "candidate_validated": true,
     "ledger_unchanged": true,
-    "observation_id": null,
-    "manual_steps_removed": 0,
-    "blocked_by": "invalid_technical_code:input_file_name",
+    "observation_id": "LOADOBS-RUTA_RUTERO-2026-06-08-POST_LOAD_VALIDATION-fd1eadb56093",
+    "input_file_name": "DB_GLOBAL_INVENTARIO_XLSX",
+    "anomaly_label": "UNREVIEWED",
+    "implementation_authorized": false,
+    "ledger_write_executed": false,
+    "temporary_candidate_deleted": true,
+    "validation_status": "ok",
+    "seconds_elapsed": 0.031,
+    "manual_steps_removed": 2,
     "ledger_hash_before": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
     "ledger_hash_after": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
   },
-  "gates": {
-    "platform_proven": false,
-    "route_apply_ready_for_authorization": false,
-    "supabase_authorized": false,
-    "cleanup_authorized": false
+  "warnings": [],
+  "blockers": [],
+  "loader": {
+    "policy_version": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1",
+    "rollback_confirm_token_hash": "7A5CC5AD4620ADEEA5E530DD3CDDCDA9FDED868999948A8A525C6B7E3A800567",
+    "help_flags": [
+      "--apply",
+      "--confirm-rollback",
+      "--confirm-weekly-replacement",
+      "--db",
+      "--dry-run",
+      "--effective-week-start",
+      "--excel",
+      "--expected-current-surface-hash",
+      "--expected-workbook-sha256",
+      "--failed-assignment-id",
+      "--help",
+      "--json-out",
+      "--rollback-weekly-replacement",
+      "--sheet",
+      "--skip-postcheck",
+      "--skip-source-check",
+      "--source",
+      "--source-check-only",
+      "--source-check-strict"
+    ]
   },
-  "blockers": [
-    "platform_008_invalid_technical_code_input_file_name"
+  "manifest": {
+    "main_commit": "c54e2933251122375336590a931bdbc1e514718a",
+    "branch_commit": "34668a2be690d435a8187013d040160c6d9c9463",
+    "python_version": "3.12.10",
+    "source": "DB_GLOBAL_INVENTARIO.xlsx:RUTA_RUTERO",
+    "week": "2026-06-08",
+    "snapshot_transform_version": "CG005K_B_SNAPSHOT_V1",
+    "route_policy_version": "ROUTE_WEEK_RETROACTIVE_REPLACEMENT_V1",
+    "commands": [
+      "bootstrap dedicated local databases",
+      "apply SQL 11 body locally",
+      "source-check A",
+      "dry-run A",
+      "apply A local",
+      "generate temp B",
+      "source-check B",
+      "dry-run B",
+      "apply B local",
+      "rollback B to A local",
+      "intentional rollback failure local",
+      "clean-room rebuild",
+      "platform observation draft validate without ledger write"
+    ]
+  },
+  "run1": {
+    "label": "run1",
+    "bootstrap": {
+      "bootstrap_sha256": "289BC6C6643521C533F54919F57B3AED3D48BB573273512B7ABB7CD1E81C1AD0",
+      "sql11": {
+        "path": "sql/11_control_gestion_route_week_replacement_contract.sql",
+        "sha256": "145F6E5048C4A9C05409CD88890AE5EB2B0AD9506F38353532651EC75EA2B335",
+        "body_sha256": "01C75690371C3AD6A984A912DA392B43C39C62B2F7FA831FE0330DB060734D21",
+        "no_apply_header": true,
+        "begin_rollback_wrapper": true
+      }
+    },
+    "cg005i": {
+      "passed": true,
+      "ddl_applied_local": true,
+      "contract": {
+        "ok": true,
+        "missing": []
+      },
+      "advisory_lock": {
+        "resolved": true,
+        "same_key_blocked_while_held": true,
+        "same_key_acquired_after_release": true,
+        "distinct_key_not_blocked": true,
+        "same_key_blocked_seconds": 0.354,
+        "distinct_key_elapsed_seconds": 0.004
+      }
+    },
+    "cg005j": {
+      "passed": true,
+      "source_check": "warn",
+      "snapshot_a_rows": 3539,
+      "history_rows": 3542,
+      "exact_duplicate_excess": 3,
+      "assignment_active": true,
+      "hashes_match": true,
+      "grain_diff": {
+        "missing": 0,
+        "extra": 0
+      },
+      "current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+      "resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
+      "workbook_sha256": "454F3CF414B031FB793CA6298CF03638C2EDE3B53B918E6ACAB636C9B4B6AD83",
+      "schema_signature": "832A275E3A2D24E9C1B0F5B38D2083E94BC91E0165E7F4E6A0BA20C27F58F232"
+    },
+    "cg005k": {
+      "passed": true,
+      "source_check": "warn",
+      "snapshot_b_rows": 3538,
+      "history_rows": 3541,
+      "a_superseded": true,
+      "b_active": true,
+      "removals_stay_removed": true,
+      "hashes_match": true,
+      "grain_diff": {
+        "missing": 0,
+        "extra": 0
+      },
+      "current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
+      "resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
+      "snapshot_b": {
+        "transform_version": "CG005K_B_SNAPSHOT_V1",
+        "material_reorder": true,
+        "removed_logical_grains": 2,
+        "changed_responsables": 2,
+        "changed_frequency_or_days": 1,
+        "synthetic_highs": 1,
+        "rows": 3541,
+        "current_rows": 3538,
+        "sha256": "DC94B8EBB8E491A57DF3F603DC74B281234294618CFFEE1B8AC270F40FDAACE7",
+        "removal_grains_count": 2,
+        "synthetic_grain_marker_hash": "45B49E3EA5582A8867A9E4427BC94A506BA85D6826AA319718C6B5FA084B682E"
+      }
+    },
+    "cg005l": {
+      "passed": true,
+      "rollback_restored_a": true,
+      "postchecks_before_commit": true,
+      "intentional_failure_fail_closed": true,
+      "rollback": {
+        "passed": true,
+        "rollback_restored_a": true,
+        "postchecks_before_commit": true,
+        "failed_assignment_id": 2,
+        "reactivated_assignment_id": 1,
+        "restored_ruta_batch_id": 1,
+        "current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+        "grain_diff": {
+          "missing": 0,
+          "extra": 0
+        }
+      },
+      "intentional_failure": {
+        "passed": true,
+        "method": "postcheck_exception_in_lab_runner",
+        "error_code": "intentional_failure_postcheck",
+        "commit_executed": false,
+        "rollback_executed": true,
+        "b_remained_active": true,
+        "state_preserved": true
+      }
+    },
+    "comparison_signature": {
+      "a_current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+      "a_resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
+      "b_current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
+      "b_resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
+      "a_rows": 3539,
+      "b_rows": 3538,
+      "b_removed_logical_grains": 2,
+      "b_synthetic_highs": 1,
+      "rollback_restored_a": true,
+      "failure_fail_closed": true
+    }
+  },
+  "run2": {
+    "label": "run2",
+    "bootstrap": {
+      "bootstrap_sha256": "289BC6C6643521C533F54919F57B3AED3D48BB573273512B7ABB7CD1E81C1AD0",
+      "sql11": {
+        "path": "sql/11_control_gestion_route_week_replacement_contract.sql",
+        "sha256": "145F6E5048C4A9C05409CD88890AE5EB2B0AD9506F38353532651EC75EA2B335",
+        "body_sha256": "01C75690371C3AD6A984A912DA392B43C39C62B2F7FA831FE0330DB060734D21",
+        "no_apply_header": true,
+        "begin_rollback_wrapper": true
+      }
+    },
+    "cg005i": {
+      "passed": true,
+      "ddl_applied_local": true,
+      "contract": {
+        "ok": true,
+        "missing": []
+      },
+      "advisory_lock": {
+        "resolved": true,
+        "same_key_blocked_while_held": true,
+        "same_key_acquired_after_release": true,
+        "distinct_key_not_blocked": true,
+        "same_key_blocked_seconds": 0.353,
+        "distinct_key_elapsed_seconds": 0.003
+      }
+    },
+    "cg005j": {
+      "passed": true,
+      "source_check": "warn",
+      "snapshot_a_rows": 3539,
+      "history_rows": 3542,
+      "exact_duplicate_excess": 3,
+      "assignment_active": true,
+      "hashes_match": true,
+      "grain_diff": {
+        "missing": 0,
+        "extra": 0
+      },
+      "current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+      "resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
+      "workbook_sha256": "454F3CF414B031FB793CA6298CF03638C2EDE3B53B918E6ACAB636C9B4B6AD83",
+      "schema_signature": "832A275E3A2D24E9C1B0F5B38D2083E94BC91E0165E7F4E6A0BA20C27F58F232"
+    },
+    "cg005k": {
+      "passed": true,
+      "source_check": "warn",
+      "snapshot_b_rows": 3538,
+      "history_rows": 3541,
+      "a_superseded": true,
+      "b_active": true,
+      "removals_stay_removed": true,
+      "hashes_match": true,
+      "grain_diff": {
+        "missing": 0,
+        "extra": 0
+      },
+      "current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
+      "resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
+      "snapshot_b": {
+        "transform_version": "CG005K_B_SNAPSHOT_V1",
+        "material_reorder": true,
+        "removed_logical_grains": 2,
+        "changed_responsables": 2,
+        "changed_frequency_or_days": 1,
+        "synthetic_highs": 1,
+        "rows": 3541,
+        "current_rows": 3538,
+        "sha256": "8529E1ACBC32E040D3E745137DB3922F6F1FF037948E3A53CE531EAF52AEA701",
+        "removal_grains_count": 2,
+        "synthetic_grain_marker_hash": "45B49E3EA5582A8867A9E4427BC94A506BA85D6826AA319718C6B5FA084B682E"
+      }
+    },
+    "cg005l": {
+      "passed": true,
+      "rollback_restored_a": true,
+      "postchecks_before_commit": true,
+      "intentional_failure_fail_closed": true,
+      "rollback": {
+        "passed": true,
+        "rollback_restored_a": true,
+        "postchecks_before_commit": true,
+        "failed_assignment_id": 2,
+        "reactivated_assignment_id": 1,
+        "restored_ruta_batch_id": 1,
+        "current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+        "grain_diff": {
+          "missing": 0,
+          "extra": 0
+        }
+      },
+      "intentional_failure": {
+        "passed": true,
+        "method": "postcheck_exception_in_lab_runner",
+        "error_code": "intentional_failure_postcheck",
+        "commit_executed": false,
+        "rollback_executed": true,
+        "b_remained_active": true,
+        "state_preserved": true
+      }
+    },
+    "comparison_signature": {
+      "a_current_surface_hash": "4D0D2B6CEA580F493A3B7E1BC485EED48A48767135504663AC485AFBB82E14E4",
+      "a_resolved_surface_hash": "30938C839AF93CBA7C0DCDBF7BFF999425FFC4A30F45F6371EAE3D850B3BB453",
+      "b_current_surface_hash": "E1683F2806BF38CD437F2DBDE3ADDEAF0117FC4B69F3D180C52F0F314C6B50FD",
+      "b_resolved_surface_hash": "26AAB55245BA3539A0D4A26B9B59F65C6743A2C71BF2ADD095314CC5F0928D93",
+      "a_rows": 3539,
+      "b_rows": 3538,
+      "b_removed_logical_grains": 2,
+      "b_synthetic_highs": 1,
+      "rollback_restored_a": true,
+      "failure_fail_closed": true
+    }
+  },
+  "branch_commit": "34668a2be690d435a8187013d040160c6d9c9463",
+  "attempt_history": [
+    {
+      "attempt": 1,
+      "status": "BLOCKED",
+      "summary": "Assignment placeholder arity blocked local apply before full lab completion.",
+      "resolution": "CG005J fixed assignment insert arity before resuming the lab."
+    },
+    {
+      "attempt": 2,
+      "status": "PARTIAL",
+      "summary": "CG005I-M local lab validated, but PLATFORM_008 was blocked by input_file_name technical-code validation.",
+      "blocked_field": "input_file_name",
+      "blocked_value": "DB_GLOBAL_INVENTARIO.xlsx"
+    },
+    {
+      "attempt": 3,
+      "status": "LOCAL_LAB_VALIDATED",
+      "summary": "Final run validated CG005I-M and PLATFORM_008 after using the technical input code.",
+      "fix_commit": "34668a2be690d435a8187013d040160c6d9c9463",
+      "input_file_code": "DB_GLOBAL_INVENTARIO_XLSX"
+    }
   ],
-  "warnings": [
-    "source_check_warn_extra_columns",
-    "loader_stdout_contains_verbose_plan_not_used_as_evidence"
-  ],
-  "privacy": {
-    "dsn_recorded": false,
-    "password_recorded": false,
-    "row_payloads_recorded": false,
-    "personal_paths_recorded": false
-  }
+  "supabase_writes_authorized": false,
+  "productive_ddl_authorized": false,
+  "productive_apply_authorized": false,
+  "cleanup_authorized": false,
+  "retention_authorized": false
 }

@@ -12,7 +12,7 @@
     "platform_branch": "codex/PLATFORM_005B-load-observation-correction",
     "platform_branch_head": "6a965ec4b5b02d6de9d839f475a63697ac226f15",
     "active_horizon": "H1_REAL_WEEK_DUAL_RUN_SHADOW",
-    "route_closure": "CG005H_CLOSED_READY_FOR_LOCAL_POSTGRESQL_LAB"
+    "route_closure": "CG005I_M_LOCAL_LAB_VALIDATED_PLATFORM_008_COMPLETED"
   },
   "mission": "Finish the reliability path for RUTA_RUTERO and Control Gestion, prove the engineering system in real work, perform a controlled Supabase transition, and unlock the next product-development phase without adding unnecessary platform complexity.",
   "operating_principles": [
@@ -28,7 +28,7 @@
   ],
   "current_state": {
     "platform": {
-      "status": "MERGED_READY_FOR_FIRST_USE",
+      "status": "INTEGRATED_USED_AND_FROZEN",
       "completed": [
         "Worktree implementation isolation proven",
         "Detached review worktree proven",
@@ -36,18 +36,19 @@
         "Worktree audit tooling generalized",
         "Local environment setup safe in dry-run",
         "Load observation skill F001-F009 corrected",
-        "Observation ledger remains empty and unchanged"
+        "Observation ledger remains empty and unchanged",
+        "First real use of sz-load-observation completed in CG005I-M local lab",
+        "Platform expansion frozen after first real use"
       ],
       "open": [
         "Claude independent branch review",
         "Controlled rebase onto current origin/main",
         "Repeat tests after rebase",
-        "Merge preparation and integration",
-        "First real use of sz-load-observation"
+        "Merge preparation and integration"
       ]
     },
     "route_and_control_gestion": {
-      "status": "STATIC_VALIDATION_COMPLETE_LOCAL_LAB_READY",
+      "status": "LOCAL_LAB_VALIDATED_READY_FOR_SEPARATE_AUTHORIZATION",
       "corrected_findings": [
         "F-01",
         "F-02",
@@ -66,7 +67,10 @@
         "apply": false,
         "supabase_writes": false,
         "cleanup": false,
-        "retention": false
+        "retention": false,
+        "local_lab_completed": true,
+        "productive_ddl": false,
+        "productive_apply": false
       }
     },
     "product": {
@@ -144,7 +148,7 @@
       "phase_id": "PLATFORM_008_FIRST_REAL_USE",
       "lane": "PLATFORM_THEN_PRODUCT",
       "name": "First real use and value measurement",
-      "status": "READY_ON_FIRST_REAL_LAB_OR_DRY_RUN_RESULT",
+      "status": "COMPLETED",
       "objective": "Use the integrated worktree process and sz-load-observation once on safe completed load evidence, then measure whether the tooling reduces effort and risk.",
       "entry_criteria": [
         "Platform branch merged into main.",
@@ -207,7 +211,7 @@
       "phase_id": "CG005I_M_LOCAL_POSTGRESQL_LAB",
       "lane": "OPERATIONAL",
       "name": "Five-step behavioral local laboratory",
-      "status": "READY",
+      "status": "COMPLETED",
       "subphases": [
         {
           "id": "CG005I",
@@ -248,7 +252,7 @@
       "phase_id": "CG005N_Q_SUPABASE_CONTROLLED_ROUTE_LOAD",
       "lane": "OPERATIONAL",
       "name": "Controlled Supabase transition",
-      "status": "BLOCKED_BY_LOCAL_LAB",
+      "status": "READY_FOR_AUTHORIZATION",
       "subphases": [
         {
           "id": "CG005N",
@@ -568,5 +572,16 @@
     "product_path": "ChatGPT and Bastian open GATE_PRODUCT_V2_READY and begin Control Gestion core, reduced Inventory and Decision Tower implementation."
   },
   "implementation_authorized": false,
-  "note": "This roadmap is the active sequencing and readiness contract. Individual phases still require explicit authorization."
+  "note": "This roadmap is the active sequencing and readiness contract. Individual phases still require explicit authorization.",
+  "gates": {
+    "GATE_PLATFORM_PROVEN": "OPEN",
+    "platform_status": "INTEGRATED_USED_AND_FROZEN",
+    "GATE_ROUTE_APPLY_READY": "READY_FOR_SEPARATE_BASTIAN_AUTHORIZATION",
+    "CG005N_Q": "READY_FOR_AUTHORIZATION",
+    "supabase_writes_authorized": false,
+    "productive_ddl_authorized": false,
+    "productive_apply_authorized": false,
+    "cleanup_authorized": false,
+    "retention_authorized": false
+  }
 }

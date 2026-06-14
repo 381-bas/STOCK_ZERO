@@ -322,7 +322,7 @@
       "id": "ROUTE-002",
       "title": "Cierre de advisory lock y rollback postcheck del reemplazo semanal",
       "category": "ROUTE",
-      "status": "READY",
+      "status": "LOCAL_LAB_VALIDATED",
       "implementation_authorized": false,
       "local_lab_authorized": true,
       "ddl_authorized": false,
@@ -338,23 +338,30 @@
         "Claude independent validation: research/CG005F_CORRECTION_REVALIDATION.json and research/reports/CLAUDE_CG005F_CORRECTION_REVALIDATION.md.",
         "CG005H targeted validation closed F-04 and F-08 as CORRECTED static/mock.",
         "Final close regression passed: 84 weekly tests and 21 read-only tests, zero failures.",
-        "Local PostgreSQL lab CG005I-M is authorized; Supabase, productive DDL/apply, and cleanup remain blocked."
+        "Local PostgreSQL lab CG005I-M is authorized; Supabase, productive DDL/apply, and cleanup remain blocked.",
+        "CG005I-M local PostgreSQL lab verdict LOCAL_LAB_VALIDATED with Q4_DECISION_GRADE.",
+        "CG005I advisory lock runtime proven; CG005J/K/L/M local behavioral gates passed.",
+        "PLATFORM_008 first real use completed; AI_LOAD_OBSERVATION_LEDGER unchanged.",
+        "Supabase, productive DDL/apply, cleanup and retention remain unauthorized."
       ],
-      "baseline_commit": "e368f83c673509304a40992114046a5eafe11d6c",
-      "last_validation_phase": "CG005H_CLOSE_MERGE_AND_AUTHORIZE_LOCAL_LAB",
+      "baseline_commit": "c54e2933251122375336590a931bdbc1e514718a",
+      "last_validation_phase": "PLATFORM_008B_FIX_TECHNICAL_CODE_AND_FINALIZE_LOCAL_LAB",
       "source_commit": "e5939a9b8fa553b87b997dca46839fa783f6b05e",
-      "required_next_action": "Execute CG005I-M in local PostgreSQL: SQL 11, advisory-lock runtime, snapshot A, same-week replacement B, rollback B->A, intentional failing postcheck and clean-room rebuild. No Supabase.",
+      "required_next_action": "Prepare CG005N-Q decision package for separate Bastian authorization. No Supabase execution is authorized by this status.",
       "static_validation": "COMPLETED",
       "f04": "CORRECTED_STATIC_AND_MOCK",
       "f08": "CORRECTED_STATIC_AND_MOCK",
       "productive_ddl_authorized": false,
       "productive_apply_authorized": false,
       "cleanup_authorized": false,
-      "postgresql_runtime_proven": false,
+      "postgresql_runtime_proven": true,
       "source_commits": [
         "c440a253dbf0a35a388b8879c7e9627804991a56",
         "966878e61465adabe1f26dc956db45b83f128838"
-      ]
+      ],
+      "branch_commit": "34668a2be690d435a8187013d040160c6d9c9463",
+      "local_lab_completed": true,
+      "retention_authorized": false
     },
     {
       "id": "ARCH-001",
