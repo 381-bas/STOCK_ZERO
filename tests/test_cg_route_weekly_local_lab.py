@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -106,6 +107,61 @@ class SnapshotBTests(unittest.TestCase):
             self.assertEqual(len(profile["sha256"]), 64)
             public_profile = {k: v for k, v in profile.items() if not k.startswith("_")}
             self.assertNotIn("LAB_ONLY_CLIENTE", str(public_profile))
+
+
+class LocalPostgresIntegrationTests(unittest.TestCase):
+    DSN = "postgresql://postgres@127.0.0.1:55433/stock_zero_cg005_lab?sslmode=disable"
+
+    def setUp(self):
+        try:
+            lab.query_one(self.DSN, "select 1")
+        except Exception as exc:
+            self.skipTest(f"local PostgreSQL lab unavailable: {type(exc).__name__}")
+
+    def test_assignment_insert_executes_with_notes_on_local_postgres(self):
+        lab.apply_bootstrap_and_sql11(self.DSN)
+        plan = {
+            "input_file_name": "lab.xlsx",
+            "input_file_sha256": "A" * 64,
+            "schema_signature": "B" * 64,
+            "planned_assignment": {
+                "current_surface_hash": "C" * 64,
+                "resolved_surface_hash": "D" * 64,
+            },
+        }
+        with lab.connect(self.DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    insert into cg_core.ruta_rutero_load_batch
+                    (source_file, source_sheet, loader_name, loaded_rows, status, loaded_at, notes)
+                    values (%s, %s, %s, 0, 'pending', %s, %s)
+                    returning ruta_batch_id
+                    """,
+                    ("lab.xlsx", lab.SHEET, "test", datetime.now(timezone.utc), "arity integration"),
+                )
+                batch_id = int(cur.fetchone()[0])
+                assignment_id = loader.create_week_assignment(
+                    cur,
+                    effective_week_start_value="2026-07-06",
+                    ruta_batch_id=batch_id,
+                    plan=plan,
+                    assigned_by="arity-integration-test",
+                    replaces_ruta_batch_id=None,
+                )
+                cur.execute(
+                    """
+                    select assigned_by, replaces_ruta_batch_id, notes
+                      from cg_core.ruta_rutero_week_assignment
+                     where assignment_id = %s
+                    """,
+                    (assignment_id,),
+                )
+                assigned_by, replaces_ruta_batch_id, notes = cur.fetchone()
+            conn.rollback()
+        self.assertEqual(assigned_by, "arity-integration-test")
+        self.assertIsNone(replaces_ruta_batch_id)
+        self.assertEqual(notes, "weekly replacement assignment created by guarded loader")
 
 
 if __name__ == "__main__":

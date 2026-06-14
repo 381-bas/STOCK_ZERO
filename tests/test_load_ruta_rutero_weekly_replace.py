@@ -115,6 +115,15 @@ class FakeCursor:
         self.closed = True
 
 
+class ArityCheckingCursor(FakeCursor):
+    def execute(self, sql, params=None):
+        placeholder_count = sql.count("%s")
+        param_count = 0 if params is None else len(params)
+        if placeholder_count != param_count:
+            raise AssertionError(f"placeholder arity mismatch: {placeholder_count}!={param_count}")
+        super().execute(sql, params)
+
+
 class ScriptedCursor(FakeCursor):
     def __init__(self, *, fetchone=None, fetchall=None):
         super().__init__()
@@ -645,6 +654,24 @@ class WeeklyReplacementTests(unittest.TestCase):
         self.assertIn("current_surface_hash", sql)
         self.assertIn("resolved_surface_hash", sql)
         self.assertEqual(params[-2], 3)
+
+    def test_53b_assignment_insert_placeholder_arity_and_param_positions(self):
+        cur = ArityCheckingCursor()
+        assignment_id = loader.create_week_assignment(
+            cur,
+            effective_week_start_value="2026-06-08",
+            ruta_batch_id=9,
+            plan=dict(self.plan),
+            assigned_by="arity-test",
+            replaces_ruta_batch_id=3,
+        )
+        self.assertEqual(assignment_id, 0)
+        sql, params = cur.executed[0]
+        self.assertEqual(sql.count("%s"), 11)
+        self.assertEqual(len(params), 11)
+        self.assertEqual(params[-3], "arity-test")
+        self.assertEqual(params[-2], 3)
+        self.assertEqual(params[-1], "weekly replacement assignment created by guarded loader")
 
     def test_54_rollback_reactivates_previous_assignment(self):
         source = (ROOT / "scripts" / "load_ruta_rutero_from_excel.py").read_text(encoding="utf-8")

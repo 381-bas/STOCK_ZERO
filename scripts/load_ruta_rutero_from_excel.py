@@ -1221,7 +1221,7 @@ def create_week_assignment(
             replaces_ruta_batch_id,
             notes
         )
-        values (%s, %s, %s, 'ACTIVE', %s, %s, %s, %s, %s, %s, %s)
+        values (%s, %s, %s, 'ACTIVE', %s, %s, %s, %s, %s, %s, %s, %s)
         returning assignment_id
         """,
         (
