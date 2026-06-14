@@ -1,0 +1,118 @@
+{
+  "phase": "CG005NQ_DECISION_PACKAGE_AND_LAB_BRANCH_INTEGRATION_NO_SUPABASE_WRITE",
+  "main_before": "c54e2933251122375336590a931bdbc1e514718a",
+  "branch_head": "36178d88a7d81e0355616d1a2f07ed755c0fea04",
+  "merge_base": "c54e2933251122375336590a931bdbc1e514718a",
+  "ahead_by": 6,
+  "behind_by": 0,
+  "fast_forward_expected": true,
+  "commits": [
+    {
+      "sha": "2ca7ff6",
+      "message": "lab: add reproducible route replacement PostgreSQL runner"
+    },
+    {
+      "sha": "eb1433f",
+      "message": "research: record route replacement local lab"
+    },
+    {
+      "sha": "e4651c5",
+      "message": "loader: fix weekly assignment insert arity"
+    },
+    {
+      "sha": "1bb3517",
+      "message": "research: complete route replacement local lab"
+    },
+    {
+      "sha": "34668a2",
+      "message": "lab: use technical input code for load observation"
+    },
+    {
+      "sha": "36178d8",
+      "message": "research: validate route local lab and first platform use"
+    }
+  ],
+  "diff_files": [
+    "research/AI_BACKLOG.json",
+    "research/AI_FINDINGS_LEDGER.jsonl",
+    "research/AI_SHARED_MEMORY.json",
+    "research/CG005I_M_LOCAL_POSTGRESQL_LAB.json",
+    "research/PLATFORM_008_FIRST_REAL_USE.json",
+    "research/STOCK_ZERO_EXECUTION_ROADMAP.json",
+    "research/reports/CODEX_CG005I_M_LOCAL_POSTGRESQL_LAB.md",
+    "scripts/cg_route_weekly_local_lab.py",
+    "scripts/load_ruta_rutero_from_excel.py",
+    "sql/lab/12_cg005_route_weekly_lab_bootstrap.sql",
+    "tests/test_cg_route_weekly_local_lab.py",
+    "tests/test_load_ruta_rutero_weekly_replace.py"
+  ],
+  "test_results": {
+    "py_compile": "passed",
+    "lab_unique": {
+      "ran": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    "weekly_unique": {
+      "ran": 85,
+      "passed": 84,
+      "failed": 0,
+      "skipped": 1,
+      "skip_reason": "authorized workbook not present in test fixture path"
+    },
+    "readonly_unique": {
+      "ran": 21,
+      "passed": 20,
+      "failed": 0,
+      "skipped": 1,
+      "skip_reason": "Windows symlink privilege unavailable"
+    },
+    "observation_unique": {
+      "ran": 115,
+      "passed": 114,
+      "failed": 0,
+      "skipped": 1,
+      "skip_reason": "symlink not available"
+    },
+    "git_diff_check": "passed"
+  },
+  "ledger_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+  "local_lab_state": {
+    "validated": true,
+    "verdict": "LOCAL_LAB_VALIDATED",
+    "quality": "Q4_DECISION_GRADE"
+  },
+  "platform_008_state": {
+    "validated": true,
+    "ledger_unchanged": true,
+    "observation_id": "LOADOBS-RUTA_RUTERO-2026-06-08-POST_LOAD_VALIDATION-fd1eadb56093"
+  },
+  "supabase_readonly_preflight": {
+    "executed": true,
+    "source_used": "protected_checkout_secret_file",
+    "host_redacted": true,
+    "dsn_printed": false,
+    "transaction_read_only": "on",
+    "default_transaction_read_only": "on",
+    "current_user": "stock_zero_codex_ro",
+    "writes_attempted": false
+  },
+  "supabase_writes": false,
+  "roadmap_corrections": [
+    "platform.open cleared",
+    "lane focuses moved to CG005N-Q and product preparation",
+    "immediate next actions replaced"
+  ],
+  "decision_package_created": true,
+  "authorizations": {
+    "cg005n_ddl_authorized": false,
+    "cg005o_dry_run_authorized": false,
+    "cg005p_apply_authorized": false,
+    "cg005q_postvalidation_authorized": false,
+    "supabase_writes_authorized": false,
+    "cleanup_authorized": false,
+    "retention_authorized": false,
+    "decision_required_from": "Bastian"
+  }
+}

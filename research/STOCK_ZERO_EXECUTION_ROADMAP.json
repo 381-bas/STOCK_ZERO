@@ -40,12 +40,7 @@
         "First real use of sz-load-observation completed in CG005I-M local lab",
         "Platform expansion frozen after first real use"
       ],
-      "open": [
-        "Claude independent branch review",
-        "Controlled rebase onto current origin/main",
-        "Repeat tests after rebase",
-        "Merge preparation and integration"
-      ]
+      "open": []
     },
     "route_and_control_gestion": {
       "status": "LOCAL_LAB_VALIDATED_READY_FOR_SEPARATE_AUTHORIZATION",
@@ -87,11 +82,11 @@
     "maximum_active_lanes": 2,
     "lane_1": {
       "name": "OPERATIONAL",
-      "current_focus": "RUTA_RUTERO_F04_F08_TO_REAL_SHADOW"
+      "current_focus": "CG005N_Q_SUPABASE_DECISION_AND_AUTHORIZATION"
     },
     "lane_2": {
       "name": "PLATFORM_THEN_PRODUCT",
-      "current_focus": "PLATFORM_BRANCH_REVIEW_MERGE_FIRST_USE",
+      "current_focus": "PRODUCT_V2_PREPARATION_BLOCKED_BY_READINESS_GATE",
       "transition_rule": "After the platform branch is merged and used once, freeze platform expansion and replace this lane with PRODUCT_V2."
     }
   },
@@ -553,15 +548,31 @@
   "immediate_next_actions": [
     {
       "priority": 1,
-      "action": "Execute CG005I-M local PostgreSQL lab: SQL 11, advisory-lock runtime, snapshot A, same-week replacement B, rollback B->A, intentional failing postcheck, clean-room rebuild."
+      "action": "Review CG005N-Q decision package."
     },
     {
       "priority": 2,
-      "action": "Execute PLATFORM_008 first real use using the first safe real laboratory or dry-run phase result; do not create synthetic evidence for the gate."
+      "action": "Obtain explicit Bastian authorization for CG005N DDL only."
     },
     {
       "priority": 3,
-      "action": "Prepare controlled Supabase route transition only after the local PostgreSQL lab passes."
+      "action": "Execute CG005N DDL and read-only postcheck."
+    },
+    {
+      "priority": 4,
+      "action": "Execute CG005O productive dry-run."
+    },
+    {
+      "priority": 5,
+      "action": "Request separate authorization for CG005P apply."
+    },
+    {
+      "priority": 6,
+      "action": "Execute CG005Q postvalidation."
+    },
+    {
+      "priority": 7,
+      "action": "Measure route impact on Control Gestion."
     }
   ],
   "definition_of_done": {

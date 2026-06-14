@@ -1,0 +1,1274 @@
+{
+  "phase": "CG005NQ_DECISION_PACKAGE_AND_LAB_BRANCH_INTEGRATION_NO_SUPABASE_WRITE",
+  "verdict": "DECISION_PACKAGE_READY_NO_EXECUTION",
+  "quality": {
+    "target": "Q4_DECISION_GRADE",
+    "achieved": "Q4_DECISION_GRADE",
+    "confidence": "HIGH"
+  },
+  "baseline": {
+    "origin_main": "c54e2933251122375336590a931bdbc1e514718a",
+    "lab_branch_head": "36178d88a7d81e0355616d1a2f07ed755c0fea04",
+    "merge_base": "c54e2933251122375336590a931bdbc1e514718a",
+    "ahead_by": 6,
+    "behind_by": 0
+  },
+  "supabase_readonly_preflight": {
+    "executed": true,
+    "source_used": "protected_checkout_secret_file",
+    "host_redacted": true,
+    "dsn_printed": false,
+    "transaction_read_only": "on",
+    "default_transaction_read_only": "on",
+    "current_user": "stock_zero_codex_ro",
+    "writes_attempted": false
+  },
+  "catalog_summary": {
+    "objects": {
+      "cg_core.ruta_rutero_week_assignment": {
+        "exists": false,
+        "type": null,
+        "columns": [],
+        "constraints": [],
+        "indexes": [],
+        "owner": null,
+        "grants": [],
+        "dependencies": []
+      },
+      "cg_core.v_ruta_rutero_load_batch_week_v2": {
+        "exists": true,
+        "type": "view",
+        "columns": [
+          {
+            "name": "ruta_batch_id",
+            "type": "bigint",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "source_file",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "source_sheet",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "loader_name",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "loaded_rows",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "loaded_at",
+            "type": "timestamp with time zone",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "notes",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "effective_week_start",
+            "type": "date",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "effective_week_iso",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "rn_week_ok",
+            "type": "bigint",
+            "nullable": "YES",
+            "default": null
+          }
+        ],
+        "constraints": [],
+        "indexes": [],
+        "owner": "postgres",
+        "grants": [
+          {
+            "grantee": "stock_zero_readonly",
+            "privilege": "SELECT"
+          }
+        ],
+        "dependencies": [
+          "cg_core.v_rr_frecuencia_base_resuelta_v2",
+          "cg_core.v_ruta_rutero_latest_week_batch_v2",
+          "cg_core.v_ruta_rutero_load_batch_week_v2",
+          "cg_mart.v_cg_ruta_duplicados_auditoria_v2"
+        ]
+      },
+      "cg_core.v_rr_frecuencia_base_resuelta_v2": {
+        "exists": true,
+        "type": "view",
+        "columns": [
+          {
+            "name": "effective_week_start",
+            "type": "date",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "effective_week_iso",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "ruta_batch_id",
+            "type": "bigint",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cod_rt",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cod_b2b",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "local_nombre",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "direccion",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cliente",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cliente_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "gestor",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "gestor_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "supervisor",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "supervisor_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "rutero",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "reponedor_scope",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "reponedor_scope_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "jefe_operaciones",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "jefe_operaciones_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "modalidad",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "visitas_exigidas_semana",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "lunes",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "martes",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "miercoles",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "jueves",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "viernes",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "sabado",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "domingo",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "ruta_duplicada_flag",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "ruta_duplicada_rows",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          }
+        ],
+        "constraints": [],
+        "indexes": [],
+        "owner": "postgres",
+        "grants": [
+          {
+            "grantee": "stock_zero_readonly",
+            "privilege": "SELECT"
+          }
+        ],
+        "dependencies": [
+          "cg_core.v_cg_evento_scope_v2",
+          "cg_core.v_rr_frecuencia_base_resuelta_v2",
+          "cg_core.v_rr_frecuencia_base_v2",
+          "cg_core.v_rr_operativa_base_v2",
+          "cg_mart.v_cg_out_weekly_v2"
+        ]
+      },
+      "public.ruta_rutero": {
+        "exists": true,
+        "type": "table",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "nullable": "NO",
+            "default": "nextval('ruta_rutero_id_seq'::regclass)"
+          },
+          {
+            "name": "cadena",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "formato",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "region",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "comuna",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "cod_rt",
+            "type": "text",
+            "nullable": "NO",
+            "default": null
+          },
+          {
+            "name": "cod_b2b",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "local_nombre",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "direccion",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "veces_por_semana",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "rutero",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "jefe_operaciones",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "gestores",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "cliente",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "supervisor",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "reponedor",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "lunes",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "martes",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "miercoles",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "jueves",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "viernes",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "sabado",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "domingo",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "visita_mensual",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "dif",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "obs",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "aux",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "gg",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "modalidad",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "row_hash",
+            "type": "text",
+            "nullable": "NO",
+            "default": "''::text"
+          },
+          {
+            "name": "source",
+            "type": "text",
+            "nullable": "NO",
+            "default": null
+          },
+          {
+            "name": "source_row",
+            "type": "integer",
+            "nullable": "NO",
+            "default": null
+          },
+          {
+            "name": "ingested_at",
+            "type": "timestamp with time zone",
+            "nullable": "NO",
+            "default": "now()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "ruta_rutero_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "uq_ruta_rutero_source_row",
+            "type": "u",
+            "definition": "UNIQUE (source, source_row)"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_ruta_rutero_cod_rt",
+            "definition": "CREATE INDEX idx_ruta_rutero_cod_rt ON public.ruta_rutero USING btree (cod_rt)"
+          },
+          {
+            "name": "idx_ruta_rutero_cod_rt_cliente",
+            "definition": "CREATE INDEX idx_ruta_rutero_cod_rt_cliente ON public.ruta_rutero USING btree (cod_rt, cliente)"
+          },
+          {
+            "name": "idx_ruta_rutero_codrt_cliente_gestor_norm",
+            "definition": "CREATE INDEX idx_ruta_rutero_codrt_cliente_gestor_norm ON public.ruta_rutero USING btree (cod_rt, upper(TRIM(BOTH FROM COALESCE(cliente, ''::text))), upper(TRIM(BOTH FROM COALESCE(gestores, ''::text)))) WHERE (NULLIF(TRIM(BOTH FROM COALESCE(gestores, ''::text)), ''::text) IS NOT NULL)"
+          },
+          {
+            "name": "idx_ruta_rutero_codrt_cliente_norm",
+            "definition": "CREATE INDEX idx_ruta_rutero_codrt_cliente_norm ON public.ruta_rutero USING btree (cod_rt, upper(TRIM(BOTH FROM COALESCE(cliente, ''::text))))"
+          },
+          {
+            "name": "idx_ruta_rutero_codrt_cliente_supervisor_norm",
+            "definition": "CREATE INDEX idx_ruta_rutero_codrt_cliente_supervisor_norm ON public.ruta_rutero USING btree (cod_rt, upper(TRIM(BOTH FROM COALESCE(cliente, ''::text))), upper(TRIM(BOTH FROM COALESCE(supervisor, ''::text)))) WHERE (NULLIF(TRIM(BOTH FROM COALESCE(supervisor, ''::text)), ''::text) IS NOT NULL)"
+          },
+          {
+            "name": "idx_ruta_rutero_gestores",
+            "definition": "CREATE INDEX idx_ruta_rutero_gestores ON public.ruta_rutero USING btree (gestores)"
+          },
+          {
+            "name": "idx_ruta_rutero_modalidad_rr",
+            "definition": "CREATE INDEX idx_ruta_rutero_modalidad_rr ON public.ruta_rutero USING btree (modalidad, rutero, reponedor)"
+          },
+          {
+            "name": "idx_ruta_rutero_supervisor",
+            "definition": "CREATE INDEX idx_ruta_rutero_supervisor ON public.ruta_rutero USING btree (supervisor)"
+          },
+          {
+            "name": "ruta_rutero_pkey",
+            "definition": "CREATE UNIQUE INDEX ruta_rutero_pkey ON public.ruta_rutero USING btree (id)"
+          },
+          {
+            "name": "uq_ruta_rutero_source_row",
+            "definition": "CREATE UNIQUE INDEX uq_ruta_rutero_source_row ON public.ruta_rutero USING btree (source, source_row)"
+          }
+        ],
+        "owner": "postgres",
+        "grants": [
+          {
+            "grantee": "stock_zero_readonly",
+            "privilege": "SELECT"
+          }
+        ],
+        "dependencies": [
+          "cg_core.v_rr_frecuencia_base",
+          "cg_core.v_rr_operativa_base",
+          "public.mv_cliente_scope_inventory_enriched",
+          "public.mv_cliente_scope_ranking_responsable",
+          "public.v_locales_home",
+          "public.v_locales_por_modalidad_rutero",
+          "public.v_scope_cliente_responsable_rr_distinct",
+          "public.v_selector_modalidad",
+          "public.v_selector_modalidad_rutero",
+          "public.v_selector_rutero_reponedor_modalidad",
+          "public.v_stock_local_cliente_ux"
+        ]
+      },
+      "cg_core.ruta_rutero_load_batch": {
+        "exists": true,
+        "type": "table",
+        "columns": [
+          {
+            "name": "ruta_batch_id",
+            "type": "bigint",
+            "nullable": "NO",
+            "default": "nextval('ruta_rutero_load_batch_ruta_batch_id_seq'::regclass)"
+          },
+          {
+            "name": "source_file",
+            "type": "text",
+            "nullable": "NO",
+            "default": null
+          },
+          {
+            "name": "source_sheet",
+            "type": "text",
+            "nullable": "NO",
+            "default": "'RUTA_RUTERO'::text"
+          },
+          {
+            "name": "loader_name",
+            "type": "text",
+            "nullable": "NO",
+            "default": null
+          },
+          {
+            "name": "loaded_rows",
+            "type": "integer",
+            "nullable": "NO",
+            "default": "0"
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "nullable": "NO",
+            "default": null
+          },
+          {
+            "name": "loaded_at",
+            "type": "timestamp with time zone",
+            "nullable": "NO",
+            "default": "now()"
+          },
+          {
+            "name": "notes",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          }
+        ],
+        "constraints": [
+          {
+            "name": "ruta_rutero_load_batch_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (ruta_batch_id)"
+          },
+          {
+            "name": "ruta_rutero_load_batch_status_check",
+            "type": "c",
+            "definition": "CHECK (status = ANY (ARRAY['ok'::text, 'cancelled'::text, 'superseded'::text]))"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "ix_ruta_rutero_load_batch_status_loaded_at",
+            "definition": "CREATE INDEX ix_ruta_rutero_load_batch_status_loaded_at ON cg_core.ruta_rutero_load_batch USING btree (status, loaded_at DESC, ruta_batch_id DESC)"
+          },
+          {
+            "name": "ruta_rutero_load_batch_pkey",
+            "definition": "CREATE UNIQUE INDEX ruta_rutero_load_batch_pkey ON cg_core.ruta_rutero_load_batch USING btree (ruta_batch_id)"
+          }
+        ],
+        "owner": "postgres",
+        "grants": [
+          {
+            "grantee": "stock_zero_readonly",
+            "privilege": "SELECT"
+          }
+        ],
+        "dependencies": [
+          "cg_core.v_ruta_rutero_load_batch_week_v2"
+        ]
+      },
+      "cg_core.ruta_rutero_load_rows": {
+        "exists": true,
+        "type": "table",
+        "columns": [
+          {
+            "name": "ruta_row_id",
+            "type": "bigint",
+            "nullable": "NO",
+            "default": "nextval('ruta_rutero_load_rows_ruta_row_id_seq'::regclass)"
+          },
+          {
+            "name": "ruta_batch_id",
+            "type": "bigint",
+            "nullable": "NO",
+            "default": null
+          },
+          {
+            "name": "source_file",
+            "type": "text",
+            "nullable": "NO",
+            "default": null
+          },
+          {
+            "name": "source_sheet",
+            "type": "text",
+            "nullable": "NO",
+            "default": "'RUTA_RUTERO'::text"
+          },
+          {
+            "name": "source_row",
+            "type": "integer",
+            "nullable": "NO",
+            "default": null
+          },
+          {
+            "name": "ingested_at",
+            "type": "timestamp with time zone",
+            "nullable": "NO",
+            "default": "now()"
+          },
+          {
+            "name": "payload_json",
+            "type": "jsonb",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cadena",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "formato",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "region",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "comuna",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cod_rt",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cod_b2b",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "local_nombre",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "direccion",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "veces_por_semana",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "rutero",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "jefe_operaciones",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "gestores",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cliente",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "supervisor",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "reponedor",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "lunes",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "martes",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "miercoles",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "jueves",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "viernes",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "sabado",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "domingo",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "visita_mensual",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "dif",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "obs",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "aux",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "gg",
+            "type": "integer",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "modalidad",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "row_hash",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "source",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "source_ingested_at",
+            "type": "timestamp with time zone",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cod_rt_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cod_b2b_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "cliente_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "gestor_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "supervisor_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          },
+          {
+            "name": "reponedor_norm",
+            "type": "text",
+            "nullable": "YES",
+            "default": null
+          }
+        ],
+        "constraints": [
+          {
+            "name": "ruta_rutero_load_rows_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (ruta_row_id)"
+          },
+          {
+            "name": "ruta_rutero_load_rows_ruta_batch_id_fkey",
+            "type": "f",
+            "definition": "FOREIGN KEY (ruta_batch_id) REFERENCES ruta_rutero_load_batch(ruta_batch_id)"
+          },
+          {
+            "name": "ruta_rutero_load_rows_ruta_batch_id_source_row_key",
+            "type": "u",
+            "definition": "UNIQUE (ruta_batch_id, source_row)"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "ix_ruta_rutero_load_rows_batch_cod_b2b_cliente",
+            "definition": "CREATE INDEX ix_ruta_rutero_load_rows_batch_cod_b2b_cliente ON cg_core.ruta_rutero_load_rows USING btree (ruta_batch_id, cod_b2b_norm, cliente_norm)"
+          },
+          {
+            "name": "ix_ruta_rutero_load_rows_batch_cod_rt_cliente",
+            "definition": "CREATE INDEX ix_ruta_rutero_load_rows_batch_cod_rt_cliente ON cg_core.ruta_rutero_load_rows USING btree (ruta_batch_id, cod_rt_norm, cliente_norm)"
+          },
+          {
+            "name": "ix_ruta_rutero_load_rows_batch_id",
+            "definition": "CREATE INDEX ix_ruta_rutero_load_rows_batch_id ON cg_core.ruta_rutero_load_rows USING btree (ruta_batch_id)"
+          },
+          {
+            "name": "ruta_rutero_load_rows_pkey",
+            "definition": "CREATE UNIQUE INDEX ruta_rutero_load_rows_pkey ON cg_core.ruta_rutero_load_rows USING btree (ruta_row_id)"
+          },
+          {
+            "name": "ruta_rutero_load_rows_ruta_batch_id_source_row_key",
+            "definition": "CREATE UNIQUE INDEX ruta_rutero_load_rows_ruta_batch_id_source_row_key ON cg_core.ruta_rutero_load_rows USING btree (ruta_batch_id, source_row)"
+          }
+        ],
+        "owner": "postgres",
+        "grants": [
+          {
+            "grantee": "stock_zero_readonly",
+            "privilege": "SELECT"
+          }
+        ],
+        "dependencies": [
+          "cg_core.v_rr_frecuencia_base_resuelta_v2",
+          "cg_mart.v_cg_ruta_duplicados_auditoria_v2"
+        ]
+      }
+    },
+    "metrics_aggregated_only": {
+      "total_batches": 19,
+      "latest_batch_id": 19,
+      "latest_loaded_at": "2026-06-08 04:56:04.328773+00",
+      "current_rows": 3568,
+      "min_source_row": 2,
+      "max_source_row": 3569,
+      "logical_duplicates_cod_rt_cliente": 33,
+      "public_hashes_available": 1,
+      "history_rows": 64346,
+      "history_hashes_available": 1,
+      "resolved_rows": 23674,
+      "resolved_target_week_rows": {
+        "unavailable": "QueryCanceled"
+      },
+      "target_week_batches": {
+        "unavailable": "InFailedSqlTransaction"
+      },
+      "target_week_assignments": null,
+      "target_week_active_assignments": null
+    },
+    "compatibility": {
+      "cg_core.ruta_rutero_week_assignment": {
+        "status": "CREATE_REQUIRED",
+        "reason": "Assignment table is absent and is the first CG005N DDL object.",
+        "conflict": false
+      },
+      "cg_core.v_ruta_rutero_load_batch_week_v2": {
+        "status": "CREATE_OR_REPLACE_REQUIRED",
+        "reason": "Existing legacy view is present; SQL 11 replaces it to add explicit assignment precedence and route_week_source.",
+        "conflict": false
+      },
+      "cg_core.v_ruta_rutero_latest_week_batch_v2": {
+        "status": "CREATE_OR_REPLACE_REQUIRED",
+        "reason": "SQL 11 creates/replaces latest-week selector over the explicit/legacy week view.",
+        "conflict": false
+      },
+      "cg_core.v_rr_frecuencia_base_resuelta_v2": {
+        "status": "CREATE_OR_REPLACE_REQUIRED",
+        "reason": "Existing view is present; SQL 11 replaces it to consume only the assigned/latest weekly batch and prevent legacy backfill.",
+        "conflict": false
+      },
+      "public.ruta_rutero": {
+        "status": "ALREADY_COMPATIBLE",
+        "reason": "Required source, source_row, cod_rt, cliente and row_hash columns are present.",
+        "conflict": false
+      },
+      "cg_core.ruta_rutero_load_batch": {
+        "status": "ALTER_REQUIRED",
+        "reason": "Table exists; SQL 11 requires widening status check to include pending and failed for guarded lifecycle.",
+        "conflict": false
+      },
+      "cg_core.ruta_rutero_load_rows": {
+        "status": "ALREADY_COMPATIBLE",
+        "reason": "Required batch, source_row and row_hash columns are present.",
+        "conflict": false
+      }
+    },
+    "conflicts": [],
+    "privacy": "No rows, customers, stores, responsible people, payloads, DSNs or credentials were extracted."
+  },
+  "contracts": {
+    "CG005N_DDL": {
+      "authorized": false,
+      "purpose": "Apply only the route weekly replacement contract DDL, then run read-only postchecks.",
+      "objects_exact": [
+        "cg_core.ruta_rutero_week_assignment",
+        "cg_core.v_ruta_rutero_load_batch_week_v2",
+        "cg_core.v_ruta_rutero_latest_week_batch_v2",
+        "cg_core.v_rr_frecuencia_base_resuelta_v2",
+        "cg_core.ruta_rutero_load_batch status check lifecycle compatibility"
+      ],
+      "creation_order": [
+        "Alter cg_core.ruta_rutero_load_batch status check to include pending, failed, ok, cancelled, superseded.",
+        "Create cg_core.ruta_rutero_week_assignment.",
+        "Add batch and rollback foreign keys when source objects exist.",
+        "Create assignment week index and one-active-assignment partial unique index.",
+        "Create or replace cg_core.v_ruta_rutero_load_batch_week_v2.",
+        "Create or replace cg_core.v_ruta_rutero_latest_week_batch_v2.",
+        "Create or replace cg_core.v_rr_frecuencia_base_resuelta_v2."
+      ],
+      "prechecks": [
+        "Confirm current_user is an explicitly authorized DDL role, not stock_zero_codex_ro.",
+        "Confirm origin/main contains this decision package.",
+        "Confirm SQL 11 hash matches this package.",
+        "Confirm no productive apply, loader or refresh is in the same phase.",
+        "Confirm catalog still has no destructive conflict."
+      ],
+      "sql_source_hashes": {
+        "sql_11_sha256": "145F6E5048C4A9C05409CD88890AE5EB2B0AD9506F38353532651EC75EA2B335",
+        "local_bootstrap_reference_sha256": "289BC6C6643521C533F54919F57B3AED3D48BB573273512B7ABB7CD1E81C1AD0"
+      },
+      "grants_required": [
+        "SELECT on new cg_core table/views for stock_zero_readonly or equivalent read-only runtime role."
+      ],
+      "expected_catalog_result": {
+        "cg_core.ruta_rutero_week_assignment": "exists with assignment lifecycle columns, hash checks, FK constraints and one ACTIVE per week/policy index",
+        "cg_core.v_ruta_rutero_load_batch_week_v2": "reports EXPLICIT_ASSIGNMENT before legacy inference",
+        "cg_core.v_ruta_rutero_latest_week_batch_v2": "reports exactly one selected batch per effective week",
+        "cg_core.v_rr_frecuencia_base_resuelta_v2": "uses latest/assigned weekly batch only"
+      },
+      "rollback_ddl": [
+        "If postcheck fails before data apply, restore prior view definitions from backup SQL captured immediately before CG005N.",
+        "Drop cg_core.ruta_rutero_week_assignment only if no CG005P data apply has occurred.",
+        "Restore previous cg_core.ruta_rutero_load_batch status check if no pending/failed statuses were written."
+      ],
+      "stop_conditions": [
+        "SQL hash mismatch",
+        "catalog drift",
+        "unknown dependent object with material write path",
+        "DDL role mismatch",
+        "any postcheck failure"
+      ],
+      "postcheck_read_only": [
+        "Catalog object exists",
+        "columns/constraints/indexes/grants match contract",
+        "current legacy route query still returns aggregate counts",
+        "no assignment rows are required before CG005P"
+      ]
+    },
+    "CG005O_PRODUCTIVE_DRY_RUN": {
+      "authorized": false,
+      "workbook_expected": "$env:CG005_ROUTE_WORKBOOK",
+      "sheet": "RUTA_RUTERO",
+      "source_logical": "DB_GLOBAL_INVENTARIO.xlsx:RUTA_RUTERO",
+      "effective_week_start": "2026-06-08",
+      "hash_rule": "Recalculate SHA-256 immediately before execution; do not trust the historical lab hash as current truth.",
+      "source_check": true,
+      "dry_run": true,
+      "must_report": [
+        "altas",
+        "bajas",
+        "cambios",
+        "duplicates",
+        "planned assignment",
+        "rollback target",
+        "expected hashes"
+      ],
+      "db_writes": false
+    },
+    "CG005P_GUARDED_APPLY": {
+      "authorized": false,
+      "authorization_dependency": "Separate Bastian authorization after CG005O dry-run review.",
+      "confirm_token_required": "$env:CG005P_CONFIRM_WEEKLY_REPLACEMENT",
+      "expected_workbook_hash": "$env:CG005O_RECALCULATED_WORKBOOK_SHA256",
+      "effective_week_start": "2026-06-08",
+      "source": "DB_GLOBAL_INVENTARIO.xlsx:RUTA_RUTERO",
+      "db_write_role": "explicit future write role only; never stock_zero_codex_ro",
+      "transaction": "single guarded transaction",
+      "advisory_lock": "weekly_assignment_lock_key contract proven in local PostgreSQL",
+      "full_source_replacement": true,
+      "assignment_lifecycle": [
+        "previous ACTIVE becomes SUPERSEDED",
+        "new assignment becomes ACTIVE",
+        "FAILED/ROLLED_BACK paths remain explicit"
+      ],
+      "postchecks": [
+        "current surface hash",
+        "assignment active exactly once",
+        "week view explicit assignment",
+        "resolved grains no missing/extra/duplicates",
+        "resolved hash",
+        "no legacy backfill"
+      ],
+      "rollback_target": "previous ACTIVE assignment captured before apply",
+      "abort_conditions": [
+        "hash mismatch",
+        "week mismatch",
+        "source-check failure",
+        "lock failure",
+        "postcheck mismatch",
+        "unexpected rows",
+        "missing rollback target"
+      ]
+    },
+    "CG005Q_POSTVALIDATION": {
+      "authorized": false,
+      "checks": [
+        "batch rows",
+        "history rows",
+        "current rows",
+        "assignment ACTIVE",
+        "exactly one ACTIVE",
+        "resolved view",
+        "weekly view",
+        "current/resolved hashes",
+        "missing grains",
+        "extra grains",
+        "duplicate grains",
+        "stale source rows",
+        "other weeks unchanged",
+        "route impact handoff"
+      ]
+    }
+  },
+  "risk_matrix": [
+    {
+      "risk": "DDL incompatible",
+      "prevention": "catalog read-only",
+      "evidence": "object diff",
+      "abort": true
+    },
+    {
+      "risk": "semana incorrecta",
+      "prevention": "argumento expl?cito",
+      "evidence": "2026-06-08",
+      "abort": true
+    },
+    {
+      "risk": "archivo cambiado",
+      "prevention": "SHA-256 recalculado",
+      "evidence": "expected hash",
+      "abort": true
+    },
+    {
+      "risk": "stale rows",
+      "prevention": "replacement completo",
+      "evidence": "postcheck",
+      "abort": true
+    },
+    {
+      "risk": "legacy backfill",
+      "prevention": "assignment expl?cito",
+      "evidence": "weekly view",
+      "abort": true
+    },
+    {
+      "risk": "concurrencia",
+      "prevention": "advisory lock",
+      "evidence": "lab real",
+      "abort": true
+    },
+    {
+      "risk": "rollback defectuoso",
+      "prevention": "B->A probado",
+      "evidence": "local lab",
+      "abort": true
+    },
+    {
+      "risk": "impacto inesperado CG",
+      "prevention": "shadow posterior",
+      "evidence": "impact diff",
+      "abort": true
+    },
+    {
+      "risk": "secreto expuesto",
+      "prevention": "env only/redaction",
+      "evidence": "scan",
+      "abort": true
+    }
+  ],
+  "proposed_commands_not_executed": {
+    "CG005N_command": "python scripts/apply_cg005n_ddl.py --db $env:DB_URL_DDL --sql sql/11_control_gestion_route_week_replacement_contract.sql --expected-sql-sha256 $env:CG005N_SQL11_SHA256",
+    "CG005N_postcheck": "python scripts/cg_readonly_extract.py route-preflight --db $env:DB_URL_CODEX_RO --effective-week-start 2026-06-08",
+    "CG005O_command": "python scripts/load_ruta_rutero_from_excel.py --db $env:DB_URL_CODEX_RO --excel $env:CG005_ROUTE_WORKBOOK --sheet RUTA_RUTERO --source-check-only --effective-week-start 2026-06-08 --json-out $env:TEMP\\cg005o_source_check.json; python scripts/load_ruta_rutero_from_excel.py --dry-run --excel $env:CG005_ROUTE_WORKBOOK --sheet RUTA_RUTERO --effective-week-start 2026-06-08 --expected-workbook-sha256 $env:CG005O_RECALCULATED_WORKBOOK_SHA256 --json-out $env:TEMP\\cg005o_dry_run.json",
+    "CG005P_command_template": "python scripts/load_ruta_rutero_from_excel.py --apply --db $env:DB_URL_ROUTE_WRITE --excel $env:CG005_ROUTE_WORKBOOK --sheet RUTA_RUTERO --effective-week-start 2026-06-08 --expected-workbook-sha256 $env:CG005O_RECALCULATED_WORKBOOK_SHA256 --confirm-weekly-replacement $env:CG005P_CONFIRM_WEEKLY_REPLACEMENT --json-out $env:TEMP\\cg005p_apply.json",
+    "CG005Q_command": "python scripts/cg_readonly_extract.py route-preflight --db $env:DB_URL_CODEX_RO --effective-week-start 2026-06-08 --json-out $env:TEMP\\cg005q_postvalidation.json"
+  },
+  "authorizations": {
+    "cg005n_ddl_authorized": false,
+    "cg005o_dry_run_authorized": false,
+    "cg005p_apply_authorized": false,
+    "cg005q_postvalidation_authorized": false,
+    "supabase_writes_authorized": false,
+    "cleanup_authorized": false,
+    "retention_authorized": false,
+    "decision_required_from": "Bastian"
+  }
+}
