@@ -1,0 +1,104 @@
+{
+  "phase": "PLATFORM_007_CONTROLLED_REBASE_RETEST_AND_INTEGRATION",
+  "task_type": "implementation",
+  "created_at": "2026-06-13",
+  "worktree": "C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/PLATFORM_005B",
+  "primary_checkout": "C:/Users/basti/Desktop/STOCK_ZERO",
+  "branch": "codex/PLATFORM_005B-load-observation-correction",
+  "baseline": {
+    "primary_checkout_head_observed": "b2e68695a8bc2daf75930cf502c86c7dd87c2b52",
+    "branch_head_before_low_corrections": "6a965ec4b5b02d6de9d839f475a63697ac226f15",
+    "origin_main_for_rebase": "5655dfbfe7df51eae0eaf0bcd6b0d2735b4fbb71",
+    "merge_base_before_rebase": "7cb5942055402474b7f3c7223a4b6f3f719aa17d",
+    "overlap_with_origin_main": []
+  },
+  "low_corrections": {
+    "commit": "d0baa28",
+    "status": "COMPLETED_BEFORE_REBASE",
+    "findings_closed": [
+      "P006-L01 environment_reproducible only true for worktree venv with all required imports passing",
+      "P006-L02 evidence self-reference replaced by successor-phase marker and original reviewed head",
+      "P006-L03 skill documents technical-code constraints for notes, input_file_name and anomaly_reason"
+    ],
+    "files": [
+      ".claude/skills/sz-load-observation/SKILL.md",
+      "research/CODEX_PLATFORM_001B_IMPLEMENTATION.json",
+      "research/CODEX_PLATFORM_001D_TOOLING_CORRECTION.json",
+      "research/reports/CODEX_PLATFORM_001B_IMPLEMENTATION.md",
+      "research/reports/CODEX_PLATFORM_001D_TOOLING_CORRECTION.md",
+      "scripts/sz_local_env_setup.ps1",
+      "tests/test_sz_worktree_tooling.py"
+    ]
+  },
+  "rebase": {
+    "executed": true,
+    "result": "SUCCESS_NO_CONFLICTS",
+    "head_after_rebase_before_evidence": "3fc6ec1f815fe9b0a887d649ffb24327b62137f9",
+    "commits_recreated": [
+      "d9b3417324fcddfe9dcb5225f2e04941cde96ceb",
+      "59ece04a40d5a100de31f671c803432f25f70553",
+      "6b45264de116973d08a396f51ce140184322db89",
+      "bccdc008002e6389a5281fe38def5620a5dbdc88",
+      "d1a9eac62a8c3627841f306499091d43b1725d95",
+      "3fc6ec1f815fe9b0a887d649ffb24327b62137f9"
+    ]
+  },
+  "validations": {
+    "py_compile_sz_load_observation": "PASS",
+    "test_sz_worktree_tooling": {
+      "command": "python -m unittest discover -s tests -p \"test_sz_worktree_tooling.py\" -v",
+      "collected": 26,
+      "passed": 24,
+      "skipped": 2,
+      "failed": 0,
+      "result": "PASS"
+    },
+    "test_sz_load_observation": {
+      "command": "python -m unittest discover -s tests -p \"test_sz_load_observation.py\" -v",
+      "collected": 115,
+      "passed": 114,
+      "skipped": 1,
+      "failed": 0,
+      "result": "PASS"
+    },
+    "worktree_audit": "PASS",
+    "local_env_setup_dry_run": "PASS",
+    "git_diff_check": "PASS",
+    "unique_tests": 141,
+    "test_executions": 4
+  },
+  "ledger_integrity": {
+    "path": "research/AI_LOAD_OBSERVATION_LEDGER.jsonl",
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after_rebase": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "unchanged": true
+  },
+  "primary_checkout_integrity": {
+    "head_observed": "b2e68695a8bc2daf75930cf502c86c7dd87c2b52",
+    "tracked_loader_hash_observed": "e2b26f35ea9167aa47a40f54f3c519b559687d3d",
+    "status_observed": [
+      " M scripts/load_control_gestion_raw_v17.py",
+      "?? evidence/",
+      "?? research/claude/",
+      "?? sql/09_control_gestion_kpione2_raw_dryrun_draft.sql",
+      "?? sql/10_control_gestion_kpione2_forward_recovery_lab_draft.sql"
+    ],
+    "modified_by_this_phase": false
+  },
+  "scope_controls": {
+    "db_access": "none",
+    "docker": false,
+    "loaders_executed": false,
+    "sql_executed": false,
+    "ruta_rutero_modified": false,
+    "ledger_modified": false,
+    "operational_checkout_modified": false
+  },
+  "integration_plan": {
+    "feature_push": "git push --force-with-lease origin codex/PLATFORM_005B-load-observation-correction",
+    "main_integration": "git push origin codex/PLATFORM_005B-load-observation-correction:main",
+    "expected_main_before_integration": "5655dfbfe7df51eae0eaf0bcd6b0d2735b4fbb71",
+    "merge_method": "REMOTE_FAST_FORWARD"
+  },
+  "verdict": "READY_FOR_FAST_FORWARD_INTEGRATION"
+}

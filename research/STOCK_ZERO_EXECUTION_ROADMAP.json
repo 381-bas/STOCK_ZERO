@@ -28,7 +28,7 @@
   ],
   "current_state": {
     "platform": {
-      "status": "BRANCH_READY_FOR_CLAUDE_REVIEW",
+      "status": "MERGED_READY_FOR_FIRST_USE",
       "completed": [
         "Worktree implementation isolation proven",
         "Detached review worktree proven",
@@ -100,7 +100,7 @@
       "phase_id": "CLAUDE_PLATFORM_006",
       "lane": "PLATFORM_THEN_PRODUCT",
       "name": "Independent branch review",
-      "status": "READY",
+      "status": "COMPLETED",
       "objective": "Independently review the complete platform branch, worktree tooling and load-observation skill without merge or writes.",
       "entry_criteria": [
         "Platform branch head is 6a965ec or a documented successor.",
@@ -120,7 +120,7 @@
       "phase_id": "PLATFORM_007_MERGE_PREPARATION",
       "lane": "PLATFORM_THEN_PRODUCT",
       "name": "Controlled rebase, retest and merge preparation",
-      "status": "BLOCKED_BY_CLAUDE_PLATFORM_006",
+      "status": "COMPLETED",
       "objective": "Rebase the platform branch onto current origin/main, repeat all relevant tests, verify ledger integrity and prepare a controlled merge.",
       "entry_criteria": [
         "Claude branch review accepted or bounded corrections completed.",
@@ -147,7 +147,7 @@
       "phase_id": "PLATFORM_008_FIRST_REAL_USE",
       "lane": "PLATFORM_THEN_PRODUCT",
       "name": "First real use and value measurement",
-      "status": "BLOCKED_BY_PLATFORM_MERGE",
+      "status": "READY",
       "objective": "Use the integrated worktree process and sz-load-observation once on safe completed load evidence, then measure whether the tooling reduces effort and risk.",
       "entry_criteria": [
         "Platform branch merged into main.",
