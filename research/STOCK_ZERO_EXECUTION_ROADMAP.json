@@ -12,7 +12,7 @@
     "platform_branch": "codex/PLATFORM_005B-load-observation-correction",
     "platform_branch_head": "6a965ec4b5b02d6de9d839f475a63697ac226f15",
     "active_horizon": "H1_REAL_WEEK_DUAL_RUN_SHADOW",
-    "route_closure": "CG005F_CLOSED_WITH_TWO_REQUIRED_CORRECTIONS"
+    "route_closure": "CG005H_CLOSED_READY_FOR_LOCAL_POSTGRESQL_LAB"
   },
   "mission": "Finish the reliability path for RUTA_RUTERO and Control Gestion, prove the engineering system in real work, perform a controlled Supabase transition, and unlock the next product-development phase without adding unnecessary platform complexity.",
   "operating_principles": [
@@ -47,7 +47,7 @@
       ]
     },
     "route_and_control_gestion": {
-      "status": "NOT_APPLY_READY",
+      "status": "STATIC_VALIDATION_COMPLETE_LOCAL_LAB_READY",
       "corrected_findings": [
         "F-01",
         "F-02",
@@ -59,12 +59,9 @@
         "F-10",
         "F-11"
       ],
-      "open_findings": {
-        "F-04": "Rollback restoration exists but lacks full pre-commit postvalidation.",
-        "F-08": "Advisory lock uses an invalid PostgreSQL bigint,bigint signature."
-      },
+      "open_findings": [],
       "authorizations": {
-        "local_lab": false,
+        "local_lab": true,
         "ddl": false,
         "apply": false,
         "supabase_writes": false,
@@ -147,7 +144,7 @@
       "phase_id": "PLATFORM_008_FIRST_REAL_USE",
       "lane": "PLATFORM_THEN_PRODUCT",
       "name": "First real use and value measurement",
-      "status": "READY",
+      "status": "READY_ON_FIRST_REAL_LAB_OR_DRY_RUN_RESULT",
       "objective": "Use the integrated worktree process and sz-load-observation once on safe completed load evidence, then measure whether the tooling reduces effort and risk.",
       "entry_criteria": [
         "Platform branch merged into main.",
@@ -167,7 +164,7 @@
       "phase_id": "CG005G_ROUTE_LOCK_AND_ROLLBACK_CORRECTION_NO_APPLY",
       "lane": "OPERATIONAL",
       "name": "Correct F-08 advisory lock and F-04 rollback postcheck",
-      "status": "READY",
+      "status": "COMPLETED",
       "objective": "Correct only the two remaining route-replacement findings in an isolated write worktree without DB, DDL or apply.",
       "required_changes": {
         "F-08": [
@@ -195,7 +192,7 @@
       "phase_id": "CG005H_F04_F08_TARGETED_REVALIDATION",
       "lane": "OPERATIONAL",
       "name": "Targeted independent revalidation",
-      "status": "BLOCKED_BY_CG005G",
+      "status": "COMPLETED",
       "objective": "Validate only advisory-lock correctness and full rollback postchecks; do not reopen the nine closed findings.",
       "exit_criteria": [
         "F-04 is CORRECTED.",
@@ -210,7 +207,7 @@
       "phase_id": "CG005I_M_LOCAL_POSTGRESQL_LAB",
       "lane": "OPERATIONAL",
       "name": "Five-step behavioral local laboratory",
-      "status": "BLOCKED_BY_CG005H",
+      "status": "READY",
       "subphases": [
         {
           "id": "CG005I",
@@ -552,23 +549,15 @@
   "immediate_next_actions": [
     {
       "priority": 1,
-      "action": "Execute CLAUDE_PLATFORM_006 using current main b2e68695 and platform branch 6a965ec."
+      "action": "Execute CG005I-M local PostgreSQL lab: SQL 11, advisory-lock runtime, snapshot A, same-week replacement B, rollback B->A, intentional failing postcheck, clean-room rebuild."
     },
     {
       "priority": 2,
-      "action": "Create an isolated worktree for CG005G from current origin/main and correct only F-04/F-08."
+      "action": "Execute PLATFORM_008 first real use using the first safe real laboratory or dry-run phase result; do not create synthetic evidence for the gate."
     },
     {
       "priority": 3,
-      "action": "Run CG005H targeted Claude revalidation and stop static review if both findings close."
-    },
-    {
-      "priority": 4,
-      "action": "Run the five-step local PostgreSQL lab."
-    },
-    {
-      "priority": 5,
-      "action": "Prepare controlled Supabase DDL, dry-run, apply and postvalidation phases."
+      "action": "Prepare controlled Supabase route transition only after the local PostgreSQL lab passes."
     }
   ],
   "definition_of_done": {

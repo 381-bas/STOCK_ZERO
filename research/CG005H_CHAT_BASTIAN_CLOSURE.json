@@ -1,0 +1,22 @@
+{
+  "phase": "CG005H_F04_F08_TARGETED_REVALIDATION",
+  "decision": "CLOSED_READY_FOR_LOCAL_POSTGRESQL_LAB",
+  "closed_by": [
+    "Claude",
+    "ChatGPT",
+    "Bastian"
+  ],
+  "baseline": "e368f83c673509304a40992114046a5eafe11d6c",
+  "implementation_commit": "c440a253dbf0a35a388b8879c7e9627804991a56",
+  "evidence_commit": "966878e61465adabe1f26dc956db45b83f128838",
+  "f04": "CORRECTED_STATIC_AND_MOCK",
+  "f08": "CORRECTED_STATIC_AND_MOCK",
+  "static_reviews_complete": true,
+  "postgresql_runtime_proven": false,
+  "local_lab_authorized": true,
+  "productive_ddl_authorized": false,
+  "productive_apply_authorized": false,
+  "supabase_writes_authorized": false,
+  "cleanup_authorized": false,
+  "next_phase": "CG005I_M_LOCAL_POSTGRESQL_LAB"
+}

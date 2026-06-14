@@ -183,7 +183,7 @@
       ]
     }
   },
-  "non_authority_notice": "This file records shared memory only. It does not authorize implementation, DB writes, loader execution, SQL execution, commits, pushes, cleanup, or retention.",
+  "non_authority_notice": "This file records shared memory only. It does not authorize production DB writes, productive DDL, productive apply, Supabase writes, cleanup, retention, loader execution, SQL execution, commits, or pushes outside explicit phase authority. CG005H authorizes only the local PostgreSQL lab gate.",
   "c001_validated_research": {
     "status": "VALIDATED_SCOPE_WITH_LIMITS",
     "phase": "FASE_AI_C001_CODEX_INDEPENDENT_VALIDATION_AND_MEMORY_PROMOTION",
@@ -706,5 +706,89 @@
     },
     "next_phase": "CG005G_ROUTE_LOCK_AND_ROLLBACK_CORRECTION_NO_APPLY",
     "following_validation": "CG005H_F04_F08_TARGETED_REVALIDATION"
+  },
+  "cg005h_route_lock_rollback_closure": {
+    "status": "READY_FOR_LOCAL_LAB",
+    "phase": "CG005H_CLOSE_MERGE_AND_AUTHORIZE_LOCAL_LAB",
+    "validation_phase": "CG005H_F04_F08_TARGETED_REVALIDATION",
+    "baseline_commit": "e368f83c673509304a40992114046a5eafe11d6c",
+    "source_commits": [
+      "c440a253dbf0a35a388b8879c7e9627804991a56",
+      "966878e61465adabe1f26dc956db45b83f128838"
+    ],
+    "source_files": [
+      "research/CG005G_ROUTE_LOCK_ROLLBACK_CORRECTION.json",
+      "research/reports/CODEX_CG005G_ROUTE_LOCK_ROLLBACK_CORRECTION.md"
+    ],
+    "validated_by": "Claude",
+    "decided_by": "ChatGPT+Bastian",
+    "implementation_authorized": false,
+    "local_lab_authorized": true,
+    "productive_ddl_authorized": false,
+    "productive_apply_authorized": false,
+    "supabase_writes_authorized": false,
+    "cleanup_authorized": false,
+    "productive_db_authorized": false,
+    "postgresql_runtime_proven": false,
+    "findings": [
+      {
+        "id": "cg005h_advisory_lock_corrected_static",
+        "status": "VALIDATED_STATIC_AND_MOCK",
+        "fact": "Route weekly replacement advisory locking now uses one deterministic signed bigint key derived with stable SHA-256 material, the same helper is used by apply and rollback, and the SQL call is one-argument pg_advisory_xact_lock(%s).",
+        "not_proven": "PostgreSQL runtime function resolution and real concurrency blocking are not proven in this phase.",
+        "evidence": [
+          "CG005H targeted revalidation verdict READY_FOR_LOCAL_LAB_MERGE_PREPARATION.",
+          "scripts/load_ruta_rutero_from_excel.py weekly_assignment_lock_key and acquire_week_assignment_lock.",
+          "tests/test_load_ruta_rutero_weekly_replace.py tests 56, 56b, 56c, and 56d.",
+          "py_compile and weekly/read-only regression passed in CG005H close phase."
+        ],
+        "implementation_authorized": false,
+        "local_lab_authorized": true,
+        "productive_ddl_authorized": false,
+        "productive_apply_authorized": false,
+        "supabase_writes_authorized": false,
+        "cleanup_authorized": false,
+        "postgresql_runtime_proven": false
+      },
+      {
+        "id": "cg005h_rollback_postcheck_corrected_static",
+        "status": "VALIDATED_STATIC_AND_MOCK",
+        "fact": "Rollback now runs all assignment-state, current-surface, weekly-view, resolved-grain, resolved-hash, and lineage checks before commit, and mock adversarial checks confirm fail-closed behavior.",
+        "not_proven": "Real PostgreSQL transaction behavior, views, constraints, hashes, and rollback restoration remain unproven until the local lab.",
+        "evidence": [
+          "CG005H targeted revalidation found F-04 CORRECTED and 0 findings.",
+          "run_weekly_replacement_rollback calls run_rollback_postcheck before conn.commit.",
+          "run_rollback_postcheck delegates to validate_rollback_assignment_states, validate_rollback_current_surface, validate_rollback_weekly_view, and validate_rollback_resolved_grains.",
+          "tests/test_load_ruta_rutero_weekly_replace.py tests 69b through 69l cover success order and fail-closed mock scenarios."
+        ],
+        "implementation_authorized": false,
+        "local_lab_authorized": true,
+        "productive_ddl_authorized": false,
+        "productive_apply_authorized": false,
+        "supabase_writes_authorized": false,
+        "cleanup_authorized": false,
+        "postgresql_runtime_proven": false
+      },
+      {
+        "id": "cg005h_local_lab_gate",
+        "status": "READY_FOR_LOCAL_LAB",
+        "fact": "Static review of F-04 and F-08 is complete; no further broad static audit is required, and CG005I-M local PostgreSQL lab is the next gate while Supabase and productive DDL/apply remain blocked.",
+        "not_proven": "The local PostgreSQL laboratory has not yet run SQL 11, advisory-lock runtime checks, snapshot A, replacement B, rollback B-to-A, intentional failing postcheck, or clean-room rebuild.",
+        "evidence": [
+          "CG005H targeted revalidation verdict READY_FOR_LOCAL_LAB_MERGE_PREPARATION.",
+          "CG005G implementation commit c440a253dbf0a35a388b8879c7e9627804991a56.",
+          "CG005G evidence commit 966878e61465adabe1f26dc956db45b83f128838.",
+          "Final close regression: 84 weekly tests and 21 read-only tests with zero failures."
+        ],
+        "implementation_authorized": false,
+        "local_lab_authorized": true,
+        "productive_ddl_authorized": false,
+        "productive_apply_authorized": false,
+        "supabase_writes_authorized": false,
+        "cleanup_authorized": false,
+        "postgresql_runtime_proven": false
+      }
+    ],
+    "next_phase": "CG005I_M_LOCAL_POSTGRESQL_LAB"
   }
 }
