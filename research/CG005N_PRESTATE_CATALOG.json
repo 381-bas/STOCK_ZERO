@@ -1,0 +1,2560 @@
+{
+  "aggregates": {
+    "privacy": "aggregate_only_no_customer_store_person_payload_or_secret_values",
+    "route_counts": {
+      "latest_week_view_rows": {
+        "available": true,
+        "value": 7
+      },
+      "public_ruta_rows": {
+        "available": true,
+        "value": 3568
+      },
+      "resolved_view_rows": {
+        "available": true,
+        "value": 23674
+      },
+      "route_batches": {
+        "available": true,
+        "value": 19
+      },
+      "route_history_rows": {
+        "available": true,
+        "value": 64346
+      },
+      "week_view_rows": {
+        "available": true,
+        "value": 19
+      }
+    },
+    "target_week": {
+      "effective_week_start": "2026-06-08",
+      "latest_week_rows": {
+        "available": true,
+        "value": 1
+      },
+      "resolved_rows": {
+        "available": false,
+        "error": "QueryCanceled"
+      },
+      "week_view_rows": {
+        "available": true,
+        "value": 1
+      }
+    },
+    "weekly_baseline_recent": {
+      "available": false,
+      "error": "QueryCanceled"
+    }
+  },
+  "completion": {
+    "catalog_complete": true,
+    "catalog_gap": null,
+    "material_dependencies_unknown": 0,
+    "stop_required": false,
+    "technical_catalog_complete": true,
+    "unknown_dependencies": 0
+  },
+  "db_access": {
+    "current_user": "stock_zero_codex_ro",
+    "default_transaction_read_only": "on",
+    "dsn_printed": false,
+    "transaction_read_only": "on",
+    "writes_attempted": false
+  },
+  "direct_dependencies": {
+    "cg_core.v_rr_frecuencia_base_resuelta_v2": [
+      {
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "referenced_name": "ruta_rutero_load_rows",
+        "referenced_object": "cg_core.ruta_rutero_load_rows",
+        "referenced_relkind": "r",
+        "referenced_schema": "cg_core",
+        "target_object": "cg_core.v_rr_frecuencia_base_resuelta_v2"
+      },
+      {
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "referenced_name": "v_ruta_rutero_load_batch_week_v2",
+        "referenced_object": "cg_core.v_ruta_rutero_load_batch_week_v2",
+        "referenced_relkind": "v",
+        "referenced_schema": "cg_core",
+        "target_object": "cg_core.v_rr_frecuencia_base_resuelta_v2"
+      }
+    ],
+    "cg_core.v_ruta_rutero_latest_week_batch_v2": [
+      {
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "referenced_name": "v_ruta_rutero_load_batch_week_v2",
+        "referenced_object": "cg_core.v_ruta_rutero_load_batch_week_v2",
+        "referenced_relkind": "v",
+        "referenced_schema": "cg_core",
+        "target_object": "cg_core.v_ruta_rutero_latest_week_batch_v2"
+      }
+    ],
+    "cg_core.v_ruta_rutero_load_batch_week_v2": [
+      {
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "referenced_name": "ruta_rutero_load_batch",
+        "referenced_object": "cg_core.ruta_rutero_load_batch",
+        "referenced_relkind": "r",
+        "referenced_schema": "cg_core",
+        "target_object": "cg_core.v_ruta_rutero_load_batch_week_v2"
+      }
+    ]
+  },
+  "generated_at_utc": "2026-06-15T02:33:57.930235Z",
+  "material_dependency_unknowns": [],
+  "phase": "CG005NQ_PACKAGE_CORRECTION_NO_SUPABASE_WRITE",
+  "reverse_dependencies": {
+    "cg_core.v_rr_frecuencia_base_resuelta_v2": [
+      {
+        "dependent_name": "v_cg_evento_scope_v2",
+        "dependent_object": "cg_core.v_cg_evento_scope_v2",
+        "dependent_relkind": "v",
+        "dependent_schema": "cg_core",
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "target_object": "cg_core.v_rr_frecuencia_base_resuelta_v2"
+      },
+      {
+        "dependent_name": "v_rr_frecuencia_base_v2",
+        "dependent_object": "cg_core.v_rr_frecuencia_base_v2",
+        "dependent_relkind": "v",
+        "dependent_schema": "cg_core",
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "target_object": "cg_core.v_rr_frecuencia_base_resuelta_v2"
+      },
+      {
+        "dependent_name": "v_rr_operativa_base_v2",
+        "dependent_object": "cg_core.v_rr_operativa_base_v2",
+        "dependent_relkind": "v",
+        "dependent_schema": "cg_core",
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "target_object": "cg_core.v_rr_frecuencia_base_resuelta_v2"
+      },
+      {
+        "dependent_name": "v_cg_out_weekly_v2",
+        "dependent_object": "cg_mart.v_cg_out_weekly_v2",
+        "dependent_relkind": "v",
+        "dependent_schema": "cg_mart",
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "target_object": "cg_core.v_rr_frecuencia_base_resuelta_v2"
+      }
+    ],
+    "cg_core.v_ruta_rutero_latest_week_batch_v2": [
+      {
+        "dependent_name": "v_cg_evento_scope_v2",
+        "dependent_object": "cg_core.v_cg_evento_scope_v2",
+        "dependent_relkind": "v",
+        "dependent_schema": "cg_core",
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "target_object": "cg_core.v_ruta_rutero_latest_week_batch_v2"
+      },
+      {
+        "dependent_name": "v_rr_frecuencia_base_v2",
+        "dependent_object": "cg_core.v_rr_frecuencia_base_v2",
+        "dependent_relkind": "v",
+        "dependent_schema": "cg_core",
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "target_object": "cg_core.v_ruta_rutero_latest_week_batch_v2"
+      }
+    ],
+    "cg_core.v_ruta_rutero_load_batch_week_v2": [
+      {
+        "dependent_name": "v_rr_frecuencia_base_resuelta_v2",
+        "dependent_object": "cg_core.v_rr_frecuencia_base_resuelta_v2",
+        "dependent_relkind": "v",
+        "dependent_schema": "cg_core",
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "target_object": "cg_core.v_ruta_rutero_load_batch_week_v2"
+      },
+      {
+        "dependent_name": "v_ruta_rutero_latest_week_batch_v2",
+        "dependent_object": "cg_core.v_ruta_rutero_latest_week_batch_v2",
+        "dependent_relkind": "v",
+        "dependent_schema": "cg_core",
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "target_object": "cg_core.v_ruta_rutero_load_batch_week_v2"
+      },
+      {
+        "dependent_name": "v_cg_ruta_duplicados_auditoria_v2",
+        "dependent_object": "cg_mart.v_cg_ruta_duplicados_auditoria_v2",
+        "dependent_relkind": "v",
+        "dependent_schema": "cg_mart",
+        "material_dependency_status": "KNOWN_MATERIAL_RELATION",
+        "target_object": "cg_core.v_ruta_rutero_load_batch_week_v2"
+      }
+    ]
+  },
+  "rollback_baseline": {
+    "assignment_row_count": 0,
+    "assignment_table_exists": false,
+    "max_ruta_batch_id": 19,
+    "measurement_available": true,
+    "route_batch_count": 19
+  },
+  "rollback_baseline_sha256": "69BB20361E539ECD04A93A4594E0BB1E3ACF4DEEBC0F73E6D2E9983EDF92DC09",
+  "signature_preserving_plan": {
+    "drop_view_required": false,
+    "rules": [
+      "preserve every existing column name, order and type for target views",
+      "append only new compatibility columns at the end of each target view",
+      "block if catalog fingerprint differs before DDL"
+    ],
+    "strategy": "signature_preserving_create_or_replace",
+    "target_view_plan": {
+      "cg_core.v_rr_frecuencia_base_resuelta_v2": {
+        "append_columns": [
+          "route_policy_version",
+          "route_week_source",
+          "cod_rt_norm",
+          "ruta_person_conflict_flag"
+        ],
+        "preserve_existing_prefix": true,
+        "prestate_column_count": 29
+      },
+      "cg_core.v_ruta_rutero_latest_week_batch_v2": {
+        "append_columns": [
+          "route_policy_version",
+          "route_week_source",
+          "assignment_id"
+        ],
+        "preserve_existing_prefix": true,
+        "prestate_column_count": 10
+      },
+      "cg_core.v_ruta_rutero_load_batch_week_v2": {
+        "append_columns": [
+          "route_policy_version",
+          "route_week_source",
+          "assignment_id",
+          "assigned_at"
+        ],
+        "preserve_existing_prefix": true,
+        "prestate_column_count": 11
+      }
+    }
+  },
+  "source_used": "env",
+  "target_objects": {
+    "cg_core.ruta_rutero_load_batch": {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "column_signature_sha256": "0381667CB79D264EA148FC233E906049D55E28FA8CE7733E6B6DF3054C8CF068",
+      "columns": [
+        {
+          "column_default_present": true,
+          "column_name": "ruta_batch_id",
+          "data_type": "bigint",
+          "is_nullable": "NO",
+          "ordinal_position": 1,
+          "udt_name": "int8"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 2,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "source_sheet",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 3,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "loader_name",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 4,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "loaded_rows",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 5,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "status",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 6,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "loaded_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "ordinal_position": 7,
+          "udt_name": "timestamptz"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "notes",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 8,
+          "udt_name": "text"
+        }
+      ],
+      "comment": null,
+      "comment_captured": true,
+      "constraints": [
+        {
+          "constraint_name": "ruta_rutero_load_batch_pkey",
+          "constraint_type": "p",
+          "definition": "PRIMARY KEY (ruta_batch_id)"
+        },
+        {
+          "constraint_name": "ruta_rutero_load_batch_status_check",
+          "constraint_type": "c",
+          "definition": "CHECK (status = ANY (ARRAY['ok'::text, 'cancelled'::text, 'superseded'::text]))"
+        }
+      ],
+      "description_present": false,
+      "exists": true,
+      "grants": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "indexes": [
+        {
+          "definition": "CREATE INDEX ix_ruta_rutero_load_batch_status_loaded_at ON cg_core.ruta_rutero_load_batch USING btree (status, loaded_at DESC, ruta_batch_id DESC)",
+          "index_name": "ix_ruta_rutero_load_batch_status_loaded_at"
+        },
+        {
+          "definition": "CREATE UNIQUE INDEX ruta_rutero_load_batch_pkey ON cg_core.ruta_rutero_load_batch USING btree (ruta_batch_id)",
+          "index_name": "ruta_rutero_load_batch_pkey"
+        }
+      ],
+      "name": "ruta_rutero_load_batch",
+      "owner": "postgres",
+      "relacl": [
+        "postgres=arwdDxtm/postgres",
+        "stock_zero_readonly=r/postgres"
+      ],
+      "relkind": "r",
+      "reloptions": [],
+      "schema": "cg_core",
+      "view_definition": null,
+      "view_definition_sha256": null,
+      "view_options": null
+    },
+    "cg_core.ruta_rutero_load_rows": {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "column_signature_sha256": "3A1A3EB2A107C40D17BBC3E906815EF06DEA5FFD349283C34A076EC5B8DCDA52",
+      "columns": [
+        {
+          "column_default_present": true,
+          "column_name": "ruta_row_id",
+          "data_type": "bigint",
+          "is_nullable": "NO",
+          "ordinal_position": 1,
+          "udt_name": "int8"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "ruta_batch_id",
+          "data_type": "bigint",
+          "is_nullable": "NO",
+          "ordinal_position": 2,
+          "udt_name": "int8"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 3,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "source_sheet",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 4,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source_row",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 5,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "ingested_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "ordinal_position": 6,
+          "udt_name": "timestamptz"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "payload_json",
+          "data_type": "jsonb",
+          "is_nullable": "YES",
+          "ordinal_position": 7,
+          "udt_name": "jsonb"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cadena",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 8,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "formato",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 9,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "region",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 10,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "comuna",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 11,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cod_rt",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 12,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cod_b2b",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 13,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "local_nombre",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 14,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "direccion",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 15,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "veces_por_semana",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 16,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "rutero",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 17,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "jefe_operaciones",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 18,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "gestores",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 19,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cliente",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 20,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "supervisor",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 21,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "reponedor",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 22,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "lunes",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 23,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "martes",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 24,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "miercoles",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 25,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "jueves",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 26,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "viernes",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 27,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "sabado",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 28,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "domingo",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 29,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "visita_mensual",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 30,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "dif",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 31,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "obs",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 32,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "aux",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 33,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "gg",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 34,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "modalidad",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 35,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "row_hash",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 36,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 37,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source_ingested_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "ordinal_position": 38,
+          "udt_name": "timestamptz"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cod_rt_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 39,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cod_b2b_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 40,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cliente_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 41,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "gestor_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 42,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "supervisor_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 43,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "reponedor_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 44,
+          "udt_name": "text"
+        }
+      ],
+      "comment": null,
+      "comment_captured": true,
+      "constraints": [
+        {
+          "constraint_name": "ruta_rutero_load_rows_pkey",
+          "constraint_type": "p",
+          "definition": "PRIMARY KEY (ruta_row_id)"
+        },
+        {
+          "constraint_name": "ruta_rutero_load_rows_ruta_batch_id_fkey",
+          "constraint_type": "f",
+          "definition": "FOREIGN KEY (ruta_batch_id) REFERENCES ruta_rutero_load_batch(ruta_batch_id)"
+        },
+        {
+          "constraint_name": "ruta_rutero_load_rows_ruta_batch_id_source_row_key",
+          "constraint_type": "u",
+          "definition": "UNIQUE (ruta_batch_id, source_row)"
+        }
+      ],
+      "description_present": false,
+      "exists": true,
+      "grants": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "indexes": [
+        {
+          "definition": "CREATE INDEX ix_ruta_rutero_load_rows_batch_cod_b2b_cliente ON cg_core.ruta_rutero_load_rows USING btree (ruta_batch_id, cod_b2b_norm, cliente_norm)",
+          "index_name": "ix_ruta_rutero_load_rows_batch_cod_b2b_cliente"
+        },
+        {
+          "definition": "CREATE INDEX ix_ruta_rutero_load_rows_batch_cod_rt_cliente ON cg_core.ruta_rutero_load_rows USING btree (ruta_batch_id, cod_rt_norm, cliente_norm)",
+          "index_name": "ix_ruta_rutero_load_rows_batch_cod_rt_cliente"
+        },
+        {
+          "definition": "CREATE INDEX ix_ruta_rutero_load_rows_batch_id ON cg_core.ruta_rutero_load_rows USING btree (ruta_batch_id)",
+          "index_name": "ix_ruta_rutero_load_rows_batch_id"
+        },
+        {
+          "definition": "CREATE UNIQUE INDEX ruta_rutero_load_rows_pkey ON cg_core.ruta_rutero_load_rows USING btree (ruta_row_id)",
+          "index_name": "ruta_rutero_load_rows_pkey"
+        },
+        {
+          "definition": "CREATE UNIQUE INDEX ruta_rutero_load_rows_ruta_batch_id_source_row_key ON cg_core.ruta_rutero_load_rows USING btree (ruta_batch_id, source_row)",
+          "index_name": "ruta_rutero_load_rows_ruta_batch_id_source_row_key"
+        }
+      ],
+      "name": "ruta_rutero_load_rows",
+      "owner": "postgres",
+      "relacl": [
+        "postgres=arwdDxtm/postgres",
+        "stock_zero_readonly=r/postgres"
+      ],
+      "relkind": "r",
+      "reloptions": [],
+      "schema": "cg_core",
+      "view_definition": null,
+      "view_definition_sha256": null,
+      "view_options": null
+    },
+    "cg_core.ruta_rutero_week_assignment": {
+      "acl": [],
+      "column_signature_sha256": null,
+      "columns": [],
+      "comment": null,
+      "comment_captured": false,
+      "constraints": [],
+      "description_present": false,
+      "exists": false,
+      "grants": [],
+      "indexes": [],
+      "name": null,
+      "owner": null,
+      "relacl": null,
+      "relkind": null,
+      "reloptions": [],
+      "schema": null,
+      "view_definition": null,
+      "view_definition_sha256": null,
+      "view_options": null
+    },
+    "cg_core.v_rr_frecuencia_base_resuelta_v2": {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "column_signature_sha256": "F5F64B53828F66371DDE059DF982C63D87ADB4EA201BFC4C9F5FA75D0BEE983F",
+      "columns": [
+        {
+          "column_default_present": false,
+          "column_name": "effective_week_start",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "ordinal_position": 1,
+          "udt_name": "date"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "effective_week_iso",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 2,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "ruta_batch_id",
+          "data_type": "bigint",
+          "is_nullable": "YES",
+          "ordinal_position": 3,
+          "udt_name": "int8"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cod_rt",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 4,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cod_b2b",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 5,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "local_nombre",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 6,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "direccion",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 7,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cliente",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 8,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cliente_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 9,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "gestor",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 10,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "gestor_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 11,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "supervisor",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 12,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "supervisor_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 13,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "rutero",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 14,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "reponedor_scope",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 15,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "reponedor_scope_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 16,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "jefe_operaciones",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 17,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "jefe_operaciones_norm",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 18,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "modalidad",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 19,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "visitas_exigidas_semana",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 20,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "lunes",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 21,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "martes",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 22,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "miercoles",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 23,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "jueves",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 24,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "viernes",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 25,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "sabado",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 26,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "domingo",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 27,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "ruta_duplicada_flag",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 28,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "ruta_duplicada_rows",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 29,
+          "udt_name": "int4"
+        }
+      ],
+      "comment": null,
+      "comment_captured": true,
+      "constraints": [],
+      "description_present": false,
+      "exists": true,
+      "grants": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "indexes": [],
+      "name": "v_rr_frecuencia_base_resuelta_v2",
+      "owner": "postgres",
+      "relacl": [
+        "postgres=arwdDxtm/postgres",
+        "stock_zero_readonly=r/postgres"
+      ],
+      "relkind": "v",
+      "reloptions": [],
+      "schema": "cg_core",
+      "view_definition": " WITH normalized AS (\n         SELECT wb.effective_week_start,\n            wb.effective_week_iso,\n            r.ruta_batch_id,\n            wb.status,\n            wb.loaded_at,\n            NULLIF(TRIM(BOTH FROM COALESCE(r.cod_rt_norm, r.cod_rt)), ''::text) AS cod_rt,\n            NULLIF(TRIM(BOTH FROM COALESCE(r.cod_b2b_norm, r.cod_b2b)), ''::text) AS cod_b2b,\n            NULLIF(TRIM(BOTH FROM r.local_nombre), ''::text) AS local_nombre,\n            NULLIF(TRIM(BOTH FROM r.direccion), ''::text) AS direccion,\n            NULLIF(TRIM(BOTH FROM r.cliente), ''::text) AS cliente,\n            upper(TRIM(BOTH FROM COALESCE(NULLIF(TRIM(BOTH FROM r.cliente_norm), ''::text), NULLIF(TRIM(BOTH FROM r.cliente), ''::text), ''::text))) AS cliente_norm,\n            NULLIF(TRIM(BOTH FROM r.gestores), ''::text) AS gestor_value,\n            upper(TRIM(BOTH FROM COALESCE(NULLIF(TRIM(BOTH FROM r.gestor_norm), ''::text), NULLIF(TRIM(BOTH FROM r.gestores), ''::text), ''::text))) AS gestor_norm_value,\n            NULLIF(TRIM(BOTH FROM r.supervisor), ''::text) AS supervisor_value,\n            upper(TRIM(BOTH FROM COALESCE(NULLIF(TRIM(BOTH FROM r.supervisor_norm), ''::text), NULLIF(TRIM(BOTH FROM r.supervisor), ''::text), ''::text))) AS supervisor_norm_value,\n            NULLIF(TRIM(BOTH FROM r.rutero), ''::text) AS rutero_value,\n            NULLIF(TRIM(BOTH FROM r.reponedor), ''::text) AS reponedor_value,\n            upper(TRIM(BOTH FROM COALESCE(NULLIF(TRIM(BOTH FROM r.reponedor_norm), ''::text), NULLIF(TRIM(BOTH FROM r.reponedor), ''::text), ''::text))) AS reponedor_norm_value,\n            NULLIF(TRIM(BOTH FROM r.jefe_operaciones), ''::text) AS jefe_operaciones_value,\n            upper(TRIM(BOTH FROM COALESCE(NULLIF(TRIM(BOTH FROM r.jefe_operaciones), ''::text), ''::text))) AS jefe_operaciones_norm_value,\n            NULLIF(TRIM(BOTH FROM r.modalidad), ''::text) AS modalidad_value,\n            COALESCE(r.veces_por_semana, 0) AS visitas_exigidas_semana,\n            COALESCE(r.lunes, 0) AS lunes,\n            COALESCE(r.martes, 0) AS martes,\n            COALESCE(r.miercoles, 0) AS miercoles,\n            COALESCE(r.jueves, 0) AS jueves,\n            COALESCE(r.viernes, 0) AS viernes,\n            COALESCE(r.sabado, 0) AS sabado,\n            COALESCE(r.domingo, 0) AS domingo,\n            r.source_row\n           FROM ruta_rutero_load_rows r\n             JOIN v_ruta_rutero_load_batch_week_v2 wb ON wb.ruta_batch_id = r.ruta_batch_id\n          WHERE NULLIF(TRIM(BOTH FROM COALESCE(r.cod_rt_norm, r.cod_rt)), ''::text) IS NOT NULL AND NULLIF(TRIM(BOTH FROM COALESCE(r.cliente_norm, r.cliente)), ''::text) IS NOT NULL\n        ), winning_batch_by_grain AS (\n         SELECT ranked.effective_week_start,\n            ranked.cod_rt,\n            ranked.cliente_norm,\n            ranked.ruta_batch_id\n           FROM ( SELECT normalized.effective_week_start,\n                    normalized.cod_rt,\n                    normalized.cliente_norm,\n                    normalized.ruta_batch_id,\n                    row_number() OVER (PARTITION BY normalized.effective_week_start, normalized.cod_rt, normalized.cliente_norm ORDER BY (\n                        CASE\n                            WHEN normalized.status = 'ok'::text THEN 0\n                            ELSE 1\n                        END), normalized.loaded_at DESC NULLS LAST, normalized.ruta_batch_id DESC) AS rn\n                   FROM normalized\n                  GROUP BY normalized.effective_week_start, normalized.cod_rt, normalized.cliente_norm, normalized.ruta_batch_id, normalized.status, normalized.loaded_at) ranked\n          WHERE ranked.rn = 1\n        ), normalized_dedup AS (\n         SELECT n.effective_week_start,\n            n.effective_week_iso,\n            n.ruta_batch_id,\n            n.status,\n            n.loaded_at,\n            n.cod_rt,\n            n.cod_b2b,\n            n.local_nombre,\n            n.direccion,\n            n.cliente,\n            n.cliente_norm,\n            n.gestor_value,\n            n.gestor_norm_value,\n            n.supervisor_value,\n            n.supervisor_norm_value,\n            n.rutero_value,\n            n.reponedor_value,\n            n.reponedor_norm_value,\n            n.jefe_operaciones_value,\n            n.jefe_operaciones_norm_value,\n            n.modalidad_value,\n            n.visitas_exigidas_semana,\n            n.lunes,\n            n.martes,\n            n.miercoles,\n            n.jueves,\n            n.viernes,\n            n.sabado,\n            n.domingo,\n            n.source_row\n           FROM normalized n\n             JOIN winning_batch_by_grain w ON w.effective_week_start = n.effective_week_start AND w.cod_rt = n.cod_rt AND w.cliente_norm = n.cliente_norm AND w.ruta_batch_id = n.ruta_batch_id\n        )\n SELECT effective_week_start,\n    effective_week_iso,\n    ruta_batch_id,\n    cod_rt,\n    min(cod_b2b) FILTER (WHERE cod_b2b IS NOT NULL) AS cod_b2b,\n    min(local_nombre) FILTER (WHERE local_nombre IS NOT NULL) AS local_nombre,\n    min(direccion) FILTER (WHERE direccion IS NOT NULL) AS direccion,\n    min(cliente) FILTER (WHERE cliente IS NOT NULL) AS cliente,\n    cliente_norm,\n    string_agg(DISTINCT gestor_value, ' | '::text ORDER BY gestor_value) FILTER (WHERE gestor_value IS NOT NULL) AS gestor,\n    string_agg(DISTINCT gestor_norm_value, ' | '::text ORDER BY gestor_norm_value) FILTER (WHERE gestor_norm_value IS NOT NULL) AS gestor_norm,\n    string_agg(DISTINCT supervisor_value, ' | '::text ORDER BY supervisor_value) FILTER (WHERE supervisor_value IS NOT NULL) AS supervisor,\n    string_agg(DISTINCT supervisor_norm_value, ' | '::text ORDER BY supervisor_norm_value) FILTER (WHERE supervisor_norm_value IS NOT NULL) AS supervisor_norm,\n    string_agg(DISTINCT rutero_value, ' | '::text ORDER BY rutero_value) FILTER (WHERE rutero_value IS NOT NULL) AS rutero,\n    string_agg(DISTINCT reponedor_value, ' | '::text ORDER BY reponedor_value) FILTER (WHERE reponedor_value IS NOT NULL) AS reponedor_scope,\n    string_agg(DISTINCT reponedor_norm_value, ' | '::text ORDER BY reponedor_norm_value) FILTER (WHERE reponedor_norm_value IS NOT NULL) AS reponedor_scope_norm,\n    string_agg(DISTINCT jefe_operaciones_value, ' | '::text ORDER BY jefe_operaciones_value) FILTER (WHERE jefe_operaciones_value IS NOT NULL) AS jefe_operaciones,\n    string_agg(DISTINCT jefe_operaciones_norm_value, ' | '::text ORDER BY jefe_operaciones_norm_value) FILTER (WHERE jefe_operaciones_norm_value IS NOT NULL) AS jefe_operaciones_norm,\n    string_agg(DISTINCT modalidad_value, ' | '::text ORDER BY modalidad_value) FILTER (WHERE modalidad_value IS NOT NULL) AS modalidad,\n    max(visitas_exigidas_semana) AS visitas_exigidas_semana,\n    max(lunes) AS lunes,\n    max(martes) AS martes,\n    max(miercoles) AS miercoles,\n    max(jueves) AS jueves,\n    max(viernes) AS viernes,\n    max(sabado) AS sabado,\n    max(domingo) AS domingo,\n        CASE\n            WHEN count(*) > 1 THEN 1\n            ELSE 0\n        END AS ruta_duplicada_flag,\n    count(*)::integer AS ruta_duplicada_rows\n   FROM normalized_dedup\n  GROUP BY effective_week_start, effective_week_iso, ruta_batch_id, cod_rt, cliente_norm;",
+      "view_definition_sha256": "E5AFD602F845FAFC11ED03033B0FB8D0C542A43C0DC41CA3F37928629BB7A6BC",
+      "view_options": {
+        "check_option": null,
+        "security_barrier": false
+      }
+    },
+    "cg_core.v_ruta_rutero_latest_week_batch_v2": {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "column_signature_sha256": "6842EE0476B73690C0CE26706A74EC2D855D131B5929E25093D4595FC08BF536",
+      "columns": [
+        {
+          "column_default_present": false,
+          "column_name": "ruta_batch_id",
+          "data_type": "bigint",
+          "is_nullable": "YES",
+          "ordinal_position": 1,
+          "udt_name": "int8"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 2,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source_sheet",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 3,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "loader_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 4,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "loaded_rows",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 5,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 6,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "loaded_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "ordinal_position": 7,
+          "udt_name": "timestamptz"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "notes",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 8,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "effective_week_start",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "ordinal_position": 9,
+          "udt_name": "date"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "effective_week_iso",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 10,
+          "udt_name": "int4"
+        }
+      ],
+      "comment": null,
+      "comment_captured": true,
+      "constraints": [],
+      "description_present": false,
+      "exists": true,
+      "grants": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "indexes": [],
+      "name": "v_ruta_rutero_latest_week_batch_v2",
+      "owner": "postgres",
+      "relacl": [
+        "postgres=arwdDxtm/postgres",
+        "stock_zero_readonly=r/postgres"
+      ],
+      "relkind": "v",
+      "reloptions": [],
+      "schema": "cg_core",
+      "view_definition": " SELECT ruta_batch_id,\n    source_file,\n    source_sheet,\n    loader_name,\n    loaded_rows,\n    status,\n    loaded_at,\n    notes,\n    effective_week_start,\n    effective_week_iso\n   FROM v_ruta_rutero_load_batch_week_v2\n  WHERE rn_week_ok = 1;",
+      "view_definition_sha256": "93D7440291D4AD299BC6D89E7629507504C7016D0F011E8E5F4D452D0B4C726A",
+      "view_options": {
+        "check_option": null,
+        "security_barrier": false
+      }
+    },
+    "cg_core.v_ruta_rutero_load_batch_week_v2": {
+      "acl": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "column_signature_sha256": "799E38357A8D77DB554A56E3FC4F2646F961A22F4AD593715B05260F1DE721A0",
+      "columns": [
+        {
+          "column_default_present": false,
+          "column_name": "ruta_batch_id",
+          "data_type": "bigint",
+          "is_nullable": "YES",
+          "ordinal_position": 1,
+          "udt_name": "int8"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 2,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source_sheet",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 3,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "loader_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 4,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "loaded_rows",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 5,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 6,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "loaded_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "ordinal_position": 7,
+          "udt_name": "timestamptz"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "notes",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "ordinal_position": 8,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "effective_week_start",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "ordinal_position": 9,
+          "udt_name": "date"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "effective_week_iso",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "ordinal_position": 10,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "rn_week_ok",
+          "data_type": "bigint",
+          "is_nullable": "YES",
+          "ordinal_position": 11,
+          "udt_name": "int8"
+        }
+      ],
+      "comment": null,
+      "comment_captured": true,
+      "constraints": [],
+      "description_present": false,
+      "exists": true,
+      "grants": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "indexes": [],
+      "name": "v_ruta_rutero_load_batch_week_v2",
+      "owner": "postgres",
+      "relacl": [
+        "postgres=arwdDxtm/postgres",
+        "stock_zero_readonly=r/postgres"
+      ],
+      "relkind": "v",
+      "reloptions": [],
+      "schema": "cg_core",
+      "view_definition": " WITH base AS (\n         SELECT b.ruta_batch_id,\n            b.source_file,\n            b.source_sheet,\n            b.loader_name,\n            b.loaded_rows,\n            b.status,\n            b.loaded_at,\n            b.notes,\n            date_trunc('week'::text, (b.loaded_at AT TIME ZONE 'America/Santiago'::text))::date AS effective_week_start,\n            EXTRACT(week FROM (b.loaded_at AT TIME ZONE 'America/Santiago'::text)::date)::integer AS effective_week_iso\n           FROM ruta_rutero_load_batch b\n        )\n SELECT ruta_batch_id,\n    source_file,\n    source_sheet,\n    loader_name,\n    loaded_rows,\n    status,\n    loaded_at,\n    notes,\n    effective_week_start,\n    effective_week_iso,\n    row_number() OVER (PARTITION BY effective_week_start ORDER BY loaded_at DESC, ruta_batch_id DESC) AS rn_week_ok\n   FROM base\n  WHERE status = 'ok'::text;",
+      "view_definition_sha256": "3D92965E480FE55E1285099335A3A5F8332DDED0149EEF9F47FAA2BA39E5E99C",
+      "view_options": {
+        "check_option": null,
+        "security_barrier": false
+      }
+    },
+    "public.ruta_rutero": {
+      "acl": [
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "column_signature_sha256": "C1304A506E356821151ACCC0B38B0FD54B470FC6132735355A111ECC15B4432F",
+      "columns": [
+        {
+          "column_default_present": true,
+          "column_name": "id",
+          "data_type": "bigint",
+          "is_nullable": "NO",
+          "ordinal_position": 1,
+          "udt_name": "int8"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "cadena",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 2,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "formato",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 3,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "region",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 4,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "comuna",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 5,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "cod_rt",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 6,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "cod_b2b",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 7,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "local_nombre",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 8,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "direccion",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 9,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "veces_por_semana",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 10,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "rutero",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 11,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "jefe_operaciones",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 12,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "gestores",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 13,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "cliente",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 14,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "supervisor",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 15,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "reponedor",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 16,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "lunes",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 17,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "martes",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 18,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "miercoles",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 19,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "jueves",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 20,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "viernes",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 21,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "sabado",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 22,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "domingo",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 23,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "visita_mensual",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 24,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "dif",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 25,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "obs",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 26,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "aux",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 27,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "gg",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 28,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "modalidad",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 29,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "row_hash",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 30,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "ordinal_position": 31,
+          "udt_name": "text"
+        },
+        {
+          "column_default_present": false,
+          "column_name": "source_row",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "ordinal_position": 32,
+          "udt_name": "int4"
+        },
+        {
+          "column_default_present": true,
+          "column_name": "ingested_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "ordinal_position": 33,
+          "udt_name": "timestamptz"
+        }
+      ],
+      "comment": null,
+      "comment_captured": true,
+      "constraints": [
+        {
+          "constraint_name": "ruta_rutero_pkey",
+          "constraint_type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "constraint_name": "uq_ruta_rutero_source_row",
+          "constraint_type": "u",
+          "definition": "UNIQUE (source, source_row)"
+        }
+      ],
+      "description_present": false,
+      "exists": true,
+      "grants": [
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "anon",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "DELETE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "INSERT"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "MAINTAIN"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "REFERENCES"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRIGGER"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "TRUNCATE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "UPDATE"
+        },
+        {
+          "grantee": "stock_zero_readonly",
+          "grantor": "postgres",
+          "is_grantable": "NO",
+          "privilege_type": "SELECT"
+        }
+      ],
+      "indexes": [
+        {
+          "definition": "CREATE INDEX idx_ruta_rutero_cod_rt ON public.ruta_rutero USING btree (cod_rt)",
+          "index_name": "idx_ruta_rutero_cod_rt"
+        },
+        {
+          "definition": "CREATE INDEX idx_ruta_rutero_cod_rt_cliente ON public.ruta_rutero USING btree (cod_rt, cliente)",
+          "index_name": "idx_ruta_rutero_cod_rt_cliente"
+        },
+        {
+          "definition": "CREATE INDEX idx_ruta_rutero_codrt_cliente_gestor_norm ON public.ruta_rutero USING btree (cod_rt, upper(TRIM(BOTH FROM COALESCE(cliente, ''::text))), upper(TRIM(BOTH FROM COALESCE(gestores, ''::text)))) WHERE (NULLIF(TRIM(BOTH FROM COALESCE(gestores, ''::text)), ''::text) IS NOT NULL)",
+          "index_name": "idx_ruta_rutero_codrt_cliente_gestor_norm"
+        },
+        {
+          "definition": "CREATE INDEX idx_ruta_rutero_codrt_cliente_norm ON public.ruta_rutero USING btree (cod_rt, upper(TRIM(BOTH FROM COALESCE(cliente, ''::text))))",
+          "index_name": "idx_ruta_rutero_codrt_cliente_norm"
+        },
+        {
+          "definition": "CREATE INDEX idx_ruta_rutero_codrt_cliente_supervisor_norm ON public.ruta_rutero USING btree (cod_rt, upper(TRIM(BOTH FROM COALESCE(cliente, ''::text))), upper(TRIM(BOTH FROM COALESCE(supervisor, ''::text)))) WHERE (NULLIF(TRIM(BOTH FROM COALESCE(supervisor, ''::text)), ''::text) IS NOT NULL)",
+          "index_name": "idx_ruta_rutero_codrt_cliente_supervisor_norm"
+        },
+        {
+          "definition": "CREATE INDEX idx_ruta_rutero_gestores ON public.ruta_rutero USING btree (gestores)",
+          "index_name": "idx_ruta_rutero_gestores"
+        },
+        {
+          "definition": "CREATE INDEX idx_ruta_rutero_modalidad_rr ON public.ruta_rutero USING btree (modalidad, rutero, reponedor)",
+          "index_name": "idx_ruta_rutero_modalidad_rr"
+        },
+        {
+          "definition": "CREATE INDEX idx_ruta_rutero_supervisor ON public.ruta_rutero USING btree (supervisor)",
+          "index_name": "idx_ruta_rutero_supervisor"
+        },
+        {
+          "definition": "CREATE UNIQUE INDEX ruta_rutero_pkey ON public.ruta_rutero USING btree (id)",
+          "index_name": "ruta_rutero_pkey"
+        },
+        {
+          "definition": "CREATE UNIQUE INDEX uq_ruta_rutero_source_row ON public.ruta_rutero USING btree (source, source_row)",
+          "index_name": "uq_ruta_rutero_source_row"
+        }
+      ],
+      "name": "ruta_rutero",
+      "owner": "postgres",
+      "relacl": [
+        "postgres=arwdDxtm/postgres",
+        "anon=arwdDxtm/postgres",
+        "authenticated=arwdDxtm/postgres",
+        "service_role=arwdDxtm/postgres",
+        "stock_zero_readonly=r/postgres"
+      ],
+      "relkind": "r",
+      "reloptions": [],
+      "schema": "public",
+      "view_definition": null,
+      "view_definition_sha256": null,
+      "view_options": null
+    }
+  },
+  "technical_catalog_fingerprint_sha256": "721D879A67330C19E68A26084F284C44E62CD1DFC36F46B0A45F130DCF2059BB"
+}
