@@ -1,0 +1,98 @@
+{
+  "phase": "CLEANUP_REGISTER_NO_DROP",
+  "verdict": "REGISTER_READY",
+  "date": "2026-06-20",
+  "main_commit_reference": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
+  "objects_scanned": 142,
+  "objects_classified": 142,
+  "keep_active": 136,
+  "stop_unknown": 6,
+  "deprecate_candidates": 0,
+  "archive_candidates": 0,
+  "drop_candidates": 0,
+  "executive_summary": {
+    "purpose": "Consolidate the Supabase cleanup discovery decision register for STOCK_ZERO without DB access, SQL execution, archive, deprecation, or destructive action.",
+    "sources_consolidated": [
+      "SUPABASE_CLEANUP_DISCOVERY_AND_PLAN_NO_DROP",
+      "CLAUDE_CLEANUP_MATRIX_CRITICAL_REVIEW",
+      "CODEX_CLEANUP_SECOND_PASS_TARGETED_READ_ONLY"
+    ],
+    "status": "Discovery is decision-registered as NO_DROP. The second pass supersedes the first-pass cleanup candidate posture."
+  },
+  "global_classification": {
+    "objects_scanned": 142,
+    "objects_classified": 142,
+    "keep_active": 136,
+    "keep_audit": 0,
+    "deprecate_candidate_review_only": 0,
+    "archive_candidate_review_only": 0,
+    "drop_candidate_review_only": 0,
+    "stop_unknown": 6
+  },
+  "stop_unknown_objects": [
+    {
+      "object": "cg_core.v_cg_match_resumen",
+      "reason": "Claude-challenged object; no downstream/runtime proof, but SQL/evidence references exist."
+    },
+    {
+      "object": "cg_core.v_rr_frecuencia_base_v2",
+      "reason": "Possible coupling to resuelta/latest_week path; insufficient evidence for deprecation."
+    },
+    {
+      "object": "cg_core.v_rr_operativa_base_v2",
+      "reason": "Possible coupling to resuelta path; insufficient evidence for deprecation."
+    },
+    {
+      "object": "cg_mart.v_cg_conflictos_scope_v2",
+      "reason": "High-risk mart view; no runtime/downstream proof strong enough for action."
+    },
+    {
+      "object": "public.v_cg_doble_marcaje_dia",
+      "reason": "Public view; low confidence and high risk. Protected by default."
+    },
+    {
+      "object": "public.v_selector_modalidad_rutero",
+      "reason": "Public selector-like view; absence from local runtime search is not proof of non-use."
+    }
+  ],
+  "protection_rule": {
+    "name": "NO_DROP_BY_DEFAULT",
+    "rule": "If evidence is incomplete, contradictory, low-confidence, public-facing, or high-risk, classify as STOP_UNKNOWN and do not drop, delete, truncate, archive, deprecate, or alter.",
+    "applies_to": [
+      "all STOP_UNKNOWN objects",
+      "all KEEP_ACTIVE objects",
+      "all raw and mart objects unless a future authorized retention policy proves otherwise"
+    ]
+  },
+  "no_drop_decision": {
+    "decision": "NO_DROP",
+    "scope": "All 142 scanned objects",
+    "destructive_actions_authorized": false,
+    "archive_authorized": false,
+    "deprecation_authorized": false,
+    "sql13_authorized": false,
+    "sql14_authorized": false,
+    "loaders_authorized": false,
+    "supabase_writes_authorized": false
+  },
+  "evidence_required_before_any_future_phase": [
+    "Human review of all 6 STOP_UNKNOWN objects.",
+    "Runtime/API usage check for public selector and public CG views.",
+    "Directed dependency replay for challenged cg_core and cg_mart views.",
+    "Explicit backup and restore plan before any archive or destructive proposal.",
+    "Fresh read-only catalog snapshot immediately before any future decision phase.",
+    "Explicit Bastian authorization naming the exact future command and phase.",
+    "Separate preflight confirming read-only or approved write mode, as applicable."
+  ],
+  "recommended_next_phase": "GOVERNANCE_KERNEL_UPDATE",
+  "safety_attestation": {
+    "supabase_access": false,
+    "sql_executed": false,
+    "ddl_executed": false,
+    "dml_destructive_executed": false,
+    "loaders_executed": false,
+    "files_modified_by_this_register_phase": [
+      "research/SUPABASE_CLEANUP_NO_DROP_REGISTER_20260620.json"
+    ]
+  }
+}
