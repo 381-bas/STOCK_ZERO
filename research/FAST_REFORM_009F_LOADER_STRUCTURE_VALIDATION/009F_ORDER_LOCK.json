@@ -1,0 +1,60 @@
+{
+  "phase": "FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION",
+  "artifact": "009F_ORDER_LOCK",
+  "status": "CLOSED_FOR_009F_CHECKPOINT",
+  "created_from": "chat_control_decision",
+  "purpose": "Freeze execution order before closing 009F. This file records the order lock that was previously only present in chat.",
+  "order_lock": {
+    "step_1": "cerrar 009F carga/contrato con ayuda de Claude",
+    "step_2": "dejar checkpoint seguro con evidencia mínima",
+    "step_3": "después del checkpoint, ordenar y limpiar carpetas/archivos",
+    "step_4": "no salir de este orden"
+  },
+  "forbidden_now": [
+    "limpiar carpetas",
+    "mover archivos",
+    "borrar scripts",
+    "hacer commit de limpieza",
+    "seguir creando scripts sin cierre",
+    "entrar a 009G sin 009F cerrado",
+    "DB apply",
+    "normalizar artefacto final",
+    "diseñar SQL apply 009G"
+  ],
+  "allowed_now": [
+    "parchear validador 009F",
+    "ejecutar validación local read-only",
+    "registrar evidencia mínima",
+    "revisar diff antes de commit"
+  ],
+  "close_condition": [
+    "PASS_LOADER_CONTRACT",
+    "Fecha de subida excluida del stable_hash",
+    "Hora clasificada",
+    "Comentarios clasificada",
+    "week_start validado",
+    "row_count_n_fotos_mismatch_events bloqueante",
+    "sin DB apply",
+    "sin movimiento de archivos"
+  ],
+  "closed_at": "2026-06-28T18:39:15",
+  "009F_closeout": {
+    "verdict": "PASS_LOADER_CONTRACT",
+    "real_content_conflict_event_ids": 0,
+    "row_count_n_fotos_mismatch_events": 0,
+    "week_start_contract_pass": true,
+    "hora_classification": "PHOTO_LEVEL",
+    "tipo_de_tarea_classification": "PHOTO_LEVEL",
+    "tipo_de_tarea_excluded_from_stable_hash": true,
+    "comentarios_classification": "EVENT_STABLE",
+    "db_apply": false,
+    "file_movement": false
+  },
+  "post_checkpoint_required_backlog": [
+    "governance/AGENT_ACCESS_POLICY.json",
+    "governance/EXECUTION_DOCTRINE.md",
+    "governance/ACTIVE_ORDER_LOCK.json",
+    "contracts/control_gestion/kpione2_photo_export_contract_v1.json"
+  ],
+  "post_checkpoint_rule": "Do not start 009G until 009F checkpoint is committed. Governance/contracts are next-phase backlog, not chat memory."
+}

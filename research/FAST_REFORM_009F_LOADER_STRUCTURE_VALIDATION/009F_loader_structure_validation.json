@@ -1,0 +1,211 @@
+{
+  "phase": "FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION",
+  "verdict": "PASS_LOADER_CONTRACT",
+  "generated_at": "2026-06-28T18:40:21",
+  "source_file": "data\\photo-excel-admin_1782440454408.xlsx",
+  "source_file_exists": true,
+  "sheet_name": "Fotos",
+  "db_apply": false,
+  "file_movement": false,
+  "expected": {
+    "photo_rows": 37908,
+    "distinct_event_ids": 5892,
+    "fecha_min": "2026-06-20",
+    "fecha_max": "2026-06-24",
+    "required_dates": [
+      "2026-06-20",
+      "2026-06-21",
+      "2026-06-22",
+      "2026-06-23",
+      "2026-06-24"
+    ],
+    "expected_weeks_present": [
+      "2026-06-15",
+      "2026-06-22"
+    ],
+    "week_start_contract": {
+      "2026-06-20": "2026-06-15",
+      "2026-06-21": "2026-06-15",
+      "2026-06-22": "2026-06-22"
+    }
+  },
+  "errors": [],
+  "warnings": [
+    "Hora varies within 5864 event IDs; excluded from stable_hash",
+    "Tipo de Tarea varies within 5854 event IDs; excluded from stable_hash"
+  ],
+  "source_file_sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+  "source_file_size_bytes": 2621405,
+  "sheet_names": [
+    "Fotos"
+  ],
+  "columns": [
+    "ID",
+    "SP Item ID",
+    "Holding",
+    "Subcadena",
+    "Codigo Local",
+    "Marca",
+    "Local",
+    "Direccion",
+    "Reponedor",
+    "Fecha",
+    "Fecha de subida",
+    "Hora",
+    "Tipo de Tarea",
+    "Foto Nº/Total",
+    "Comentarios",
+    "Link Foto"
+  ],
+  "missing_required_columns": [],
+  "photo_count_column": "Foto Nº/Total",
+  "photo_count_contract": "FOTO_NUM_TOTAL_DERIVED",
+  "confirmed_photo_level_columns": [
+    "Foto Nº/Total",
+    "Link Foto",
+    "Fecha de subida"
+  ],
+  "grain_contract": {
+    "input_grain": "photo_row",
+    "normalized_grain": "event_row",
+    "compliance_grain": "day_presence",
+    "forbidden_assumption": "one_excel_row_equals_one_visit"
+  },
+  "column_contract": {
+    "event_stable_columns_used_for_hash": [
+      "ID",
+      "SP Item ID",
+      "Holding",
+      "Subcadena",
+      "Codigo Local",
+      "Marca",
+      "Local",
+      "Direccion",
+      "Reponedor",
+      "Fecha",
+      "Comentarios"
+    ],
+    "photo_level_columns_excluded_from_hash": [
+      "Fecha de subida",
+      "Foto Nº/Total",
+      "Hora",
+      "Link Foto",
+      "Tipo de Tarea"
+    ],
+    "column_classification": [
+      {
+        "column": "hora",
+        "actual_column": "Hora",
+        "classification": "PHOTO_LEVEL",
+        "variable_events": 5864,
+        "max_distinct_values_within_event": 42
+      },
+      {
+        "column": "tipo de tarea",
+        "actual_column": "Tipo de Tarea",
+        "classification": "PHOTO_LEVEL",
+        "variable_events": 5854,
+        "max_distinct_values_within_event": 6
+      },
+      {
+        "column": "comentarios",
+        "actual_column": "Comentarios",
+        "classification": "EVENT_STABLE",
+        "variable_events": 0,
+        "max_distinct_values_within_event": 1
+      }
+    ]
+  },
+  "metrics": {
+    "photo_rows": 37908,
+    "distinct_event_ids": 5892,
+    "fecha_min": "2026-06-20",
+    "fecha_max": "2026-06-24",
+    "dates_present": [
+      "2026-06-20",
+      "2026-06-21",
+      "2026-06-22",
+      "2026-06-23",
+      "2026-06-24"
+    ],
+    "weeks_present": [
+      "2026-06-15",
+      "2026-06-22"
+    ],
+    "null_event_id_rows": 0,
+    "null_fecha_rows": 0,
+    "null_n_fotos_calculado_rows": 0,
+    "event_ids_multi_fecha": 0,
+    "event_ids_multi_week": 0,
+    "exact_duplicate_photo_rows": 0,
+    "real_content_conflict_event_ids": 0,
+    "row_count_n_fotos_mismatch_events": 0
+  },
+  "week_start_checks": {
+    "2026-06-20": {
+      "expected_week_start": "2026-06-15",
+      "actual_week_start": "2026-06-15",
+      "pass": true
+    },
+    "2026-06-21": {
+      "expected_week_start": "2026-06-15",
+      "actual_week_start": "2026-06-15",
+      "pass": true
+    },
+    "2026-06-22": {
+      "expected_week_start": "2026-06-22",
+      "actual_week_start": "2026-06-22",
+      "pass": true
+    }
+  },
+  "daily_coverage": [
+    {
+      "coverage_date": "2026-06-20",
+      "photo_rows": 8550,
+      "distinct_event_ids": 1286
+    },
+    {
+      "coverage_date": "2026-06-21",
+      "photo_rows": 98,
+      "distinct_event_ids": 11
+    },
+    {
+      "coverage_date": "2026-06-22",
+      "photo_rows": 9982,
+      "distinct_event_ids": 1556
+    },
+    {
+      "coverage_date": "2026-06-23",
+      "photo_rows": 9189,
+      "distinct_event_ids": 1460
+    },
+    {
+      "coverage_date": "2026-06-24",
+      "photo_rows": 10089,
+      "distinct_event_ids": 1579
+    }
+  ],
+  "flags": {
+    "photo_rows_match": true,
+    "distinct_event_ids_match": true,
+    "fecha_min_match": true,
+    "fecha_max_match": true,
+    "required_dates_match": true,
+    "expected_weeks_present_match": true,
+    "week_start_contract_pass": true,
+    "no_null_event_id_rows": true,
+    "no_null_fecha_rows": true,
+    "no_null_n_fotos_calculado_rows": true,
+    "no_event_ids_multi_fecha": true,
+    "no_event_ids_multi_week": true,
+    "no_row_count_n_fotos_mismatch_events": true,
+    "no_real_content_conflict_event_ids": true,
+    "optional_columns_classified": true
+  },
+  "outputs": {
+    "json": "research\\FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION\\009F_loader_structure_validation.json",
+    "daily_coverage_csv": "research\\FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION\\009F_day_coverage.csv",
+    "column_classification_csv": "research\\FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION\\009F_column_classification.csv",
+    "real_content_conflict_sample_csv": "research\\FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION\\009F_real_content_conflict_sample.csv"
+  }
+}
