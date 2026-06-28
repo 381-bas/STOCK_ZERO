@@ -1,0 +1,112 @@
+{
+  "phase": "FAST_REFORM_009F_ALL_COLUMNS_GRAIN_DIAGNOSTIC",
+  "generated_at": "2026-06-28T18:10:46",
+  "source_file": "data\\photo-excel-admin_1782440454408.xlsx",
+  "db_apply": false,
+  "file_movement": false,
+  "rows": 37908,
+  "distinct_event_ids": 5892,
+  "top_variable_columns": [
+    {
+      "column": "Foto Nº/Total",
+      "variable_events": 5864,
+      "max_distinct_values_within_event": 42,
+      "suggested_classification": "PHOTO_LEVEL_CONFIRMED"
+    },
+    {
+      "column": "Hora",
+      "variable_events": 5864,
+      "max_distinct_values_within_event": 42,
+      "suggested_classification": "PHOTO_LEVEL_CONFIRMED"
+    },
+    {
+      "column": "Link Foto",
+      "variable_events": 5864,
+      "max_distinct_values_within_event": 42,
+      "suggested_classification": "PHOTO_LEVEL_CONFIRMED"
+    },
+    {
+      "column": "Tipo de Tarea",
+      "variable_events": 5854,
+      "max_distinct_values_within_event": 6,
+      "suggested_classification": "REVIEW_LIKELY_PHOTO_LEVEL_OR_CONFLICT_SOURCE"
+    },
+    {
+      "column": "Codigo Local",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "Comentarios",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "Direccion",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "Fecha",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "Fecha de subida",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "Holding",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "ID",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "Local",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "Marca",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "Reponedor",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "SP Item ID",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    },
+    {
+      "column": "Subcadena",
+      "variable_events": 0,
+      "max_distinct_values_within_event": 1,
+      "suggested_classification": "EVENT_STABLE"
+    }
+  ],
+  "outputs": {
+    "json": "research\\FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION\\009F_all_columns_grain_diagnostic.json",
+    "csv": "research\\FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION\\009F_all_columns_grain_diagnostic.csv",
+    "sample_csv": "research\\FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION\\009F_remaining_conflict_sample.csv"
+  }
+}
