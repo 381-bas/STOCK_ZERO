@@ -1,0 +1,38 @@
+{
+  "artifact": "ACTIVE_ORDER_LOCK",
+  "project": "STOCK_ZERO",
+  "status": "ACTIVE",
+  "phase": "FAST_REFORM_009F_GOVERNANCE_PROMOTION",
+  "base_main_commit": "df04e17",
+  "order": [
+    "009F merged to main",
+    "promote governance and contract files",
+    "then perform organization / cleanup phase",
+    "then continue with next implementation phase"
+  ],
+  "allowed_now": [
+    "create governance/AGENT_ACCESS_POLICY.json",
+    "create governance/EXECUTION_DOCTRINE.md",
+    "create governance/ACTIVE_ORDER_LOCK.json",
+    "create contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+    "validate JSON syntax",
+    "review diff",
+    "commit governance promotion"
+  ],
+  "forbidden_now": [
+    "DB apply",
+    "009G implementation",
+    "SQL apply design",
+    "file cleanup",
+    "data movement",
+    "new loader patch",
+    "git add ."
+  ],
+  "close_condition": [
+    "four governance/contract files created",
+    "JSON files parse successfully",
+    "diff reviewed",
+    "commit created",
+    "push completed"
+  ]
+}

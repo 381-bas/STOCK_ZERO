@@ -1,0 +1,29 @@
+{
+  "artifact": "AGENT_ACCESS_POLICY",
+  "project": "STOCK_ZERO",
+  "status": "ACTIVE",
+  "created_after_main_commit": "df04e17",
+  "purpose": "Define filesystem/repo access assumptions for agents to avoid repeating chat-only ambiguity.",
+  "agents": {
+    "ChatGPT": {
+      "filesystem_access": false,
+      "repo_root": null,
+      "role": "controller_gatekeeper",
+      "requires_user_terminal_outputs": true,
+      "must_not_assume_external_agent_status": true
+    },
+    "Claude": {
+      "filesystem_access": true,
+      "repo_root": "C:\\Users\\basti\\Desktop\\STOCK_ZERO",
+      "role": "critical_auditor_contract_reviewer",
+      "default_prompt_mode": "use_local_paths",
+      "do_not_attach_files_unless": "Claude reports filesystem access failure"
+    },
+    "Codex": {
+      "filesystem_access": true,
+      "repo_root": "C:\\Users\\basti\\Desktop\\STOCK_ZERO",
+      "role": "executor_implementer_after_contract_lock"
+    }
+  },
+  "rule": "Chat discussion does not govern execution. Repo files and committed evidence govern execution."
+}

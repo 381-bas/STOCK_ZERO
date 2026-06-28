@@ -1,0 +1,104 @@
+{
+  "artifact": "kpione2_photo_export_contract_v1",
+  "project": "STOCK_ZERO",
+  "module": "CONTROL_GESTION",
+  "status": "ACTIVE",
+  "created_after_phase": "FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION",
+  "source_export": {
+    "file_pattern": "photo-excel-admin_*.xlsx",
+    "sheet": "Fotos",
+    "example_file": "data/photo-excel-admin_1782440454408.xlsx",
+    "example_sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180"
+  },
+  "grain_contract": {
+    "input_grain": "photo_row",
+    "normalized_grain": "event_row",
+    "compliance_grain": "day_presence",
+    "forbidden_assumption": "one_excel_row_equals_one_visit"
+  },
+  "event_identity": [
+    "ID",
+    "SP Item ID"
+  ],
+  "denominator_mapping": {
+    "Codigo Local": "cod_rt",
+    "Marca": "cliente_norm"
+  },
+  "event_stable_hash_columns": [
+    "ID",
+    "SP Item ID",
+    "Holding",
+    "Subcadena",
+    "Codigo Local",
+    "Marca",
+    "Local",
+    "Direccion",
+    "Reponedor",
+    "Fecha",
+    "Comentarios"
+  ],
+  "excluded_from_stable_hash": [
+    {
+      "column": "Foto Nº/Total",
+      "classification": "PHOTO_LEVEL",
+      "reason": "photo sequence/count denominator"
+    },
+    {
+      "column": "Link Foto",
+      "classification": "PHOTO_LEVEL",
+      "reason": "per-photo URL"
+    },
+    {
+      "column": "Hora",
+      "classification": "PHOTO_LEVEL",
+      "reason": "varies within event ID"
+    },
+    {
+      "column": "Tipo de Tarea",
+      "classification": "PHOTO_LEVEL_TASK_LABEL",
+      "reason": "task label varies by photo within same visit event"
+    },
+    {
+      "column": "Fecha de subida",
+      "classification": "AUDIT_ONLY_EXCLUDED_BY_POLICY",
+      "reason": "upload metadata must not affect visit identity hash"
+    }
+  ],
+  "derived_fields": {
+    "event_key": "trim(ID)",
+    "week_start": "monday_start_from_Fecha",
+    "n_fotos_calculado": "max(parse_total(Foto Nº/Total)) per ID",
+    "photo_rows": "count rows per ID",
+    "tipos_de_tarea": "sorted distinct list of Tipo de Tarea per ID",
+    "hora_primera_foto": "min(Hora) per ID"
+  },
+  "blocking_validations": [
+    "photo_rows_match",
+    "distinct_event_ids_match",
+    "fecha_min_match",
+    "fecha_max_match",
+    "required_dates_match",
+    "expected_weeks_present_match",
+    "week_start_contract_pass",
+    "no_null_event_id_rows",
+    "no_null_fecha_rows",
+    "no_null_n_fotos_calculado_rows",
+    "no_event_ids_multi_fecha",
+    "no_event_ids_multi_week",
+    "no_row_count_n_fotos_mismatch_events",
+    "no_real_content_conflict_event_ids",
+    "optional_columns_classified"
+  ],
+  "009F_evidence": {
+    "verdict": "PASS_LOADER_CONTRACT",
+    "photo_rows": 37908,
+    "distinct_event_ids": 5892,
+    "fecha_min": "2026-06-20",
+    "fecha_max": "2026-06-24",
+    "real_content_conflict_event_ids": 0,
+    "row_count_n_fotos_mismatch_events": 0,
+    "week_start_contract_pass": true,
+    "db_apply": false,
+    "file_movement": false
+  }
+}
