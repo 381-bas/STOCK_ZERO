@@ -2,28 +2,25 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_AND_ROUTE_B_LOCK",
-  "base_main_commit": "cb31816",
+  "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_ACTIVE",
+  "base_main_commit": "4a87d12",
   "order": [
-    "Create delegated agent authority governance for Claude and Codex.",
-    "Define GREEN/YELLOW/ORANGE/RED authority levels.",
-    "Reduce user copy/paste by requiring durable repo/PR evidence where possible.",
-    "Preserve Route B readiness without implementation.",
-    "Keep DB apply, SQL apply, data movement, worktree deletion and merge to main as RED actions."
+    "Delegated agent authority is active.",
+    "No Route B implementation phase is active yet.",
+    "Next work may propose a Route B implementation lock from main.",
+    "GREEN/YELLOW/ORANGE/RED authority model governs Claude, Codex, ChatGPT and Bastián."
   ],
   "allowed_now": [
-    "create governance artifacts",
-    "create research artifacts",
-    "update phase lock",
-    "validate JSON",
-    "commit governance-only changes",
-    "open PR"
+    "read bootstrap and governance status",
+    "use AGENT_AUTHORITY_MATRIX_V2 as active governance",
+    "ask Claude for cross-audit under ORANGE rules",
+    "ask Codex for branch-contained work only after a new phase lock",
+    "propose Route B implementation lock"
   ],
   "forbidden_now": [
-    "009G implementation",
     "DB apply",
-    "SQL apply",
-    "loader patch",
+    "SQL apply against Supabase real",
+    "loader patch without ORANGE audit",
     "data movement",
     "worktree deletion",
     "destructive cleanup",
@@ -31,14 +28,12 @@
     "git add ."
   ],
   "close_condition": [
-    "AGENT_AUTHORITY_MATRIX_V2 exists",
-    "DELEGATED_AGENT_WORKFLOW exists",
-    "009G phase lock exists",
-    "research README exists",
-    "PROJECT_STATUS_INDEX points to 009G phase",
-    "ACTIVE_ORDER_LOCK points to 009G phase",
-    "PR merged to main"
+    "009G authority matrix active",
+    "009G phase lock marked MERGED_TO_MAIN",
+    "PROJECT_STATUS_INDEX active_branch is NONE",
+    "ACTIVE_ORDER_LOCK active_branch is NONE",
+    "next phase requires explicit Route B implementation lock"
   ],
-  "next_allowed_phase_after_close": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_ONLY_AFTER_009G_MERGE",
-  "active_branch": "lab/FAST_REFORM_009G_agent_authority_and_route_b_lock"
+  "next_allowed_phase_after_close": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_LOCK",
+  "active_branch": "NONE"
 }

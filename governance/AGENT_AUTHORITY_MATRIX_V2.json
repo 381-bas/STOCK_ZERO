@@ -1,7 +1,7 @@
 {
   "artifact": "AGENT_AUTHORITY_MATRIX_V2",
   "project": "STOCK_ZERO",
-  "status": "DRAFT_UNTIL_MERGED",
+  "status": "ACTIVE",
   "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_AND_ROUTE_B_LOCK",
   "created_from_main_commit": "cb31816",
   "created_at_utc": "2026-06-29T01:43:15+00:00",
@@ -193,5 +193,8 @@
       "SQL apply remains RED",
       "loader patch is ORANGE until audited"
     ]
-  }
+  },
+  "activated_by_pr": 24,
+  "activated_at_main_commit": "4a87d12",
+  "activated_at_utc": "2026-06-29T02:15:08+00:00"
 }
