@@ -1,0 +1,75 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION",
+  "status": "ACTIVE_UNTIL_MERGED",
+  "branch": "lab/FAST_REFORM_010C_route_b_review_and_dry_run_validation",
+  "base_main_commit": "c56dcfb",
+  "created_at_utc": "2026-06-29T19:05:33+00:00",
+  "objective": "Version additive Route B dry-run implementation assets, tests, review-only SQL, rollback note and validation evidence without applying DB/SQL real.",
+  "source_audit": "research/010B_route_b_claude_audit/CLAUDE_ROUTE_B_AUDIT.md",
+  "active_contract": "contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+  "must_preserve": [
+    "photo_row -> event_row -> day_presence",
+    "forbidden_assumption: one_excel_row_equals_one_visit"
+  ],
+  "codex_outputs_expected": [
+    "scripts/load_kpione2_photo_from_excel.py",
+    "tests/test_kpione2_photo_grain.py",
+    "sql/15_kpione2_photo_raw_ddl.sql",
+    "sql/16_kpione2_photo_raw_ddl_rollback.sql",
+    "research/010C_route_b_dry_run_validation/CODEX_DRY_RUN_OUTPUT.json",
+    "research/010C_route_b_dry_run_validation/CODEX_CONTRACT_IMPACT.md",
+    "research/010C_route_b_dry_run_validation/CODEX_ROLLBACK_NOTE.md",
+    "research/010C_route_b_dry_run_validation/CODEX_DIFF_SUMMARY.md"
+  ],
+  "local_validation_observed": {
+    "preflight": "WARN_CONTROLLED",
+    "scanner": "OK",
+    "syntax_errors": 0,
+    "tests": "PASS_9_TESTS",
+    "dry_run_verdict": "PASS_ROUTE_B_DRY_RUN",
+    "photo_rows": 37908,
+    "distinct_event_ids": 5892,
+    "fecha_min": "2026-06-20",
+    "fecha_max": "2026-06-24",
+    "db_apply": false,
+    "sql_apply": false,
+    "productive_loader_touched": false
+  },
+  "allowed_actions": [
+    "commit additive loader",
+    "commit tests",
+    "commit review-only SQL files with -- NO APPLY header",
+    "commit dry-run output JSON",
+    "commit contract impact note",
+    "commit rollback note",
+    "commit diff summary",
+    "open PR for review",
+    "request Claude post-audit if ORANGE review surface remains"
+  ],
+  "forbidden_actions": [
+    "DB apply",
+    "SQL apply against Supabase real",
+    "modify load_control_gestion_raw_v17.py",
+    "modify active contract",
+    "modify productive compliance views",
+    "data movement",
+    "destructive cleanup",
+    "worktree deletion",
+    "merge to main without review",
+    "git add ."
+  ],
+  "close_condition": [
+    "all Codex 010C outputs versioned",
+    "json validation passes",
+    "python compile passes",
+    "unit tests pass",
+    "dry-run output says PASS_ROUTE_B_DRY_RUN",
+    "db_apply=false",
+    "sql_apply=false",
+    "productive_loader_touched=false",
+    "PR reviewed and merged to main"
+  ],
+  "next_allowed_phase_after_close": "FAST_REFORM_010D_ROUTE_B_CLAUDE_POST_AUDIT_OR_PR_REVIEW"
+}
