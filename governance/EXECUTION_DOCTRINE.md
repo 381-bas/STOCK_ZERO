@@ -42,3 +42,15 @@ Each phase must define:
 4. Chat conversation
 
 Chat alone is not a source of truth.
+
+## Display artifact rule
+
+JSON blocks, tables, drafts, diagrams, or structured summaries shown in chat are previews only.
+
+If any displayed artifact affects business rules, data contracts, execution order, agent behavior, loader behavior, database policy, cleanup policy, or implementation scope, it must be promoted to a versioned repository artifact before it can govern execution.
+
+The required promotion path is:
+
+`preview -> target artifact -> diff/script -> validation -> commit -> push -> PR -> merge to main`
+
+No operational rule is considered durable until it exists in the repository.
