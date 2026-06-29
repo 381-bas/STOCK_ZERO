@@ -1,0 +1,36 @@
+{
+  "artifact": "009F_OPTIONAL_BRANCH_DELETE_GATE_RESULT",
+  "project": "STOCK_ZERO",
+  "gate": "OPTIONAL_BRANCH_DELETE_GATE_FOR_SAFE_009F_BRANCHES",
+  "status": "COMPLETED",
+  "base_main_commit": "a91fc60",
+  "deleted_local_branches": [
+    "lab/FAST_REFORM_009F_loader_structure_validation",
+    "lab/FAST_REFORM_009F_governance_promotion",
+    "lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout"
+  ],
+  "deleted_remote_branches": [
+    "origin/lab/FAST_REFORM_009F_loader_structure_validation",
+    "origin/lab/FAST_REFORM_009F_governance_promotion",
+    "origin/lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout"
+  ],
+  "remaining_009F_branches_after_gate": [
+    "lab/FAST_REFORM_009F_repo_organization_cleanup",
+    "origin/lab/FAST_REFORM_009F_repo_organization_cleanup"
+  ],
+  "protected_worktree_branches_untouched": [
+    "codex/CG005G-route-lock-rollback-correction",
+    "codex/CG005N-package-correction",
+    "codex/PLATFORM_005B-load-observation-correction",
+    "codex/supabase-cleanup-no-drop-register",
+    "lab/CG005I_M-route-weekly-replacement"
+  ],
+  "worktrees_touched": false,
+  "productive_code_changed": false,
+  "db_changed": false,
+  "sql_changed": false,
+  "loader_changed": false,
+  "data_moved": false,
+  "evidence_source": "local terminal validation after PR #22 merge",
+  "recorded_at_utc": "2026-06-29T01:00:04+00:00"
+}
