@@ -2,38 +2,46 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_ACTIVE",
-  "base_main_commit": "4a87d12",
+  "phase": "FAST_REFORM_010A_ROUTE_B_IMPLEMENTATION_LOCK",
+  "base_main_commit": "36654d1",
   "order": [
-    "Delegated agent authority is active.",
-    "No Route B implementation phase is active yet.",
-    "Next work may propose a Route B implementation lock from main.",
-    "GREEN/YELLOW/ORANGE/RED authority model governs Claude, Codex, ChatGPT and Bastián."
+    "Define Route B implementation lock under active delegated agent authority.",
+    "Correct 009G activation metadata to PR #25 / main @ 36654d1.",
+    "Prepare Claude audit brief and Codex execution brief.",
+    "Do not implement Route B in this phase.",
+    "Keep DB apply, SQL apply, loader patch, data movement and worktree deletion forbidden."
   ],
   "allowed_now": [
-    "read bootstrap and governance status",
-    "use AGENT_AUTHORITY_MATRIX_V2 as active governance",
-    "ask Claude for cross-audit under ORANGE rules",
-    "ask Codex for branch-contained work only after a new phase lock",
-    "propose Route B implementation lock"
+    "create Route B implementation lock",
+    "create Claude audit brief",
+    "create Codex execution brief",
+    "create research README",
+    "update PROJECT_STATUS_INDEX",
+    "update ACTIVE_ORDER_LOCK",
+    "validate JSON",
+    "commit governance/research only",
+    "open PR"
   ],
   "forbidden_now": [
     "DB apply",
     "SQL apply against Supabase real",
-    "loader patch without ORANGE audit",
+    "loader patch",
     "data movement",
     "worktree deletion",
     "destructive cleanup",
+    "production cutover",
     "merge to main without review",
     "git add ."
   ],
   "close_condition": [
-    "009G authority matrix active",
-    "009G phase lock marked MERGED_TO_MAIN",
-    "PROJECT_STATUS_INDEX active_branch is NONE",
-    "ACTIVE_ORDER_LOCK active_branch is NONE",
-    "next phase requires explicit Route B implementation lock"
+    "010A phase lock exists",
+    "Claude audit brief exists",
+    "Codex execution brief exists",
+    "research README exists",
+    "PROJECT_STATUS_INDEX points to 010A",
+    "ACTIVE_ORDER_LOCK points to 010A",
+    "PR merged to main"
   ],
-  "next_allowed_phase_after_close": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_LOCK",
-  "active_branch": "NONE"
+  "next_allowed_phase_after_close": "FAST_REFORM_010B_ROUTE_B_CODEX_IMPLEMENTATION_AFTER_CLAUDE_AUDIT",
+  "active_branch": "lab/FAST_REFORM_010A_route_b_implementation_lock"
 }
