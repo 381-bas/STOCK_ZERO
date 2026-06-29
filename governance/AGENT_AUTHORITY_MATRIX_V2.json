@@ -1,0 +1,197 @@
+{
+  "artifact": "AGENT_AUTHORITY_MATRIX_V2",
+  "project": "STOCK_ZERO",
+  "status": "DRAFT_UNTIL_MERGED",
+  "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_AND_ROUTE_B_LOCK",
+  "created_from_main_commit": "cb31816",
+  "created_at_utc": "2026-06-29T01:43:15+00:00",
+  "purpose": "Delegate more operational authority to Claude and Codex while preserving human authorization for irreversible actions.",
+  "principles": [
+    "Branches are temporary execution tools, not memory.",
+    "Project memory lives in committed governance, contracts, research artifacts and merged PRs.",
+    "Reduce user copy/paste by requiring agents to write durable evidence into repo artifacts or PR comments.",
+    "Use Git aggressively for reversible work.",
+    "Do not treat Git as rollback for external irreversible effects.",
+    "Agent competition is useful when paired with cross-audit and explicit blast radius."
+  ],
+  "authority_levels": {
+    "GREEN": {
+      "label": "autonomy_total",
+      "requires_user_authorization": false,
+      "requires_cross_audit": false,
+      "allowed": [
+        "read repository files",
+        "inspect committed governance and contracts",
+        "create research notes under research/",
+        "create governance drafts under governance/",
+        "propose technical plans",
+        "create lab branches for explicit phase work",
+        "open draft PRs",
+        "run non-destructive local validations",
+        "comment risks in PRs or committed evidence"
+      ],
+      "forbidden": [
+        "DB apply",
+        "SQL apply against real environments",
+        "data movement",
+        "merge to main",
+        "delete worktrees",
+        "expose secrets"
+      ]
+    },
+    "YELLOW": {
+      "label": "autonomy_controlada",
+      "requires_user_authorization": false,
+      "requires_cross_audit": false,
+      "allowed": [
+        "modify tests",
+        "modify non-production scripts",
+        "create SQL files without applying them",
+        "create dry-run helpers",
+        "prepare rollback scripts as files",
+        "commit to lab/* or codex/* branches when phase lock allows commits",
+        "push feature branches",
+        "open PRs for review"
+      ],
+      "forbidden": [
+        "execute SQL against Supabase real",
+        "activate loader changes in production flow",
+        "merge to main without review",
+        "move or delete production data"
+      ]
+    },
+    "ORANGE": {
+      "label": "auditoria_cruzada_obligatoria",
+      "requires_user_authorization": false,
+      "requires_cross_audit": true,
+      "allowed_only_after_cross_audit": [
+        "modify active data contracts",
+        "modify loader logic",
+        "modify compliance calculation logic",
+        "modify route/frequency resolution logic",
+        "modify critical Streamlit runtime queries",
+        "modify SQL files that could later affect production",
+        "change expected output contracts"
+      ],
+      "cross_audit_rule": "One agent proposes and another agent audits before PR is considered merge-ready.",
+      "minimum_evidence": [
+        "contract impact note",
+        "diff summary",
+        "risk classification",
+        "rollback path",
+        "validation output"
+      ]
+    },
+    "RED": {
+      "label": "autorizacion_humana_explicita",
+      "requires_user_authorization": true,
+      "requires_cross_audit": true,
+      "blocked_without_bastian": [
+        "DB apply",
+        "SQL apply against Supabase real",
+        "DROP/TRUNCATE/DELETE destructive operations",
+        "data movement",
+        "secret rotation or secret changes",
+        "merge to main",
+        "delete worktrees",
+        "production cutover",
+        "destructive cleanup"
+      ],
+      "rule": "Git history is not considered sufficient rollback for RED actions."
+    }
+  },
+  "agent_roles": {
+    "ChatGPT": {
+      "role": "controller_gatekeeper_and_continuity_layer",
+      "filesystem_access": false,
+      "allowed": [
+        "read GitHub artifacts",
+        "evaluate phase locks",
+        "arbitrate Claude/Codex disagreement",
+        "define gates",
+        "request human approval for RED actions",
+        "avoid requiring terminal paste when evidence exists in repo or PR"
+      ],
+      "forbidden": [
+        "assume local filesystem state without evidence",
+        "authorize RED actions without Bastian",
+        "treat chat-only text as durable governance"
+      ]
+    },
+    "Claude": {
+      "role": "critical_auditor_contract_reviewer",
+      "allowed": [
+        "audit contracts",
+        "red-team Codex implementation",
+        "write audit reports to research/ or governance/",
+        "flag contradictions against active contracts",
+        "block ORANGE work until concerns are resolved"
+      ],
+      "preferred_output": [
+        "versioned markdown audit",
+        "PR review comment",
+        "risk matrix"
+      ]
+    },
+    "Codex": {
+      "role": "executor_implementer_after_contract_lock",
+      "allowed": [
+        "implement within explicit phase branch",
+        "create tests",
+        "run validations",
+        "produce evidence files",
+        "respond to Claude audit with commits or written counterarguments"
+      ],
+      "forbidden": [
+        "perform RED actions",
+        "change active contracts without ORANGE audit",
+        "merge to main",
+        "apply DB or SQL against real environments"
+      ]
+    },
+    "Bastian": {
+      "role": "owner_of_irreversible_decisions",
+      "required_for": [
+        "RED authorization",
+        "business scope change",
+        "merge approval",
+        "production cutover",
+        "credential rotation decision"
+      ]
+    }
+  },
+  "copy_paste_reduction_rule": {
+    "rule": "Important agent outputs must be persisted as repo artifacts or PR comments whenever possible.",
+    "user_terminal_output_required_only_for": [
+      "local environment errors",
+      "sensitive validation gates",
+      "RED action confirmations",
+      "cases where GitHub evidence is insufficient"
+    ]
+  },
+  "branch_lifecycle_policy": {
+    "one_lab_branch_per_phase": true,
+    "delete_phase_branch_after_merge_if_not_worktree_bound": true,
+    "branches_are_not_memory": true,
+    "memory_locations": [
+      "governance/",
+      "contracts/",
+      "research/",
+      "merged PRs"
+    ],
+    "avoid_closeout_branch_unless": [
+      "post-merge action must be versioned",
+      "external cleanup evidence must be recorded"
+    ]
+  },
+  "route_b_readiness_guardrails": {
+    "active_contract": "contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+    "must_preserve": [
+      "photo_row -> event_row -> day_presence",
+      "forbidden_assumption: one_excel_row_equals_one_visit",
+      "DB apply remains RED",
+      "SQL apply remains RED",
+      "loader patch is ORANGE until audited"
+    ]
+  }
+}

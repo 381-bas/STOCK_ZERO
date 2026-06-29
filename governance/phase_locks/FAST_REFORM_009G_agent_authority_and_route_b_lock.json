@@ -1,0 +1,53 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_AND_ROUTE_B_LOCK",
+  "status": "ACTIVE_UNTIL_MERGED",
+  "branch": "lab/FAST_REFORM_009G_agent_authority_and_route_b_lock",
+  "base_main_commit": "cb31816",
+  "created_at_utc": "2026-06-29T01:43:15+00:00",
+  "objective": "Create delegated agent authority governance and Route B readiness guardrails before any implementation work.",
+  "allowed_actions": [
+    "create AGENT_AUTHORITY_MATRIX_V2",
+    "create delegated agent workflow documentation",
+    "create research notes for 009G authority model",
+    "update PROJECT_STATUS_INDEX",
+    "update ACTIVE_ORDER_LOCK",
+    "validate JSON and markdown artifacts",
+    "commit and open PR"
+  ],
+  "forbidden_actions": [
+    "009G implementation",
+    "DB apply",
+    "SQL apply",
+    "loader patch",
+    "data movement",
+    "worktree deletion",
+    "destructive cleanup",
+    "merge to main without review",
+    "git add ."
+  ],
+  "authority_model": {
+    "GREEN": "autonomy total for reversible research and evidence",
+    "YELLOW": "controlled branch work and non-production changes",
+    "ORANGE": "cross-audit required for critical contracts/loaders/calculation logic",
+    "RED": "explicit Bastian authorization required"
+  },
+  "expected_evidence": [
+    "governance/AGENT_AUTHORITY_MATRIX_V2.json",
+    "governance/agent_workflow/DELEGATED_AGENT_WORKFLOW.md",
+    "research/009G_agent_authority/README.md",
+    "updated PROJECT_STATUS_INDEX.json",
+    "updated ACTIVE_ORDER_LOCK.json",
+    "JSON validation output",
+    "git diff --check output"
+  ],
+  "close_condition": [
+    "all 009G governance artifacts exist",
+    "JSON artifacts validate",
+    "diff contains only governance/research files",
+    "PR is reviewed and merged to main",
+    "phase branch is deleted after merge if not worktree-bound"
+  ],
+  "route_b_next_gate": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_ONLY_AFTER_009G_MERGE"
+}

@@ -34,9 +34,9 @@
       "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_009F_CLOSEOUT_COMPLETE",
-  "active_branch": "NONE",
-  "next_allowed_phase_after_close": "NEXT_PHASE_REQUIRES_EXPLICIT_ORDER_LOCK",
+  "active_phase": "FAST_REFORM_009G_AGENT_AUTHORITY_AND_ROUTE_B_LOCK",
+  "active_branch": "lab/FAST_REFORM_009G_agent_authority_and_route_b_lock",
+  "next_allowed_phase_after_close": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_ONLY_AFTER_009G_MERGE",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -63,6 +63,7 @@
     "data movement",
     "worktree deletion",
     "destructive cleanup",
+    "merge to main without review",
     "git add ."
   ],
   "rule": "Chat previews do not govern execution. Operational rules must be promoted to versioned repo artifacts through commit, PR and merge.",
@@ -74,5 +75,11 @@
   ],
   "optional_cleanup_gates_completed": [
     "OPTIONAL_BRANCH_DELETE_GATE_FOR_SAFE_009F_BRANCHES"
+  ],
+  "agent_authority_artifacts": [
+    "governance/AGENT_AUTHORITY_MATRIX_V2.json",
+    "governance/agent_workflow/DELEGATED_AGENT_WORKFLOW.md",
+    "governance/phase_locks/FAST_REFORM_009G_agent_authority_and_route_b_lock.json",
+    "research/009G_agent_authority/README.md"
   ]
 }
