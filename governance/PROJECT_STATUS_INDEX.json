@@ -32,11 +32,18 @@
       "main_merge_commit": "a91fc60",
       "included_commit": "bd56f51",
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_AND_ROUTE_B_LOCK",
+      "merge_pr": 24,
+      "main_merge_commit": "4a87d12",
+      "included_commit": "486baf5",
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_009G_AGENT_AUTHORITY_AND_ROUTE_B_LOCK",
-  "active_branch": "lab/FAST_REFORM_009G_agent_authority_and_route_b_lock",
-  "next_allowed_phase_after_close": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_ONLY_AFTER_009G_MERGE",
+  "active_phase": "FAST_REFORM_009G_AGENT_AUTHORITY_ACTIVE",
+  "active_branch": "NONE",
+  "next_allowed_phase_after_close": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_LOCK",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -56,10 +63,8 @@
     "governance/thread_summaries/PR_19_20_CLOSEOUT.md"
   ],
   "forbidden_until_close": [
-    "009G implementation",
     "DB apply",
     "SQL apply",
-    "loader patch",
     "data movement",
     "worktree deletion",
     "destructive cleanup",
@@ -81,5 +86,17 @@
     "governance/agent_workflow/DELEGATED_AGENT_WORKFLOW.md",
     "governance/phase_locks/FAST_REFORM_009G_agent_authority_and_route_b_lock.json",
     "research/009G_agent_authority/README.md"
-  ]
+  ],
+  "agent_authority_status": {
+    "matrix": "governance/AGENT_AUTHORITY_MATRIX_V2.json",
+    "status": "ACTIVE",
+    "activated_by_pr": 24,
+    "activated_at_main_commit": "4a87d12",
+    "authority_model": [
+      "GREEN",
+      "YELLOW",
+      "ORANGE",
+      "RED"
+    ]
+  }
 }

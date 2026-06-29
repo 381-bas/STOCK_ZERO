@@ -2,7 +2,7 @@
   "artifact": "PHASE_LOCK",
   "project": "STOCK_ZERO",
   "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_AND_ROUTE_B_LOCK",
-  "status": "ACTIVE_UNTIL_MERGED",
+  "status": "MERGED_TO_MAIN",
   "branch": "lab/FAST_REFORM_009G_agent_authority_and_route_b_lock",
   "base_main_commit": "cb31816",
   "created_at_utc": "2026-06-29T01:43:15+00:00",
@@ -49,5 +49,9 @@
     "PR is reviewed and merged to main",
     "phase branch is deleted after merge if not worktree-bound"
   ],
-  "route_b_next_gate": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_ONLY_AFTER_009G_MERGE"
+  "route_b_next_gate": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_ONLY_AFTER_009G_MERGE",
+  "merged_by_pr": 24,
+  "main_merge_commit": "4a87d12",
+  "closed_at_utc": "2026-06-29T02:15:08+00:00",
+  "post_merge_state": "FAST_REFORM_009G_AGENT_AUTHORITY_ACTIVE"
 }
