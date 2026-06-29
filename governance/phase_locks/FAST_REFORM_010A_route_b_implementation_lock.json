@@ -1,0 +1,93 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_010A_ROUTE_B_IMPLEMENTATION_LOCK",
+  "status": "ACTIVE_UNTIL_MERGED",
+  "branch": "lab/FAST_REFORM_010A_route_b_implementation_lock",
+  "base_main_commit": "36654d1",
+  "created_at_utc": "2026-06-29T02:27:50+00:00",
+  "objective": "Define the implementable Route B scope and delegation protocol under the active AGENT_AUTHORITY_MATRIX_V2 before Codex implementation begins.",
+  "context": {
+    "previous_phase": "FAST_REFORM_009G_AGENT_AUTHORITY_ACTIVE",
+    "agent_authority_matrix": "governance/AGENT_AUTHORITY_MATRIX_V2.json",
+    "active_contract": "contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+    "required_grain": "photo_row -> event_row -> day_presence",
+    "forbidden_assumption": "one_excel_row_equals_one_visit"
+  },
+  "route_b_target": {
+    "name": "ROUTE_B_IMPLEMENTATION_PREP",
+    "goal": "Prepare controlled implementation work for Route B without applying DB/SQL or patching production loaders in this phase.",
+    "expected_future_work": [
+      "Codex implementation branch after lock merge",
+      "Claude ORANGE audit before critical loader/contract/calculation changes",
+      "tests and dry-run validation",
+      "PR review before merge"
+    ]
+  },
+  "allowed_actions": [
+    "define Route B implementation scope",
+    "define Claude audit brief",
+    "define Codex execution brief",
+    "define required evidence for implementation PR",
+    "update PROJECT_STATUS_INDEX",
+    "update ACTIVE_ORDER_LOCK",
+    "validate JSON and markdown artifacts",
+    "commit and open PR"
+  ],
+  "forbidden_actions": [
+    "DB apply",
+    "SQL apply against Supabase real",
+    "loader patch",
+    "data movement",
+    "worktree deletion",
+    "destructive cleanup",
+    "production cutover",
+    "merge to main without review",
+    "git add ."
+  ],
+  "authority_rules": {
+    "GREEN": [
+      "read repo",
+      "create research evidence",
+      "summarize route risks"
+    ],
+    "YELLOW": [
+      "prepare branch-contained implementation plan",
+      "create tests or dry-run files in future phase",
+      "prepare SQL files without executing them in future phase"
+    ],
+    "ORANGE": [
+      "loader logic changes require Claude/Codex cross-audit",
+      "contract changes require Claude/Codex cross-audit",
+      "compliance calculation changes require Claude/Codex cross-audit",
+      "critical runtime query changes require Claude/Codex cross-audit"
+    ],
+    "RED": [
+      "DB apply requires explicit Bastian authorization",
+      "SQL apply requires explicit Bastian authorization",
+      "merge to main requires explicit review",
+      "worktree deletion requires explicit Bastian authorization",
+      "secret rotation/change requires explicit Bastian authorization"
+    ]
+  },
+  "implementation_pr_requirements": [
+    "must cite active KPIONE2 contract",
+    "must preserve photo_row -> event_row -> day_presence",
+    "must not assume one_excel_row_equals_one_visit",
+    "must include tests or dry-run validation",
+    "must include Claude audit artifact for ORANGE areas",
+    "must include rollback notes",
+    "must include no-DB-apply evidence unless RED gate is separately authorized"
+  ],
+  "close_condition": [
+    "010A phase lock exists",
+    "Claude audit brief exists",
+    "Codex execution brief exists",
+    "research README exists",
+    "PROJECT_STATUS_INDEX points to 010A",
+    "ACTIVE_ORDER_LOCK points to 010A",
+    "JSON validation passes",
+    "PR merged to main"
+  ],
+  "next_allowed_phase_after_close": "FAST_REFORM_010B_ROUTE_B_CODEX_IMPLEMENTATION_AFTER_CLAUDE_AUDIT"
+}

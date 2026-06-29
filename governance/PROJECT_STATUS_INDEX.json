@@ -39,11 +39,18 @@
       "main_merge_commit": "4a87d12",
       "included_commit": "486baf5",
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_ACTIVATION",
+      "merge_pr": 25,
+      "main_merge_commit": "36654d1",
+      "included_commit": "6b337d9",
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_009G_AGENT_AUTHORITY_ACTIVE",
-  "active_branch": "NONE",
-  "next_allowed_phase_after_close": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_LOCK",
+  "active_phase": "FAST_REFORM_010A_ROUTE_B_IMPLEMENTATION_LOCK",
+  "active_branch": "lab/FAST_REFORM_010A_route_b_implementation_lock",
+  "next_allowed_phase_after_close": "FAST_REFORM_010B_ROUTE_B_CODEX_IMPLEMENTATION_AFTER_CLAUDE_AUDIT",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -64,10 +71,12 @@
   ],
   "forbidden_until_close": [
     "DB apply",
-    "SQL apply",
+    "SQL apply against Supabase real",
+    "loader patch",
     "data movement",
     "worktree deletion",
     "destructive cleanup",
+    "production cutover",
     "merge to main without review",
     "git add ."
   ],
@@ -90,13 +99,19 @@
   "agent_authority_status": {
     "matrix": "governance/AGENT_AUTHORITY_MATRIX_V2.json",
     "status": "ACTIVE",
-    "activated_by_pr": 24,
-    "activated_at_main_commit": "4a87d12",
+    "activated_by_pr": 25,
+    "activated_at_main_commit": "36654d1",
     "authority_model": [
       "GREEN",
       "YELLOW",
       "ORANGE",
       "RED"
     ]
-  }
+  },
+  "route_b_artifacts": [
+    "governance/phase_locks/FAST_REFORM_010A_route_b_implementation_lock.json",
+    "research/010A_route_b_implementation/README.md",
+    "research/010A_route_b_implementation/CLAUDE_AUDIT_BRIEF.md",
+    "research/010A_route_b_implementation/CODEX_EXECUTION_BRIEF.md"
+  ]
 }
