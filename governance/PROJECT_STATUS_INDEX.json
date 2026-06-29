@@ -25,11 +25,18 @@
       "main_merge_commit": "5148b5d",
       "included_commit": "0f703ed",
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_009F_REPO_ORGANIZATION_CLEANUP",
+      "merge_pr": 22,
+      "main_merge_commit": "a91fc60",
+      "included_commit": "bd56f51",
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_009F_REPO_ORGANIZATION_CLEANUP",
-  "active_branch": "lab/FAST_REFORM_009F_repo_organization_cleanup",
-  "next_allowed_phase_after_close": "OPTIONAL_BRANCH_DELETE_GATE_FOR_SAFE_009F_BRANCHES",
+  "active_phase": "FAST_REFORM_009F_CLOSEOUT_COMPLETE",
+  "active_branch": "NONE",
+  "next_allowed_phase_after_close": "NEXT_PHASE_REQUIRES_EXPLICIT_ORDER_LOCK",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -54,7 +61,6 @@
     "SQL apply",
     "loader patch",
     "data movement",
-    "branch deletion",
     "worktree deletion",
     "destructive cleanup",
     "git add ."
@@ -62,6 +68,11 @@
   "rule": "Chat previews do not govern execution. Operational rules must be promoted to versioned repo artifacts through commit, PR and merge.",
   "cleanup_artifacts": [
     "governance/cleanup/009F_repo_organization_cleanup_manifest.json",
-    "governance/cleanup/009F_repo_organization_cleanup_summary.md"
+    "governance/cleanup/009F_repo_organization_cleanup_summary.md",
+    "governance/cleanup/009F_optional_branch_delete_gate_result.json",
+    "governance/cleanup/009F_cleanup_closeout_summary.md"
+  ],
+  "optional_cleanup_gates_completed": [
+    "OPTIONAL_BRANCH_DELETE_GATE_FOR_SAFE_009F_BRANCHES"
   ]
 }
