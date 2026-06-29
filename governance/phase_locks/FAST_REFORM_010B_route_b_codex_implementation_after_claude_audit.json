@@ -1,0 +1,80 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_010B_ROUTE_B_CODEX_IMPLEMENTATION_AFTER_CLAUDE_AUDIT",
+  "status": "ACTIVE_UNTIL_MERGED",
+  "branch": "lab/FAST_REFORM_010B_route_b_claude_audit_and_codex_plan",
+  "base_main_commit": "19b3204",
+  "created_at_utc": "2026-06-29T17:33:05+00:00",
+  "objective": "Authorize Codex to prepare Route B implementation after Claude audit, under the active AGENT_AUTHORITY_MATRIX_V2 semaphore model.",
+  "claude_audit_artifact": "research/010B_route_b_claude_audit/CLAUDE_ROUTE_B_AUDIT.md",
+  "active_contract": "contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+  "must_preserve": [
+    "photo_row -> event_row -> day_presence",
+    "forbidden_assumption: one_excel_row_equals_one_visit"
+  ],
+  "claude_audit_summary": {
+    "risk": "HIGH if implementation maps one Excel row directly to one visit",
+    "codex_allowed_without_red_authorization": [
+      "create additive loader script",
+      "create tests against fixture",
+      "create SQL DDL files with -- NO APPLY header",
+      "create implementation plan under research/",
+      "create dry-run validation outputs"
+    ],
+    "orange_cross_audit_required_for": [
+      "touching existing load_control_gestion_raw_v17.py",
+      "modifying compliance views/calculation logic",
+      "integrating new source into existing production pipeline",
+      "changing active contracts"
+    ],
+    "red_blocked": [
+      "DB apply",
+      "SQL apply against Supabase real",
+      "loader with real writes",
+      "merge to main",
+      "data movement",
+      "worktree deletion"
+    ]
+  },
+  "allowed_actions": [
+    "version Claude audit artifact",
+    "ask Codex to create additive Route B implementation plan",
+    "ask Codex to create additive loader script if it does not modify existing loader",
+    "ask Codex to create tests and dry-run validation",
+    "ask Codex to create SQL DDL files only with -- NO APPLY header",
+    "create rollback notes",
+    "create contract impact note",
+    "commit branch-contained evidence"
+  ],
+  "forbidden_actions": [
+    "DB apply",
+    "SQL apply against Supabase real",
+    "modify existing production loader without ORANGE audit",
+    "modify active contract without ORANGE audit",
+    "data movement",
+    "destructive cleanup",
+    "worktree deletion",
+    "merge to main without review",
+    "git add ."
+  ],
+  "codex_required_evidence": [
+    "diff summary",
+    "tests or dry-run validation",
+    "contract impact note",
+    "rollback note",
+    "db_apply=false evidence",
+    "sql_apply=false evidence",
+    "Claude audit response for ORANGE areas"
+  ],
+  "close_condition": [
+    "Claude audit artifact is versioned",
+    "010B phase lock exists",
+    "Codex plan or additive implementation evidence exists",
+    "no DB apply performed",
+    "no SQL apply performed",
+    "no destructive cleanup performed",
+    "PR reviewed and merged to main"
+  ],
+  "next_allowed_phase_after_close": "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION"
+}

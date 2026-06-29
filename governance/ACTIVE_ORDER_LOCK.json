@@ -2,46 +2,40 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_010A_ROUTE_B_IMPLEMENTATION_LOCK",
-  "base_main_commit": "36654d1",
+  "phase": "FAST_REFORM_010B_ROUTE_B_CODEX_IMPLEMENTATION_AFTER_CLAUDE_AUDIT",
+  "base_main_commit": "19b3204",
   "order": [
-    "Define Route B implementation lock under active delegated agent authority.",
-    "Correct 009G activation metadata to PR #25 / main @ 36654d1.",
-    "Prepare Claude audit brief and Codex execution brief.",
-    "Do not implement Route B in this phase.",
-    "Keep DB apply, SQL apply, loader patch, data movement and worktree deletion forbidden."
+    "Version Claude Route B audit artifact.",
+    "Authorize Codex only for branch-contained additive Route B implementation work.",
+    "Preserve photo_row -> event_row -> day_presence.",
+    "Do not assume one_excel_row_equals_one_visit.",
+    "Keep DB apply and SQL apply as RED actions."
   ],
   "allowed_now": [
-    "create Route B implementation lock",
-    "create Claude audit brief",
-    "create Codex execution brief",
-    "create research README",
-    "update PROJECT_STATUS_INDEX",
-    "update ACTIVE_ORDER_LOCK",
-    "validate JSON",
-    "commit governance/research only",
-    "open PR"
+    "commit Claude audit artifact",
+    "create 010B phase lock",
+    "ask Codex for additive implementation plan",
+    "ask Codex for tests and dry-run validation",
+    "create SQL DDL files only with -- NO APPLY header",
+    "create rollback and contract impact notes"
   ],
   "forbidden_now": [
     "DB apply",
     "SQL apply against Supabase real",
-    "loader patch",
+    "modify existing production loader without ORANGE audit",
+    "modify active contract without ORANGE audit",
     "data movement",
     "worktree deletion",
     "destructive cleanup",
-    "production cutover",
     "merge to main without review",
     "git add ."
   ],
   "close_condition": [
-    "010A phase lock exists",
-    "Claude audit brief exists",
-    "Codex execution brief exists",
-    "research README exists",
-    "PROJECT_STATUS_INDEX points to 010A",
-    "ACTIVE_ORDER_LOCK points to 010A",
+    "Claude audit artifact versioned",
+    "010B phase lock exists",
+    "Codex evidence exists or explicit next gate is created",
     "PR merged to main"
   ],
-  "next_allowed_phase_after_close": "FAST_REFORM_010B_ROUTE_B_CODEX_IMPLEMENTATION_AFTER_CLAUDE_AUDIT",
-  "active_branch": "lab/FAST_REFORM_010A_route_b_implementation_lock"
+  "next_allowed_phase_after_close": "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION",
+  "active_branch": "lab/FAST_REFORM_010B_route_b_claude_audit_and_codex_plan"
 }

@@ -46,11 +46,18 @@
       "main_merge_commit": "36654d1",
       "included_commit": "6b337d9",
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_010A_ROUTE_B_IMPLEMENTATION_LOCK",
+      "merge_pr": 26,
+      "main_merge_commit": "19b3204",
+      "included_commit": "8b17ae7",
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_010A_ROUTE_B_IMPLEMENTATION_LOCK",
-  "active_branch": "lab/FAST_REFORM_010A_route_b_implementation_lock",
-  "next_allowed_phase_after_close": "FAST_REFORM_010B_ROUTE_B_CODEX_IMPLEMENTATION_AFTER_CLAUDE_AUDIT",
+  "active_phase": "FAST_REFORM_010B_ROUTE_B_CODEX_IMPLEMENTATION_AFTER_CLAUDE_AUDIT",
+  "active_branch": "lab/FAST_REFORM_010B_route_b_claude_audit_and_codex_plan",
+  "next_allowed_phase_after_close": "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -72,11 +79,11 @@
   "forbidden_until_close": [
     "DB apply",
     "SQL apply against Supabase real",
-    "loader patch",
+    "modify existing production loader without ORANGE audit",
+    "modify active contract without ORANGE audit",
     "data movement",
     "worktree deletion",
     "destructive cleanup",
-    "production cutover",
     "merge to main without review",
     "git add ."
   ],
@@ -110,8 +117,10 @@
   },
   "route_b_artifacts": [
     "governance/phase_locks/FAST_REFORM_010A_route_b_implementation_lock.json",
+    "governance/phase_locks/FAST_REFORM_010B_route_b_codex_implementation_after_claude_audit.json",
     "research/010A_route_b_implementation/README.md",
     "research/010A_route_b_implementation/CLAUDE_AUDIT_BRIEF.md",
-    "research/010A_route_b_implementation/CODEX_EXECUTION_BRIEF.md"
+    "research/010A_route_b_implementation/CODEX_EXECUTION_BRIEF.md",
+    "research/010B_route_b_claude_audit/CLAUDE_ROUTE_B_AUDIT.md"
   ]
 }
