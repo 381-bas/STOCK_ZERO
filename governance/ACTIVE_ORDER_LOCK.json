@@ -2,37 +2,53 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_009F_GOVERNANCE_PROMOTION",
-  "base_main_commit": "df04e17",
+  "phase": "FAST_REFORM_009F_BOOTSTRAP_PROTOCOL_AND_THREAD_CLOSEOUT",
+  "base_main_commit": "a48d423",
   "order": [
-    "009F merged to main",
-    "promote governance and contract files",
-    "then perform organization / cleanup phase",
+    "009F loader validation merged to main",
+    "009F governance promotion merged to main",
+    "create bootstrap/status index protocol",
+    "create decision promotion protocol",
+    "synthesize GitHub issue #18 thread",
+    "document PR #19/#20 closeout",
+    "then perform repo organization / cleanup phase",
     "then continue with next implementation phase"
   ],
   "allowed_now": [
-    "create governance/AGENT_ACCESS_POLICY.json",
-    "create governance/EXECUTION_DOCTRINE.md",
-    "create governance/ACTIVE_ORDER_LOCK.json",
-    "create contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+    "create governance/PROJECT_STATUS_INDEX.json",
+    "create governance/DECISION_PROMOTION_PROTOCOL.md",
+    "create governance/BOOTSTRAP_PROTOCOL.md",
+    "create governance/thread_summaries/GITHUB_ISSUE_18_THREAD_SYNTHESIS.md",
+    "create governance/thread_summaries/PR_19_20_CLOSEOUT.md",
+    "update governance/EXECUTION_DOCTRINE.md",
+    "update governance/ACTIVE_ORDER_LOCK.json",
     "validate JSON syntax",
     "review diff",
-    "commit governance promotion"
+    "commit bootstrap protocol and thread closeout"
   ],
   "forbidden_now": [
     "DB apply",
     "009G implementation",
     "SQL apply design",
+    "loader patch",
     "file cleanup",
+    "branch cleanup",
     "data movement",
-    "new loader patch",
+    "destructive cleanup",
     "git add ."
   ],
   "close_condition": [
-    "four governance/contract files created",
+    "PROJECT_STATUS_INDEX created",
+    "DECISION_PROMOTION_PROTOCOL created",
+    "BOOTSTRAP_PROTOCOL created",
+    "issue #18 synthesis created",
+    "PR #19/#20 closeout created",
+    "EXECUTION_DOCTRINE updated with display artifact rule",
     "JSON files parse successfully",
     "diff reviewed",
     "commit created",
-    "push completed"
-  ]
+    "push completed",
+    "PR merged to main"
+  ],
+  "next_allowed_phase_after_close": "FAST_REFORM_009F_REPO_ORGANIZATION_CLEANUP"
 }

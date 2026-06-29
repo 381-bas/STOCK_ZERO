@@ -1,0 +1,55 @@
+{
+  "artifact": "PROJECT_STATUS_INDEX",
+  "project": "STOCK_ZERO",
+  "status": "ACTIVE",
+  "source_of_truth": "origin/main",
+  "created_from_main_commit": "a48d423",
+  "last_closed_phases": [
+    {
+      "phase": "FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION",
+      "merge_pr": 19,
+      "main_merge_commit": "df04e17",
+      "included_commit": "4961873",
+      "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_009F_GOVERNANCE_PROMOTION",
+      "merge_pr": 20,
+      "main_merge_commit": "a48d423",
+      "included_commit": "7cfba7a",
+      "status": "MERGED_TO_MAIN"
+    }
+  ],
+  "active_phase": "FAST_REFORM_009F_BOOTSTRAP_PROTOCOL_AND_THREAD_CLOSEOUT",
+  "active_branch": "lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout",
+  "next_allowed_phase_after_close": "FAST_REFORM_009F_REPO_ORGANIZATION_CLEANUP",
+  "bootstrap_phrases": [
+    "BOOTSTRAP STOCK_ZERO",
+    "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
+  ],
+  "must_read_on_bootstrap": [
+    "governance/PROJECT_STATUS_INDEX.json",
+    "governance/ACTIVE_ORDER_LOCK.json",
+    "governance/EXECUTION_DOCTRINE.md",
+    "governance/AGENT_ACCESS_POLICY.json",
+    "contracts/control_gestion/kpione2_photo_export_contract_v1.json"
+  ],
+  "active_contracts": [
+    "contracts/control_gestion/kpione2_photo_export_contract_v1.json"
+  ],
+  "thread_summaries": [
+    "governance/thread_summaries/GITHUB_ISSUE_18_THREAD_SYNTHESIS.md",
+    "governance/thread_summaries/PR_19_20_CLOSEOUT.md"
+  ],
+  "forbidden_until_close": [
+    "009G implementation",
+    "DB apply",
+    "SQL apply",
+    "loader patch",
+    "data movement",
+    "branch cleanup",
+    "destructive cleanup",
+    "git add ."
+  ],
+  "rule": "Chat previews do not govern execution. Operational rules must be promoted to versioned repo artifacts through commit, PR and merge."
+}
