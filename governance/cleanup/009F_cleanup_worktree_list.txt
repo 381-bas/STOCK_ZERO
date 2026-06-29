@@ -1,0 +1,6 @@
+C:/Users/basti/Desktop/STOCK_ZERO                                      5148b5d [lab/FAST_REFORM_009F_repo_organization_cleanup]
+C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005G                     c54e293 [codex/CG005G-route-lock-rollback-correction]
+C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005I_M_LAB               4fb7a7f [lab/CG005I_M-route-weekly-replacement]
+C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005N_PACKAGE             a181142 [codex/CG005N-package-correction]
+C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/PLATFORM_005B              e368f83 [codex/PLATFORM_005B-load-observation-correction]
+C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/SUPABASE_CLEANUP_REGISTER  e870ff7 [codex/supabase-cleanup-no-drop-register]

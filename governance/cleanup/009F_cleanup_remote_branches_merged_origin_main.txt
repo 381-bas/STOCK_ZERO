@@ -1,0 +1,10 @@
+  origin/HEAD -> origin/main
+  origin/codex/CG005G-route-lock-rollback-correction
+  origin/codex/CG005N-package-correction
+  origin/codex/PLATFORM_005B-load-observation-correction
+  origin/codex/supabase-cleanup-no-drop-register
+  origin/lab/CG005I_M-route-weekly-replacement
+  origin/lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout
+  origin/lab/FAST_REFORM_009F_governance_promotion
+  origin/lab/FAST_REFORM_009F_loader_structure_validation
+  origin/main

@@ -1,0 +1,77 @@
+{
+  "artifact": "009F_REPO_ORGANIZATION_CLEANUP_MANIFEST",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_009F_REPO_ORGANIZATION_CLEANUP",
+  "base_main_commit": "5148b5d",
+  "status": "INVENTORY_REVIEWED",
+  "scope": "governance cleanup inventory and branch/worktree classification only",
+  "source_of_truth": "origin/main",
+  "current_branch": "lab/FAST_REFORM_009F_repo_organization_cleanup",
+  "validated_state": {
+    "main_synced": true,
+    "working_tree_before_inventory": "clean",
+    "current_changes": [
+      "governance/cleanup/"
+    ],
+    "productive_code_changed": false,
+    "db_changed": false,
+    "data_moved": false,
+    "loader_changed": false
+  },
+  "safe_delete_candidates_after_manifest_review": {
+    "local_branches": [
+      "lab/FAST_REFORM_009F_loader_structure_validation",
+      "lab/FAST_REFORM_009F_governance_promotion",
+      "lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout"
+    ],
+    "remote_branches": [
+      "origin/lab/FAST_REFORM_009F_loader_structure_validation",
+      "origin/lab/FAST_REFORM_009F_governance_promotion",
+      "origin/lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout"
+    ],
+    "reason": "merged to main through PR #19, PR #20 and PR #21; not worktree-bound"
+  },
+  "keep_worktree_bound": [
+    {
+      "branch": "codex/CG005G-route-lock-rollback-correction",
+      "worktree": "C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005G",
+      "classification": "KEEP_WORKTREE_BOUND"
+    },
+    {
+      "branch": "codex/CG005N-package-correction",
+      "worktree": "C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005N_PACKAGE",
+      "classification": "KEEP_WORKTREE_BOUND"
+    },
+    {
+      "branch": "codex/PLATFORM_005B-load-observation-correction",
+      "worktree": "C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/PLATFORM_005B",
+      "classification": "KEEP_WORKTREE_BOUND"
+    },
+    {
+      "branch": "codex/supabase-cleanup-no-drop-register",
+      "worktree": "C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/SUPABASE_CLEANUP_REGISTER",
+      "classification": "KEEP_WORKTREE_BOUND"
+    },
+    {
+      "branch": "lab/CG005I_M-route-weekly-replacement",
+      "worktree": "C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005I_M_LAB",
+      "classification": "KEEP_WORKTREE_BOUND"
+    }
+  ],
+  "keep_branches": [
+    "main",
+    "lab/FAST_REFORM_009F_repo_organization_cleanup"
+  ],
+  "forbidden_in_this_manifest_commit": [
+    "delete branches",
+    "delete worktrees",
+    "delete files",
+    "move data",
+    "DB apply",
+    "009G implementation",
+    "SQL apply",
+    "loader patch",
+    "git add ."
+  ],
+  "next_gate_after_manifest_merge": "OPTIONAL_BRANCH_DELETE_GATE_FOR_SAFE_009F_BRANCHES"
+}
