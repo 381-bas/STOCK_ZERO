@@ -18,11 +18,18 @@
       "main_merge_commit": "a48d423",
       "included_commit": "7cfba7a",
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_009F_BOOTSTRAP_PROTOCOL_AND_THREAD_CLOSEOUT",
+      "merge_pr": 21,
+      "main_merge_commit": "5148b5d",
+      "included_commit": "0f703ed",
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_009F_BOOTSTRAP_PROTOCOL_AND_THREAD_CLOSEOUT",
-  "active_branch": "lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout",
-  "next_allowed_phase_after_close": "FAST_REFORM_009F_REPO_ORGANIZATION_CLEANUP",
+  "active_phase": "FAST_REFORM_009F_REPO_ORGANIZATION_CLEANUP",
+  "active_branch": "lab/FAST_REFORM_009F_repo_organization_cleanup",
+  "next_allowed_phase_after_close": "OPTIONAL_BRANCH_DELETE_GATE_FOR_SAFE_009F_BRANCHES",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -47,9 +54,14 @@
     "SQL apply",
     "loader patch",
     "data movement",
-    "branch cleanup",
+    "branch deletion",
+    "worktree deletion",
     "destructive cleanup",
     "git add ."
   ],
-  "rule": "Chat previews do not govern execution. Operational rules must be promoted to versioned repo artifacts through commit, PR and merge."
+  "rule": "Chat previews do not govern execution. Operational rules must be promoted to versioned repo artifacts through commit, PR and merge.",
+  "cleanup_artifacts": [
+    "governance/cleanup/009F_repo_organization_cleanup_manifest.json",
+    "governance/cleanup/009F_repo_organization_cleanup_summary.md"
+  ]
 }

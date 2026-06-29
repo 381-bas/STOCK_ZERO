@@ -1,0 +1,8 @@
+5148b5d (HEAD -> lab/FAST_REFORM_009F_repo_organization_cleanup, origin/main, origin/HEAD, main) Merge pull request #21 from 381-bas/lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout
+0f703ed (origin/lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout, lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout) docs(governance): add bootstrap protocol and thread closeout
+a48d423 Merge pull request #20 from 381-bas/lab/FAST_REFORM_009F_governance_promotion
+7cfba7a (origin/lab/FAST_REFORM_009F_governance_promotion, lab/FAST_REFORM_009F_governance_promotion) docs(governance): promote execution doctrine and kpione2 contract
+df04e17 Merge pull request #19 from 381-bas/lab/FAST_REFORM_009F_loader_structure_validation
+4961873 (origin/lab/FAST_REFORM_009F_loader_structure_validation, lab/FAST_REFORM_009F_loader_structure_validation) fast-reform-009f validate kpione2 photo export contract
+9523d54 fast-reform-009e apply control gestion route b
+57ef2e0 Merge PR #4: Supabase cleanup no-drop register

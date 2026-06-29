@@ -1,0 +1,10 @@
++ codex/CG005G-route-lock-rollback-correction                 c54e293 (C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005G) [origin/main: behind 18] research: close CG005H and authorize local lab
++ codex/CG005N-package-correction                             a181142 (C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005N_PACKAGE) [origin/codex/CG005N-package-correction] feat(cg): add guarded route-week DDL and rollback package
++ codex/PLATFORM_005B-load-observation-correction             e368f83 (C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/PLATFORM_005B) [origin/codex/PLATFORM_005B-load-observation-correction] research: record platform merge readiness
++ codex/supabase-cleanup-no-drop-register                     e870ff7 (C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/SUPABASE_CLEANUP_REGISTER) [origin/codex/supabase-cleanup-no-drop-register] docs(governance): add Supabase cleanup no-drop register
++ lab/CG005I_M-route-weekly-replacement                       4fb7a7f (C:/Users/basti/Desktop/STOCK_ZERO_WORKTREES/CG005I_M_LAB) [origin/main: behind 11] research: prepare controlled Supabase route transition
+  lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout 0f703ed [origin/lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout] docs(governance): add bootstrap protocol and thread closeout
+  lab/FAST_REFORM_009F_governance_promotion                   7cfba7a [origin/lab/FAST_REFORM_009F_governance_promotion] docs(governance): promote execution doctrine and kpione2 contract
+  lab/FAST_REFORM_009F_loader_structure_validation            4961873 [origin/lab/FAST_REFORM_009F_loader_structure_validation] fast-reform-009f validate kpione2 photo export contract
+* lab/FAST_REFORM_009F_repo_organization_cleanup              5148b5d Merge pull request #21 from 381-bas/lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout
+  main                                                        5148b5d [origin/main] Merge pull request #21 from 381-bas/lab/FAST_REFORM_009F_bootstrap_protocol_and_thread_closeout
