@@ -2,36 +2,43 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_009F_CLOSEOUT_COMPLETE",
-  "base_main_commit": "a91fc60",
+  "phase": "FAST_REFORM_009G_AGENT_AUTHORITY_AND_ROUTE_B_LOCK",
+  "base_main_commit": "cb31816",
   "order": [
-    "FAST_REFORM_009F loader validation, governance promotion, bootstrap protocol, cleanup manifest and safe branch delete gate are complete.",
-    "No implementation phase is active.",
-    "Next work must start by creating a new explicit phase lock from main."
+    "Create delegated agent authority governance for Claude and Codex.",
+    "Define GREEN/YELLOW/ORANGE/RED authority levels.",
+    "Reduce user copy/paste by requiring durable repo/PR evidence where possible.",
+    "Preserve Route B readiness without implementation.",
+    "Keep DB apply, SQL apply, data movement, worktree deletion and merge to main as RED actions."
   ],
   "allowed_now": [
-    "read governance status",
-    "bootstrap project context",
-    "propose next explicit phase lock",
-    "create a new lab branch only after explicit gate approval"
+    "create governance artifacts",
+    "create research artifacts",
+    "update phase lock",
+    "validate JSON",
+    "commit governance-only changes",
+    "open PR"
   ],
   "forbidden_now": [
-    "DB apply",
     "009G implementation",
+    "DB apply",
     "SQL apply",
     "loader patch",
     "data movement",
     "worktree deletion",
     "destructive cleanup",
+    "merge to main without review",
     "git add ."
   ],
   "close_condition": [
-    "cleanup closeout summary exists",
-    "optional branch delete gate result exists",
-    "PROJECT_STATUS_INDEX marks FAST_REFORM_009F_CLOSEOUT_COMPLETE",
-    "ACTIVE_ORDER_LOCK marks FAST_REFORM_009F_CLOSEOUT_COMPLETE",
+    "AGENT_AUTHORITY_MATRIX_V2 exists",
+    "DELEGATED_AGENT_WORKFLOW exists",
+    "009G phase lock exists",
+    "research README exists",
+    "PROJECT_STATUS_INDEX points to 009G phase",
+    "ACTIVE_ORDER_LOCK points to 009G phase",
     "PR merged to main"
   ],
-  "next_allowed_phase_after_close": "NEXT_PHASE_REQUIRES_EXPLICIT_ORDER_LOCK",
-  "active_branch": "NONE"
+  "next_allowed_phase_after_close": "NEXT_PHASE_MAY_PROPOSE_ROUTE_B_IMPLEMENTATION_ONLY_AFTER_009G_MERGE",
+  "active_branch": "lab/FAST_REFORM_009G_agent_authority_and_route_b_lock"
 }
