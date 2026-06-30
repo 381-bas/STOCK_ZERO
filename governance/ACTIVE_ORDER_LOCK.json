@@ -2,28 +2,30 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_010B_ROUTE_B_CODEX_IMPLEMENTATION_AFTER_CLAUDE_AUDIT",
-  "base_main_commit": "19b3204",
+  "phase": "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION",
+  "base_main_commit": "c56dcfb",
   "order": [
-    "Version Claude Route B audit artifact.",
-    "Authorize Codex only for branch-contained additive Route B implementation work.",
+    "Version Codex additive Route B dry-run assets.",
     "Preserve photo_row -> event_row -> day_presence.",
-    "Do not assume one_excel_row_equals_one_visit.",
+    "Reject one_excel_row_equals_one_visit.",
+    "Keep SQL files review-only with -- NO APPLY.",
     "Keep DB apply and SQL apply as RED actions."
   ],
   "allowed_now": [
-    "commit Claude audit artifact",
-    "create 010B phase lock",
-    "ask Codex for additive implementation plan",
-    "ask Codex for tests and dry-run validation",
-    "create SQL DDL files only with -- NO APPLY header",
-    "create rollback and contract impact notes"
+    "commit additive loader",
+    "commit tests",
+    "commit review-only SQL files",
+    "commit dry-run validation evidence",
+    "commit contract impact note",
+    "commit rollback note",
+    "open PR"
   ],
   "forbidden_now": [
     "DB apply",
     "SQL apply against Supabase real",
-    "modify existing production loader without ORANGE audit",
-    "modify active contract without ORANGE audit",
+    "modify load_control_gestion_raw_v17.py",
+    "modify active contract",
+    "modify productive compliance views",
     "data movement",
     "worktree deletion",
     "destructive cleanup",
@@ -31,11 +33,15 @@
     "git add ."
   ],
   "close_condition": [
-    "Claude audit artifact versioned",
-    "010B phase lock exists",
-    "Codex evidence exists or explicit next gate is created",
+    "010C phase lock exists",
+    "Codex dry-run evidence versioned",
+    "tests pass",
+    "dry-run PASS_ROUTE_B_DRY_RUN",
+    "db_apply=false",
+    "sql_apply=false",
+    "productive_loader_touched=false",
     "PR merged to main"
   ],
-  "next_allowed_phase_after_close": "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION",
-  "active_branch": "lab/FAST_REFORM_010B_route_b_claude_audit_and_codex_plan"
+  "next_allowed_phase_after_close": "FAST_REFORM_010D_ROUTE_B_CLAUDE_POST_AUDIT_OR_PR_REVIEW",
+  "active_branch": "lab/FAST_REFORM_010C_route_b_review_and_dry_run_validation"
 }
