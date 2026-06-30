@@ -1,0 +1,76 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT_CLOSE",
+  "status": "ACTIVE_UNTIL_MERGED",
+  "branch": "lab/FAST_REFORM_010F_route_b_source_row_number_post_audit_close",
+  "base_main_commit": "3cd0e9a",
+  "created_at_utc": "2026-06-30T03:28:25+00:00",
+  "objective": "Close Route B source_row_number post-audit after PR #30 merge and record dry-run traceability as complete pending future ORANGE/RED integration planning.",
+  "closed_previous_phase": {
+    "phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
+    "merge_pr": 30,
+    "main_merge_commit": "3cd0e9a",
+    "included_commits": [
+      "cd33e66",
+      "ae1b018"
+    ],
+    "status": "MERGED_TO_MAIN"
+  },
+  "post_audit": {
+    "artifact": "research/010E_route_b_source_row_number/CLAUDE_POST_AUDIT.md",
+    "verdict": "APPROVE",
+    "blockers": 0,
+    "prior_warning_w2_closed": true,
+    "blocking_flags_passed": 22,
+    "test_count": 11,
+    "dry_run_verdict": "PASS_ROUTE_B_DRY_RUN"
+  },
+  "route_b_current_state": {
+    "source_row_number": "SATISFIED_IN_DRY_RUN",
+    "traceability": "photo_row_to_excel_row_1_to_1",
+    "event_identity": [
+      "ID",
+      "SP Item ID"
+    ],
+    "grain": "photo_row -> event_row -> day_presence",
+    "photo_rows": 37908,
+    "distinct_event_ids": 5892,
+    "productive_loader_touched": false,
+    "active_contract_modified": false,
+    "db_apply": false,
+    "sql_apply": false
+  },
+  "remaining_boundaries": [
+    "Future production integration remains ORANGE.",
+    "Any DB apply remains RED.",
+    "Any SQL apply against Supabase real remains RED.",
+    "Any production cutover remains RED.",
+    "load_control_gestion_raw_v17.py remains untouched by Route B dry-run phases."
+  ],
+  "allowed_actions": [
+    "record 010E merge metadata",
+    "record Claude APPROVE post-audit",
+    "record Route B dry-run traceability complete",
+    "open PR"
+  ],
+  "forbidden_actions": [
+    "DB apply",
+    "SQL apply against Supabase real",
+    "modify load_control_gestion_raw_v17.py",
+    "modify active contract",
+    "modify productive compliance views",
+    "data movement",
+    "destructive cleanup",
+    "worktree deletion",
+    "production cutover",
+    "git add ."
+  ],
+  "close_condition": [
+    "010E marked MERGED_TO_MAIN",
+    "Claude APPROVE recorded",
+    "source_row_number dry-run status recorded as satisfied",
+    "PR merged to main"
+  ],
+  "next_allowed_phase_after_close": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY"
+}
