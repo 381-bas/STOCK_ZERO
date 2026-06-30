@@ -2,18 +2,19 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_010D_ROUTE_B_POST_MERGE_CLOSE_AND_SOURCE_ROW_NUMBER_LOCK",
-  "base_main_commit": "d834055",
+  "phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
+  "base_main_commit": "e80d0f7",
   "order": [
-    "Close 010C merge metadata in governance.",
-    "Lock source_row_number as a blocking prerequisite before real writes.",
-    "Keep Route B dry-run artifacts as merged evidence.",
-    "Keep DB apply and SQL apply as RED actions."
+    "Version Route B source_row_number dry-run patch.",
+    "Keep event identity as ID + SP Item ID.",
+    "Preserve photo_row -> event_row -> day_presence.",
+    "Keep DB apply and SQL apply as RED actions.",
+    "Do not touch production loader or active contract."
   ],
   "allowed_now": [
-    "record 010C merge metadata",
-    "create source_row_number lock",
-    "create 010D research note",
+    "commit source_row_number dry-run patch",
+    "commit source_row_number tests",
+    "commit 010E evidence",
     "open PR"
   ],
   "forbidden_now": [
@@ -29,12 +30,12 @@
     "git add ."
   ],
   "close_condition": [
-    "010C marked MERGED_TO_MAIN",
-    "source_row_number lock exists",
-    "PROJECT_STATUS_INDEX points to 010D",
-    "ACTIVE_ORDER_LOCK points to 010D",
+    "010E phase lock exists",
+    "source_row_number evidence versioned",
+    "tests pass",
+    "dry-run PASS_ROUTE_B_DRY_RUN",
     "PR merged to main"
   ],
-  "next_allowed_phase_after_close": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
-  "active_branch": "lab/FAST_REFORM_010D_route_b_post_merge_close_and_source_row_number_lock"
+  "next_allowed_phase_after_close": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT",
+  "active_branch": "lab/FAST_REFORM_010E_route_b_source_row_number_dry_run_patch"
 }

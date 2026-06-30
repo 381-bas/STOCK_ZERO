@@ -73,11 +73,18 @@
         "0c11930"
       ],
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_010D_ROUTE_B_POST_MERGE_CLOSE_AND_SOURCE_ROW_NUMBER_LOCK",
+      "merge_pr": 29,
+      "main_merge_commit": "e80d0f7",
+      "included_commit": "49807ca",
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_010D_ROUTE_B_POST_MERGE_CLOSE_AND_SOURCE_ROW_NUMBER_LOCK",
-  "active_branch": "lab/FAST_REFORM_010D_route_b_post_merge_close_and_source_row_number_lock",
-  "next_allowed_phase_after_close": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
+  "active_phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
+  "active_branch": "lab/FAST_REFORM_010E_route_b_source_row_number_dry_run_patch",
+  "next_allowed_phase_after_close": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -137,25 +144,22 @@
     ]
   },
   "route_b_artifacts": [
-    "governance/phase_locks/FAST_REFORM_010A_route_b_implementation_lock.json",
-    "governance/phase_locks/FAST_REFORM_010B_route_b_codex_implementation_after_claude_audit.json",
-    "governance/phase_locks/FAST_REFORM_010C_route_b_review_and_dry_run_validation.json",
     "governance/phase_locks/FAST_REFORM_010D_route_b_post_merge_close_and_source_row_number_lock.json",
-    "research/010B_route_b_claude_audit/CLAUDE_ROUTE_B_AUDIT.md",
-    "research/010C_route_b_dry_run_validation/CLAUDE_POST_AUDIT.md",
-    "research/010C_route_b_dry_run_validation/CODEX_DRY_RUN_OUTPUT.json",
-    "research/010D_route_b_source_row_number_lock/README.md"
+    "governance/phase_locks/FAST_REFORM_010E_route_b_source_row_number_dry_run_patch.json",
+    "research/010E_route_b_source_row_number/CODEX_DRY_RUN_OUTPUT.json",
+    "research/010E_route_b_source_row_number/CODEX_SOURCE_ROW_NUMBER_NOTE.md",
+    "research/010E_route_b_source_row_number/CODEX_DIFF_SUMMARY.md"
   ],
   "route_b_source_row_number_lock": {
-    "status": "BLOCKING_PRECONDITION_BEFORE_REAL_WRITES",
-    "introduced_by": "FAST_REFORM_010D_ROUTE_B_POST_MERGE_CLOSE_AND_SOURCE_ROW_NUMBER_LOCK",
-    "source_warning": "Claude 010C post-audit W2",
-    "required_before": [
-      "DB apply",
-      "SQL apply against Supabase real",
-      "loader writes to cg_raw",
-      "production cutover",
-      "incremental real ingestion"
-    ]
+    "status": "SATISFIED_IN_DRY_RUN_PENDING_REVIEW",
+    "phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
+    "evidence": "research/010E_route_b_source_row_number/CODEX_DRY_RUN_OUTPUT.json",
+    "flags": {
+      "source_row_number_present": true,
+      "source_row_number_complete": true,
+      "source_row_number_unique": true,
+      "source_row_number_matches_excel_rows": true
+    },
+    "still_required_before_real_writes": true
   }
 }

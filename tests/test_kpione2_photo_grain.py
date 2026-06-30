@@ -83,6 +83,38 @@ class Kpione2PhotoGrainTests(unittest.TestCase):
         self.assertTrue(payload["flags"]["forbidden_assumption_rejected"])
         self.assertEqual(payload["verdict"], "PASS_ROUTE_B_DRY_RUN")
 
+    def test_source_row_number_maps_each_photo_row_to_excel_origin(self):
+        payload = self._payload(sample_photo_df())
+        metrics = payload["metrics"]
+        traceability = payload["photo_row_traceability"]
+
+        self.assertEqual(metrics["source_row_number_min"], 2)
+        self.assertEqual(metrics["source_row_number_max"], 7)
+        self.assertEqual(metrics["source_row_number_distinct"], 6)
+        self.assertEqual(metrics["source_row_number_null_rows"], 0)
+        self.assertTrue(payload["flags"]["source_row_number_present"])
+        self.assertTrue(payload["flags"]["source_row_number_complete"])
+        self.assertTrue(payload["flags"]["source_row_number_unique"])
+        self.assertTrue(payload["flags"]["source_row_number_matches_excel_rows"])
+        self.assertEqual(traceability["photo_rows_mapped"], 6)
+        self.assertEqual(traceability["event_identity"], ["ID", "SP Item ID"])
+        self.assertFalse(traceability["event_identity_replaced"])
+        self.assertEqual(
+            [row["source_row_number"] for row in traceability["sample_rows"]],
+            [2, 3, 4, 5, 6, 7],
+        )
+
+    def test_source_row_number_is_stable_within_workbook_sheet(self):
+        original = sample_photo_df()
+        reindexed = original.copy()
+        reindexed.index = [90, 70, 50, 30, 10, 0]
+
+        first = self._payload(original)["photo_row_traceability"]
+        second = self._payload(reindexed)["photo_row_traceability"]
+
+        self.assertEqual(first["trace_manifest_sha256"], second["trace_manifest_sha256"])
+        self.assertEqual(first["sample_rows"], second["sample_rows"])
+
     def test_day_presence_is_binary_not_event_count(self):
         payload = self._payload(sample_photo_df())
         self.assertEqual(payload["metrics"]["day_presence_rows"], 2)
@@ -142,6 +174,9 @@ class Kpione2PhotoGrainTests(unittest.TestCase):
             self.assertFalse(payload["sql_apply"])
             self.assertFalse(payload["writes_executed"])
             self.assertFalse(payload["productive_loader_touched"])
+            self.assertEqual(payload["metrics"]["source_row_number_min"], 2)
+            self.assertEqual(payload["metrics"]["source_row_number_max"], 7)
+            self.assertEqual(payload["photo_row_traceability"]["photo_rows_mapped"], 6)
 
     def test_real_workbook_matches_required_010c_evidence(self):
         source = ROOT / "data" / "photo-excel-admin_1782440454408.xlsx"
@@ -156,6 +191,12 @@ class Kpione2PhotoGrainTests(unittest.TestCase):
         self.assertEqual(payload["metrics"]["distinct_event_ids"], 5892)
         self.assertEqual(payload["metrics"]["fecha_min"], "2026-06-20")
         self.assertEqual(payload["metrics"]["fecha_max"], "2026-06-24")
+        self.assertEqual(payload["metrics"]["source_row_number_min"], 2)
+        self.assertEqual(payload["metrics"]["source_row_number_max"], 37909)
+        self.assertEqual(payload["metrics"]["source_row_number_distinct"], 37908)
+        self.assertEqual(payload["metrics"]["source_row_number_null_rows"], 0)
+        self.assertEqual(payload["photo_row_traceability"]["photo_rows_mapped"], 37908)
+        self.assertFalse(payload["photo_row_traceability"]["event_identity_replaced"])
         self.assertFalse(payload["db_apply"])
         self.assertFalse(payload["sql_apply"])
         self.assertFalse(payload["productive_loader_touched"])
