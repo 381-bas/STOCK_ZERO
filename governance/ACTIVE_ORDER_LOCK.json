@@ -2,19 +2,19 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
-  "base_main_commit": "e80d0f7",
+  "phase": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT_CLOSE",
+  "base_main_commit": "3cd0e9a",
   "order": [
-    "Version Route B source_row_number dry-run patch.",
-    "Keep event identity as ID + SP Item ID.",
-    "Preserve photo_row -> event_row -> day_presence.",
+    "Close 010E merge metadata in governance.",
+    "Record Claude APPROVE post-audit.",
+    "Record source_row_number dry-run traceability as satisfied.",
     "Keep DB apply and SQL apply as RED actions.",
-    "Do not touch production loader or active contract."
+    "Prepare next phase as integration planning only, no apply."
   ],
   "allowed_now": [
-    "commit source_row_number dry-run patch",
-    "commit source_row_number tests",
-    "commit 010E evidence",
+    "record 010E merge metadata",
+    "record 010F post-audit close",
+    "create 010F research note",
     "open PR"
   ],
   "forbidden_now": [
@@ -30,12 +30,11 @@
     "git add ."
   ],
   "close_condition": [
-    "010E phase lock exists",
-    "source_row_number evidence versioned",
-    "tests pass",
-    "dry-run PASS_ROUTE_B_DRY_RUN",
+    "010E marked MERGED_TO_MAIN",
+    "Claude APPROVE recorded",
+    "source_row_number dry-run traceability satisfied",
     "PR merged to main"
   ],
-  "next_allowed_phase_after_close": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT",
-  "active_branch": "lab/FAST_REFORM_010E_route_b_source_row_number_dry_run_patch"
+  "next_allowed_phase_after_close": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY",
+  "active_branch": "lab/FAST_REFORM_010F_route_b_source_row_number_post_audit_close"
 }

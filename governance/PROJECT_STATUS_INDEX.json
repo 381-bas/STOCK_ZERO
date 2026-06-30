@@ -80,11 +80,21 @@
       "main_merge_commit": "e80d0f7",
       "included_commit": "49807ca",
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
+      "merge_pr": 30,
+      "main_merge_commit": "3cd0e9a",
+      "included_commits": [
+        "cd33e66",
+        "ae1b018"
+      ],
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
-  "active_branch": "lab/FAST_REFORM_010E_route_b_source_row_number_dry_run_patch",
-  "next_allowed_phase_after_close": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT",
+  "active_phase": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT_CLOSE",
+  "active_branch": "lab/FAST_REFORM_010F_route_b_source_row_number_post_audit_close",
+  "next_allowed_phase_after_close": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -146,20 +156,19 @@
   "route_b_artifacts": [
     "governance/phase_locks/FAST_REFORM_010D_route_b_post_merge_close_and_source_row_number_lock.json",
     "governance/phase_locks/FAST_REFORM_010E_route_b_source_row_number_dry_run_patch.json",
+    "governance/phase_locks/FAST_REFORM_010F_route_b_source_row_number_post_audit_close.json",
     "research/010E_route_b_source_row_number/CODEX_DRY_RUN_OUTPUT.json",
     "research/010E_route_b_source_row_number/CODEX_SOURCE_ROW_NUMBER_NOTE.md",
-    "research/010E_route_b_source_row_number/CODEX_DIFF_SUMMARY.md"
+    "research/010E_route_b_source_row_number/CODEX_DIFF_SUMMARY.md",
+    "research/010E_route_b_source_row_number/CLAUDE_POST_AUDIT.md",
+    "research/010F_route_b_source_row_number_post_audit_close/README.md"
   ],
   "route_b_source_row_number_lock": {
-    "status": "SATISFIED_IN_DRY_RUN_PENDING_REVIEW",
+    "status": "SATISFIED_IN_DRY_RUN_APPROVED",
     "phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
-    "evidence": "research/010E_route_b_source_row_number/CODEX_DRY_RUN_OUTPUT.json",
-    "flags": {
-      "source_row_number_present": true,
-      "source_row_number_complete": true,
-      "source_row_number_unique": true,
-      "source_row_number_matches_excel_rows": true
-    },
+    "merge_pr": 30,
+    "main_merge_commit": "3cd0e9a",
+    "audit": "research/010E_route_b_source_row_number/CLAUDE_POST_AUDIT.md",
     "still_required_before_real_writes": true
   }
 }
