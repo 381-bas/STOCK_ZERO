@@ -1,0 +1,83 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_010D_ROUTE_B_POST_MERGE_CLOSE_AND_SOURCE_ROW_NUMBER_LOCK",
+  "status": "ACTIVE_UNTIL_MERGED",
+  "branch": "lab/FAST_REFORM_010D_route_b_post_merge_close_and_source_row_number_lock",
+  "base_main_commit": "d834055",
+  "created_at_utc": "2026-06-30T01:04:19+00:00",
+  "objective": "Close 010C post-merge in governance and lock source_row_number as a blocking prerequisite before any future Route B DB/SQL apply or real writes.",
+  "closed_previous_phase": {
+    "phase": "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION",
+    "merge_pr": 28,
+    "main_merge_commit": "d834055",
+    "included_commits": [
+      "3df063b",
+      "0c11930"
+    ],
+    "status": "MERGED_TO_MAIN"
+  },
+  "route_b_current_state": {
+    "dry_run_loader": "scripts/load_kpione2_photo_from_excel.py",
+    "tests": "tests/test_kpione2_photo_grain.py",
+    "review_only_sql": [
+      "sql/15_kpione2_photo_raw_ddl.sql",
+      "sql/16_kpione2_photo_raw_ddl_rollback.sql"
+    ],
+    "dry_run_evidence": "research/010C_route_b_dry_run_validation/CODEX_DRY_RUN_OUTPUT.json",
+    "claude_post_audit": "research/010C_route_b_dry_run_validation/CLAUDE_POST_AUDIT.md",
+    "merge_verdict": "010C_MERGED_TO_MAIN"
+  },
+  "source_row_number_lock": {
+    "status": "BLOCKING_PRECONDITION_BEFORE_REAL_WRITES",
+    "reason": "Claude 010C post-audit warning W2: source_row_number must be populated before any future DB apply or SQL apply phase.",
+    "required_before": [
+      "DB apply",
+      "SQL apply against Supabase real",
+      "loader writes to cg_raw",
+      "production cutover",
+      "incremental real ingestion"
+    ],
+    "minimum_expected_design": [
+      "source_row_number must identify the original Excel row position after header resolution",
+      "source_row_number must be stable within the source workbook/sheet",
+      "source_row_number must be included in dry-run evidence before any real write",
+      "source_row_number must support traceability from raw DB row back to photo export row",
+      "source_row_number must not replace event identity; event identity remains ID + SP Item ID"
+    ],
+    "must_not_change": [
+      "photo_row -> event_row -> day_presence",
+      "forbidden_assumption: one_excel_row_equals_one_visit",
+      "active KPIONE2 contract without ORANGE audit"
+    ]
+  },
+  "allowed_actions": [
+    "record 010C merge metadata",
+    "lock source_row_number as future blocking prerequisite",
+    "update PROJECT_STATUS_INDEX",
+    "update ACTIVE_ORDER_LOCK",
+    "create research note",
+    "open PR"
+  ],
+  "forbidden_actions": [
+    "DB apply",
+    "SQL apply against Supabase real",
+    "modify load_control_gestion_raw_v17.py",
+    "modify active contract",
+    "modify productive compliance views",
+    "data movement",
+    "destructive cleanup",
+    "worktree deletion",
+    "production cutover",
+    "git add ."
+  ],
+  "close_condition": [
+    "010C marked MERGED_TO_MAIN",
+    "source_row_number lock exists",
+    "PROJECT_STATUS_INDEX points to 010D",
+    "ACTIVE_ORDER_LOCK points to 010D",
+    "research README exists",
+    "PR merged to main"
+  ],
+  "next_allowed_phase_after_close": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH"
+}

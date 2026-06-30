@@ -63,11 +63,21 @@
         "4d5800b"
       ],
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION",
+      "merge_pr": 28,
+      "main_merge_commit": "d834055",
+      "included_commits": [
+        "3df063b",
+        "0c11930"
+      ],
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION",
-  "active_branch": "lab/FAST_REFORM_010C_route_b_review_and_dry_run_validation",
-  "next_allowed_phase_after_close": "FAST_REFORM_010D_ROUTE_B_CLAUDE_POST_AUDIT_OR_PR_REVIEW",
+  "active_phase": "FAST_REFORM_010D_ROUTE_B_POST_MERGE_CLOSE_AND_SOURCE_ROW_NUMBER_LOCK",
+  "active_branch": "lab/FAST_REFORM_010D_route_b_post_merge_close_and_source_row_number_lock",
+  "next_allowed_phase_after_close": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -95,7 +105,7 @@
     "data movement",
     "worktree deletion",
     "destructive cleanup",
-    "merge to main without review",
+    "production cutover",
     "git add ."
   ],
   "rule": "Chat previews do not govern execution. Operational rules must be promoted to versioned repo artifacts through commit, PR and merge.",
@@ -130,10 +140,22 @@
     "governance/phase_locks/FAST_REFORM_010A_route_b_implementation_lock.json",
     "governance/phase_locks/FAST_REFORM_010B_route_b_codex_implementation_after_claude_audit.json",
     "governance/phase_locks/FAST_REFORM_010C_route_b_review_and_dry_run_validation.json",
+    "governance/phase_locks/FAST_REFORM_010D_route_b_post_merge_close_and_source_row_number_lock.json",
     "research/010B_route_b_claude_audit/CLAUDE_ROUTE_B_AUDIT.md",
+    "research/010C_route_b_dry_run_validation/CLAUDE_POST_AUDIT.md",
     "research/010C_route_b_dry_run_validation/CODEX_DRY_RUN_OUTPUT.json",
-    "research/010C_route_b_dry_run_validation/CODEX_CONTRACT_IMPACT.md",
-    "research/010C_route_b_dry_run_validation/CODEX_ROLLBACK_NOTE.md",
-    "research/010C_route_b_dry_run_validation/CODEX_DIFF_SUMMARY.md"
-  ]
+    "research/010D_route_b_source_row_number_lock/README.md"
+  ],
+  "route_b_source_row_number_lock": {
+    "status": "BLOCKING_PRECONDITION_BEFORE_REAL_WRITES",
+    "introduced_by": "FAST_REFORM_010D_ROUTE_B_POST_MERGE_CLOSE_AND_SOURCE_ROW_NUMBER_LOCK",
+    "source_warning": "Claude 010C post-audit W2",
+    "required_before": [
+      "DB apply",
+      "SQL apply against Supabase real",
+      "loader writes to cg_raw",
+      "production cutover",
+      "incremental real ingestion"
+    ]
+  }
 }
