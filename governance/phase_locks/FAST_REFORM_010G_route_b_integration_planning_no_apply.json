@@ -1,0 +1,79 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY",
+  "status": "ACTIVE_UNTIL_MERGED",
+  "branch": "lab/FAST_REFORM_010G_route_b_integration_planning_no_apply",
+  "base_main_commit": "904205a",
+  "created_at_utc": "2026-06-30T03:43:20+00:00",
+  "objective": "Plan Route B future integration into the production control_gestion flow without applying SQL, writing DB rows, modifying production loader, or changing active contracts.",
+  "closed_previous_phase": {
+    "phase": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT_CLOSE",
+    "merge_pr": 31,
+    "main_merge_commit": "904205a",
+    "included_commit": "34d5e7a",
+    "status": "MERGED_TO_MAIN"
+  },
+  "current_route_b_state": {
+    "dry_run_loader": "scripts/load_kpione2_photo_from_excel.py",
+    "source_row_number": "SATISFIED_IN_DRY_RUN_APPROVED",
+    "claude_audit": "research/010E_route_b_source_row_number/CLAUDE_POST_AUDIT.md",
+    "dry_run_verdict": "PASS_ROUTE_B_DRY_RUN",
+    "blocking_flags_passed": 22,
+    "tests_passed": 11,
+    "db_apply": false,
+    "sql_apply": false,
+    "productive_loader_touched": false,
+    "active_contract_modified": false
+  },
+  "planning_outputs": [
+    "research/010G_route_b_integration_planning_no_apply/README.md",
+    "research/010G_route_b_integration_planning_no_apply/ROUTE_B_INTEGRATION_PLAN.md",
+    "research/010G_route_b_integration_planning_no_apply/RISK_MATRIX.md",
+    "research/010G_route_b_integration_planning_no_apply/VALIDATION_GATES.md"
+  ],
+  "allowed_actions": [
+    "read existing 010A..010F artifacts",
+    "document integration plan",
+    "document risk matrix",
+    "document validation gates",
+    "document future ORANGE/RED split",
+    "open PR"
+  ],
+  "forbidden_actions": [
+    "DB apply",
+    "SQL apply against Supabase real",
+    "modify scripts/load_control_gestion_raw_v17.py",
+    "modify active contract",
+    "modify productive compliance views",
+    "modify SQL DDL beyond planning notes",
+    "data movement",
+    "destructive cleanup",
+    "worktree deletion",
+    "production cutover",
+    "git add ."
+  ],
+  "orange_future_scope": [
+    "future production loader integration design",
+    "future adapter between Route B dry-run payload and cg_raw target schema",
+    "future test-only integration harness",
+    "future contract impact review if production loader must change"
+  ],
+  "red_future_scope": [
+    "SQL apply against Supabase real",
+    "DB writes to cg_raw",
+    "production cutover",
+    "real incremental ingestion",
+    "destructive rollback",
+    "credential or secret change"
+  ],
+  "close_condition": [
+    "010F marked MERGED_TO_MAIN",
+    "integration plan exists",
+    "risk matrix exists",
+    "validation gates exist",
+    "no production files modified",
+    "PR merged to main"
+  ],
+  "next_allowed_phase_after_close": "FAST_REFORM_010H_ROUTE_B_INTEGRATION_PLAN_CROSS_AUDIT"
+}

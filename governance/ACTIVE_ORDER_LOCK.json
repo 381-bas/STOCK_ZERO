@@ -2,25 +2,25 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT_CLOSE",
-  "base_main_commit": "3cd0e9a",
+  "phase": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY",
+  "base_main_commit": "904205a",
   "order": [
-    "Close 010E merge metadata in governance.",
-    "Record Claude APPROVE post-audit.",
-    "Record source_row_number dry-run traceability as satisfied.",
-    "Keep DB apply and SQL apply as RED actions.",
-    "Prepare next phase as integration planning only, no apply."
+    "Create Route B integration planning artifacts.",
+    "Preserve no-apply boundary.",
+    "Keep production loader untouched.",
+    "Define ORANGE/RED gates for future work.",
+    "Open PR for planning only."
   ],
   "allowed_now": [
-    "record 010E merge metadata",
-    "record 010F post-audit close",
-    "create 010F research note",
+    "create integration plan",
+    "create risk matrix",
+    "create validation gates",
     "open PR"
   ],
   "forbidden_now": [
     "DB apply",
     "SQL apply against Supabase real",
-    "modify load_control_gestion_raw_v17.py",
+    "modify scripts/load_control_gestion_raw_v17.py",
     "modify active contract",
     "modify productive compliance views",
     "data movement",
@@ -30,11 +30,13 @@
     "git add ."
   ],
   "close_condition": [
-    "010E marked MERGED_TO_MAIN",
-    "Claude APPROVE recorded",
-    "source_row_number dry-run traceability satisfied",
+    "010G phase lock exists",
+    "integration plan exists",
+    "risk matrix exists",
+    "validation gates exist",
+    "no production files modified",
     "PR merged to main"
   ],
-  "next_allowed_phase_after_close": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY",
-  "active_branch": "lab/FAST_REFORM_010F_route_b_source_row_number_post_audit_close"
+  "next_allowed_phase_after_close": "FAST_REFORM_010H_ROUTE_B_INTEGRATION_PLAN_CROSS_AUDIT",
+  "active_branch": "lab/FAST_REFORM_010G_route_b_integration_planning_no_apply"
 }
