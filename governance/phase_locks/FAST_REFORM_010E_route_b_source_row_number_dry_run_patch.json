@@ -1,0 +1,80 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
+  "status": "ACTIVE_UNTIL_MERGED",
+  "branch": "lab/FAST_REFORM_010E_route_b_source_row_number_dry_run_patch",
+  "base_main_commit": "e80d0f7",
+  "created_at_utc": "2026-06-30T02:13:28+00:00",
+  "objective": "Patch Route B dry-run loader and tests to include source_row_number traceability without DB/SQL apply or production loader changes.",
+  "source_row_number_lock_source": "governance/phase_locks/FAST_REFORM_010D_route_b_post_merge_close_and_source_row_number_lock.json",
+  "modified_expected": [
+    "scripts/load_kpione2_photo_from_excel.py",
+    "tests/test_kpione2_photo_grain.py"
+  ],
+  "new_evidence_expected": [
+    "research/010E_route_b_source_row_number/CODEX_DRY_RUN_OUTPUT.json",
+    "research/010E_route_b_source_row_number/CODEX_SOURCE_ROW_NUMBER_NOTE.md",
+    "research/010E_route_b_source_row_number/CODEX_DIFF_SUMMARY.md"
+  ],
+  "local_validation_observed": {
+    "python_compile": "PASS",
+    "tests": "PASS_11_TESTS",
+    "dry_run_verdict": "PASS_ROUTE_B_DRY_RUN",
+    "photo_rows": 37908,
+    "distinct_event_ids": 5892,
+    "fecha_min": "2026-06-20",
+    "fecha_max": "2026-06-24",
+    "db_apply": false,
+    "sql_apply": false,
+    "productive_loader_touched": false,
+    "source_row_number_present": true,
+    "source_row_number_complete": true,
+    "source_row_number_unique": true,
+    "source_row_number_matches_excel_rows": true
+  },
+  "source_row_number_contract": {
+    "field": "source_row_number",
+    "meaning": "one-based Excel worksheet row number after header resolution",
+    "excel_header_row_number": 1,
+    "first_data_row_number": 2,
+    "stability_scope": "source_workbook_and_sheet",
+    "does_not_replace_event_identity": true,
+    "event_identity_remains": [
+      "ID",
+      "SP Item ID"
+    ],
+    "grain_remains": "photo_row -> event_row -> day_presence"
+  },
+  "allowed_actions": [
+    "commit dry-run loader source_row_number patch",
+    "commit tests for source_row_number",
+    "commit 010E dry-run evidence",
+    "commit source_row_number note",
+    "commit diff summary",
+    "open PR"
+  ],
+  "forbidden_actions": [
+    "DB apply",
+    "SQL apply against Supabase real",
+    "modify load_control_gestion_raw_v17.py",
+    "modify active contract",
+    "modify productive compliance views",
+    "data movement",
+    "destructive cleanup",
+    "worktree deletion",
+    "production cutover",
+    "git add ."
+  ],
+  "close_condition": [
+    "source_row_number present in dry-run output",
+    "source_row_number flags all true",
+    "tests pass",
+    "dry-run PASS_ROUTE_B_DRY_RUN",
+    "db_apply=false",
+    "sql_apply=false",
+    "productive_loader_touched=false",
+    "PR merged to main"
+  ],
+  "next_allowed_phase_after_close": "FAST_REFORM_010F_ROUTE_B_SOURCE_ROW_NUMBER_POST_AUDIT"
+}

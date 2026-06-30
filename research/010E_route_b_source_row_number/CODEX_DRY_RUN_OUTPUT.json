@@ -1,0 +1,382 @@
+{
+  "column_contract": {
+    "event_stable_columns_used_for_hash": [
+      "ID",
+      "SP Item ID",
+      "Holding",
+      "Subcadena",
+      "Codigo Local",
+      "Marca",
+      "Local",
+      "Direccion",
+      "Reponedor",
+      "Fecha",
+      "Comentarios"
+    ],
+    "photo_level_columns_excluded_from_hash": [
+      "Foto N\u00ba/Total",
+      "Link Foto",
+      "Hora",
+      "Tipo de Tarea",
+      "Fecha de subida"
+    ]
+  },
+  "columns": [
+    "ID",
+    "SP Item ID",
+    "Holding",
+    "Subcadena",
+    "Codigo Local",
+    "Marca",
+    "Local",
+    "Direccion",
+    "Reponedor",
+    "Fecha",
+    "Fecha de subida",
+    "Hora",
+    "Tipo de Tarea",
+    "Foto N\u00ba/Total",
+    "Comentarios",
+    "Link Foto",
+    "_source_row_number"
+  ],
+  "contract_status": "ACTIVE",
+  "daily_coverage": [
+    {
+      "coverage_date": "2026-06-20",
+      "distinct_event_ids": 1286,
+      "photo_rows": 8550
+    },
+    {
+      "coverage_date": "2026-06-21",
+      "distinct_event_ids": 11,
+      "photo_rows": 98
+    },
+    {
+      "coverage_date": "2026-06-22",
+      "distinct_event_ids": 1556,
+      "photo_rows": 9982
+    },
+    {
+      "coverage_date": "2026-06-23",
+      "distinct_event_ids": 1460,
+      "photo_rows": 9189
+    },
+    {
+      "coverage_date": "2026-06-24",
+      "distinct_event_ids": 1579,
+      "photo_rows": 10089
+    }
+  ],
+  "day_presence_summary": {
+    "binary_presence_values": [
+      1
+    ],
+    "max_events_per_day_presence": 4,
+    "rows": 5869
+  },
+  "db_apply": false,
+  "dsn_printed": false,
+  "errors": [],
+  "expected": {
+    "distinct_event_ids": 5892,
+    "fecha_max": "2026-06-24",
+    "fecha_min": "2026-06-20",
+    "photo_rows": 37908
+  },
+  "flags": {
+    "day_presence_is_binary": true,
+    "db_apply_false": true,
+    "distinct_event_ids_match": true,
+    "fecha_max_match": true,
+    "fecha_min_match": true,
+    "forbidden_assumption_rejected": true,
+    "grain_contract_match": true,
+    "no_event_ids_multi_fecha": true,
+    "no_event_ids_multi_sp_item": true,
+    "no_event_ids_multi_week": true,
+    "no_null_event_id_rows": true,
+    "no_null_fecha_rows": true,
+    "no_null_n_fotos_calculado_rows": true,
+    "no_real_content_conflict_event_ids": true,
+    "no_row_count_n_fotos_mismatch_events": true,
+    "photo_rows_match": true,
+    "productive_loader_touched_false": true,
+    "source_row_number_complete": true,
+    "source_row_number_matches_excel_rows": true,
+    "source_row_number_present": true,
+    "source_row_number_unique": true,
+    "sql_apply_false": true
+  },
+  "generated_at": "2026-06-29T22:07:32-04:00",
+  "grain_contract": {
+    "compliance_grain": "day_presence",
+    "forbidden_assumption": "one_excel_row_equals_one_visit",
+    "input_grain": "photo_row",
+    "normalized_grain": "event_row"
+  },
+  "loader_name": "load_kpione2_photo_from_excel",
+  "metrics": {
+    "dates_present": [
+      "2026-06-20",
+      "2026-06-21",
+      "2026-06-22",
+      "2026-06-23",
+      "2026-06-24"
+    ],
+    "day_presence_rows": 5869,
+    "distinct_event_identity_pairs": 5892,
+    "distinct_event_ids": 5892,
+    "event_ids_multi_fecha": 0,
+    "event_ids_multi_sp_item": 0,
+    "event_ids_multi_week": 0,
+    "event_rows": 5892,
+    "fecha_max": "2026-06-24",
+    "fecha_min": "2026-06-20",
+    "max_events_per_day_presence": 4,
+    "null_event_id_rows": 0,
+    "null_fecha_rows": 0,
+    "null_n_fotos_calculado_rows": 0,
+    "photo_rows": 37908,
+    "real_content_conflict_event_ids": 0,
+    "row_count_n_fotos_mismatch_events": 0,
+    "source_row_number_distinct": 37908,
+    "source_row_number_max": 37909,
+    "source_row_number_min": 2,
+    "source_row_number_null_rows": 0,
+    "weeks_present": [
+      "2026-06-15",
+      "2026-06-22"
+    ]
+  },
+  "missing_required_columns": [],
+  "mode": "dry_run",
+  "normalization": {
+    "day_presence_key": [
+      "fecha",
+      "cod_rt_norm",
+      "cliente_norm_key"
+    ],
+    "day_presence_value": "binary_1_if_any_event",
+    "event_identity": [
+      "ID",
+      "SP Item ID"
+    ],
+    "event_key": "trim(ID)",
+    "photo_row_to_event_row": "group_by_event_id",
+    "source_row_number": "one_based_excel_worksheet_row_after_header_resolution"
+  },
+  "phase": "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH",
+  "photo_row_traceability": {
+    "event_identity": [
+      "ID",
+      "SP Item ID"
+    ],
+    "event_identity_replaced": false,
+    "excel_header_row_number": 1,
+    "first_data_row_number": 2,
+    "mapping_cardinality": "one_photo_row_to_one_source_row_number",
+    "photo_rows_mapped": 37908,
+    "sample_rows": [
+      {
+        "event_id": "883726",
+        "photo_row_hash": "72272d486be34e9e4f19c74b1410716dc4d5ee0694b90a2e4375f76ac81ec22f",
+        "source_row_number": 2,
+        "sp_item_id": "453113"
+      },
+      {
+        "event_id": "883726",
+        "photo_row_hash": "dff84ecb09ca37b5e8bd19d4e562fdf35a05412f928b88d1e89258dc9401509d",
+        "source_row_number": 3,
+        "sp_item_id": "453113"
+      },
+      {
+        "event_id": "883726",
+        "photo_row_hash": "f38f15d5f47e4538c971c2291276f123a7857ae277cb16232ddf060238df0c6a",
+        "source_row_number": 4,
+        "sp_item_id": "453113"
+      },
+      {
+        "event_id": "877678",
+        "photo_row_hash": "5df58d7b9baa3c5825ac8ea125aa5cc7b3ad865e809145c4a19bcd11d1bc06d6",
+        "source_row_number": 37907,
+        "sp_item_id": "413773"
+      },
+      {
+        "event_id": "877678",
+        "photo_row_hash": "6e409d402d77f1eda11de8732dd5f0e6a52c8936c5ba0b332f7be7e340c3ffca",
+        "source_row_number": 37908,
+        "sp_item_id": "413773"
+      },
+      {
+        "event_id": "877678",
+        "photo_row_hash": "b232e928f05c77724ee3ea6fa879a62e6932e437e51768863cf7c114825aa9bb",
+        "source_row_number": 37909,
+        "sp_item_id": "413773"
+      }
+    ],
+    "source_row_number_field": "source_row_number",
+    "stability_scope": "source_workbook_and_sheet",
+    "trace_manifest_algorithm": "sha256(source_row_number,event_id,sp_item_id,photo_row_hash)",
+    "trace_manifest_sha256": "0c1a3d9cce34bb69b6673a5164cac673bd91cb4e119c12d71f44a356bf07a592"
+  },
+  "productive_loader_path": "scripts/load_control_gestion_raw_v17.py",
+  "productive_loader_touched": false,
+  "resolved_columns": {
+    "cliente_norm": "Marca",
+    "cod_rt": "Codigo Local",
+    "comentarios": "Comentarios",
+    "direccion": "Direccion",
+    "event_id": "ID",
+    "fecha": "Fecha",
+    "fecha_subida": "Fecha de subida",
+    "holding": "Holding",
+    "hora": "Hora",
+    "link_foto": "Link Foto",
+    "local_nombre": "Local",
+    "photo_count": "Foto N\u00ba/Total",
+    "reponedor": "Reponedor",
+    "sp_item_id": "SP Item ID",
+    "subcadena": "Subcadena",
+    "tipo_de_tarea": "Tipo de Tarea"
+  },
+  "sample_event_rows": [
+    {
+      "_event_id": "877678",
+      "cliente_norm": "ALUSWEET",
+      "cliente_norm_key": "ALUSWEET",
+      "cod_rt": "EX146",
+      "cod_rt_norm": "EX146",
+      "event_stable_hash": "2d910b398c27835bdab9310d44a0453a57ff828c0ede718a9b0dbf12f2d8be7f",
+      "fecha": "2026-06-20",
+      "first_source_row_number": 37905,
+      "hora_primera_foto": "06:21:14 a. m.",
+      "last_source_row_number": 37909,
+      "local_nombre": "146 - EXPRESS SAN JAVIER",
+      "n_fotos_calculado": 5,
+      "reponedor": "VICTOR FLORES",
+      "row_count_equals_n_fotos": true,
+      "source_photo_rows": 5,
+      "sp_item_id": "413773",
+      "tipos_de_tarea": [
+        "Antes de reposicion",
+        "Bodega",
+        "Carteleria",
+        "Despues de reposicion",
+        "Panoramica"
+      ],
+      "week_start": "2026-06-15"
+    },
+    {
+      "_event_id": "877679",
+      "cliente_norm": "SUK",
+      "cliente_norm_key": "SUK",
+      "cod_rt": "EX146",
+      "cod_rt_norm": "EX146",
+      "event_stable_hash": "1133e0e67fd271970db91a9de0f1e1eacb4be12b294410e4507a630dd22200a7",
+      "fecha": "2026-06-20",
+      "first_source_row_number": 37900,
+      "hora_primera_foto": "06:54:48 a. m.",
+      "last_source_row_number": 37904,
+      "local_nombre": "146 - EXPRESS SAN JAVIER",
+      "n_fotos_calculado": 5,
+      "reponedor": "VICTOR FLORES",
+      "row_count_equals_n_fotos": true,
+      "source_photo_rows": 5,
+      "sp_item_id": "413778",
+      "tipos_de_tarea": [
+        "Antes de reposicion",
+        "Bodega",
+        "Carteleria",
+        "Despues de reposicion",
+        "Panoramica"
+      ],
+      "week_start": "2026-06-15"
+    },
+    {
+      "_event_id": "877680",
+      "cliente_norm": "BREDEN MASTER",
+      "cliente_norm_key": "BREDEN MASTER",
+      "cod_rt": "EX74",
+      "cod_rt_norm": "EX74",
+      "event_stable_hash": "79b5a487e1321c0b015b7c98435379b3cd4a07b3e892753ff9a49149bfdd0663",
+      "fecha": "2026-06-20",
+      "first_source_row_number": 37889,
+      "hora_primera_foto": "06:57:00 a. m.",
+      "last_source_row_number": 37899,
+      "local_nombre": "74 - EXPRESS TOMAS MORO",
+      "n_fotos_calculado": 11,
+      "reponedor": "JOSE ANGEL S\u00c1NCHEZ ORTA",
+      "row_count_equals_n_fotos": true,
+      "source_photo_rows": 11,
+      "sp_item_id": "413783",
+      "tipos_de_tarea": [
+        "Antes de reposicion",
+        "Bodega",
+        "Carteleria",
+        "Despues de reposicion",
+        "Panoramica"
+      ],
+      "week_start": "2026-06-15"
+    },
+    {
+      "_event_id": "877681",
+      "cliente_norm": "BREDEN MASTER",
+      "cliente_norm_key": "BREDEN MASTER",
+      "cod_rt": "EX640",
+      "cod_rt_norm": "EX640",
+      "event_stable_hash": "7abc881992ea1c6ce0ca5e58ef42da036226bf211981ba93aa09d4a5f299eadd",
+      "fecha": "2026-06-20",
+      "first_source_row_number": 37865,
+      "hora_primera_foto": "07:09:00 a. m.",
+      "last_source_row_number": 37888,
+      "local_nombre": "640 - LIDER EX 10 DE JULIO",
+      "n_fotos_calculado": 24,
+      "reponedor": "BRENDA GALARRAGA",
+      "row_count_equals_n_fotos": true,
+      "source_photo_rows": 24,
+      "sp_item_id": "413788",
+      "tipos_de_tarea": [
+        "Antes de reposicion",
+        "Bodega",
+        "Carteleria",
+        "Despues de reposicion",
+        "Merma",
+        "Panoramica"
+      ],
+      "week_start": "2026-06-15"
+    },
+    {
+      "_event_id": "877682",
+      "cliente_norm": "MENESS",
+      "cliente_norm_key": "MENESS",
+      "cod_rt": "HI736",
+      "cod_rt_norm": "HI736",
+      "event_stable_hash": "7ef550db83c2dcd87299362ae69afc2fe763b63b4ef23354ed741a1476d1f1ba",
+      "fecha": "2026-06-20",
+      "first_source_row_number": 37857,
+      "hora_primera_foto": "07:12:26 a. m.",
+      "last_source_row_number": 37864,
+      "local_nombre": "736 - LIDER MALLOCO",
+      "n_fotos_calculado": 8,
+      "reponedor": "MARINA CONEJEROS",
+      "row_count_equals_n_fotos": true,
+      "source_photo_rows": 8,
+      "sp_item_id": "413789",
+      "tipos_de_tarea": [
+        "Antes de reposicion",
+        "Bodega",
+        "Despues de reposicion",
+        "Panoramica"
+      ],
+      "week_start": "2026-06-15"
+    }
+  ],
+  "sheet_name": "Fotos",
+  "source_file": "data\\photo-excel-admin_1782440454408.xlsx",
+  "source_file_sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+  "sql_apply": false,
+  "verdict": "PASS_ROUTE_B_DRY_RUN",
+  "warnings": [],
+  "writes_executed": false
+}

@@ -17,13 +17,15 @@ import pandas as pd
 
 
 LOADER_NAME = "load_kpione2_photo_from_excel"
-PHASE = "FAST_REFORM_010C_ROUTE_B_REVIEW_AND_DRY_RUN_VALIDATION"
+PHASE = "FAST_REFORM_010E_ROUTE_B_SOURCE_ROW_NUMBER_DRY_RUN_PATCH"
 LOCAL_TZ = ZoneInfo("America/Santiago")
 
 DEFAULT_EXCEL = Path("data/photo-excel-admin_1782440454408.xlsx")
 DEFAULT_SHEET = "Fotos"
 DEFAULT_CONTRACT = Path("contracts/control_gestion/kpione2_photo_export_contract_v1.json")
 PRODUCTIVE_LOADER_PATH = "scripts/load_control_gestion_raw_v17.py"
+EXCEL_HEADER_ROW_NUMBER = 1
+EXCEL_FIRST_DATA_ROW_NUMBER = EXCEL_HEADER_ROW_NUMBER + 1
 
 GRAIN_CONTRACT = {
     "input_grain": "photo_row",
@@ -110,6 +112,10 @@ BLOCKING_FLAG_KEYS = [
     "no_row_count_n_fotos_mismatch_events",
     "no_real_content_conflict_event_ids",
     "day_presence_is_binary",
+    "source_row_number_present",
+    "source_row_number_complete",
+    "source_row_number_unique",
+    "source_row_number_matches_excel_rows",
 ]
 
 
@@ -237,6 +243,57 @@ def photo_row_hash_frame(df: pd.DataFrame) -> pd.Series:
     return normalized.agg("||".join, axis=1).map(sha256_text)
 
 
+def assign_excel_source_row_numbers(df: pd.DataFrame) -> pd.DataFrame:
+    numbered = df.copy()
+    numbered["_source_row_number"] = pd.RangeIndex(
+        start=EXCEL_FIRST_DATA_ROW_NUMBER,
+        stop=EXCEL_FIRST_DATA_ROW_NUMBER + len(numbered),
+    )
+    return numbered
+
+
+def source_trace_manifest_sha256(df: pd.DataFrame) -> str:
+    h = hashlib.sha256()
+    trace_columns = [
+        "_source_row_number",
+        "_event_id",
+        "_sp_item_id",
+        "_photo_row_hash",
+    ]
+    for source_row_number, event_id, sp_item_id, photo_row_hash in df[trace_columns].itertuples(
+        index=False,
+        name=None,
+    ):
+        trace_record = [
+            int(source_row_number),
+            clean_text(event_id),
+            clean_text(sp_item_id),
+            clean_text(photo_row_hash),
+        ]
+        h.update(json.dumps(trace_record, ensure_ascii=True, separators=(",", ":")).encode("utf-8"))
+        h.update(b"\n")
+    return h.hexdigest()
+
+
+def source_trace_sample(df: pd.DataFrame) -> list[dict[str, Any]]:
+    trace = df[
+        ["_source_row_number", "_event_id", "_sp_item_id", "_photo_row_hash"]
+    ].rename(
+        columns={
+            "_source_row_number": "source_row_number",
+            "_event_id": "event_id",
+            "_sp_item_id": "sp_item_id",
+            "_photo_row_hash": "photo_row_hash",
+        }
+    )
+    if len(trace) > 6:
+        trace = pd.concat([trace.head(3), trace.tail(3)], ignore_index=True)
+    records = trace.to_dict(orient="records")
+    for record in records:
+        record["source_row_number"] = int(record["source_row_number"])
+    return records
+
+
 def _date_iso(value: object) -> str | None:
     if value is None or pd.isna(value):
         return None
@@ -256,7 +313,7 @@ def analyze_photo_dataframe(
     source_file_sha256: str | None,
     sheet_name: str,
 ) -> dict[str, Any]:
-    df = df.copy()
+    df = assign_excel_source_row_numbers(df)
     df.columns = [str(c).strip() for c in df.columns]
     resolved, missing = resolve_columns(df)
 
@@ -316,6 +373,22 @@ def analyze_photo_dataframe(
     df["_photo_row_hash"] = photo_row_hash_frame(df[[c for c in df.columns if not c.startswith("_")]])
 
     photo_rows = int(len(df))
+    source_row_numbers = df["_source_row_number"]
+    source_row_number_null_rows = int(source_row_numbers.isna().sum())
+    source_row_number_distinct = int(source_row_numbers.nunique(dropna=True))
+    source_row_number_min = int(source_row_numbers.min()) if photo_rows else None
+    source_row_number_max = int(source_row_numbers.max()) if photo_rows else None
+    expected_source_row_numbers = pd.Series(
+        pd.RangeIndex(
+            start=EXCEL_FIRST_DATA_ROW_NUMBER,
+            stop=EXCEL_FIRST_DATA_ROW_NUMBER + photo_rows,
+        ),
+        dtype="int64",
+    )
+    source_row_number_matches_excel_rows = source_row_numbers.reset_index(drop=True).equals(
+        expected_source_row_numbers
+    )
+    trace_manifest_sha256 = source_trace_manifest_sha256(df)
     valid_event_mask = df["_event_id"] != ""
     valid_events = df[valid_event_mask].copy()
     distinct_event_ids = int(valid_events["_event_id"].nunique())
@@ -342,6 +415,8 @@ def analyze_photo_dataframe(
         valid_events.groupby("_event_id", dropna=False)
         .agg(
             source_photo_rows=("_event_id", "size"),
+            first_source_row_number=("_source_row_number", "min"),
+            last_source_row_number=("_source_row_number", "max"),
             n_fotos_calculado=("_n_fotos_calculado", "max"),
             fecha=("_fecha_dt", "first"),
             week_start=("_week_start", "first"),
@@ -410,6 +485,10 @@ def analyze_photo_dataframe(
         "event_ids_multi_sp_item": event_ids_multi_sp_item,
         "real_content_conflict_event_ids": real_content_conflict_event_ids,
         "row_count_n_fotos_mismatch_events": row_count_n_fotos_mismatch_events,
+        "source_row_number_null_rows": source_row_number_null_rows,
+        "source_row_number_distinct": source_row_number_distinct,
+        "source_row_number_min": source_row_number_min,
+        "source_row_number_max": source_row_number_max,
     }
 
     flags = {
@@ -431,6 +510,10 @@ def analyze_photo_dataframe(
         "no_row_count_n_fotos_mismatch_events": row_count_n_fotos_mismatch_events == 0,
         "no_real_content_conflict_event_ids": real_content_conflict_event_ids == 0,
         "day_presence_is_binary": day_presence_is_binary,
+        "source_row_number_present": "_source_row_number" in df.columns,
+        "source_row_number_complete": source_row_number_null_rows == 0,
+        "source_row_number_unique": source_row_number_distinct == photo_rows,
+        "source_row_number_matches_excel_rows": source_row_number_matches_excel_rows,
     }
 
     payload = {
@@ -443,8 +526,22 @@ def analyze_photo_dataframe(
             "photo_row_to_event_row": "group_by_event_id",
             "event_identity": ["ID", "SP Item ID"],
             "event_key": "trim(ID)",
+            "source_row_number": "one_based_excel_worksheet_row_after_header_resolution",
             "day_presence_key": ["fecha", "cod_rt_norm", "cliente_norm_key"],
             "day_presence_value": "binary_1_if_any_event",
+        },
+        "photo_row_traceability": {
+            "source_row_number_field": "source_row_number",
+            "excel_header_row_number": EXCEL_HEADER_ROW_NUMBER,
+            "first_data_row_number": EXCEL_FIRST_DATA_ROW_NUMBER,
+            "stability_scope": "source_workbook_and_sheet",
+            "mapping_cardinality": "one_photo_row_to_one_source_row_number",
+            "photo_rows_mapped": photo_rows - source_row_number_null_rows,
+            "event_identity": ["ID", "SP Item ID"],
+            "event_identity_replaced": False,
+            "trace_manifest_algorithm": "sha256(source_row_number,event_id,sp_item_id,photo_row_hash)",
+            "trace_manifest_sha256": trace_manifest_sha256,
+            "sample_rows": source_trace_sample(df),
         },
         "metrics": metrics,
         "daily_coverage": daily_coverage,
@@ -475,7 +572,11 @@ def build_dry_run_payload(
     with pd.ExcelFile(excel_path, engine="openpyxl") as workbook:
         if sheet_name not in workbook.sheet_names:
             raise LoaderUsageError("sheet_not_found", f"Sheet not found: {sheet_name}")
-        df = pd.read_excel(workbook, sheet_name=sheet_name)
+        df = pd.read_excel(
+            workbook,
+            sheet_name=sheet_name,
+            header=EXCEL_HEADER_ROW_NUMBER - 1,
+        )
     return analyze_photo_dataframe(
         df,
         contract=contract,
