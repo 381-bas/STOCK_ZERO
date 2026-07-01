@@ -97,11 +97,25 @@
       "main_merge_commit": "904205a",
       "included_commit": "34d5e7a",
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY",
+      "merge_pr": 32,
+      "main_merge_commit": "11295f7",
+      "included_commit": "bce93dc",
+      "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_010H_ROUTE_B_INTEGRATION_PLAN_CROSS_AUDIT",
+      "merge_pr": 33,
+      "main_merge_commit": "23bab44",
+      "included_commit": "cb2b1b6",
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY",
-  "active_branch": "lab/FAST_REFORM_010G_route_b_integration_planning_no_apply",
-  "next_allowed_phase_after_close": "FAST_REFORM_010H_ROUTE_B_INTEGRATION_PLAN_CROSS_AUDIT",
+  "active_phase": "FAST_REFORM_011_EXECUTION_MODEL_AND_KERNEL_REALIGNMENT",
+  "active_branch": "lab/FAST_REFORM_011_execution_model_and_kernel_realignment",
+  "next_allowed_phase_after_close": "SELECTIVE_KERNEL_REALIGNMENT_OR_ROUTE_B_NEXT_STEP_UNDER_NEW_PR_POLICY",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -121,13 +135,14 @@
     "governance/thread_summaries/PR_19_20_CLOSEOUT.md"
   ],
   "forbidden_until_close": [
+    "Route B implementation",
     "DB apply",
     "SQL apply against Supabase real",
     "modify scripts/load_control_gestion_raw_v17.py",
     "modify active contract",
     "modify productive compliance views",
+    "Supabase writes",
     "data movement",
-    "worktree deletion",
     "destructive cleanup",
     "production cutover",
     "git add ."
@@ -176,13 +191,27 @@
     "still_required_before_real_writes": true
   },
   "route_b_integration_planning": {
-    "status": "ACTIVE_NO_APPLY",
-    "phase": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY",
-    "base_main_commit": "904205a",
+    "status": "CLOSED_AFTER_010H_APPROVE_WITH_WARNINGS",
+    "phase": "FAST_REFORM_010H_ROUTE_B_INTEGRATION_PLAN_CROSS_AUDIT",
+    "main_merge_commit": "23bab44",
     "db_apply": false,
     "sql_apply": false,
     "productive_loader_modification": false,
     "future_orange_required": true,
-    "future_red_required_for_apply": true
+    "future_red_required_for_apply": true,
+    "missing_gates_before_implementation": [
+      "compliance denominator reconciliation",
+      "forward-only/backfill scope decision",
+      "rollback and production cutover gate"
+    ]
+  },
+  "active_phase_started_from_main": "23bab44",
+  "updated_at_utc": "2026-07-01T01:03:39+00:00",
+  "execution_model_reform": {
+    "status": "ACTIVE_IN_011",
+    "reason": "010 series protected the project but over-fragmented administrative PRs.",
+    "new_rule": "1 operational objective = 1 branch = 1 PR; use internal commits for subtasks.",
+    "kernel_rule": "Git repo KERNEL is versioned source of truth; ChatGPT Project sources are operational context.",
+    "divergence_alert_rule": "If Git KERNEL/governance differs from ChatGPT Project sources, alert the divergence and treat Git as authoritative."
   }
 }
