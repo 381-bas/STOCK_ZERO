@@ -54,3 +54,39 @@ The required promotion path is:
 `preview -> target artifact -> diff/script -> validation -> commit -> push -> PR -> merge to main`
 
 No operational rule is considered durable until it exists in the repository.
+
+## PR unit of value rule
+
+From 011 onward, PRs must represent a verifiable unit of value, not every administrative event.
+
+Default rule:
+
+`1 operational objective = 1 branch = 1 PR`
+
+A PR may contain multiple internal commits, for example:
+
+- contract / lock
+- implementation or documentation
+- tests / evidence
+- audit
+- closeout metadata
+
+Split into another PR only when the risk class changes.
+
+Risk split rule:
+
+- GREEN and YELLOW may be grouped when paths are bounded.
+- ORANGE requires explicit review and usually a separate PR or sub-phase.
+- RED requires separate phase and explicit Basti?n authorization.
+
+Do not create closeout-only or audit-only PRs unless they unlock a decision, change a rule, or reduce real risk.
+
+## Git vs ChatGPT Project source rule
+
+Git is the versioned source of truth for governance and KERNEL files.
+
+ChatGPT Project sources are operational context, not final authority.
+
+If the KERNEL/governance files loaded in ChatGPT Project differ from the files committed in Git, the assistant must alert the divergence and treat Git as authoritative.
+
+After a KERNEL update is merged to `main`, the ChatGPT Project sources should be replaced with the new version.

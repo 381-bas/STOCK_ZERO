@@ -1,0 +1,27 @@
+{
+  "package": "STOCK_ZERO_KERNEL_CANONICAL_v2026_06_30_011",
+  "version": "2026.06.30.011",
+  "generated_at_utc": "2026-07-01T23:32:24+00:00",
+  "document_type": "kernel_manifest",
+  "project": "STOCK_ZERO",
+  "canonical_repo_path": "governance/kernel/current/",
+  "source_local_ignored_path": "Documentos/KERNEL BASE FINAL/",
+  "source_note": "Local KERNEL files existed under an ignored folder. 011 promotes a canonical tracked copy.",
+  "base_main_commit": "23bab44",
+  "governance_realign_commit": "853f3a7",
+  "authority_rule": "Git governance/KERNEL files are authoritative when tracked and merged; ChatGPT Project sources are operational context.",
+  "divergence_rule": "If Git and ChatGPT Project sources differ, alert the divergence and treat Git as authoritative.",
+  "files": {
+    "01_project_kernel": "01_project_kernel_stock_zero_v2026_06_16.json",
+    "02_project_state": "02_project_state_stock_zero_v2026_06_30_011.json",
+    "03_project_ledger": "03_project_ledger_stock_zero_v2026_06_30_011.json",
+    "04_project_technical_evidence": "04_project_technical_evidence_stock_zero_v2026_06_30_011.json"
+  },
+  "promotion_scope": [
+    "Do not use KERNEL as history dump.",
+    "Preserve 01 as stable kernel base.",
+    "Update 02 for active state.",
+    "Update 03 for durable decision.",
+    "Update 04 for direction/evidence candidate."
+  ]
+}

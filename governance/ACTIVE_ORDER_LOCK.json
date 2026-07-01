@@ -2,41 +2,43 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_010G_ROUTE_B_INTEGRATION_PLANNING_NO_APPLY",
-  "base_main_commit": "904205a",
+  "phase": "FAST_REFORM_011_EXECUTION_MODEL_AND_KERNEL_REALIGNMENT",
+  "base_main_commit": "23bab44",
   "order": [
-    "Create Route B integration planning artifacts.",
-    "Preserve no-apply boundary.",
-    "Keep production loader untouched.",
-    "Define ORANGE/RED gates for future work.",
-    "Open PR for planning only."
+    "Realign execution governance after closing 010H.",
+    "Replace fine-grained administrative PRs with PRs by verifiable unit of value.",
+    "Record Git-vs-ChatGPT KERNEL divergence alert rule.",
+    "Prepare selective KERNEL update after governance is corrected.",
+    "Do not implement Route B in this phase."
   ],
   "allowed_now": [
-    "create integration plan",
-    "create risk matrix",
-    "create validation gates",
-    "open PR"
+    "update governance execution doctrine",
+    "update active project status",
+    "create 011 phase lock",
+    "prepare selective KERNEL realignment plan"
   ],
   "forbidden_now": [
+    "Route B implementation",
     "DB apply",
     "SQL apply against Supabase real",
     "modify scripts/load_control_gestion_raw_v17.py",
     "modify active contract",
     "modify productive compliance views",
+    "Supabase writes",
     "data movement",
-    "worktree deletion",
     "destructive cleanup",
     "production cutover",
     "git add ."
   ],
   "close_condition": [
-    "010G phase lock exists",
-    "integration plan exists",
-    "risk matrix exists",
-    "validation gates exist",
+    "010G and 010H registered as closed",
+    "active phase points to 011",
+    "execution doctrine includes PR unit-of-value rule",
+    "execution doctrine includes Git-vs-ChatGPT divergence alert rule",
     "no production files modified",
-    "PR merged to main"
+    "no DB/SQL/Supabase action"
   ],
-  "next_allowed_phase_after_close": "FAST_REFORM_010H_ROUTE_B_INTEGRATION_PLAN_CROSS_AUDIT",
-  "active_branch": "lab/FAST_REFORM_010G_route_b_integration_planning_no_apply"
+  "next_allowed_phase_after_close": "SELECTIVE_KERNEL_REALIGNMENT_OR_ROUTE_B_NEXT_STEP_UNDER_NEW_PR_POLICY",
+  "active_branch": "lab/FAST_REFORM_011_execution_model_and_kernel_realignment",
+  "updated_at_utc": "2026-07-01T01:03:39+00:00"
 }

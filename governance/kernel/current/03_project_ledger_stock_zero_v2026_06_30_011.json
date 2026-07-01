@@ -1,0 +1,209 @@
+{
+  "schema_version": "2.0",
+  "document_type": "project_ledger",
+  "project": "STOCK_ZERO",
+  "version": "2026.06.30.011",
+  "generated_at": "2026-07-01T23:32:24+00:00",
+  "entries": [
+    {
+      "date": "2026-04",
+      "decision": "Supabase/PostgreSQL como plataforma de datos.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-05",
+      "decision": "Precedencia KPIONE2 > POWER_APP > KPIONE1 audit-only.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-05",
+      "decision": "Hechos diarios y semanales incrementales para Control Gestión.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-05",
+      "decision": "Corrección de duplicación de rutas en v_rr_frecuencia_base_resuelta_v2.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-05",
+      "decision": "Runtime semanal en cg_mart.fact_cg_out_weekly_v2.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06-02",
+      "decision": "Fuente KPIONE2 productiva realineada a CUMPLIMIENTO_FRECUENCIA.xlsx / DB (KPIONE2.0).",
+      "status": "ACTIVE",
+      "replaces": "Fotos como fuente productiva"
+    },
+    {
+      "date": "2026-06",
+      "decision": "Adoptar Git worktrees para fases riesgosas.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06",
+      "decision": "ChatGPT gobierna, Claude investiga y critica, Codex implementa y prueba.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06",
+      "decision": "La selección de modelo queda fuera del prompt operativo.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06",
+      "decision": "CG005N-Q preserva prefijos y anexa columnas de contrato al final.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06",
+      "decision": "Rollback exacto sustituido por rollback lógico signature-preserving.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06",
+      "decision": "Catálogo canónico compartido en cg005n_catalog_contract.py.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06",
+      "decision": "PostgreSQL 17 para laboratorio CG005N-Q.",
+      "status": "ACTIVE_FOR_CG005N_LABS",
+      "replaces": "postgres:15-alpine"
+    },
+    {
+      "date": "2026-06",
+      "decision": "Paquete CG005N-Q cerrado en feature branch antes de autorización Supabase.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06",
+      "decision": "Drift productivo previo clasificado NO_DRIFT.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06",
+      "decision": "No construir Skill/MCP de memoria por ahora.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06",
+      "decision": "Cambiar el equilibrio hacia mayor desarrollo funcional.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "CG005N-Q PR #3 fue creado, marcado ready for review y mergeado a main como cambio code-only.",
+      "status": "ACTIVE",
+      "evidence": {
+        "pr": 3,
+        "url": "https://github.com/381-bas/STOCK_ZERO/pull/3",
+        "merge_commit": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
+        "head_sha": "a181142ec46711b41d591fe4d5450b8b5859e0cf",
+        "changed_files": 7
+      }
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "El bloqueo inicial por diff contra main local se clasificó como falso positivo; readiness debe comparar contra origin/main o base SHA congelado cuando main local esté desalineado.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "Merge a main no autoriza Supabase DDL, SQL13 productivo, DB_URL_DDL, DB_URL_LOAD, loaders ni data load.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "Limpieza Supabase debe entrar como discovery read-only con matriz KEEP/DEPRECATE/ARCHIVE/DROP_CANDIDATE antes de cualquier eliminación.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "Supabase cleanup discovery primera pasada fue aceptada solo como inventario read-only, no como matriz decision-grade.",
+      "status": "ACTIVE",
+      "evidence": {
+        "objects_scanned": 142,
+        "supabase_writes": false
+      }
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "Claude se integró como auditor crítico complementario: no ejecuta; critica matriz, criterios, riesgos y puntos ciegos.",
+      "status": "ACTIVE",
+      "evidence": {
+        "phase": "CLAUDE_CLEANUP_MATRIX_CRITICAL_REVIEW",
+        "verdict": "CRITICAL_REVIEW_READY"
+      }
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "Segunda pasada Codex read-only clasificó 142/142 objetos: 136 KEEP_ACTIVE, 6 STOP_UNKNOWN, 0 candidatos DEPRECATE/ARCHIVE/DROP.",
+      "status": "ACTIVE",
+      "evidence": {
+        "phase": "CODEX_CLEANUP_SECOND_PASS_TARGETED_READ_ONLY",
+        "verdict": "SECOND_PASS_READY",
+        "objects_classified": 142
+      }
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "Supabase cleanup queda registrado como NO_DROP/NO_DEPRECATE/NO_ARCHIVE en research/SUPABASE_CLEANUP_NO_DROP_REGISTER_20260620.json.",
+      "status": "ACTIVE",
+      "evidence": {
+        "pr": 4,
+        "url": "https://github.com/381-bas/STOCK_ZERO/pull/4",
+        "merge_commit": "57ef2e0b258486ac0bdeffb60b3f5bcf36e6e514",
+        "changed_files": 1
+      }
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "La limpieza destructiva queda bloqueada por defecto; objetos LOW confidence o HIGH risk deben permanecer STOP_UNKNOWN hasta evidencia externa/runtime suficiente.",
+      "status": "ACTIVE"
+    },
+    {
+      "date": "2026-06-20",
+      "decision": "Tras cerrar CG005N-Q y registrar NO_DROP, el foco recomendado vuelve a desarrollo funcional visible antes de nuevas fases de limpieza.",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "ADR_011_EXECUTION_MODEL_AND_KERNEL_SOURCE_OF_TRUTH",
+      "date": "2026-06-30",
+      "status": "ACTIVE",
+      "decision": "Replace fine-grained administrative PRs with PRs by verifiable unit of value and promote canonical KERNEL files into governance/kernel/current.",
+      "context": [
+        "The 010 series protected the project but produced excessive administrative PR fragmentation.",
+        "Documentos/KERNEL BASE FINAL was ignored by Git, so local KERNEL files were not a durable repo source of truth.",
+        "ChatGPT Project sources are useful context but can become stale against Git."
+      ],
+      "rules": [
+        "Git governance/KERNEL is authoritative when tracked and merged.",
+        "ChatGPT Project sources are operational context.",
+        "If Git and ChatGPT Project sources diverge, alert the divergence.",
+        "Do not update KERNEL as a historical snapshot.",
+        "Do not continue 010 phases unless a real BLOCK remediation requires it."
+      ],
+      "impact": "011 becomes the cutover from governance-by-many-PRs to compact execution doctrine."
+    }
+  ],
+  "deprecated_patterns": [
+    {
+      "pattern": "Modificar loader para compensar SQL",
+      "replacement": "Satisfacer el contrato físico o detener"
+    },
+    {
+      "pattern": "Asumir variables compartidas entre PowerShell y Codex",
+      "replacement": "Configurar y validar en el proceso ejecutor"
+    },
+    {
+      "pattern": "Aceptar tests sintéticos como prueba suficiente de DDL",
+      "replacement": "Laboratorio PostgreSQL real compatible"
+    },
+    {
+      "pattern": "Guardar toda la conversación como memoria",
+      "replacement": "Promover solo decisiones, reglas y evidencia útil"
+    }
+  ]
+}

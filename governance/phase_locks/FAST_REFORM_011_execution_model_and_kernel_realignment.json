@@ -1,0 +1,51 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_011_EXECUTION_MODEL_AND_KERNEL_REALIGNMENT",
+  "status": "ACTIVE_UNTIL_MERGED",
+  "branch": "lab/FAST_REFORM_011_execution_model_and_kernel_realignment",
+  "base_main_commit": "23bab44",
+  "created_at_utc": "2026-07-01T01:03:39+00:00",
+  "risk": "GREEN",
+  "objective": "Realign execution governance and prepare selective KERNEL update after closing 010H.",
+  "allowed_paths": [
+    "governance/ACTIVE_ORDER_LOCK.json",
+    "governance/PROJECT_STATUS_INDEX.json",
+    "governance/EXECUTION_DOCTRINE.md",
+    "governance/phase_locks/FAST_REFORM_011_execution_model_and_kernel_realignment.json",
+    "governance/kernel/current/"
+  ],
+  "forbidden_paths": [
+    "scripts/load_control_gestion_raw_v17.py",
+    "contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+    "sql/",
+    "app/"
+  ],
+  "forbidden_actions": [
+    "Route B implementation",
+    "DB apply",
+    "SQL apply",
+    "Supabase writes",
+    "productive loader modification",
+    "active contract modification",
+    "data movement",
+    "destructive cleanup",
+    "production cutover",
+    "git add ."
+  ],
+  "close_conditions": [
+    "governance status corrected from 010G/010H to 011",
+    "PR unit-of-value rule recorded",
+    "Git-vs-ChatGPT divergence alert rule recorded",
+    "no production code touched",
+    "canonical KERNEL files promoted to governance/kernel/current",
+    "Documentos/KERNEL BASE FINAL remains ignored local source",
+    "Git tracked KERNEL becomes authoritative after merge"
+  ],
+  "kernel_promotion": {
+    "status": "AUTHORIZED_IN_011",
+    "canonical_path": "governance/kernel/current/",
+    "source_local_ignored_path": "Documentos/KERNEL BASE FINAL/",
+    "rule": "Git tracked KERNEL is authoritative after merge; ChatGPT Project sources are operational context."
+  }
+}

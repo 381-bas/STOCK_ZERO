@@ -1,0 +1,192 @@
+{
+  "schema_version": "2.0",
+  "document_type": "project_kernel",
+  "project": "STOCK_ZERO",
+  "version": "2026.06.16",
+  "generated_at": "2026-06-16T21:00:00-04:00",
+  "authority": {
+    "governance": "Bastián + ChatGPT",
+    "technical_history": "Git",
+    "behavioral_truth": "tests_and_runtime_evidence",
+    "agent_boundary": "Los agentes auditan, proponen e implementan dentro de fases autorizadas; no reescriben silenciosamente la autoridad del KERNEL."
+  },
+  "purpose": {
+    "primary": "Plataforma operativa para inventario, ventas y Control Gestión en retail.",
+    "business_outcome": "Transformar fuentes operativas dispersas en decisiones confiables, trazables y ejecutables.",
+    "product_principle": "La ingeniería de control debe acelerar el producto, no reemplazarlo."
+  },
+  "architecture": {
+    "application": "Streamlit",
+    "database": "PostgreSQL/Supabase",
+    "processing": [
+      "Python",
+      "pandas",
+      "openpyxl",
+      "SQL"
+    ],
+    "version_control": "Git/GitHub",
+    "isolation": "feature branches + git worktrees",
+    "domains": [
+      "inventario_y_ventas",
+      "control_gestion",
+      "rutas_y_frecuencia",
+      "exportacion_operativa"
+    ]
+  },
+  "source_contracts": {
+    "visit_precedence": [
+      "KPIONE2",
+      "POWER_APP",
+      "KPIONE1_AUDIT_ONLY"
+    ],
+    "productive_kpione2": {
+      "file": "data/CUMPLIMIENTO_FRECUENCIA.xlsx",
+      "sheet": "DB (KPIONE2.0)",
+      "fixture_only": "photo-excel-admin.../Fotos"
+    }
+  },
+  "agent_operating_model": {
+    "chatgpt": [
+      "arquitectura",
+      "gobierno_del_estado",
+      "diseño_de_fases",
+      "síntesis_de_kernels",
+      "decisión"
+    ],
+    "claude": [
+      "investigación",
+      "crítica",
+      "hallazgos",
+      "alternativas",
+      "auditoría_conceptual"
+    ],
+    "codex": [
+      "implementación",
+      "ejecución_controlada",
+      "tests",
+      "git",
+      "evidencia_técnica"
+    ],
+    "bastian": [
+      "autorizar_alcance",
+      "aprobar_writes_productivos",
+      "validar_resultado_de_negocio"
+    ],
+    "model_selection_rule": "El modelo y nivel de razonamiento se eligen antes del prompt; no forman parte del prompt operativo."
+  },
+  "workflow_standard": [
+    "objetivo_y_prohibiciones",
+    "preflight",
+    "investigación_y_auditoría",
+    "implementación_en_worktree",
+    "tests",
+    "laboratorio_real_si_hay_riesgo",
+    "checkpoint",
+    "stage_selectivo",
+    "commit_feature_branch",
+    "push_feature_branch",
+    "pull_request",
+    "autorización_productiva_separada",
+    "postvalidación"
+  ],
+  "reusable_rules": [
+    "Git conserva la historia; el KERNEL conserva estado y reglas vigentes.",
+    "Un checkpoint no autoriza por sí mismo un cambio productivo.",
+    "Las variables de entorno pertenecen al proceso ejecutor y deben validarse dentro de él.",
+    "Antes de una consulta sensible se validan current_user y transaction_read_only.",
+    "DDL de alto riesgo se prueba en PostgreSQL local compatible antes de Supabase.",
+    "Los worktrees aíslan fases y protegen el checkout operacional.",
+    "No modificar loaders para compensar contratos SQL no autorizados.",
+    "Preservar firmas productivas como prefijo y anexar extensiones al final.",
+    "Telemetría distingue intento, ejecución, commit, rollback y postcheck.",
+    "No crear infraestructura de memoria hasta demostrar necesidad repetida."
+  ],
+  "kernel_mutation_policy": {
+    "include": [
+      "decisiones_vigentes",
+      "estado_actual",
+      "riesgos_abiertos",
+      "reglas_reutilizables",
+      "siguiente_horizonte",
+      "evidencia_de_alto_valor"
+    ],
+    "exclude": [
+      "transcripciones",
+      "cada_comando",
+      "cada_error_intermedio",
+      "hashes_temporales",
+      "cronologías_exhaustivas"
+    ],
+    "deprecation_rule": "Toda decisión reemplazada se marca deprecated y señala su sustituta.",
+    "size_rule": "Preferir memoria pequeña y precisa."
+  },
+  "six_growth_horizons": [
+    {
+      "id": "H1",
+      "name": "Producto y UX operativa",
+      "objective": "Aumentar funcionalidad visible y uso diario.",
+      "next": [
+        "cerrar integración segura de rutas",
+        "continuar inventario y Control Gestión",
+        "reducir trabajo manual"
+      ]
+    },
+    {
+      "id": "H2",
+      "name": "Plataforma de datos confiable",
+      "objective": "Pipelines incrementales, auditables y recuperables.",
+      "next": [
+        "retención con evidencia",
+        "versionado eficiente de rutas",
+        "paridad funcional de hechos"
+      ]
+    },
+    {
+      "id": "H3",
+      "name": "Control operacional colaborativo",
+      "objective": "Evolucionar hacia gestión compartida y en tiempo real.",
+      "next": [
+        "roles de gestores y administradores",
+        "marcaje manual gobernado",
+        "visibilidad común del equipo"
+      ]
+    },
+    {
+      "id": "H4",
+      "name": "Sistema de desarrollo con agentes",
+      "objective": "Usar ChatGPT, Claude y Codex como sistema complementario.",
+      "next": [
+        "Claude investiga y critica",
+        "Codex ejecuta y prueba",
+        "ChatGPT gobierna y sintetiza"
+      ]
+    },
+    {
+      "id": "H5",
+      "name": "Infraestructura de ejecución",
+      "objective": "Convertir equipos principal y auxiliares en plataforma estable.",
+      "next": [
+        "control remoto seguro",
+        "separar cargas repetitivas",
+        "evaluar IA local por utilidad comprobada"
+      ]
+    },
+    {
+      "id": "H6",
+      "name": "Memoria, conocimiento y escala",
+      "objective": "Conservar contexto pequeño, preciso y reutilizable.",
+      "next": [
+        "mantener cuatro KERNEL",
+        "promover aprendizajes útiles",
+        "posponer Skill/MCP hasta demostrar retorno"
+      ]
+    }
+  ],
+  "non_goals_now": [
+    "MCP_de_memoria",
+    "compilador_de_contexto",
+    "KERNEL_como_base_exhaustiva",
+    "reducir_caracteres_a_costa_de_garantías",
+    "añadir_control_sin_impacto_en_producto"
+  ]
+}
