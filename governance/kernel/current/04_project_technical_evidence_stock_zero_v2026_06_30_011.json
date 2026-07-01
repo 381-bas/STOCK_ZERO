@@ -1,0 +1,385 @@
+{
+  "schema_version": "2.0",
+  "document_type": "project_technical_evidence",
+  "project": "STOCK_ZERO",
+  "version": "2026.06.30.011",
+  "generated_at": "2026-07-01T23:32:24+00:00",
+  "evidence_policy": {
+    "purpose": "Probar afirmaciones críticas sin duplicar la historia.",
+    "authority_order": [
+      "runtime_evidence",
+      "tests",
+      "git",
+      "checkpoint",
+      "conversation_memory"
+    ]
+  },
+  "repository": {
+    "repository": "381-bas/STOCK_ZERO",
+    "feature_branch": "codex/CG005N-package-correction",
+    "feature_commit": {
+      "sha": "a181142ec46711b41d591fe4d5450b8b5859e0cf",
+      "message": "feat(cg): add guarded route-week DDL and rollback package"
+    },
+    "base_commit": "4fb7a7f23c2d4a28529c31efb8d206254acd1fcc",
+    "package_files": [
+      "research/CG005N_PRESTATE_CATALOG.json",
+      "scripts/apply_cg005n_ddl.py",
+      "scripts/cg005n_catalog_contract.py",
+      "scripts/cg005n_prestage_catalog.py",
+      "sql/13_control_gestion_route_week_replacement_signature_preserving.sql",
+      "sql/14_control_gestion_route_week_replacement_signature_preserving_rollback.sql",
+      "tests/test_apply_cg005n_ddl.py"
+    ],
+    "main_after_cg005n_q_merge": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
+    "pull_request": {
+      "number": 3,
+      "url": "https://github.com/381-bas/STOCK_ZERO/pull/3",
+      "state": "closed",
+      "merged": true,
+      "draft": false,
+      "base": "main",
+      "base_sha_before_merge": "4fb7a7f23c2d4a28529c31efb8d206254acd1fcc",
+      "head": "codex/CG005N-package-correction",
+      "head_sha": "a181142ec46711b41d591fe4d5450b8b5859e0cf",
+      "merge_commit_sha": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
+      "commits": 1,
+      "changed_files": 7,
+      "additions": 5959,
+      "deletions": 0
+    },
+    "main_after_cleanup_register_merge": "57ef2e0b258486ac0bdeffb60b3f5bcf36e6e514",
+    "cleanup_register_pr": {
+      "number": 4,
+      "url": "https://github.com/381-bas/STOCK_ZERO/pull/4",
+      "state": "closed",
+      "merged": true,
+      "draft": false,
+      "base": "main",
+      "base_sha_before_merge": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
+      "head": "codex/supabase-cleanup-no-drop-register",
+      "head_sha": "e870ff76a62c3f2f8ead3960104b0e972090cb82",
+      "merge_commit_sha": "57ef2e0b258486ac0bdeffb60b3f5bcf36e6e514",
+      "commits": 1,
+      "changed_files": 1,
+      "additions": 98,
+      "deletions": 0,
+      "file": "research/SUPABASE_CLEANUP_NO_DROP_REGISTER_20260620.json"
+    }
+  },
+  "cg005n_lab": {
+    "checkpoint": "CG005NQ_LOCAL_POSTGRESQL_APPLY_ROLLBACK_LAB_CHECKPOINT",
+    "verdict": "LAB_PASS",
+    "postgres_image": "postgres:17-alpine",
+    "tests": {
+      "collected": 58,
+      "passed": 58,
+      "failed": 0
+    },
+    "assertions": {
+      "prestate_reconstruction_complete": true,
+      "prestate_technical_fingerprint_match": true,
+      "no_apply_cli_zero_write_confirmed": true,
+      "sql13_runner_apply_passed": true,
+      "postcheck_passed": true,
+      "explicit_assignment_behavior_passed": true,
+      "legacy_fallback_behavior_passed": true,
+      "removed_grain_non_reappearance_passed": true,
+      "rollback_with_assignment_rows_blocked": true,
+      "sql14_runner_rollback_passed": true,
+      "rollback_logical_signature_preserved": true,
+      "final_rollback_fingerprint_match": true,
+      "docker_cleanup_complete": true
+    },
+    "fingerprints": {
+      "post_sql13_technical": "3F3423F7504C550FDDCC4F5C87181316B1CFAF581EFBF266B2DBB9CC96B5686D",
+      "logical_rollback_technical": "DFDD0CBCA4F78971A776E7174E4D790677A6E5667F8864DAC983CC9F7027B894"
+    },
+    "scope": "LOCAL_ONLY_NO_SUPABASE"
+  },
+  "productive_drift": {
+    "checkpoint": "CG005NQ_RESUME_AND_PRODUCTIVE_DRIFT_AUDIT_CHECKPOINT",
+    "verdict": "PASS",
+    "drift_class": "NO_DRIFT",
+    "role": "stock_zero_codex_ro",
+    "transaction_read_only": "on",
+    "technical_fingerprint_match": true,
+    "technical_fingerprint": "A639112F482EE75A7CD41EF1FB83DEFAD937914E6C0490C5CCDA0EF3BA36A8BE",
+    "route_batch_count": 19,
+    "max_ruta_batch_id": 19,
+    "assignment_table_exists": false,
+    "assignment_row_count": 0,
+    "material_dependency_unknowns": 0,
+    "writes_attempted": false
+  },
+  "control_gestion": {
+    "precedence": {
+      "KPIONE2": "principal",
+      "POWER_APP": "fallback",
+      "KPIONE1": "audit_only"
+    },
+    "validated_week": {
+      "week_start": "2026-05-18",
+      "visitas_exigidas": 7373,
+      "reported_compliance_ratio": 0.175
+    },
+    "daily_fact": {
+      "2026-05-18": 1291,
+      "2026-05-19": 1130,
+      "2026-05-20": 1173,
+      "2026-05-21": 1247,
+      "2026-05-22": 1302
+    },
+    "duplicate_fix": {
+      "checked_weeks": [
+        "2026-04-27",
+        "2026-05-04",
+        "2026-05-11"
+      ],
+      "max_multiplicity": 1
+    }
+  },
+  "pending": [
+    {
+      "item": "Pull Request CG005N-Q",
+      "status": "COMPLETED",
+      "evidence": "PR #3 merged"
+    },
+    {
+      "item": "Merge a main",
+      "status": "COMPLETED",
+      "evidence": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc"
+    },
+    {
+      "item": "Apply productivo SQL13",
+      "status": "NOT_AUTHORIZED",
+      "required": "fase separada con DDL, hashes, baseline, rollback y postcheck"
+    },
+    {
+      "item": "Supabase cleanup",
+      "status": "DISCOVERY_CLOSED_NO_DROP_REGISTERED",
+      "required": "Any future destructive cleanup requires separate authorization, backup/restore plan and runtime/external usage evidence",
+      "evidence": "PR #4 merged; 142 objects classified, 136 KEEP_ACTIVE, 6 STOP_UNKNOWN, 0 candidates"
+    },
+    {
+      "item": "Desarrollo funcional visible",
+      "status": "RECOMMENDED_NEXT",
+      "required": "define next product slice after governance closure"
+    }
+  ],
+  "reproduction": {
+    "tests": "python -m unittest tests.test_apply_cg005n_ddl",
+    "compile": "python -m py_compile scripts/apply_cg005n_ddl.py scripts/cg005n_prestage_catalog.py scripts/cg005n_catalog_contract.py",
+    "preflight": "python scripts/sz_preflight.py --phase generic --root . --skip-db"
+  },
+  "cg005n_pr_lifecycle": {
+    "pr_readiness_rerun": {
+      "verdict": "PR_READY",
+      "local_main_stale_or_misaligned": true,
+      "base_sha_diff_exact_7_files": true,
+      "origin_main_diff_exact_7_files": true,
+      "tests": {
+        "collected": 58,
+        "passed": 58,
+        "failed": 0
+      },
+      "supabase_access": false
+    },
+    "pr_created": {
+      "verdict": "PR_OPEN_DRAFT",
+      "pr_number": 3,
+      "draft": true,
+      "changed_files": 7
+    },
+    "ready_for_review": {
+      "verdict": "PR_READY_FOR_REVIEW",
+      "draft": false,
+      "mergeable": true
+    },
+    "merge_readiness": {
+      "verdict": "MERGE_REVIEW_READY",
+      "workflow_runs": 0,
+      "reviews": 0,
+      "request_changes": 0,
+      "critical_unresolved_comments": 0,
+      "warnings": [
+        "workflow_runs=0",
+        "reviews=0"
+      ],
+      "supabase_access": false
+    },
+    "merge": {
+      "verdict": "MERGED_TO_MAIN_CODE_ONLY",
+      "merge_commit_sha": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
+      "expected_head_sha": "a181142ec46711b41d591fe4d5450b8b5859e0cf",
+      "production_ddl_authorized": false,
+      "production_load_authorized": false
+    },
+    "post_merge_local_sync": {
+      "verdict": "POST_MERGE_OK",
+      "origin_main_expected": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
+      "origin_main_actual": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
+      "origin_main_matches_expected": true,
+      "merge_commit_found": true,
+      "files_in_merge": [
+        "research/CG005N_PRESTATE_CATALOG.json",
+        "scripts/apply_cg005n_ddl.py",
+        "scripts/cg005n_catalog_contract.py",
+        "scripts/cg005n_prestage_catalog.py",
+        "sql/13_control_gestion_route_week_replacement_signature_preserving.sql",
+        "sql/14_control_gestion_route_week_replacement_signature_preserving_rollback.sql",
+        "tests/test_apply_cg005n_ddl.py"
+      ],
+      "unexpected_files": [],
+      "loaders_modified": false,
+      "kernels_modified": false,
+      "tests": {
+        "collected": 58,
+        "passed": 58,
+        "failed": 0
+      },
+      "py_compile_passed": true,
+      "preflight_skip_db_passed_or_warn_only": true,
+      "supabase_access": false,
+      "warnings": [
+        "local checkout main not fast-forwarded by phase",
+        "operational worktree had pre-existing dirty files",
+        "validations run in clean CG005N_PACKAGE worktree"
+      ]
+    }
+  },
+  "supabase_cleanup_discovery": {
+    "first_pass": {
+      "phase": "SUPABASE_CLEANUP_DISCOVERY_AND_PLAN_NO_DROP",
+      "verdict": "CLEANUP_PLAN_READY",
+      "schemas_scanned": [
+        "public",
+        "cg_core",
+        "cg_mart",
+        "cg_raw"
+      ],
+      "objects_scanned": 142,
+      "object_type_counts": {
+        "index": 73,
+        "sequence": 7,
+        "table": 9,
+        "view": 48,
+        "materialized_view": 5
+      },
+      "total_size_bytes_scanned": 1596260352,
+      "supabase_access": true,
+      "supabase_reads": true,
+      "supabase_writes": false,
+      "ddl_executed": false,
+      "dml_destructive_executed": false,
+      "governance_grade": "INVENTORY_GRADE_ONLY"
+    },
+    "claude_critical_review": {
+      "phase": "CLAUDE_CLEANUP_MATRIX_CRITICAL_REVIEW",
+      "verdict": "CRITICAL_REVIEW_READY",
+      "overall_assessment": "Inventario seguro, no decision-grade para deprecate/drop; no aparece en código no prueba objeto muerto.",
+      "key_findings": [
+        "fact_cg_visita_dia_resuelta_v2 no debe ser DEPRECATE sin evidencia fuerte",
+        "STOP_UNKNOWN vacío era demasiado optimista",
+        "DROP_CANDIDATE_FUTURE low-confidence/high-risk no era aceptable",
+        "faltaban grafo dirigido, grants/exposición y recencia",
+        "solo subconjunto visible estaba clasificado"
+      ]
+    },
+    "second_pass": {
+      "phase": "CODEX_CLEANUP_SECOND_PASS_TARGETED_READ_ONLY",
+      "verdict": "SECOND_PASS_READY",
+      "db_access": {
+        "current_user": "stock_zero_codex_ro",
+        "transaction_read_only": "on",
+        "default_transaction_read_only": "on",
+        "dsn_printed": false,
+        "writes_attempted": false
+      },
+      "objects_scanned": 142,
+      "objects_classified": 142,
+      "classification_counts": {
+        "KEEP_ACTIVE": 136,
+        "KEEP_AUDIT": 0,
+        "DEPRECATE_CANDIDATE_REVIEW_ONLY": 0,
+        "ARCHIVE_CANDIDATE_REVIEW_ONLY": 0,
+        "DROP_CANDIDATE_REVIEW_ONLY": 0,
+        "STOP_UNKNOWN": 6
+      },
+      "dependency_graph_available": true,
+      "dependency_edges_total": 72,
+      "recency_available": true,
+      "sql13_not_applied_state_checked": true,
+      "supabase_reads": true,
+      "supabase_writes": false,
+      "ddl_executed": false,
+      "dml_destructive_executed": false,
+      "stop_unknown": [
+        "cg_core.v_cg_match_resumen",
+        "cg_core.v_rr_frecuencia_base_v2",
+        "cg_core.v_rr_operativa_base_v2",
+        "cg_mart.v_cg_conflictos_scope_v2",
+        "public.v_cg_doble_marcaje_dia",
+        "public.v_selector_modalidad_rutero"
+      ],
+      "largest_high_risk_objects": [
+        {
+          "object": "cg_raw.kpione_raw",
+          "bytes": 668262400,
+          "classification": "KEEP_ACTIVE"
+        },
+        {
+          "object": "cg_raw.kpione2_raw",
+          "bytes": 513449984,
+          "classification": "KEEP_ACTIVE"
+        },
+        {
+          "object": "cg_core.ruta_rutero_load_rows",
+          "bytes": 101212160,
+          "classification": "KEEP_ACTIVE"
+        },
+        {
+          "object": "public.fact_stock_venta",
+          "bytes": 50061312,
+          "classification": "KEEP_ACTIVE"
+        },
+        {
+          "object": "cg_raw.power_app_raw",
+          "bytes": 43892736,
+          "classification": "KEEP_ACTIVE"
+        }
+      ]
+    },
+    "register": {
+      "phase": "CLEANUP_REGISTER_NO_DROP",
+      "verdict": "REGISTER_READY",
+      "file": "research/SUPABASE_CLEANUP_NO_DROP_REGISTER_20260620.json",
+      "pr": 4,
+      "merge_commit_sha": "57ef2e0b258486ac0bdeffb60b3f5bcf36e6e514",
+      "decision": "NO_DROP_NO_DEPRECATE_NO_ARCHIVE"
+    }
+  },
+  "execution_model_reform_011": {
+    "status": "DIRECTIONAL_EVIDENCE_NOT_IMPLEMENTATION",
+    "local_runner_candidate": {
+      "priority": "future",
+      "purpose": "execute phase contracts locally inside bounded allowed/forbidden paths",
+      "not_created_in_011": true
+    },
+    "n8n_position": {
+      "recommended_role": "dashboard, trigger, notification, report routing",
+      "not_recommended_role": "technical execution core for Git/Supabase/loader work"
+    },
+    "phase_contract_candidate": {
+      "status": "future_candidate",
+      "reason_not_created_now": "Avoid creating infrastructure before doctrine and KERNEL source-of-truth are corrected."
+    },
+    "red_boundaries": [
+      "DB apply",
+      "SQL apply",
+      "Supabase writes",
+      "production cutover",
+      "destructive cleanup"
+    ]
+  }
+}
