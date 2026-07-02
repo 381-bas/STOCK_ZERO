@@ -70,3 +70,16 @@ Allowed next implementation shape:
 - No loader edits.
 - No active contract edits.
 - No SQL/apply/Supabase/backfill/cutover.
+
+## Post-implementation audit addendum
+
+Claude post-implementation audit verdict: APPROVE_WITH_WARNINGS.
+
+ChatGPT/Basti?n decision: ACCEPT_FOR_013_CLOSEOUT_WITH_LIMITS.
+
+Important interpretation:
+
+- denominator_delta_zero in the local validator is true by construction of the controlled local model where route rows are the sole denominator authority.
+- The falsifiable protections are unmatched photo day-presence blocking, golden per-grain deltas, structural event-to-day-presence checks, blocking null keys and blocking invalid photo-count anomalies.
+- Real photo-to-route normalization parity remains a future RED gate blocker before any productive apply.
+- The final 013 verdict cites the new validator and focused tests as grain evidence, not the older loader dry-run verdict alone.
