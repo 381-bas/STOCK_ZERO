@@ -218,7 +218,7 @@
     ]
   },
   "active_phase_started_from_main": "e4a8e94d7b404eb28942984e2c5c7e9eb8d01c6e",
-  "updated_at_utc": "2026-07-02T00:58:40+00:00",
+  "updated_at_utc": "2026-07-02T01:36:52+00:00",
   "execution_model_reform": {
     "status": "ACTIVE_IN_011",
     "reason": "010 series protected the project but over-fragmented administrative PRs.",
@@ -227,7 +227,7 @@
     "divergence_alert_rule": "If Git KERNEL/governance differs from ChatGPT Project sources, alert the divergence and treat Git as authoritative."
   },
   "route_b_readiness_012": {
-    "status": "ACTIVE_NO_APPLY",
+    "status": "READY_FOR_PULL_REQUEST",
     "purpose": "Convert Route B unresolved warnings into gates before implementation.",
     "required_gates": [
       "compliance denominator reconciliation",
@@ -237,7 +237,9 @@
     "productive_writes_authorized": false,
     "productive_loader_modification_authorized": false,
     "sql_apply_authorized": false,
-    "supabase_writes_authorized": false
+    "supabase_writes_authorized": false,
+    "verdict": "GO_WITH_LIMITS",
+    "closeout": "research/012_route_b_readiness_gates_no_apply/CLOSEOUT.md"
   },
   "kernel_volatility_policy": {
     "status": "DIRECTIVE_ALIGNMENT",

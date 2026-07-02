@@ -1,7 +1,7 @@
 {
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
-  "status": "ACTIVE",
+  "status": "READY_FOR_PULL_REQUEST",
   "phase": "FAST_REFORM_012_ROUTE_B_READINESS_GATES_NO_APPLY",
   "base_main_commit": "e4a8e94d7b404eb28942984e2c5c7e9eb8d01c6e",
   "order": [
@@ -51,5 +51,6 @@
   ],
   "next_allowed_phase_after_close": "ROUTE_B_ORANGE_IMPLEMENTATION_OR_CONTROL_GESTION_VISIBLE_PRODUCT_SLICE",
   "active_branch": "lab/FAST_REFORM_012_route_b_readiness_gates_no_apply",
-  "updated_at_utc": "2026-07-02T00:58:40+00:00"
+  "updated_at_utc": "2026-07-02T01:36:52+00:00",
+  "closeout": "research/012_route_b_readiness_gates_no_apply/CLOSEOUT.md"
 }
