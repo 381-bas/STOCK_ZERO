@@ -2,43 +2,54 @@
   "artifact": "ACTIVE_ORDER_LOCK",
   "project": "STOCK_ZERO",
   "status": "ACTIVE",
-  "phase": "FAST_REFORM_011_EXECUTION_MODEL_AND_KERNEL_REALIGNMENT",
-  "base_main_commit": "23bab44",
+  "phase": "FAST_REFORM_012_ROUTE_B_READINESS_GATES_NO_APPLY",
+  "base_main_commit": "e4a8e94d7b404eb28942984e2c5c7e9eb8d01c6e",
   "order": [
-    "Realign execution governance after closing 010H.",
-    "Replace fine-grained administrative PRs with PRs by verifiable unit of value.",
-    "Record Git-vs-ChatGPT KERNEL divergence alert rule.",
-    "Prepare selective KERNEL update after governance is corrected.",
-    "Do not implement Route B in this phase."
+    "Open 012 as one verifiable unit of value.",
+    "Convert Route B warnings into readiness gates before implementation.",
+    "Define compliance denominator reconciliation gate.",
+    "Define forward-only/backfill scope decision.",
+    "Define rollback and production cutover gate.",
+    "Optionally add no-apply local harness if repo artifacts support it.",
+    "Absorb only minimal KERNEL volatility alignment needed by governance.",
+    "Do not implement Route B in productive runtime in this phase."
   ],
   "allowed_now": [
-    "update governance execution doctrine",
-    "update active project status",
-    "create 011 phase lock",
-    "prepare selective KERNEL realignment plan"
+    "update governance active phase to 012",
+    "create 012 phase lock",
+    "create research/012_route_b_readiness_gates_no_apply artifacts",
+    "inspect existing Route B research/tests/scripts/contracts",
+    "add no-apply validation plan or local harness",
+    "add tests only if they are local, non-productive and do not change runtime behavior",
+    "create new validation script only if no productive loader or active contract is modified"
   ],
   "forbidden_now": [
-    "Route B implementation",
+    "modify scripts/load_control_gestion_raw_v17.py",
+    "modify scripts/load_kpione2_photo_from_excel.py as productive implementation",
+    "modify active contract semantics",
+    "Route B productive implementation",
     "DB apply",
     "SQL apply against Supabase real",
-    "modify scripts/load_control_gestion_raw_v17.py",
-    "modify active contract",
-    "modify productive compliance views",
     "Supabase writes",
     "data movement",
+    "productive compliance view changes",
     "destructive cleanup",
     "production cutover",
+    "backfill execution",
     "git add ."
   ],
   "close_condition": [
-    "010G and 010H registered as closed",
-    "active phase points to 011",
-    "execution doctrine includes PR unit-of-value rule",
-    "execution doctrine includes Git-vs-ChatGPT divergence alert rule",
-    "no production files modified",
-    "no DB/SQL/Supabase action"
+    "012 phase lock exists",
+    "Route B denominator gate defined",
+    "forward-only/backfill decision recorded",
+    "rollback/cutover gate defined",
+    "GO/NO-GO/GO_WITH_LIMITS readiness verdict emitted",
+    "no Supabase writes",
+    "no SQL apply",
+    "no productive loader modification",
+    "no active contract semantic change"
   ],
-  "next_allowed_phase_after_close": "SELECTIVE_KERNEL_REALIGNMENT_OR_ROUTE_B_NEXT_STEP_UNDER_NEW_PR_POLICY",
-  "active_branch": "lab/FAST_REFORM_011_execution_model_and_kernel_realignment",
-  "updated_at_utc": "2026-07-01T01:03:39+00:00"
+  "next_allowed_phase_after_close": "ROUTE_B_ORANGE_IMPLEMENTATION_OR_CONTROL_GESTION_VISIBLE_PRODUCT_SLICE",
+  "active_branch": "lab/FAST_REFORM_012_route_b_readiness_gates_no_apply",
+  "updated_at_utc": "2026-07-02T00:58:40+00:00"
 }
