@@ -1,20 +1,20 @@
 {
-  "artifact": "ACTIVE_ORDER_LOCK",
+  "artifact": "PHASE_LOCK",
   "project": "STOCK_ZERO",
-  "status": "READY_FOR_PULL_REQUEST",
   "phase": "FAST_REFORM_013_ROUTE_B_ORANGE_NO_APPLY_DRY_RUN_CLAUDE_REVIEW",
+  "status": "ACTIVE",
+  "branch": "lab/FAST_REFORM_013_route_b_orange_no_apply_dry_run_claude_review",
   "base_main_commit": "e8421b9",
-  "order": [
-    "Open 013 as one verifiable ORANGE no-apply unit of value.",
-    "Integrate Claude review as mandatory adversarial review before Codex implementation.",
-    "Build or extend Route B dry-run/local integration only if it does not touch productive runtime.",
-    "Preserve the grain chain photo_row -> event_row -> day_presence.",
-    "Prevent one Excel photo row = one visit failure mode.",
-    "Produce denominator reconciliation evidence for controlled local samples.",
-    "Define implementation evidence, Claude scorecard and final GO/NO-GO/GO_WITH_LIMITS verdict.",
-    "Do not execute productive writes, SQL apply, backfill, cutover or active contract semantic changes."
-  ],
-  "allowed_now": [
+  "created_at_utc": "2026-07-02T02:19:20+00:00",
+  "risk_level": "ORANGE_NO_APPLY",
+  "objective": "Validate Route B no-apply/dry-run integration with mandatory Claude adversarial review before Codex implementation.",
+  "agent_model": {
+    "ChatGPT": "direction, architecture, final synthesis and scope control",
+    "Claude": "mandatory adversarial technical review and suggestions",
+    "Codex": "implementation, tests, git and evidence after review filter",
+    "Bastian": "business validation and risk authorization"
+  },
+  "allowed": [
     "update governance active phase to 013",
     "record 012 as merged to main",
     "create 013 phase lock",
@@ -26,7 +26,7 @@
     "create new no-apply/dry-run validation script if no productive loader or active contract is modified",
     "run local pytest and dry-run validation commands"
   ],
-  "forbidden_now": [
+  "forbidden": [
     "modify scripts/load_control_gestion_raw_v17.py",
     "modify scripts/load_kpione2_photo_from_excel.py as productive implementation",
     "modify active contract semantics",
@@ -55,9 +55,12 @@
     "no active contract semantic change",
     "no backfill or production cutover"
   ],
-  "next_allowed_phase_after_close": "ROUTE_B_RED_APPLY_GATE_OR_CONTROL_GESTION_VISIBLE_PRODUCT_SLICE",
-  "active_branch": "lab/FAST_REFORM_013_route_b_orange_no_apply_dry_run_claude_review",
-  "updated_at_utc": "2026-07-02T03:58:14+00:00",
-  "closeout": "research/013_route_b_orange_no_apply_dry_run_claude_review/CLOSEOUT.md",
-  "final_verdict": "GO_WITH_LIMITS"
+  "success_metrics": [
+    "time to first useful commit",
+    "number of command corrections",
+    "files touched outside scope equals zero",
+    "valid Claude findings incorporated or explicitly rejected",
+    "tests or dry-run evidence improved",
+    "final verdict is auditable"
+  ]
 }

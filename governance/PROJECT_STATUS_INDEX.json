@@ -121,11 +121,22 @@
         "c6b6c2d"
       ],
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_012_ROUTE_B_READINESS_GATES_NO_APPLY",
+      "merge_pr": 35,
+      "main_merge_commit": "e8421b9",
+      "included_commits": [
+        "e2fb111",
+        "f83c6e0",
+        "d30f82a"
+      ],
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_012_ROUTE_B_READINESS_GATES_NO_APPLY",
-  "active_branch": "lab/FAST_REFORM_012_route_b_readiness_gates_no_apply",
-  "next_allowed_phase_after_close": "ROUTE_B_ORANGE_IMPLEMENTATION_OR_CONTROL_GESTION_VISIBLE_PRODUCT_SLICE",
+  "active_phase": "FAST_REFORM_013_ROUTE_B_ORANGE_NO_APPLY_DRY_RUN_CLAUDE_REVIEW",
+  "active_branch": "lab/FAST_REFORM_013_route_b_orange_no_apply_dry_run_claude_review",
+  "next_allowed_phase_after_close": "ROUTE_B_RED_APPLY_GATE_OR_CONTROL_GESTION_VISIBLE_PRODUCT_SLICE",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -148,7 +159,7 @@
     "modify scripts/load_control_gestion_raw_v17.py",
     "modify scripts/load_kpione2_photo_from_excel.py as productive implementation",
     "modify active contract semantics",
-    "Route B productive implementation",
+    "activate Route B as productive source",
     "DB apply",
     "SQL apply against Supabase real",
     "Supabase writes",
@@ -217,8 +228,8 @@
       "rollback and production cutover gate"
     ]
   },
-  "active_phase_started_from_main": "e4a8e94d7b404eb28942984e2c5c7e9eb8d01c6e",
-  "updated_at_utc": "2026-07-02T01:36:52+00:00",
+  "active_phase_started_from_main": "e8421b9",
+  "updated_at_utc": "2026-07-02T03:58:14+00:00",
   "execution_model_reform": {
     "status": "ACTIVE_IN_011",
     "reason": "010 series protected the project but over-fragmented administrative PRs.",
@@ -227,7 +238,7 @@
     "divergence_alert_rule": "If Git KERNEL/governance differs from ChatGPT Project sources, alert the divergence and treat Git as authoritative."
   },
   "route_b_readiness_012": {
-    "status": "READY_FOR_PULL_REQUEST",
+    "status": "MERGED_TO_MAIN",
     "purpose": "Convert Route B unresolved warnings into gates before implementation.",
     "required_gates": [
       "compliance denominator reconciliation",
@@ -239,11 +250,45 @@
     "sql_apply_authorized": false,
     "supabase_writes_authorized": false,
     "verdict": "GO_WITH_LIMITS",
-    "closeout": "research/012_route_b_readiness_gates_no_apply/CLOSEOUT.md"
+    "closeout": "research/012_route_b_readiness_gates_no_apply/CLOSEOUT.md",
+    "merge_pr": 35,
+    "main_merge_commit": "e8421b9"
   },
   "kernel_volatility_policy": {
     "status": "DIRECTIVE_ALIGNMENT",
     "rule": "KERNEL base is directive context; Git/GitHub keeps exact PR/hash/microhistory.",
     "repo_policy": "Do not update KERNEL base for every PR; promote only doctrine, contract, source-of-truth, strategic direction or high-impact risk changes."
+  },
+  "route_b_orange_013": {
+    "status": "READY_FOR_PULL_REQUEST",
+    "phase": "FAST_REFORM_013_ROUTE_B_ORANGE_NO_APPLY_DRY_RUN_CLAUDE_REVIEW",
+    "base_main_commit": "e8421b9",
+    "claude_review_required": true,
+    "codex_implementation_allowed_after_claude_review": true,
+    "mode": "ORANGE_NO_APPLY_DRY_RUN",
+    "productive_writes_authorized": false,
+    "productive_loader_modification_authorized": false,
+    "sql_apply_authorized": false,
+    "supabase_writes_authorized": false,
+    "backfill_authorized": false,
+    "production_cutover_authorized": false,
+    "required_controls": [
+      "Claude adversarial review",
+      "Claude scorecard",
+      "photo_row -> event_row -> day_presence invariant",
+      "denominator reconciliation evidence",
+      "rollback/cutover requirements maintained as pre-production blockers"
+    ],
+    "verdict": "GO_WITH_LIMITS",
+    "closeout": "research/013_route_b_orange_no_apply_dry_run_claude_review/CLOSEOUT.md",
+    "implementation_commit": "9f70994",
+    "claude_post_audit_commit": "4b0de6d",
+    "red_gate_blockers": [
+      "real photo-to-route normalization parity",
+      "productive before/after reconciliation",
+      "SQL/DDL apply plan",
+      "rollback/cutover plan",
+      "no denominator drift in productive mart/view semantics"
+    ]
   }
 }
