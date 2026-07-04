@@ -1,0 +1,46 @@
+{
+  "artifact": "PHASE_LOCK",
+  "project": "STOCK_ZERO",
+  "phase": "FAST_REFORM_014_CONTROL_GESTION_VISIBLE_PRODUCT_SLICE_AND_FLOW_CORRECTION",
+  "status": "ACTIVE",
+  "branch": "lab/FAST_REFORM_014_control_gestion_visible_product_slice_and_flow_correction",
+  "base_main_commit": "e58e468",
+  "created_at_utc": "2026-07-04T20:23:53+00:00",
+  "risk_level": "YELLOW_TO_ORANGE",
+  "objective": "Register minimal flow corrections from 012-013 and deliver a visible Control Gesti?n product slice.",
+  "unit_of_value": "Flow correction must be limited to the opening commit; subsequent work must produce visible Control Gesti?n value.",
+  "allowed": [
+    "record verdict taxonomy",
+    "record agent workflow rules",
+    "record 012-013 flow retrospective",
+    "prepare Control Gesti?n visible product slice",
+    "inspect existing Control Gesti?n app/views/tests locally",
+    "add product-facing docs/tests/code only under explicit reviewed scope"
+  ],
+  "forbidden": [
+    "Supabase writes",
+    "SQL apply against real DB",
+    "DDL",
+    "data movement",
+    "backfill",
+    "production cutover",
+    "productive loader modification",
+    "active contract semantic modification",
+    "large governance refactor",
+    "new methodology-only PR after opening commit",
+    "git add ."
+  ],
+  "close_condition": [
+    "flow corrections recorded in repo",
+    "visible Control Gesti?n slice defined and implemented or explicitly scoped for follow-up",
+    "no productive writes",
+    "no SQL apply",
+    "no active contract semantic change",
+    "final verdict emitted"
+  ],
+  "method_correction": {
+    "verdict_taxonomy": "governance/VERDICT_TAXONOMY.md",
+    "agent_workflow_rules": "governance/AGENT_WORKFLOW_RULES.md",
+    "retrospective": "research/014_control_gestion_visible_product_slice_and_flow_correction/FLOW_RETROSPECTIVE_012_013.md"
+  }
+}
