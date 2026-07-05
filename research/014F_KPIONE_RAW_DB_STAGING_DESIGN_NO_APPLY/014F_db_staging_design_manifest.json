@@ -3,6 +3,10 @@
   "generated_at": "2026-07-05T04:05:50Z",
   "patch_phase_id": "014F_PATCH_SQL_DESIGN_BEFORE_014G_NO_APPLY",
   "patched_at": "2026-07-05T04:35:20Z",
+  "review_patch_phase_id": "014G_PATCH_SQL_REVIEW_MINOR_FINDINGS_NO_APPLY",
+  "review_patched_at": "2026-07-05T04:56:08Z",
+  "micro_patch_phase_id": "014G_MICRO_PATCH_VALIDATION_SEMANTICS_NO_APPLY",
+  "micro_patched_at": "2026-07-05T05:22:40Z",
   "input_014E_manifest": {
     "path": "research/014E_KPIONE_RAW_DRY_RUN_LOADER_NO_APPLY/014E_dry_run_loader_manifest.json",
     "sha256": "2c8afff44a171176af082241ad6e2a94be6a6d12be4228f3411a44edbbad8245",
@@ -64,7 +68,7 @@
       {"name": "batch_id", "type": "text", "nullable": false},
       {"name": "month", "type": "date", "nullable": false},
       {"name": "candidate_manifest_sha256", "type": "text", "nullable": false},
-      {"name": "source_file_ids", "type": "text[]", "nullable": false},
+      {"name": "candidate_source_file_ids", "type": "text[]", "nullable": false},
       {"name": "source_files_count", "type": "integer", "nullable": false},
       {"name": "source_rows_total", "type": "bigint", "nullable": false},
       {"name": "exact_duplicates_removed", "type": "bigint", "nullable": false},
@@ -87,6 +91,8 @@
       {"name": "role", "type": "text", "nullable": false},
       {"name": "row_count", "type": "bigint", "nullable": false},
       {"name": "distinct_event_ids", "type": "bigint", "nullable": true},
+      {"name": "schema_signature", "type": "text", "nullable": true, "future_apply_requirement": "required for include_candidate because 014E did not emit it"},
+      {"name": "staged_row_count", "type": "bigint", "nullable": true, "future_apply_requirement": "required for include_candidate because 014E did not emit it"},
       {"name": "fecha_min", "type": "date", "nullable": true},
       {"name": "fecha_max", "type": "date", "nullable": true}
     ],
@@ -127,11 +133,15 @@
     "week_start equals Monday start of fecha",
     "cod_rt or local_nombre must be nonblank",
     "photo_sequence and photo_total may be null; when both parse, photo_sequence <= photo_total",
+    "raw photo anomalies preserve n_fotos_raw and set both parsed fields to null; parsed null with raw present is the anomaly signal",
     "photo totals such as 0/0 are retained for validation reporting instead of rejected",
     "batch-file role is include_candidate, quarantine_truncation, compare_only or rejected_schema",
+    "batch-file schema_signature is nullable 64-character lowercase hex because 014E has no signature evidence; future apply must require it for candidate files",
+    "batch-file staged_row_count is nullable, nonnegative and no greater than row_count; future apply must require it for candidate files",
     "batch-file row_count >= 0 and fecha_min <= fecha_max when both dates exist",
     "staged_rows + exact_duplicates_removed = source_rows_total",
     "coverage_start <= coverage_end",
+    "coverage_start and coverage_end must be inside registry month; partial incremental and multi-month coverage are outside v1",
     "fecha inside batch coverage range is a future transactional assertion because PostgreSQL CHECK cannot reference the registry row"
   ],
   "proposed_indexes": [
@@ -171,6 +181,8 @@
   },
   "batch_contract": {
     "identity": "explicit batch_id; source_file_id is artifact identity, not batch identity",
+    "candidate_file_copy": "candidate_source_file_ids is a copy/assertion of include_candidate IDs; batch_file is the per-file authority and owns all candidate and non-candidate roles",
+    "v1_coverage": "one complete monthly batch inside one calendar month; partial incremental and multi-month coverage are outside v1",
     "atomic_future_sequence": [
       "verify candidate manifest SHA and source SHAs",
       "validate schema and coverage",
@@ -188,7 +200,7 @@
       "batch_id": "014E_1113973b41ee7618b4132006",
       "month": "2026-06-01",
       "candidate_manifest_sha256": "b73483701f0dd767115a3d86d89fed2890b23da4d9269d959cb539e52d8ca089",
-      "source_file_ids": [
+      "candidate_source_file_ids": [
         "1781975989376",
         "1783219885210",
         "1783220552913",
@@ -217,8 +229,26 @@
     "active month and candidate manifest are protected by partial unique indexes",
     "dedupe key and operational uniqueness are explicitly aligned",
     "cross-table and event-conflict checks move to a companion validation query pack",
-    "unscoped redundant indexes are removed"
+    "unscoped redundant indexes are removed",
+    "future loader parse anomalies preserve raw photo text and null both parsed fields",
+    "coverage is constrained to the registry calendar month for v1",
+    "candidate_source_file_ids replaces the ambiguous registry source-file list",
+    "batch-file evidence adds nullable schema_signature and staged_row_count with future apply gates",
+    "validation queries target STAGED batches and label defense-in-depth checks",
+    "validation pack adds file coverage, per-file count and photo anomaly reconciliation",
+    "immutable manifest projection reconciliation is elevated to a future apply blocker",
+    "per-file reconciliation separates include_candidate count matching from non-candidate zero-staging evidence",
+    "photo anomaly profile is review-required while parsed invariant violation remains expected zero"
   ],
+  "payload_mapping_contract": {
+    "source": "input_014E_manifest.dry_run_payload_summary.payload_columns",
+    "intent": "every 014E payload field is mapped to registry, batch_file or staging; generated staging metadata is declared separately",
+    "photo_transform": "n_fotos maps losslessly to n_fotos_raw plus nullable photo_sequence/photo_total; anomalous parses keep raw and set both parsed values to null",
+    "generated_staging_fields": {
+      "loaded_at": "database insertion timestamp in a future authorized loader",
+      "loader_version": "future authorized loader metadata"
+    }
+  },
   "risks": [
     {
       "risk": "KPIONE schema drift",
@@ -257,15 +287,27 @@
   "validation_query_pack": {
     "path": "sql/proposed/014F_validation_queries_NO_APPLY.sql",
     "executed": false,
-    "mode": "SELECT_ONLY_FUTURE_AUTHORIZED_PHASE"
+    "mode": "SELECT_ONLY_FUTURE_AUTHORIZED_PHASE",
+    "per_file_semantics": {
+      "include_candidate": "staged rows must equal staged_row_count",
+      "non_candidate": "may exist in batch_file but must produce zero staging rows"
+    },
+    "photo_semantics": {
+      "profile_review_required": [
+        "raw_present_with_parsed_null",
+        "photo_total_zero",
+        "event_row_count_differs_from_photo_total"
+      ],
+      "expected_zero_invariant": "photo_sequence_greater_than_total",
+      "activation_policy": "profile anomalies do not automatically block raw staging but require future review before mart/compliance activation"
+    }
   },
-  "verdict": "STAGING_DESIGN_PATCHED_READY_FOR_014G",
+  "verdict": "014G_SQL_REVIEW_MICRO_PATCH_APPLIED_READY_FOR_PR_CLOSEOUT",
   "blockers": [],
   "warnings": [
-    "014E contains expected exact-overlap warnings",
-    "validation queries are proposals and have not been executed",
-    "manifest/daily total reconciliation remains a documented future placeholder",
-    "cross-batch activation and precedence remain undefined",
-    "SQL proposal has not been executed or applied"
+    "SQL proposed and validation query pack were not executed",
+    "immutable manifest projection reconciliation remains a future apply blocker",
+    "cross-batch activation and precedence remain a future contract",
+    "photo anomaly profile requires future review before mart activation"
   ]
 }

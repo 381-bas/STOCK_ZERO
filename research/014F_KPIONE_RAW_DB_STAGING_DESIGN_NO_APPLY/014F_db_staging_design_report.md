@@ -1,122 +1,96 @@
-# 014F DB Staging Design Patch Report — No Apply
+# 014G Minor SQL Review Patch Report — No Apply
 
 ## Executive summary
 
-Verdict:
+Final verdict candidate:
 
-`STAGING_DESIGN_PATCHED_READY_FOR_014G`
+`014G_SQL_REVIEW_MICRO_PATCH_APPLIED_READY_FOR_PR_CLOSEOUT`
 
-Claude's blocking design findings were patched across the documentary DDL,
-manifest, governance record and static contract. A SELECT-only validation pack
-was added. No DB connection, no SQL/DDL apply, no Supabase access, no loader,
-refresh, UX, contract or data change occurred.
+The minor 014G findings were applied to the documentary DDL, SELECT-only
+validation pack, manifest and static contract. No DB connection, no SQL/DDL
+apply, no Supabase access, no loader, refresh, UX, contract or data change
+occurred.
 
-## Preserved evidence
+## Patches applied
 
-| Input | SHA256 | Verdict |
-|---|---|---|
-| 014E dry-run manifest | `2c8afff44a171176af082241ad6e2a94be6a6d12be4228f3411a44edbbad8245` | `DRY_RUN_READY_WITH_WARNINGS` |
-| 014D remediation manifest | `b73483701f0dd767115a3d86d89fed2890b23da4d9269d959cb539e52d8ca089` | `REMEDIATION_READY_FOR_DRY_RUN_LOADER_WITH_WARNINGS` |
+- Added the future loader convention for raw-present/parsed-NULL photo
+  anomalies, including the `3/2` example.
+- Added `kpione_raw_ingest_batch_coverage_month_ck`; v1 is calendar-month
+  scoped and excludes partial incremental or multi-month coverage.
+- Renamed the candidate array to `candidate_source_file_ids`.
+- Defined batch-file authority for candidates and non-candidate roles.
+- Added nullable `schema_signature` and `staged_row_count` with format/count
+  constraints and a future candidate-file apply gate.
+- Scoped live validation queries to `status = 'STAGED'`.
+- Marked checks duplicating FK/CHECK enforcement as defense in depth.
+- Added file-range, per-file staged-count and photo anomaly reconciliation.
+- Elevated immutable manifest/daily reconciliation to a
+  `FUTURE APPLY BLOCKER CONDITION`.
+- Added static 014E payload-to-DDL parity coverage.
+- Split per-file reconciliation into candidate count matching and
+  non-candidate zero-staging evidence.
+- Split preserved photo anomaly profiling from the expected-zero parsed
+  invariant violation.
 
-The design remains tied to 9 candidate files, 239,159 source rows, 10,089
-exact duplicates, 229,070 would-stage rows, 35,287 distinct event IDs and full
-June 2026 coverage.
+## Evidence interpretation
 
-## Patched schema
+014E contains the complete payload column list but no `schema_signature` and no
+per-file post-dedupe staged count. Those new fields are therefore nullable in
+the proposal. A future apply must populate and validate both for
+`include_candidate` files; their current nullability does not weaken that gate.
 
-### Batch registry
+`candidate_source_file_ids` is only the copied candidate assertion. The
+batch-file child table is authoritative for all files and roles. Non-candidates
+remain outside the array.
 
-`cg_raw.kpione_raw_ingest_batch_v1` now has a lifecycle tombstone:
+## Photo anomaly behavior
 
-- `status` defaults to `STAGED`;
-- rollback changes it to `ROLLED_BACK`;
-- `rolled_back_at` and `rolled_back_by` must match the state;
-- `verdict` remains non-null but is not constrained to a premature taxonomy.
+`n_fotos_raw` is always retained. Valid parses populate `photo_sequence` and
+`photo_total`. If a raw value such as `3/2` is anomalous, a future loader keeps
+the raw value and writes both parsed fields as NULL. Raw-present/parsed-NULL is
+then reported as an anomaly rather than rejected.
 
-Partial unique indexes prevent two `STAGED` rows for the same month or
-candidate-manifest SHA.
+There is no positivity CHECK. `0/0`, parsed-null signals, impossible
+sequence/total order and event-row-count mismatches are surfaced by the
+validation pack.
 
-### Batch-file registry
+## Validation semantics
 
-`cg_raw.kpione_raw_ingest_batch_file_v1` owns source filename, SHA, role,
-row count, distinct-event count and date range at grain
-`(batch_id, source_file_id)`.
+Live checks filter `status = 'STAGED'`; tombstones are intentionally outside
+this operational gate. Orphan-file, week-start and invalid-role queries are
+defense in depth only because declarative constraints already enforce them.
 
-Roles distinguish candidate, quarantine, compare-only and schema-rejected
-files. Staging uses a composite FK to this registry.
+Primary evidence includes registry and per-file counts, file coverage,
+candidate identity, required file metadata, event hash stability and photo
+anomaly reconciliation.
 
-### Event-photo staging
+Candidate files reconcile their staging counts against `staged_row_count`.
+Non-candidate files may remain in batch-file evidence but must always reconcile
+to zero staging rows.
 
-`cg_raw.kpione_raw_event_photo_staging_v1` keeps raw event-photo grain and no
-longer duplicates filename/SHA. The `n_fotos integer` proposal is replaced by:
+The photo anomaly profile may legitimately be nonzero because raw anomalies
+are preserved. Those profile counts require future review and block
+mart/compliance activation until resolved or explicitly accepted. Only
+`photo_sequence_greater_than_total` is a parsed invariant violation with an
+expected-zero result.
 
-- `n_fotos_raw text`
-- `photo_sequence integer`
-- `photo_total integer`
+## Payload parity
 
-Parsed fields are nullable. If both exist, sequence may not exceed total.
-There is no positivity constraint, so anomalies such as `0/0` remain auditable
-raw evidence and are reported by later gates.
+The static mapping consumes the actual 014E `payload_columns` list and proves:
 
-## Dedupe alignment
-
-The dry-run key is `event_id + photo_row_hash`; the staging operational unique
-is `batch_id + photo_row_hash`. The two align because `photo_row_hash` includes
-`event_id` in its normalized input.
-
-Same event ID with different stable hashes is validated by query, not encoded
-as a misleading row-level constraint. Distinct event IDs at the same daily
-business grain remain valid.
-
-## Reduced indexes
-
-The patched proposal keeps:
-
-- unique batch/photo hash;
-- unique batch/source-row identity;
-- `(batch_id, fecha)`;
-- `(batch_id, event_id)`;
-- active-manifest and active-month partial uniques;
-- the batch-file composite primary key.
-
-Unscoped batch, source-file, verdict, fecha, week, cliente and cod_rt indexes
-were removed pending measured workloads.
-
-## Validation pack
-
-`sql/proposed/014F_validation_queries_NO_APPLY.sql` covers:
-
-- same event ID with different stable hashes;
-- coverage violations;
-- staging-versus-registry counts;
-- orphan source files;
-- Monday week alignment;
-- allowed roles and candidate-file consistency.
-
-It also documents, without inventing executable dependencies, the future
-manifest/daily-total reconciliation gate. The pack was not executed.
-
-## Tombstone rollback
-
-Rollback preserves evidence: the future authorized operation changes registry
-state to `ROLLED_BACK`, records actor/time and ensures downstream consumers
-exclude that batch. Child rows remain protected by `ON DELETE RESTRICT`.
-
-## Mart boundary
-
-The patched staging remains upstream of event/day-presence derivation, route
-reconciliation and any compatible compliance mart. It does not recalculate or
-activate Control Gestión semantics, and it does not change the app.
+- every payload field has a declared registry, batch-file or staging target;
+- every critical staging field has a payload or generated origin;
+- filename/SHA relocation, photo parsing and generated loader metadata are
+  intentional and documented.
 
 ## Remaining warnings
 
-- SQL and validation queries are unexecuted proposals.
-- Cross-batch activation and precedence require a later contract.
-- Manifest/daily-total comparison still needs an immutable manifest projection.
-- 014G must verify that one active batch per month is the intended policy.
+- SQL proposed and validation queries were not executed.
+- Immutable manifest projection reconciliation remains a future apply blocker.
+- Cross-batch activation and precedence remain a future contract.
+- Photo anomaly profile requires future review before mart activation.
 
-## Next phase
+## Closeout
 
-`014G_KPIONE_RAW_STAGING_SQL_ADVERSARIAL_REVIEW_NO_APPLY`
-
-The patched design is ready for adversarial static review, not application.
+The design is ready for PR 14 closeout review. It is not authorized for DB,
+Supabase or SQL application.
