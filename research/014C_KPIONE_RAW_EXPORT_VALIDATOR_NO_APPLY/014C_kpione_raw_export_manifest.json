@@ -1,0 +1,832 @@
+{
+  "blockers": [
+    "truncation_suspect:photo-excel-admin_1781976368641.xlsx",
+    "same_id_diff_hash_conflicts:1"
+  ],
+  "canonical_summary": {
+    "blank_event_id_rows": 1,
+    "canonical_columns": [
+      "event_id",
+      "sp_item_id",
+      "cod_rt",
+      "local_nombre",
+      "cliente_norm",
+      "fecha",
+      "week_start",
+      "reponedor",
+      "tipo_tarea",
+      "link_foto",
+      "event_stable_hash",
+      "source_file_id",
+      "source_file_sha256",
+      "source_row_number"
+    ],
+    "canonical_row_count": 182783,
+    "canonical_rows_persisted": false,
+    "distinct_event_id_count": 28087,
+    "event_stable_hash_conflict_count": 0,
+    "exact_duplicate_rows_removed": 6490,
+    "fecha_max": "2026-06-24",
+    "fecha_min": "2026-06-01",
+    "input_row_count": 189273,
+    "invalid_fecha_rows": 1
+  },
+  "duplicate_summary": {
+    "conflict_blocker_ids_sample": [
+      "862144"
+    ],
+    "cross_file_exact_photo_row_count": 6490,
+    "dedupe_silent_candidate_ids_sample": [
+      "862145",
+      "862148",
+      "862149",
+      "862150",
+      "862151",
+      "862153",
+      "862154",
+      "862156",
+      "862157",
+      "862158",
+      "862159",
+      "862160",
+      "862161",
+      "862162",
+      "862163",
+      "862164",
+      "862165",
+      "862166",
+      "862167",
+      "862168"
+    ],
+    "event_stable_hash_conflict_count": 0,
+    "event_stable_hash_conflict_ids_sample": [],
+    "overlapping_id_count": 1044,
+    "same_id_diff_hash_count": 1,
+    "same_id_same_hash_count": 1043
+  },
+  "file_manifest": [
+    {
+      "blank_id_rows": 0,
+      "columns_present": [
+        "ID",
+        "SP Item ID",
+        "Holding",
+        "Subcadena",
+        "Codigo Local",
+        "Marca",
+        "Local",
+        "Direccion",
+        "Reponedor",
+        "Fecha",
+        "Fecha de subida",
+        "Hora",
+        "Tipo de Tarea",
+        "Foto Nº/Total",
+        "Comentarios",
+        "Link Foto"
+      ],
+      "critical_columns_missing": [],
+      "distinct_id_count": 6997,
+      "expected_columns_missing": [],
+      "fecha_max": "2026-06-19",
+      "fecha_min": "2026-06-15",
+      "invalid_date_rows": 0,
+      "read_error": null,
+      "row_count": 46078,
+      "sheet": "Fotos",
+      "source_file_id": "1781973512473",
+      "source_file_name": "photo-excel-admin_1781973512473.xlsx",
+      "source_file_sha256": "e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d",
+      "source_path": "data/photo-excel-admin_1781973512473.xlsx",
+      "truncation_suspect": false
+    },
+    {
+      "blank_id_rows": 0,
+      "columns_present": [
+        "ID",
+        "SP Item ID",
+        "Holding",
+        "Subcadena",
+        "Codigo Local",
+        "Marca",
+        "Local",
+        "Direccion",
+        "Reponedor",
+        "Fecha",
+        "Fecha de subida",
+        "Hora",
+        "Tipo de Tarea",
+        "Foto Nº/Total",
+        "Comentarios",
+        "Link Foto"
+      ],
+      "critical_columns_missing": [],
+      "distinct_id_count": 7101,
+      "expected_columns_missing": [],
+      "fecha_max": "2026-06-07",
+      "fecha_min": "2026-06-01",
+      "invalid_date_rows": 0,
+      "read_error": null,
+      "row_count": 46807,
+      "sheet": "Fotos",
+      "source_file_id": "1781975989376",
+      "source_file_name": "photo-excel-admin_1781975989376.xlsx",
+      "source_file_sha256": "8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d",
+      "source_path": "data/photo-excel-admin_1781975989376.xlsx",
+      "truncation_suspect": false
+    },
+    {
+      "blank_id_rows": 1,
+      "columns_present": [
+        "ID",
+        "SP Item ID",
+        "Holding",
+        "Subcadena",
+        "Codigo Local",
+        "Marca",
+        "Local",
+        "Direccion",
+        "Reponedor",
+        "Fecha",
+        "Fecha de subida",
+        "Hora",
+        "Tipo de Tarea",
+        "Foto Nº/Total",
+        "Comentarios",
+        "Link Foto"
+      ],
+      "critical_columns_missing": [],
+      "distinct_id_count": 7832,
+      "expected_columns_missing": [],
+      "fecha_max": "2026-06-13",
+      "fecha_min": "2026-06-08",
+      "invalid_date_rows": 1,
+      "read_error": null,
+      "row_count": 50001,
+      "sheet": "Fotos",
+      "source_file_id": "1781976368641",
+      "source_file_name": "photo-excel-admin_1781976368641.xlsx",
+      "source_file_sha256": "0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa",
+      "source_path": "data/photo-excel-admin_1781976368641.xlsx",
+      "truncation_suspect": true
+    },
+    {
+      "blank_id_rows": 0,
+      "columns_present": [
+        "ID",
+        "SP Item ID",
+        "Holding",
+        "Subcadena",
+        "Codigo Local",
+        "Marca",
+        "Local",
+        "Direccion",
+        "Reponedor",
+        "Fecha",
+        "Fecha de subida",
+        "Hora",
+        "Tipo de Tarea",
+        "Foto Nº/Total",
+        "Comentarios",
+        "Link Foto"
+      ],
+      "critical_columns_missing": [],
+      "distinct_id_count": 14,
+      "expected_columns_missing": [],
+      "fecha_max": "2026-06-14",
+      "fecha_min": "2026-06-14",
+      "invalid_date_rows": 0,
+      "read_error": null,
+      "row_count": 107,
+      "sheet": "Fotos",
+      "source_file_id": "1781976423312",
+      "source_file_name": "photo-excel-admin_1781976423312.xlsx",
+      "source_file_sha256": "ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0",
+      "source_path": "data/photo-excel-admin_1781976423312.xlsx",
+      "truncation_suspect": false
+    },
+    {
+      "blank_id_rows": 0,
+      "columns_present": [
+        "ID",
+        "SP Item ID",
+        "Holding",
+        "Subcadena",
+        "Codigo Local",
+        "Marca",
+        "Local",
+        "Direccion",
+        "Reponedor",
+        "Fecha",
+        "Fecha de subida",
+        "Hora",
+        "Tipo de Tarea",
+        "Foto Nº/Total",
+        "Comentarios",
+        "Link Foto"
+      ],
+      "critical_columns_missing": [],
+      "distinct_id_count": 1295,
+      "expected_columns_missing": [],
+      "fecha_max": "2026-06-08",
+      "fecha_min": "2026-06-08",
+      "invalid_date_rows": 0,
+      "read_error": null,
+      "row_count": 8372,
+      "sheet": "Fotos",
+      "source_file_id": "1782012877303",
+      "source_file_name": "photo-excel-admin_1782012877303.xlsx",
+      "source_file_sha256": "d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881",
+      "source_path": "data/photo-excel-admin_1782012877303.xlsx",
+      "truncation_suspect": false
+    },
+    {
+      "blank_id_rows": 0,
+      "columns_present": [
+        "ID",
+        "SP Item ID",
+        "Holding",
+        "Subcadena",
+        "Codigo Local",
+        "Marca",
+        "Local",
+        "Direccion",
+        "Reponedor",
+        "Fecha",
+        "Fecha de subida",
+        "Hora",
+        "Tipo de Tarea",
+        "Foto Nº/Total",
+        "Comentarios",
+        "Link Foto"
+      ],
+      "critical_columns_missing": [],
+      "distinct_id_count": 5892,
+      "expected_columns_missing": [],
+      "fecha_max": "2026-06-24",
+      "fecha_min": "2026-06-20",
+      "invalid_date_rows": 0,
+      "read_error": null,
+      "row_count": 37908,
+      "sheet": "Fotos",
+      "source_file_id": "1782440454408",
+      "source_file_name": "photo-excel-admin_1782440454408.xlsx",
+      "source_file_sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+      "source_path": "data/photo-excel-admin_1782440454408.xlsx",
+      "truncation_suspect": false
+    }
+  ],
+  "generated_at": "2026-07-05T02:34:25+00:00",
+  "guardrails": {
+    "canonical_rows_persisted": false,
+    "data_movement": false,
+    "db_access": {
+      "used": false
+    },
+    "ddl": false,
+    "legacy_master_modified": false,
+    "lightweight_research_outputs_written": true,
+    "mode": "LOCAL_READ_ONLY_INPUTS_NO_APPLY",
+    "productive_loader_run": false,
+    "productive_refresh_run": false,
+    "raw_inputs_modified": false,
+    "sql_apply": false,
+    "supabase_used": false,
+    "ux_modified": false
+  },
+  "input_files": {
+    "base": ".",
+    "legacy_file": "data/CUMPLIMIENTO_FRECUENCIA.xlsx",
+    "legacy_sheet": "DB (KPIONE2.0)",
+    "month": "2026-06",
+    "raw_files": [
+      "data/photo-excel-admin_1781973512473.xlsx",
+      "data/photo-excel-admin_1781975989376.xlsx",
+      "data/photo-excel-admin_1781976368641.xlsx",
+      "data/photo-excel-admin_1781976423312.xlsx",
+      "data/photo-excel-admin_1782012877303.xlsx",
+      "data/photo-excel-admin_1782440454408.xlsx"
+    ],
+    "raw_pattern": "data/photo-excel-admin_*.xlsx",
+    "raw_sheet": "Fotos"
+  },
+  "june_coverage": {
+    "calendar_month_complete": false,
+    "covered_day_count": 24,
+    "covered_days": [
+      "2026-06-01",
+      "2026-06-02",
+      "2026-06-03",
+      "2026-06-04",
+      "2026-06-05",
+      "2026-06-06",
+      "2026-06-07",
+      "2026-06-08",
+      "2026-06-09",
+      "2026-06-10",
+      "2026-06-11",
+      "2026-06-12",
+      "2026-06-13",
+      "2026-06-14",
+      "2026-06-15",
+      "2026-06-16",
+      "2026-06-17",
+      "2026-06-18",
+      "2026-06-19",
+      "2026-06-20",
+      "2026-06-21",
+      "2026-06-22",
+      "2026-06-23",
+      "2026-06-24"
+    ],
+    "missing_2026_06_25_to_30": [
+      "2026-06-25",
+      "2026-06-26",
+      "2026-06-27",
+      "2026-06-28",
+      "2026-06-29",
+      "2026-06-30"
+    ],
+    "missing_day_count": 6,
+    "missing_days": [
+      "2026-06-25",
+      "2026-06-26",
+      "2026-06-27",
+      "2026-06-28",
+      "2026-06-29",
+      "2026-06-30"
+    ],
+    "month": "2026-06",
+    "month_end": "2026-06-30",
+    "month_start": "2026-06-01",
+    "operational_coverage_complete": false,
+    "operational_weeks": [
+      {
+        "covered_days": [
+          "2026-06-01",
+          "2026-06-02",
+          "2026-06-03",
+          "2026-06-04",
+          "2026-06-05",
+          "2026-06-06",
+          "2026-06-07"
+        ],
+        "end": "2026-06-07",
+        "label": "S1",
+        "missing_days": [],
+        "start": "2026-06-01",
+        "status": "COMPLETE"
+      },
+      {
+        "covered_days": [
+          "2026-06-08",
+          "2026-06-09",
+          "2026-06-10",
+          "2026-06-11",
+          "2026-06-12",
+          "2026-06-13",
+          "2026-06-14"
+        ],
+        "end": "2026-06-14",
+        "label": "S2",
+        "missing_days": [],
+        "start": "2026-06-08",
+        "status": "COMPLETE"
+      },
+      {
+        "covered_days": [
+          "2026-06-15",
+          "2026-06-16",
+          "2026-06-17",
+          "2026-06-18",
+          "2026-06-19",
+          "2026-06-20",
+          "2026-06-21"
+        ],
+        "end": "2026-06-21",
+        "label": "S3",
+        "missing_days": [],
+        "start": "2026-06-15",
+        "status": "COMPLETE"
+      },
+      {
+        "covered_days": [
+          "2026-06-22",
+          "2026-06-23",
+          "2026-06-24"
+        ],
+        "end": "2026-06-28",
+        "label": "S4",
+        "missing_days": [
+          "2026-06-25",
+          "2026-06-26",
+          "2026-06-27",
+          "2026-06-28"
+        ],
+        "start": "2026-06-22",
+        "status": "PARTIAL"
+      }
+    ],
+    "rollover_week": {
+      "belongs_to_next_month": true,
+      "days_inside_requested_month": [
+        "2026-06-29",
+        "2026-06-30"
+      ],
+      "end": "2026-07-05",
+      "start": "2026-06-29"
+    }
+  },
+  "legacy_parity_2026_06_01": {
+    "available": true,
+    "legacy_id_count": 1221,
+    "legacy_only_count": 1,
+    "legacy_only_sample": [
+      "855811"
+    ],
+    "match_rate": 0.9991809991809992,
+    "matched_id_count": 1220,
+    "missing_columns": [],
+    "raw_id_count": 1224,
+    "raw_only_count": 4,
+    "raw_only_sample": [
+      "871237",
+      "875271",
+      "875273",
+      "877542"
+    ],
+    "ready_threshold": 0.99,
+    "target_date": "2026-06-01",
+    "threshold_met": true
+  },
+  "overlap_matrix": {
+    "matrix": [
+      {
+        "1781973512473": 6997,
+        "1781975989376": 0,
+        "1781976368641": 0,
+        "1781976423312": 0,
+        "1782012877303": 0,
+        "1782440454408": 0,
+        "source_file_id": "1781973512473"
+      },
+      {
+        "1781973512473": 0,
+        "1781975989376": 7101,
+        "1781976368641": 0,
+        "1781976423312": 0,
+        "1782012877303": 0,
+        "1782440454408": 0,
+        "source_file_id": "1781975989376"
+      },
+      {
+        "1781973512473": 0,
+        "1781975989376": 0,
+        "1781976368641": 7832,
+        "1781976423312": 0,
+        "1782012877303": 1044,
+        "1782440454408": 0,
+        "source_file_id": "1781976368641"
+      },
+      {
+        "1781973512473": 0,
+        "1781975989376": 0,
+        "1781976368641": 0,
+        "1781976423312": 14,
+        "1782012877303": 0,
+        "1782440454408": 0,
+        "source_file_id": "1781976423312"
+      },
+      {
+        "1781973512473": 0,
+        "1781975989376": 0,
+        "1781976368641": 1044,
+        "1781976423312": 0,
+        "1782012877303": 1295,
+        "1782440454408": 0,
+        "source_file_id": "1782012877303"
+      },
+      {
+        "1781973512473": 0,
+        "1781975989376": 0,
+        "1781976368641": 0,
+        "1781976423312": 0,
+        "1782012877303": 0,
+        "1782440454408": 5892,
+        "source_file_id": "1782440454408"
+      }
+    ],
+    "pairs": [
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781973512473",
+        "source_file_id_b": "1781975989376"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781973512473",
+        "source_file_id_b": "1781976368641"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781973512473",
+        "source_file_id_b": "1781976423312"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781973512473",
+        "source_file_id_b": "1782012877303"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781973512473",
+        "source_file_id_b": "1782440454408"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781975989376",
+        "source_file_id_b": "1781976368641"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781975989376",
+        "source_file_id_b": "1781976423312"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781975989376",
+        "source_file_id_b": "1782012877303"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781975989376",
+        "source_file_id_b": "1782440454408"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781976368641",
+        "source_file_id_b": "1781976423312"
+      },
+      {
+        "overlap_id_count": 1044,
+        "sample_ids": [
+          "862144",
+          "862145",
+          "862148",
+          "862149",
+          "862150",
+          "862151",
+          "862153",
+          "862154",
+          "862156",
+          "862157",
+          "862158",
+          "862159",
+          "862160",
+          "862161",
+          "862162",
+          "862163",
+          "862164",
+          "862165",
+          "862166",
+          "862167"
+        ],
+        "source_file_id_a": "1781976368641",
+        "source_file_id_b": "1782012877303"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781976368641",
+        "source_file_id_b": "1782440454408"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781976423312",
+        "source_file_id_b": "1782012877303"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1781976423312",
+        "source_file_id_b": "1782440454408"
+      },
+      {
+        "overlap_id_count": 0,
+        "sample_ids": [],
+        "source_file_id_a": "1782012877303",
+        "source_file_id_b": "1782440454408"
+      }
+    ],
+    "source_file_ids": [
+      "1781973512473",
+      "1781975989376",
+      "1781976368641",
+      "1781976423312",
+      "1782012877303",
+      "1782440454408"
+    ]
+  },
+  "phase_id": "014C_KPIONE_RAW_EXPORT_VALIDATOR_NO_APPLY",
+  "truncation_summary": {
+    "suspect_file_count": 1,
+    "suspect_source_file_ids": [
+      "1781976368641"
+    ],
+    "suspect_source_file_names": [
+      "photo-excel-admin_1781976368641.xlsx"
+    ],
+    "threshold_rows": 50000
+  },
+  "verdict": "RAW_EXPORTS_BLOCKED_BY_TRUNCATION_OR_CONFLICT",
+  "visit_formula_summary": {
+    "all_group_sums_equal_one": true,
+    "cod_rt_group_count": 27912,
+    "eligible_row_count": 182782,
+    "excluded_row_count": 1,
+    "formula": "1 / count(Codigo Local|Local fallback, Fecha, Marca)",
+    "group_count": 27920,
+    "group_summary_sample": [
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-05",
+        "location_key": "AL3071",
+        "location_key_type": "COD_RT",
+        "row_count": 5,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-08",
+        "location_key": "AL3071",
+        "location_key_type": "COD_RT",
+        "row_count": 5,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-11",
+        "location_key": "AL3071",
+        "location_key_type": "COD_RT",
+        "row_count": 4,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-15",
+        "location_key": "AL3071",
+        "location_key_type": "COD_RT",
+        "row_count": 5,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-19",
+        "location_key": "AL3071",
+        "location_key_type": "COD_RT",
+        "row_count": 5,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-22",
+        "location_key": "AL3071",
+        "location_key_type": "COD_RT",
+        "row_count": 5,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-15",
+        "location_key": "AL3072",
+        "location_key_type": "COD_RT",
+        "row_count": 5,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-17",
+        "location_key": "AL3072",
+        "location_key_type": "COD_RT",
+        "row_count": 6,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "TNOGAL",
+        "fecha": "2026-06-17",
+        "location_key": "AL3072",
+        "location_key_type": "COD_RT",
+        "row_count": 3,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-19",
+        "location_key": "AL3072",
+        "location_key_type": "COD_RT",
+        "row_count": 5,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "TNOGAL",
+        "fecha": "2026-06-19",
+        "location_key": "AL3072",
+        "location_key_type": "COD_RT",
+        "row_count": 5,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-23",
+        "location_key": "AL3072",
+        "location_key_type": "COD_RT",
+        "row_count": 3,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "TNOGAL",
+        "fecha": "2026-06-23",
+        "location_key": "AL3072",
+        "location_key_type": "COD_RT",
+        "row_count": 3,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "CASO Y CIA",
+        "fecha": "2026-06-21",
+        "location_key": "AL3073",
+        "location_key_type": "COD_RT",
+        "row_count": 4,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "TNOGAL",
+        "fecha": "2026-06-16",
+        "location_key": "AL3074",
+        "location_key_type": "COD_RT",
+        "row_count": 4,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "TNOGAL",
+        "fecha": "2026-06-23",
+        "location_key": "AL3074",
+        "location_key_type": "COD_RT",
+        "row_count": 4,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "TNOGAL",
+        "fecha": "2026-06-12",
+        "location_key": "AL3080",
+        "location_key_type": "COD_RT",
+        "row_count": 5,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "TNOGAL",
+        "fecha": "2026-06-16",
+        "location_key": "AL3080",
+        "location_key_type": "COD_RT",
+        "row_count": 4,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "TNOGAL",
+        "fecha": "2026-06-18",
+        "location_key": "AL3080",
+        "location_key_type": "COD_RT",
+        "row_count": 4,
+        "visit_sum": 1.0
+      },
+      {
+        "cliente_norm": "TNOGAL",
+        "fecha": "2026-06-23",
+        "location_key": "AL3080",
+        "location_key_type": "COD_RT",
+        "row_count": 6,
+        "visit_sum": 1.0
+      }
+    ],
+    "local_fallback_group_count": 8,
+    "visit_sum": 27920.0
+  },
+  "warnings": [
+    "dedupe_silent_candidate_ids:1043",
+    "june_missing_days:2026-06-25,2026-06-26,2026-06-27,2026-06-28,2026-06-29,2026-06-30",
+    "june_operational_weeks_incomplete",
+    "raw_blank_id_rows:photo-excel-admin_1781976368641.xlsx:1",
+    "raw_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1"
+  ]
+}
