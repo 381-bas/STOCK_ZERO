@@ -1,0 +1,271 @@
+{
+  "phase_id": "014F_KPIONE_RAW_DB_STAGING_DESIGN_NO_APPLY",
+  "generated_at": "2026-07-05T04:05:50Z",
+  "patch_phase_id": "014F_PATCH_SQL_DESIGN_BEFORE_014G_NO_APPLY",
+  "patched_at": "2026-07-05T04:35:20Z",
+  "input_014E_manifest": {
+    "path": "research/014E_KPIONE_RAW_DRY_RUN_LOADER_NO_APPLY/014E_dry_run_loader_manifest.json",
+    "sha256": "2c8afff44a171176af082241ad6e2a94be6a6d12be4228f3411a44edbbad8245",
+    "phase_id": "014E_KPIONE_RAW_DRY_RUN_LOADER_NO_APPLY",
+    "verdict": "DRY_RUN_READY_WITH_WARNINGS",
+    "dry_run_batch_id": "014E_1113973b41ee7618b4132006",
+    "candidate_files_count": 9,
+    "source_rows_total": 239159,
+    "exact_duplicates_removed": 10089,
+    "would_stage_rows": 229070,
+    "distinct_event_ids": 35287,
+    "coverage_start": "2026-06-01",
+    "coverage_end": "2026-06-30",
+    "candidate_manifest_014D_sha256": "b73483701f0dd767115a3d86d89fed2890b23da4d9269d959cb539e52d8ca089",
+    "warnings": [
+      "expected_exact_overlap_rows_removed:10089",
+      "expected_same_id_same_hash:1579",
+      "input_manifest_014D_has_documented_warnings",
+      "manifest_non_candidate_files_excluded:2"
+    ]
+  },
+  "input_014D_manifest": {
+    "path": "research/014D_KPIONE_RAW_EXPORT_REMEDIATION_NO_APPLY/014D_remediation_manifest.json",
+    "sha256": "b73483701f0dd767115a3d86d89fed2890b23da4d9269d959cb539e52d8ca089",
+    "verdict": "REMEDIATION_READY_FOR_DRY_RUN_LOADER_WITH_WARNINGS"
+  },
+  "no_apply_guardrails": {
+    "db_connection_used": false,
+    "supabase_used": false,
+    "sql_apply": false,
+    "ddl_executed": false,
+    "productive_loader_touched": false,
+    "productive_refresh_run": false,
+    "app_touched": false,
+    "ux_modified": false,
+    "data_movement": false,
+    "active_contract_modified": false,
+    "sql_artifact_mode": "NO_APPLY_PROPOSAL_ONLY"
+  },
+  "proposed_tables": [
+    {
+      "name": "cg_raw.kpione_raw_ingest_batch_v1",
+      "purpose": "Registry and rollback tombstone for one explicitly approved candidate ingest batch",
+      "grain": "one row per batch_id"
+    },
+    {
+      "name": "cg_raw.kpione_raw_ingest_batch_file_v1",
+      "purpose": "Per-file identity, evidence and role registry for one batch",
+      "grain": "one row per batch_id and source_file_id"
+    },
+    {
+      "name": "cg_raw.kpione_raw_event_photo_staging_v1",
+      "purpose": "Normalized raw event-photo rows after exact dedupe",
+      "grain": "one event-photo row per batch_id and photo_row_hash"
+    }
+  ],
+  "proposed_columns": {
+    "cg_raw.kpione_raw_ingest_batch_v1": [
+      {"name": "batch_id", "type": "text", "nullable": false},
+      {"name": "month", "type": "date", "nullable": false},
+      {"name": "candidate_manifest_sha256", "type": "text", "nullable": false},
+      {"name": "source_file_ids", "type": "text[]", "nullable": false},
+      {"name": "source_files_count", "type": "integer", "nullable": false},
+      {"name": "source_rows_total", "type": "bigint", "nullable": false},
+      {"name": "exact_duplicates_removed", "type": "bigint", "nullable": false},
+      {"name": "staged_rows", "type": "bigint", "nullable": false},
+      {"name": "coverage_start", "type": "date", "nullable": false},
+      {"name": "coverage_end", "type": "date", "nullable": false},
+      {"name": "verdict", "type": "text", "nullable": false},
+      {"name": "status", "type": "text", "nullable": false, "default": "STAGED"},
+      {"name": "rolled_back_at", "type": "timestamptz", "nullable": true},
+      {"name": "rolled_back_by", "type": "text", "nullable": true},
+      {"name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()"},
+      {"name": "applied_by", "type": "text", "nullable": false},
+      {"name": "notes", "type": "text", "nullable": true}
+    ],
+    "cg_raw.kpione_raw_ingest_batch_file_v1": [
+      {"name": "batch_id", "type": "text", "nullable": false},
+      {"name": "source_file_id", "type": "text", "nullable": false},
+      {"name": "source_file_name", "type": "text", "nullable": false},
+      {"name": "source_file_sha256", "type": "text", "nullable": false},
+      {"name": "role", "type": "text", "nullable": false},
+      {"name": "row_count", "type": "bigint", "nullable": false},
+      {"name": "distinct_event_ids", "type": "bigint", "nullable": true},
+      {"name": "fecha_min", "type": "date", "nullable": true},
+      {"name": "fecha_max", "type": "date", "nullable": true}
+    ],
+    "cg_raw.kpione_raw_event_photo_staging_v1": [
+      {"name": "batch_id", "type": "text", "nullable": false},
+      {"name": "event_id", "type": "text", "nullable": false},
+      {"name": "source_file_id", "type": "text", "nullable": false},
+      {"name": "source_row_number", "type": "bigint", "nullable": false},
+      {"name": "fecha", "type": "date", "nullable": false},
+      {"name": "week_start", "type": "date", "nullable": false},
+      {"name": "cod_rt", "type": "text", "nullable": true},
+      {"name": "local_nombre", "type": "text", "nullable": true},
+      {"name": "cliente_norm", "type": "text", "nullable": false},
+      {"name": "reponedor", "type": "text", "nullable": true},
+      {"name": "tipo_tarea", "type": "text", "nullable": true},
+      {"name": "n_fotos_raw", "type": "text", "nullable": true},
+      {"name": "photo_sequence", "type": "integer", "nullable": true},
+      {"name": "photo_total", "type": "integer", "nullable": true},
+      {"name": "link_foto", "type": "text", "nullable": true},
+      {"name": "event_stable_hash", "type": "text", "nullable": false},
+      {"name": "photo_row_hash", "type": "text", "nullable": false},
+      {"name": "loaded_at", "type": "timestamptz", "nullable": false, "default": "now()"},
+      {"name": "loader_version", "type": "text", "nullable": false}
+    ]
+  },
+  "proposed_constraints": [
+    "primary key (batch_id) on batch registry",
+    "status is STAGED or ROLLED_BACK with coherent rolled_back_at and rolled_back_by tombstone fields",
+    "no rigid verdict taxonomy check; verdict remains required evidence text",
+    "primary key (batch_id, source_file_id) on batch file registry",
+    "foreign key batch_file.batch_id references batch registry with ON DELETE RESTRICT",
+    "foreign key staging.(batch_id, source_file_id) references batch_file with ON DELETE RESTRICT",
+    "unique (batch_id, photo_row_hash)",
+    "unique (batch_id, source_file_id, source_row_number)",
+    "not null: event_id, fecha, source_file_id, photo_row_hash and file identity fields",
+    "hash fields are lowercase 64-character hexadecimal",
+    "source_row_number >= 2",
+    "week_start equals Monday start of fecha",
+    "cod_rt or local_nombre must be nonblank",
+    "photo_sequence and photo_total may be null; when both parse, photo_sequence <= photo_total",
+    "photo totals such as 0/0 are retained for validation reporting instead of rejected",
+    "batch-file role is include_candidate, quarantine_truncation, compare_only or rejected_schema",
+    "batch-file row_count >= 0 and fecha_min <= fecha_max when both dates exist",
+    "staged_rows + exact_duplicates_removed = source_rows_total",
+    "coverage_start <= coverage_end",
+    "fecha inside batch coverage range is a future transactional assertion because PostgreSQL CHECK cannot reference the registry row"
+  ],
+  "proposed_indexes": [
+    "unique staging(batch_id, photo_row_hash)",
+    "unique staging(batch_id, source_file_id, source_row_number)",
+    "staging(batch_id, fecha)",
+    "staging(batch_id, event_id)",
+    "unique batch_registry(candidate_manifest_sha256) WHERE status = STAGED",
+    "unique batch_registry(month) WHERE status = STAGED",
+    "batch_file primary key (batch_id, source_file_id) supplies its composite index"
+  ],
+  "grain_definition": {
+    "staging": "one normalized raw event-photo row after exact dedupe, scoped by batch_id",
+    "batch_registry": "one lifecycle registry row per explicit batch_id; identity and evidence stay fixed while status may tombstone the batch",
+    "batch_file": "one source-file evidence row per batch_id and source_file_id",
+    "not_the_grain": [
+      "day presence",
+      "official VISITA",
+      "route compliance",
+      "mart row"
+    ]
+  },
+  "dedupe_contract": {
+    "dry_run_dedupe_key": ["event_id", "photo_row_hash"],
+    "staging_operational_unique": ["batch_id", "photo_row_hash"],
+    "hash_equivalence": "photo_row_hash includes event_id in its normalized input, so the operational unique preserves the dry-run event_id + photo_row_hash identity inside a batch",
+    "same_photo_row_hash_within_batch": "exact duplicate; keep one before insert and enforce unique(batch_id, photo_row_hash)",
+    "same_event_id_different_hash": "blocking conflict detected by the companion validation query pack, not by a declarative constraint",
+    "same_local_date_brand_different_event_id": "valid distinct events; never dedupe",
+    "cross_batch_rule": "no implicit overwrite and no latest-batch-wins precedence",
+    "014E_evidence": {
+      "same_id_same_hash": 1579,
+      "same_id_diff_hash": 0,
+      "event_stable_hash_conflicts": 0,
+      "different_event_ids_preserved": true
+    }
+  },
+  "batch_contract": {
+    "identity": "explicit batch_id; source_file_id is artifact identity, not batch identity",
+    "atomic_future_sequence": [
+      "verify candidate manifest SHA and source SHAs",
+      "validate schema and coverage",
+      "register every file with its explicit role",
+      "dedupe exact photo rows",
+      "reject event conflicts",
+      "insert registry, batch-file and staging rows in one short transaction",
+      "run the companion validation query pack",
+      "commit only under future explicit authorization"
+    ],
+    "rollback_boundary": "batch_id",
+    "rollback_protocol": "retain child evidence and transition the batch registry from STAGED to ROLLED_BACK with rolled_back_at and rolled_back_by; downstream activation must exclude tombstoned batches",
+    "implicit_overwrite_allowed": false,
+    "sample_from_014E": {
+      "batch_id": "014E_1113973b41ee7618b4132006",
+      "month": "2026-06-01",
+      "candidate_manifest_sha256": "b73483701f0dd767115a3d86d89fed2890b23da4d9269d959cb539e52d8ca089",
+      "source_file_ids": [
+        "1781975989376",
+        "1783219885210",
+        "1783220552913",
+        "1783219914054",
+        "1781976423312",
+        "1781973512473",
+        "1782440454408",
+        "1783220085725",
+        "1783220157694"
+      ],
+      "source_files_count": 9,
+      "source_rows_total": 239159,
+      "exact_duplicates_removed": 10089,
+      "staged_rows": 229070,
+      "coverage_start": "2026-06-01",
+      "coverage_end": "2026-06-30",
+      "verdict": "DRY_RUN_READY_WITH_WARNINGS",
+      "status": "STAGED"
+    }
+  },
+  "patched_findings": [
+    "lossless raw photo-number contract replaces n_fotos integer",
+    "rollback becomes an explicit STAGED/ROLLED_BACK tombstone lifecycle",
+    "batch-file child table owns file name, SHA, role and file-level counts",
+    "staging uses a composite foreign key to batch-file identity",
+    "active month and candidate manifest are protected by partial unique indexes",
+    "dedupe key and operational uniqueness are explicitly aligned",
+    "cross-table and event-conflict checks move to a companion validation query pack",
+    "unscoped redundant indexes are removed"
+  ],
+  "risks": [
+    {
+      "risk": "KPIONE schema drift",
+      "control": "manifest and critical-column gate before batch creation"
+    },
+    {
+      "risk": "broken or expiring photo links",
+      "control": "store raw link but validate reachability separately from event identity"
+    },
+    {
+      "risk": "event ID not globally stable",
+      "control": "scope uniqueness by batch and retain event/photo hashes"
+    },
+    {
+      "risk": "cod_rt missing and local_nombre fallback ambiguity",
+      "control": "require at least one location key and keep fallback in derived validation"
+    },
+    {
+      "risk": "volume growth",
+      "control": "review index cost and partitioning only when measured volume justifies it"
+    },
+    {
+      "risk": "duplicates between batches",
+      "control": "no implicit latest-wins; define cross-batch activation separately"
+    },
+    {
+      "risk": "mart semantic drift",
+      "control": "staging stores raw normalized facts only; compliance remains downstream"
+    }
+  ],
+  "sql_proposal": {
+    "path": "sql/proposed/014F_kpione_raw_staging_design_NO_APPLY.sql",
+    "executed": false,
+    "transaction_terminal": "ROLLBACK"
+  },
+  "validation_query_pack": {
+    "path": "sql/proposed/014F_validation_queries_NO_APPLY.sql",
+    "executed": false,
+    "mode": "SELECT_ONLY_FUTURE_AUTHORIZED_PHASE"
+  },
+  "verdict": "STAGING_DESIGN_PATCHED_READY_FOR_014G",
+  "blockers": [],
+  "warnings": [
+    "014E contains expected exact-overlap warnings",
+    "validation queries are proposals and have not been executed",
+    "manifest/daily total reconciliation remains a documented future placeholder",
+    "cross-batch activation and precedence remain undefined",
+    "SQL proposal has not been executed or applied"
+  ]
+}
