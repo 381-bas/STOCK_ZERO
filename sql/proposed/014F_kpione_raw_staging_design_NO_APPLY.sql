@@ -12,7 +12,7 @@ CREATE TABLE cg_raw.kpione_raw_ingest_batch_v1 (
     batch_id text PRIMARY KEY,
     month date NOT NULL,
     candidate_manifest_sha256 text NOT NULL,
-    source_file_ids text[] NOT NULL,
+    candidate_source_file_ids text[] NOT NULL,
     source_files_count integer NOT NULL,
     source_rows_total bigint NOT NULL,
     exact_duplicates_removed bigint NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE cg_raw.kpione_raw_ingest_batch_v1 (
     CONSTRAINT kpione_raw_ingest_batch_source_files_count_ck
         CHECK (
             source_files_count > 0
-            AND cardinality(source_file_ids) = source_files_count
+            AND cardinality(candidate_source_file_ids) = source_files_count
         ),
     CONSTRAINT kpione_raw_ingest_batch_counts_ck
         CHECK (
@@ -45,6 +45,11 @@ CREATE TABLE cg_raw.kpione_raw_ingest_batch_v1 (
         ),
     CONSTRAINT kpione_raw_ingest_batch_coverage_ck
         CHECK (coverage_start <= coverage_end),
+    CONSTRAINT kpione_raw_ingest_batch_coverage_month_ck
+        CHECK (
+            date_trunc('month', coverage_start)::date = month
+            AND date_trunc('month', coverage_end)::date = month
+        ),
     CONSTRAINT kpione_raw_ingest_batch_status_ck
         CHECK (status IN ('STAGED', 'ROLLED_BACK')),
     CONSTRAINT kpione_raw_ingest_batch_rollback_state_ck
@@ -80,6 +85,8 @@ CREATE TABLE cg_raw.kpione_raw_ingest_batch_file_v1 (
     role text NOT NULL,
     row_count bigint NOT NULL,
     distinct_event_ids bigint,
+    schema_signature text,
+    staged_row_count bigint,
     fecha_min date,
     fecha_max date,
 
@@ -105,6 +112,19 @@ CREATE TABLE cg_raw.kpione_raw_ingest_batch_file_v1 (
         CHECK (row_count >= 0),
     CONSTRAINT kpione_raw_ingest_batch_file_distinct_events_ck
         CHECK (distinct_event_ids IS NULL OR distinct_event_ids >= 0),
+    CONSTRAINT kpione_raw_ingest_batch_file_schema_signature_ck
+        CHECK (
+            schema_signature IS NULL
+            OR schema_signature ~ '^[0-9a-f]{64}$'
+        ),
+    CONSTRAINT kpione_raw_ingest_batch_file_staged_row_count_ck
+        CHECK (
+            staged_row_count IS NULL
+            OR (
+                staged_row_count >= 0
+                AND row_count >= staged_row_count
+            )
+        ),
     CONSTRAINT kpione_raw_ingest_batch_file_fecha_range_ck
         CHECK (
             fecha_min IS NULL
@@ -181,8 +201,17 @@ CREATE INDEX kpione_raw_event_photo_batch_event_id_idx
     ON cg_raw.kpione_raw_event_photo_staging_v1 (batch_id, event_id);
 
 -- Raw photo numbering is intentionally lossless. n_fotos_raw retains source
--- text; photo_sequence/photo_total are nullable parsed values. Anomalies such as
--- 0/0 are stored and surfaced by validation gates instead of rejected here.
+-- text; photo_sequence/photo_total are nullable parsed values. If raw text is
+-- present but parsing detects an anomaly such as 3/2, a future loader must keep
+-- n_fotos_raw unchanged and set both parsed fields to NULL, never reject the
+-- row. Parsed NULL with raw present is the anomaly signal. Anomalies such as
+-- 0/0 are stored and surfaced by validation queries/gates, not rejected here.
+--
+-- v1 assumes one complete monthly batch whose coverage stays inside one
+-- calendar month. Partial incremental and multi-month coverage are outside v1.
+-- 014E contains no schema_signature or per-file staged_row_count evidence, so
+-- those batch-file fields remain nullable in DDL. A future apply gate must
+-- require both for include_candidate files before any write is authorized.
 --
 -- 014E exact dedupe uses (event_id, photo_row_hash). Operational uniqueness is
 -- (batch_id, photo_row_hash) because photo_row_hash includes event_id in the
