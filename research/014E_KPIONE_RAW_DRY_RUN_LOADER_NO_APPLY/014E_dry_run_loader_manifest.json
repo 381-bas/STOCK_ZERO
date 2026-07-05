@@ -1,0 +1,1304 @@
+{
+  "blockers": [],
+  "candidate_files_used": [
+    {
+      "row_count": 46807,
+      "sha256_match": true,
+      "source_file_id": "1781975989376",
+      "source_file_name": "photo-excel-admin_1781975989376.xlsx",
+      "source_file_sha256": "8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d"
+    },
+    {
+      "row_count": 8372,
+      "sha256_match": true,
+      "source_file_id": "1783219885210",
+      "source_file_name": "photo-excel-admin_1783219885210.xlsx",
+      "source_file_sha256": "43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978"
+    },
+    {
+      "row_count": 34838,
+      "sha256_match": true,
+      "source_file_id": "1783220552913",
+      "source_file_name": "photo-excel-admin_1783220552913.xlsx",
+      "source_file_sha256": "45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b"
+    },
+    {
+      "row_count": 8672,
+      "sha256_match": true,
+      "source_file_id": "1783219914054",
+      "source_file_name": "photo-excel-admin_1783219914054.xlsx",
+      "source_file_sha256": "679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7"
+    },
+    {
+      "row_count": 107,
+      "sha256_match": true,
+      "source_file_id": "1781976423312",
+      "source_file_name": "photo-excel-admin_1781976423312.xlsx",
+      "source_file_sha256": "ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0"
+    },
+    {
+      "row_count": 46078,
+      "sha256_match": true,
+      "source_file_id": "1781973512473",
+      "source_file_name": "photo-excel-admin_1781973512473.xlsx",
+      "source_file_sha256": "e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d"
+    },
+    {
+      "row_count": 37908,
+      "sha256_match": true,
+      "source_file_id": "1782440454408",
+      "source_file_name": "photo-excel-admin_1782440454408.xlsx",
+      "source_file_sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180"
+    },
+    {
+      "row_count": 40488,
+      "sha256_match": true,
+      "source_file_id": "1783220085725",
+      "source_file_name": "photo-excel-admin_1783220085725.xlsx",
+      "source_file_sha256": "8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b"
+    },
+    {
+      "row_count": 15889,
+      "sha256_match": true,
+      "source_file_id": "1783220157694",
+      "source_file_name": "photo-excel-admin_1783220157694.xlsx",
+      "source_file_sha256": "3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72"
+    }
+  ],
+  "coverage_summary": {
+    "calendar_month_complete": true,
+    "covered_day_count": 30,
+    "covered_days": [
+      "2026-06-01",
+      "2026-06-02",
+      "2026-06-03",
+      "2026-06-04",
+      "2026-06-05",
+      "2026-06-06",
+      "2026-06-07",
+      "2026-06-08",
+      "2026-06-09",
+      "2026-06-10",
+      "2026-06-11",
+      "2026-06-12",
+      "2026-06-13",
+      "2026-06-14",
+      "2026-06-15",
+      "2026-06-16",
+      "2026-06-17",
+      "2026-06-18",
+      "2026-06-19",
+      "2026-06-20",
+      "2026-06-21",
+      "2026-06-22",
+      "2026-06-23",
+      "2026-06-24",
+      "2026-06-25",
+      "2026-06-26",
+      "2026-06-27",
+      "2026-06-28",
+      "2026-06-29",
+      "2026-06-30"
+    ],
+    "missing_2026_06_25_to_30": [],
+    "missing_day_count": 0,
+    "missing_days": [],
+    "month": "2026-06",
+    "month_end": "2026-06-30",
+    "month_start": "2026-06-01",
+    "operational_coverage_complete": true,
+    "operational_weeks": [
+      {
+        "covered_days": [
+          "2026-06-01",
+          "2026-06-02",
+          "2026-06-03",
+          "2026-06-04",
+          "2026-06-05",
+          "2026-06-06",
+          "2026-06-07"
+        ],
+        "end": "2026-06-07",
+        "label": "S1",
+        "missing_days": [],
+        "start": "2026-06-01",
+        "status": "COMPLETE"
+      },
+      {
+        "covered_days": [
+          "2026-06-08",
+          "2026-06-09",
+          "2026-06-10",
+          "2026-06-11",
+          "2026-06-12",
+          "2026-06-13",
+          "2026-06-14"
+        ],
+        "end": "2026-06-14",
+        "label": "S2",
+        "missing_days": [],
+        "start": "2026-06-08",
+        "status": "COMPLETE"
+      },
+      {
+        "covered_days": [
+          "2026-06-15",
+          "2026-06-16",
+          "2026-06-17",
+          "2026-06-18",
+          "2026-06-19",
+          "2026-06-20",
+          "2026-06-21"
+        ],
+        "end": "2026-06-21",
+        "label": "S3",
+        "missing_days": [],
+        "start": "2026-06-15",
+        "status": "COMPLETE"
+      },
+      {
+        "covered_days": [
+          "2026-06-22",
+          "2026-06-23",
+          "2026-06-24",
+          "2026-06-25",
+          "2026-06-26",
+          "2026-06-27",
+          "2026-06-28"
+        ],
+        "end": "2026-06-28",
+        "label": "S4",
+        "missing_days": [],
+        "start": "2026-06-22",
+        "status": "COMPLETE"
+      }
+    ],
+    "rollover_week": {
+      "belongs_to_next_month": true,
+      "days_inside_requested_month": [
+        "2026-06-29",
+        "2026-06-30"
+      ],
+      "end": "2026-07-05",
+      "start": "2026-06-29"
+    }
+  },
+  "dedupe_summary": {
+    "conflict_blocker_ids_sample": [],
+    "cross_file_exact_photo_row_count": 10089,
+    "dedupe_silent_candidate_ids_sample": [
+      "882090",
+      "882091",
+      "882092",
+      "882093",
+      "882094",
+      "882096",
+      "882097",
+      "882098",
+      "882099",
+      "882100",
+      "882101",
+      "882102",
+      "882103",
+      "882104",
+      "882105",
+      "882106",
+      "882107",
+      "882108",
+      "882109",
+      "882111"
+    ],
+    "event_preservation": {
+      "dedupe_key": [
+        "event_id",
+        "photo_row_hash"
+      ],
+      "different_event_ids_preserved": true,
+      "lost_event_key_pairs_count": 0,
+      "multi_event_daily_groups_after": 240,
+      "multi_event_daily_groups_before": 240,
+      "same_local_date_brand_different_id_is_duplicate": false
+    },
+    "event_stable_hash_conflict_count": 0,
+    "event_stable_hash_conflict_ids_sample": [],
+    "exact_duplicate_rows_removed": 10089,
+    "overlapping_id_count": 1579,
+    "same_id_diff_hash_count": 0,
+    "same_id_same_hash_count": 1579
+  },
+  "dry_run_batch_id": "014E_1113973b41ee7618b4132006",
+  "dry_run_payload_summary": {
+    "candidate_files_count": 9,
+    "covered_days": [
+      "2026-06-01",
+      "2026-06-02",
+      "2026-06-03",
+      "2026-06-04",
+      "2026-06-05",
+      "2026-06-06",
+      "2026-06-07",
+      "2026-06-08",
+      "2026-06-09",
+      "2026-06-10",
+      "2026-06-11",
+      "2026-06-12",
+      "2026-06-13",
+      "2026-06-14",
+      "2026-06-15",
+      "2026-06-16",
+      "2026-06-17",
+      "2026-06-18",
+      "2026-06-19",
+      "2026-06-20",
+      "2026-06-21",
+      "2026-06-22",
+      "2026-06-23",
+      "2026-06-24",
+      "2026-06-25",
+      "2026-06-26",
+      "2026-06-27",
+      "2026-06-28",
+      "2026-06-29",
+      "2026-06-30"
+    ],
+    "date_max": "2026-06-30",
+    "date_min": "2026-06-01",
+    "distinct_event_ids": 35287,
+    "distinct_photo_hashes": 229070,
+    "exact_duplicate_rows_removed": 10089,
+    "excluded_files": [
+      {
+        "reason": "manifest_role:quarantine_truncation",
+        "role": "quarantine_truncation",
+        "source_file_id": "1781976368641",
+        "source_file_name": "photo-excel-admin_1781976368641.xlsx"
+      },
+      {
+        "reason": "manifest_role:compare_only",
+        "role": "compare_only",
+        "source_file_id": "1782012877303",
+        "source_file_name": "photo-excel-admin_1782012877303.xlsx"
+      }
+    ],
+    "layer": "raw_candidate_photo_rows",
+    "missing_days": [],
+    "payload_columns": [
+      "event_id",
+      "source_file_id",
+      "source_file_name",
+      "source_file_sha256",
+      "source_row_number",
+      "fecha",
+      "week_start",
+      "cod_rt",
+      "local_nombre",
+      "cliente_norm",
+      "reponedor",
+      "tipo_tarea",
+      "n_fotos",
+      "link_foto",
+      "event_stable_hash",
+      "photo_row_hash",
+      "dry_run_batch_id"
+    ],
+    "payload_rows_persisted": false,
+    "rejected_files": [],
+    "source_rows_total": 239159,
+    "would_stage_rows": 229070
+  },
+  "excluded_files": [
+    {
+      "reason": "manifest_role:quarantine_truncation",
+      "role": "quarantine_truncation",
+      "source_file_id": "1781976368641",
+      "source_file_name": "photo-excel-admin_1781976368641.xlsx"
+    },
+    {
+      "reason": "manifest_role:compare_only",
+      "role": "compare_only",
+      "source_file_id": "1782012877303",
+      "source_file_name": "photo-excel-admin_1782012877303.xlsx"
+    }
+  ],
+  "generated_at": "2026-07-05T03:55:10+00:00",
+  "guardrails": {
+    "app_touched": false,
+    "data_files_modified": false,
+    "data_movement": false,
+    "db_access": {
+      "used": false
+    },
+    "ddl": false,
+    "input_manifest_modified": false,
+    "lightweight_research_outputs_written": true,
+    "mode": "LOCAL_DRY_RUN_NO_APPLY",
+    "payload_rows_persisted": false,
+    "productive_loader_run": false,
+    "productive_loader_touched": false,
+    "sql_apply": false,
+    "ux_modified": false
+  },
+  "input_manifest_014D": {
+    "path": "research/014D_KPIONE_RAW_EXPORT_REMEDIATION_NO_APPLY/014D_remediation_manifest.json",
+    "phase_id": "014D_KPIONE_RAW_EXPORT_REMEDIATION_NO_APPLY",
+    "sha256": "b73483701f0dd767115a3d86d89fed2890b23da4d9269d959cb539e52d8ca089",
+    "verdict": "REMEDIATION_READY_FOR_DRY_RUN_LOADER_WITH_WARNINGS"
+  },
+  "layer_separation": {
+    "derived_validation": "VISITA, coverage, dedupe and parity checks only",
+    "future_mart_logic": {
+      "computed": false,
+      "reason": "official compliance remains outside 014E"
+    },
+    "raw_payload_candidate": "normalized event-photo rows held in memory"
+  },
+  "manifest_integrity_check": {
+    "all_files_exist": true,
+    "all_row_counts_match": true,
+    "all_sha256_match": true,
+    "candidate_role_consistency": true,
+    "candidate_truncation_count": 0,
+    "errors": [],
+    "file_checks": [
+      {
+        "actual_sha256": "8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d",
+        "critical_columns_missing": [],
+        "exists": true,
+        "expected_sha256": "8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d",
+        "manifest_role": "include_candidate",
+        "manifest_row_count": 46807,
+        "path_error": null,
+        "read_error": null,
+        "row_count": 46807,
+        "row_count_match": true,
+        "sha256_match": true,
+        "source_file_id": "1781975989376",
+        "source_file_name": "photo-excel-admin_1781975989376.xlsx",
+        "truncation_suspect": false
+      },
+      {
+        "actual_sha256": "43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978",
+        "critical_columns_missing": [],
+        "exists": true,
+        "expected_sha256": "43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978",
+        "manifest_role": "include_candidate",
+        "manifest_row_count": 8372,
+        "path_error": null,
+        "read_error": null,
+        "row_count": 8372,
+        "row_count_match": true,
+        "sha256_match": true,
+        "source_file_id": "1783219885210",
+        "source_file_name": "photo-excel-admin_1783219885210.xlsx",
+        "truncation_suspect": false
+      },
+      {
+        "actual_sha256": "45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b",
+        "critical_columns_missing": [],
+        "exists": true,
+        "expected_sha256": "45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b",
+        "manifest_role": "include_candidate",
+        "manifest_row_count": 34838,
+        "path_error": null,
+        "read_error": null,
+        "row_count": 34838,
+        "row_count_match": true,
+        "sha256_match": true,
+        "source_file_id": "1783220552913",
+        "source_file_name": "photo-excel-admin_1783220552913.xlsx",
+        "truncation_suspect": false
+      },
+      {
+        "actual_sha256": "679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7",
+        "critical_columns_missing": [],
+        "exists": true,
+        "expected_sha256": "679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7",
+        "manifest_role": "include_candidate",
+        "manifest_row_count": 8672,
+        "path_error": null,
+        "read_error": null,
+        "row_count": 8672,
+        "row_count_match": true,
+        "sha256_match": true,
+        "source_file_id": "1783219914054",
+        "source_file_name": "photo-excel-admin_1783219914054.xlsx",
+        "truncation_suspect": false
+      },
+      {
+        "actual_sha256": "ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0",
+        "critical_columns_missing": [],
+        "exists": true,
+        "expected_sha256": "ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0",
+        "manifest_role": "include_candidate",
+        "manifest_row_count": 107,
+        "path_error": null,
+        "read_error": null,
+        "row_count": 107,
+        "row_count_match": true,
+        "sha256_match": true,
+        "source_file_id": "1781976423312",
+        "source_file_name": "photo-excel-admin_1781976423312.xlsx",
+        "truncation_suspect": false
+      },
+      {
+        "actual_sha256": "e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d",
+        "critical_columns_missing": [],
+        "exists": true,
+        "expected_sha256": "e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d",
+        "manifest_role": "include_candidate",
+        "manifest_row_count": 46078,
+        "path_error": null,
+        "read_error": null,
+        "row_count": 46078,
+        "row_count_match": true,
+        "sha256_match": true,
+        "source_file_id": "1781973512473",
+        "source_file_name": "photo-excel-admin_1781973512473.xlsx",
+        "truncation_suspect": false
+      },
+      {
+        "actual_sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+        "critical_columns_missing": [],
+        "exists": true,
+        "expected_sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+        "manifest_role": "include_candidate",
+        "manifest_row_count": 37908,
+        "path_error": null,
+        "read_error": null,
+        "row_count": 37908,
+        "row_count_match": true,
+        "sha256_match": true,
+        "source_file_id": "1782440454408",
+        "source_file_name": "photo-excel-admin_1782440454408.xlsx",
+        "truncation_suspect": false
+      },
+      {
+        "actual_sha256": "8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b",
+        "critical_columns_missing": [],
+        "exists": true,
+        "expected_sha256": "8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b",
+        "manifest_role": "include_candidate",
+        "manifest_row_count": 40488,
+        "path_error": null,
+        "read_error": null,
+        "row_count": 40488,
+        "row_count_match": true,
+        "sha256_match": true,
+        "source_file_id": "1783220085725",
+        "source_file_name": "photo-excel-admin_1783220085725.xlsx",
+        "truncation_suspect": false
+      },
+      {
+        "actual_sha256": "3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72",
+        "critical_columns_missing": [],
+        "exists": true,
+        "expected_sha256": "3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72",
+        "manifest_role": "include_candidate",
+        "manifest_row_count": 15889,
+        "path_error": null,
+        "read_error": null,
+        "row_count": 15889,
+        "row_count_match": true,
+        "sha256_match": true,
+        "source_file_id": "1783220157694",
+        "source_file_name": "photo-excel-admin_1783220157694.xlsx",
+        "truncation_suspect": false
+      }
+    ]
+  },
+  "phase_id": "014E_KPIONE_RAW_DRY_RUN_LOADER_NO_APPLY",
+  "verdict": "DRY_RUN_READY_WITH_WARNINGS",
+  "visit_validation_summary": {
+    "all_group_sums_equal_one": true,
+    "eligible_row_count": 229070,
+    "excluded_row_count": 0,
+    "formula": "1 / count(Codigo Local|Local fallback, Fecha, Marca)",
+    "group_count": 34996,
+    "groups_sum_not_one_count": 0,
+    "layer": "derived_validation_only",
+    "legacy_parity_2026_06_01": {
+      "available": true,
+      "legacy_id_count": 1221,
+      "legacy_only_count": 1,
+      "legacy_only_sample": [
+        "855811"
+      ],
+      "match_rate": 0.9991809991809992,
+      "matched_id_count": 1220,
+      "missing_columns": [],
+      "raw_id_count": 1224,
+      "raw_only_count": 4,
+      "raw_only_sample": [
+        "871237",
+        "875271",
+        "875273",
+        "877542"
+      ],
+      "ready_threshold": 0.99,
+      "target_date": "2026-06-01",
+      "threshold_met": true
+    },
+    "local_fallback_group_count": 14,
+    "official_compliance_calculated": false,
+    "visit_sum": 34996.0
+  },
+  "warnings": [
+    "expected_exact_overlap_rows_removed:10089",
+    "expected_same_id_same_hash:1579",
+    "input_manifest_014D_has_documented_warnings",
+    "manifest_non_candidate_files_excluded:2"
+  ],
+  "would_insert_summary_by_cliente": [
+    {
+      "cliente_norm": "ABEJA DORADA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 489.0,
+      "distinct_event_ids": 489,
+      "distinct_photo_hashes": 2386,
+      "would_stage_rows": 2386
+    },
+    {
+      "cliente_norm": "ALUSWEET",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 929.0,
+      "distinct_event_ids": 940,
+      "distinct_photo_hashes": 5985,
+      "would_stage_rows": 5985
+    },
+    {
+      "cliente_norm": "ASMODEE",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 658.0,
+      "distinct_event_ids": 663,
+      "distinct_photo_hashes": 4383,
+      "would_stage_rows": 4383
+    },
+    {
+      "cliente_norm": "BERRYSUR",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 661.0,
+      "distinct_event_ids": 665,
+      "distinct_photo_hashes": 4303,
+      "would_stage_rows": 4303
+    },
+    {
+      "cliente_norm": "BESHOS",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 1421.0,
+      "distinct_event_ids": 1433,
+      "distinct_photo_hashes": 6295,
+      "would_stage_rows": 6295
+    },
+    {
+      "cliente_norm": "BIGU",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 689.0,
+      "distinct_event_ids": 691,
+      "distinct_photo_hashes": 3071,
+      "would_stage_rows": 3071
+    },
+    {
+      "cliente_norm": "BREDEN MASTER",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 847.0,
+      "distinct_event_ids": 880,
+      "distinct_photo_hashes": 11056,
+      "would_stage_rows": 11056
+    },
+    {
+      "cliente_norm": "BY MARIA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 548.0,
+      "distinct_event_ids": 549,
+      "distinct_photo_hashes": 2585,
+      "would_stage_rows": 2585
+    },
+    {
+      "cliente_norm": "CALIFORNIA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 138.0,
+      "distinct_event_ids": 138,
+      "distinct_photo_hashes": 737,
+      "would_stage_rows": 737
+    },
+    {
+      "cliente_norm": "CALLAQUI",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 548.0,
+      "distinct_event_ids": 550,
+      "distinct_photo_hashes": 2920,
+      "would_stage_rows": 2920
+    },
+    {
+      "cliente_norm": "CASO Y CIA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 3377.0,
+      "distinct_event_ids": 3415,
+      "distinct_photo_hashes": 33692,
+      "would_stage_rows": 33692
+    },
+    {
+      "cliente_norm": "CINNABON",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-22",
+      "derived_visit_sum": 470.0,
+      "distinct_event_ids": 481,
+      "distinct_photo_hashes": 2049,
+      "would_stage_rows": 2049
+    },
+    {
+      "cliente_norm": "CORRALES DEL SUR",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 520.0,
+      "distinct_event_ids": 522,
+      "distinct_photo_hashes": 7788,
+      "would_stage_rows": 7788
+    },
+    {
+      "cliente_norm": "CUK",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 1683.0,
+      "distinct_event_ids": 1712,
+      "distinct_photo_hashes": 10924,
+      "would_stage_rows": 10924
+    },
+    {
+      "cliente_norm": "DEJAPOO",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 439.0,
+      "distinct_event_ids": 440,
+      "distinct_photo_hashes": 1812,
+      "would_stage_rows": 1812
+    },
+    {
+      "cliente_norm": "DERAIZ",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 439.0,
+      "distinct_event_ids": 442,
+      "distinct_photo_hashes": 2486,
+      "would_stage_rows": 2486
+    },
+    {
+      "cliente_norm": "DUSOLEIL",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 104.0,
+      "distinct_event_ids": 104,
+      "distinct_photo_hashes": 806,
+      "would_stage_rows": 806
+    },
+    {
+      "cliente_norm": "ECOCULTIVA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 271.0,
+      "distinct_event_ids": 275,
+      "distinct_photo_hashes": 2157,
+      "would_stage_rows": 2157
+    },
+    {
+      "cliente_norm": "EL GAJO",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 630.0,
+      "distinct_event_ids": 632,
+      "distinct_photo_hashes": 3083,
+      "would_stage_rows": 3083
+    },
+    {
+      "cliente_norm": "EVERSKIN",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 333.0,
+      "distinct_event_ids": 333,
+      "distinct_photo_hashes": 1328,
+      "would_stage_rows": 1328
+    },
+    {
+      "cliente_norm": "FROZT",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-05",
+      "derived_visit_sum": 367.0,
+      "distinct_event_ids": 370,
+      "distinct_photo_hashes": 1575,
+      "would_stage_rows": 1575
+    },
+    {
+      "cliente_norm": "GLOBAL RETAIL",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 232.0,
+      "distinct_event_ids": 235,
+      "distinct_photo_hashes": 2582,
+      "would_stage_rows": 2582
+    },
+    {
+      "cliente_norm": "GRANA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 378.0,
+      "distinct_event_ids": 380,
+      "distinct_photo_hashes": 2045,
+      "would_stage_rows": 2045
+    },
+    {
+      "cliente_norm": "KOMBUCHACHA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 2711.0,
+      "distinct_event_ids": 2720,
+      "distinct_photo_hashes": 13531,
+      "would_stage_rows": 13531
+    },
+    {
+      "cliente_norm": "LA CABRESA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 430.0,
+      "distinct_event_ids": 432,
+      "distinct_photo_hashes": 2393,
+      "would_stage_rows": 2393
+    },
+    {
+      "cliente_norm": "LA FERMENTISTA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 1117.0,
+      "distinct_event_ids": 1123,
+      "distinct_photo_hashes": 6102,
+      "would_stage_rows": 6102
+    },
+    {
+      "cliente_norm": "LOVE CO",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 606.0,
+      "distinct_event_ids": 607,
+      "distinct_photo_hashes": 4329,
+      "would_stage_rows": 4329
+    },
+    {
+      "cliente_norm": "LUTHIER",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 69.0,
+      "distinct_event_ids": 69,
+      "distinct_photo_hashes": 276,
+      "would_stage_rows": 276
+    },
+    {
+      "cliente_norm": "MAILEMU MIEL",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 1252.0,
+      "distinct_event_ids": 1252,
+      "distinct_photo_hashes": 5090,
+      "would_stage_rows": 5090
+    },
+    {
+      "cliente_norm": "MENESS",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 1315.0,
+      "distinct_event_ids": 1319,
+      "distinct_photo_hashes": 8259,
+      "would_stage_rows": 8259
+    },
+    {
+      "cliente_norm": "MIEL TRAPENSE",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 920.0,
+      "distinct_event_ids": 923,
+      "distinct_photo_hashes": 3981,
+      "would_stage_rows": 3981
+    },
+    {
+      "cliente_norm": "NAT NATURAL",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 2078.0,
+      "distinct_event_ids": 2115,
+      "distinct_photo_hashes": 10285,
+      "would_stage_rows": 10285
+    },
+    {
+      "cliente_norm": "NUTRIPOP",
+      "date_max": "2026-06-11",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 227.0,
+      "distinct_event_ids": 227,
+      "distinct_photo_hashes": 886,
+      "would_stage_rows": 886
+    },
+    {
+      "cliente_norm": "OLIMPIA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 777.0,
+      "distinct_event_ids": 779,
+      "distinct_photo_hashes": 3173,
+      "would_stage_rows": 3173
+    },
+    {
+      "cliente_norm": "PAT POT CHIPS",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 1280.0,
+      "distinct_event_ids": 1285,
+      "distinct_photo_hashes": 5317,
+      "would_stage_rows": 5317
+    },
+    {
+      "cliente_norm": "PEPILU",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 484.0,
+      "distinct_event_ids": 485,
+      "distinct_photo_hashes": 1982,
+      "would_stage_rows": 1982
+    },
+    {
+      "cliente_norm": "PROMERCO",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 270.0,
+      "distinct_event_ids": 271,
+      "distinct_photo_hashes": 1786,
+      "would_stage_rows": 1786
+    },
+    {
+      "cliente_norm": "QUINTAL",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 436.0,
+      "distinct_event_ids": 436,
+      "distinct_photo_hashes": 3021,
+      "would_stage_rows": 3021
+    },
+    {
+      "cliente_norm": "SOHO",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 267.0,
+      "distinct_event_ids": 271,
+      "distinct_photo_hashes": 1933,
+      "would_stage_rows": 1933
+    },
+    {
+      "cliente_norm": "SUK",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 2423.0,
+      "distinct_event_ids": 2454,
+      "distinct_photo_hashes": 28574,
+      "would_stage_rows": 28574
+    },
+    {
+      "cliente_norm": "TASTY FREE",
+      "date_max": "2026-06-10",
+      "date_min": "2026-06-10",
+      "derived_visit_sum": 5.0,
+      "distinct_event_ids": 5,
+      "distinct_photo_hashes": 8,
+      "would_stage_rows": 8
+    },
+    {
+      "cliente_norm": "THE POWER OF FOOD",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 228.0,
+      "distinct_event_ids": 228,
+      "distinct_photo_hashes": 1010,
+      "would_stage_rows": 1010
+    },
+    {
+      "cliente_norm": "TNOGAL",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 780.0,
+      "distinct_event_ids": 784,
+      "distinct_photo_hashes": 4074,
+      "would_stage_rows": 4074
+    },
+    {
+      "cliente_norm": "UNIBAG",
+      "date_max": "2026-06-25",
+      "date_min": "2026-06-25",
+      "derived_visit_sum": 4.0,
+      "distinct_event_ids": 4,
+      "distinct_photo_hashes": 16,
+      "would_stage_rows": 16
+    },
+    {
+      "cliente_norm": "VEG MONKEY",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 257.0,
+      "distinct_event_ids": 257,
+      "distinct_photo_hashes": 1519,
+      "would_stage_rows": 1519
+    },
+    {
+      "cliente_norm": "WANKUN",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 286.0,
+      "distinct_event_ids": 286,
+      "distinct_photo_hashes": 1302,
+      "would_stage_rows": 1302
+    },
+    {
+      "cliente_norm": "WILD LAMA",
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 472.0,
+      "distinct_event_ids": 485,
+      "distinct_photo_hashes": 3516,
+      "would_stage_rows": 3516
+    },
+    {
+      "cliente_norm": "YEET POWER DRINK",
+      "date_max": "2026-06-23",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 131.0,
+      "distinct_event_ids": 131,
+      "distinct_photo_hashes": 659,
+      "would_stage_rows": 659
+    }
+  ],
+  "would_insert_summary_by_day": [
+    {
+      "date_max": "2026-06-01",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 1219.0,
+      "distinct_event_ids": 1224,
+      "distinct_photo_hashes": 8075,
+      "fecha": "2026-06-01",
+      "would_stage_rows": 8075
+    },
+    {
+      "date_max": "2026-06-02",
+      "date_min": "2026-06-02",
+      "derived_visit_sum": 1155.0,
+      "distinct_event_ids": 1162,
+      "distinct_photo_hashes": 7555,
+      "fecha": "2026-06-02",
+      "would_stage_rows": 7555
+    },
+    {
+      "date_max": "2026-06-03",
+      "date_min": "2026-06-03",
+      "derived_visit_sum": 1202.0,
+      "distinct_event_ids": 1208,
+      "distinct_photo_hashes": 7816,
+      "fecha": "2026-06-03",
+      "would_stage_rows": 7816
+    },
+    {
+      "date_max": "2026-06-04",
+      "date_min": "2026-06-04",
+      "derived_visit_sum": 1109.0,
+      "distinct_event_ids": 1118,
+      "distinct_photo_hashes": 7430,
+      "fecha": "2026-06-04",
+      "would_stage_rows": 7430
+    },
+    {
+      "date_max": "2026-06-05",
+      "date_min": "2026-06-05",
+      "derived_visit_sum": 1327.0,
+      "distinct_event_ids": 1331,
+      "distinct_photo_hashes": 8689,
+      "fecha": "2026-06-05",
+      "would_stage_rows": 8689
+    },
+    {
+      "date_max": "2026-06-06",
+      "date_min": "2026-06-06",
+      "derived_visit_sum": 1049.0,
+      "distinct_event_ids": 1050,
+      "distinct_photo_hashes": 7162,
+      "fecha": "2026-06-06",
+      "would_stage_rows": 7162
+    },
+    {
+      "date_max": "2026-06-07",
+      "date_min": "2026-06-07",
+      "derived_visit_sum": 8.0,
+      "distinct_event_ids": 8,
+      "distinct_photo_hashes": 80,
+      "fecha": "2026-06-07",
+      "would_stage_rows": 80
+    },
+    {
+      "date_max": "2026-06-08",
+      "date_min": "2026-06-08",
+      "derived_visit_sum": 1294.0,
+      "distinct_event_ids": 1295,
+      "distinct_photo_hashes": 8372,
+      "fecha": "2026-06-08",
+      "would_stage_rows": 8372
+    },
+    {
+      "date_max": "2026-06-09",
+      "date_min": "2026-06-09",
+      "derived_visit_sum": 1275.0,
+      "distinct_event_ids": 1282,
+      "distinct_photo_hashes": 8031,
+      "fecha": "2026-06-09",
+      "would_stage_rows": 8031
+    },
+    {
+      "date_max": "2026-06-10",
+      "date_min": "2026-06-10",
+      "derived_visit_sum": 1335.0,
+      "distinct_event_ids": 1362,
+      "distinct_photo_hashes": 8387,
+      "fecha": "2026-06-10",
+      "would_stage_rows": 8387
+    },
+    {
+      "date_max": "2026-06-11",
+      "date_min": "2026-06-11",
+      "derived_visit_sum": 1320.0,
+      "distinct_event_ids": 1340,
+      "distinct_photo_hashes": 8527,
+      "fecha": "2026-06-11",
+      "would_stage_rows": 8527
+    },
+    {
+      "date_max": "2026-06-12",
+      "date_min": "2026-06-12",
+      "derived_visit_sum": 1487.0,
+      "distinct_event_ids": 1493,
+      "distinct_photo_hashes": 9893,
+      "fecha": "2026-06-12",
+      "would_stage_rows": 9893
+    },
+    {
+      "date_max": "2026-06-13",
+      "date_min": "2026-06-13",
+      "derived_visit_sum": 1305.0,
+      "distinct_event_ids": 1311,
+      "distinct_photo_hashes": 8672,
+      "fecha": "2026-06-13",
+      "would_stage_rows": 8672
+    },
+    {
+      "date_max": "2026-06-14",
+      "date_min": "2026-06-14",
+      "derived_visit_sum": 10.0,
+      "distinct_event_ids": 14,
+      "distinct_photo_hashes": 107,
+      "fecha": "2026-06-14",
+      "would_stage_rows": 107
+    },
+    {
+      "date_max": "2026-06-15",
+      "date_min": "2026-06-15",
+      "derived_visit_sum": 1462.0,
+      "distinct_event_ids": 1476,
+      "distinct_photo_hashes": 9695,
+      "fecha": "2026-06-15",
+      "would_stage_rows": 9695
+    },
+    {
+      "date_max": "2026-06-16",
+      "date_min": "2026-06-16",
+      "derived_visit_sum": 1292.0,
+      "distinct_event_ids": 1298,
+      "distinct_photo_hashes": 8511,
+      "fecha": "2026-06-16",
+      "would_stage_rows": 8511
+    },
+    {
+      "date_max": "2026-06-17",
+      "date_min": "2026-06-17",
+      "derived_visit_sum": 1434.0,
+      "distinct_event_ids": 1442,
+      "distinct_photo_hashes": 9418,
+      "fecha": "2026-06-17",
+      "would_stage_rows": 9418
+    },
+    {
+      "date_max": "2026-06-18",
+      "date_min": "2026-06-18",
+      "derived_visit_sum": 1257.0,
+      "distinct_event_ids": 1262,
+      "distinct_photo_hashes": 8516,
+      "fecha": "2026-06-18",
+      "would_stage_rows": 8516
+    },
+    {
+      "date_max": "2026-06-19",
+      "date_min": "2026-06-19",
+      "derived_visit_sum": 1511.0,
+      "distinct_event_ids": 1519,
+      "distinct_photo_hashes": 9938,
+      "fecha": "2026-06-19",
+      "would_stage_rows": 9938
+    },
+    {
+      "date_max": "2026-06-20",
+      "date_min": "2026-06-20",
+      "derived_visit_sum": 1283.0,
+      "distinct_event_ids": 1286,
+      "distinct_photo_hashes": 8550,
+      "fecha": "2026-06-20",
+      "would_stage_rows": 8550
+    },
+    {
+      "date_max": "2026-06-21",
+      "date_min": "2026-06-21",
+      "derived_visit_sum": 11.0,
+      "distinct_event_ids": 11,
+      "distinct_photo_hashes": 98,
+      "fecha": "2026-06-21",
+      "would_stage_rows": 98
+    },
+    {
+      "date_max": "2026-06-22",
+      "date_min": "2026-06-22",
+      "derived_visit_sum": 1552.0,
+      "distinct_event_ids": 1556,
+      "distinct_photo_hashes": 9982,
+      "fecha": "2026-06-22",
+      "would_stage_rows": 9982
+    },
+    {
+      "date_max": "2026-06-23",
+      "date_min": "2026-06-23",
+      "derived_visit_sum": 1453.0,
+      "distinct_event_ids": 1460,
+      "distinct_photo_hashes": 9189,
+      "fecha": "2026-06-23",
+      "would_stage_rows": 9189
+    },
+    {
+      "date_max": "2026-06-24",
+      "date_min": "2026-06-24",
+      "derived_visit_sum": 1570.0,
+      "distinct_event_ids": 1579,
+      "distinct_photo_hashes": 10089,
+      "fecha": "2026-06-24",
+      "would_stage_rows": 10089
+    },
+    {
+      "date_max": "2026-06-25",
+      "date_min": "2026-06-25",
+      "derived_visit_sum": 1461.0,
+      "distinct_event_ids": 1490,
+      "distinct_photo_hashes": 9605,
+      "fecha": "2026-06-25",
+      "would_stage_rows": 9605
+    },
+    {
+      "date_max": "2026-06-26",
+      "date_min": "2026-06-26",
+      "derived_visit_sum": 1679.0,
+      "distinct_event_ids": 1711,
+      "distinct_photo_hashes": 11033,
+      "fecha": "2026-06-26",
+      "would_stage_rows": 11033
+    },
+    {
+      "date_max": "2026-06-27",
+      "date_min": "2026-06-27",
+      "derived_visit_sum": 1468.0,
+      "distinct_event_ids": 1498,
+      "distinct_photo_hashes": 9660,
+      "fecha": "2026-06-27",
+      "would_stage_rows": 9660
+    },
+    {
+      "date_max": "2026-06-28",
+      "date_min": "2026-06-28",
+      "derived_visit_sum": 11.0,
+      "distinct_event_ids": 12,
+      "distinct_photo_hashes": 101,
+      "fecha": "2026-06-28",
+      "would_stage_rows": 101
+    },
+    {
+      "date_max": "2026-06-29",
+      "date_min": "2026-06-29",
+      "derived_visit_sum": 962.0,
+      "distinct_event_ids": 989,
+      "distinct_photo_hashes": 6361,
+      "fecha": "2026-06-29",
+      "would_stage_rows": 6361
+    },
+    {
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-30",
+      "derived_visit_sum": 1495.0,
+      "distinct_event_ids": 1500,
+      "distinct_photo_hashes": 9528,
+      "fecha": "2026-06-30",
+      "would_stage_rows": 9528
+    }
+  ],
+  "would_insert_summary_by_week": [
+    {
+      "date_max": "2026-06-07",
+      "date_min": "2026-06-01",
+      "derived_visit_sum": 7069.0,
+      "distinct_event_ids": 7101,
+      "distinct_photo_hashes": 46807,
+      "week_start": "2026-06-01",
+      "would_stage_rows": 46807
+    },
+    {
+      "date_max": "2026-06-14",
+      "date_min": "2026-06-08",
+      "derived_visit_sum": 8026.0,
+      "distinct_event_ids": 8097,
+      "distinct_photo_hashes": 51989,
+      "week_start": "2026-06-08",
+      "would_stage_rows": 51989
+    },
+    {
+      "date_max": "2026-06-21",
+      "date_min": "2026-06-15",
+      "derived_visit_sum": 8250.0,
+      "distinct_event_ids": 8294,
+      "distinct_photo_hashes": 54726,
+      "week_start": "2026-06-15",
+      "would_stage_rows": 54726
+    },
+    {
+      "date_max": "2026-06-28",
+      "date_min": "2026-06-22",
+      "derived_visit_sum": 9194.0,
+      "distinct_event_ids": 9306,
+      "distinct_photo_hashes": 59659,
+      "week_start": "2026-06-22",
+      "would_stage_rows": 59659
+    },
+    {
+      "date_max": "2026-06-30",
+      "date_min": "2026-06-29",
+      "derived_visit_sum": 2457.0,
+      "distinct_event_ids": 2489,
+      "distinct_photo_hashes": 15889,
+      "week_start": "2026-06-29",
+      "would_stage_rows": 15889
+    }
+  ]
+}
