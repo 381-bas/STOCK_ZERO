@@ -495,7 +495,7 @@ class KpioneRawStaging014FStaticTests(unittest.TestCase):
 
     def test_sql_and_docs_have_no_mojibake_tokens(self):
         combined = self.sql + "\n" + self.validation_sql + "\n" + self.docs
-        for token in ("\ufffd", "Ã", "Â", "â€"):
+        for token in (chr(0xFFFD), chr(0x00C3), chr(0x00C2), chr(0x00E2) + chr(0x20AC)):
             with self.subTest(token=token):
                 self.assertNotIn(token, combined)
 
