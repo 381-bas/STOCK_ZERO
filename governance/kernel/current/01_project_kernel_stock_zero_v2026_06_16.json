@@ -74,12 +74,39 @@
     ],
     "model_selection_rule": "El modelo y nivel de razonamiento se eligen antes del prompt; no forman parte del prompt operativo."
   },
+  "agent_handoff_contract": {
+    "purpose": "Reducir ambigüedad, tokens, validaciones repetidas y errores de encoding en entregables de agentes.",
+    "applies_to": [
+      "codex_deliverables",
+      "claude_audits",
+      "chatgpt_phase_closeouts"
+    ],
+    "format": [
+      "Verdict",
+      "Files changed",
+      "Commands executed",
+      "Evidence",
+      "Blockers",
+      "Warnings",
+      "Next action"
+    ],
+    "rules": [
+      "Markdown compacto para handoff humano.",
+      "JSON solo para manifest o evidencia máquina.",
+      "SQL solo en archivos .sql cuando aplique.",
+      "Si se modifican docs/sql/py/json, ejecutar encoding gate.",
+      "No usar reemplazos globales de mojibake sobre código.",
+      "No escribir sentinels mojibake como literales en tests; usar chr() o escapes.",
+      "No incluir logs extensos salvo evidencia mínima necesaria."
+    ]
+  },
   "workflow_standard": [
     "objetivo_y_prohibiciones",
     "preflight",
     "investigación_y_auditoría",
     "implementación_en_worktree",
     "tests",
+    "compact_agent_handoff_and_text_encoding_gate_if_text_files_changed",
     "laboratorio_real_si_hay_riesgo",
     "checkpoint",
     "stage_selectivo",
