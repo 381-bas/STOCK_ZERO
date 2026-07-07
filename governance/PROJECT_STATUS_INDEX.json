@@ -132,11 +132,25 @@
         "d30f82a"
       ],
       "status": "MERGED_TO_MAIN"
+    },
+    {
+      "phase": "FAST_REFORM_013_ROUTE_B_ORANGE_NO_APPLY_DRY_RUN_CLAUDE_REVIEW",
+      "merge_pr": 36,
+      "main_merge_commit": "e58e468",
+      "included_commits": [
+        "772e27f",
+        "37d4b1b",
+        "22f380a",
+        "9f70994",
+        "4b0de6d",
+        "01bb220"
+      ],
+      "status": "MERGED_TO_MAIN"
     }
   ],
-  "active_phase": "FAST_REFORM_013_ROUTE_B_ORANGE_NO_APPLY_DRY_RUN_CLAUDE_REVIEW",
-  "active_branch": "lab/FAST_REFORM_013_route_b_orange_no_apply_dry_run_claude_review",
-  "next_allowed_phase_after_close": "ROUTE_B_RED_APPLY_GATE_OR_CONTROL_GESTION_VISIBLE_PRODUCT_SLICE",
+  "active_phase": "FAST_REFORM_014_CONTROL_GESTION_VISIBLE_PRODUCT_SLICE_AND_FLOW_CORRECTION",
+  "active_branch": "lab/FAST_REFORM_014_control_gestion_visible_product_slice_and_flow_correction",
+  "next_allowed_phase_after_close": "CONTROL_GESTION_VISIBLE_PRODUCT_SLICE_OR_ROUTE_B_RED_GATE",
   "bootstrap_phrases": [
     "BOOTSTRAP STOCK_ZERO",
     "BOOTSTRAP STOCK_ZERO DESDE MAIN: lee PROJECT_STATUS_INDEX, ACTIVE_ORDER_LOCK, EXECUTION_DOCTRINE, AGENT_ACCESS_POLICY y contratos activos antes de proponer pasos."
@@ -156,18 +170,16 @@
     "governance/thread_summaries/PR_19_20_CLOSEOUT.md"
   ],
   "forbidden_until_close": [
-    "modify scripts/load_control_gestion_raw_v17.py",
-    "modify scripts/load_kpione2_photo_from_excel.py as productive implementation",
-    "modify active contract semantics",
-    "activate Route B as productive source",
-    "DB apply",
-    "SQL apply against Supabase real",
     "Supabase writes",
+    "SQL apply against real DB",
+    "DDL",
     "data movement",
-    "productive compliance view changes",
-    "destructive cleanup",
+    "backfill",
     "production cutover",
-    "backfill execution",
+    "productive loader modification",
+    "active contract semantic modification",
+    "large governance refactor",
+    "new methodology-only PR after opening commit",
     "git add ."
   ],
   "rule": "Chat previews do not govern execution. Operational rules must be promoted to versioned repo artifacts through commit, PR and merge.",
@@ -228,8 +240,8 @@
       "rollback and production cutover gate"
     ]
   },
-  "active_phase_started_from_main": "e8421b9",
-  "updated_at_utc": "2026-07-02T03:58:14+00:00",
+  "active_phase_started_from_main": "e58e468",
+  "updated_at_utc": "2026-07-04T20:23:53+00:00",
   "execution_model_reform": {
     "status": "ACTIVE_IN_011",
     "reason": "010 series protected the project but over-fragmented administrative PRs.",
@@ -290,5 +302,13 @@
       "rollback/cutover plan",
       "no denominator drift in productive mart/view semantics"
     ]
+  },
+  "flow_correction_014": {
+    "status": "ACTIVE",
+    "purpose": "Record minimal method corrections from 012-013 without creating a standalone governance refactor.",
+    "verdict_taxonomy": "governance/VERDICT_TAXONOMY.md",
+    "agent_workflow_rules": "governance/AGENT_WORKFLOW_RULES.md",
+    "retrospective": "research/014_control_gestion_visible_product_slice_and_flow_correction/FLOW_RETROSPECTIVE_012_013.md",
+    "product_visibility_required": true
   }
 }
