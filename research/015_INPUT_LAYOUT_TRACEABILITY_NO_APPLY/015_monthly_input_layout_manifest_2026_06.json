@@ -1,0 +1,291 @@
+{
+  "phase_id": "015A_MONTHLY_INPUT_LAYOUT_TRACEABILITY_NO_APPLY",
+  "document_type": "monthly_input_layout_manifest",
+  "project": "STOCK_ZERO",
+  "status": "CONTRACT_PROMOTED_FROM_PRIOR_EVIDENCE_NO_APPLY",
+  "month_id": "2026-06",
+  "generated_at_local": "2026-07-11T11:20:00-04:00",
+  "guardrails": {
+    "supabase_used": false,
+    "db_connection": false,
+    "sql_apply": false,
+    "ddl": false,
+    "productive_loader_changes": false,
+    "app_runtime_changes": false,
+    "data_movement": false,
+    "git_add_all": false
+  },
+  "rule_authority": {
+    "promoted_from": "014A_JUNE_DATA_FOUNDATION_GATE_NO_APPLY",
+    "source_file": "scripts/validate_june_data_foundation_gate_014A_no_apply.py",
+    "source_text": "Semana operativa lunes-domingo; asignación al mes con >=4 días.",
+    "source_example": {
+      "week_start": "2026-06-29",
+      "week_end": "2026-07-05",
+      "assigned_month": "2026-07"
+    },
+    "additional_evidence": [
+      "research/014C_KPIONE_RAW_EXPORT_VALIDATOR_NO_APPLY/014C_kpione_raw_export_report.md",
+      "research/014D_KPIONE_RAW_EXPORT_REMEDIATION_NO_APPLY/014D_remediation_report.md"
+    ],
+    "history_rewritten": false
+  },
+  "input_layout_contract": {
+    "legacy_layout": "data/photo-excel-admin_*.xlsx",
+    "monthly_layout": "data/kpione_photo_reports/{month_id}/photo-excel-admin_*.xlsx",
+    "active_layout_for_month": "monthly_layout",
+    "monthly_directory": "data/kpione_photo_reports/2026-06",
+    "folder_month_semantics": "La carpeta mensual agrupa archivos por mes operativo de datos, pero no gobierna pertenencia semanal.",
+    "source_file_id_rule": "source_file_id se extrae desde photo-excel-admin_{source_file_id}.xlsx",
+    "week_start_rule": "week_start se calcula como lunes desde Fecha interna del archivo.",
+    "week_ownership_rule": "La semana pertenece al mes que contiene >=4 días de esa semana."
+  },
+  "operational_week_month_rule": {
+    "week_shape": "lunes-domingo",
+    "minimum_days_in_month": 4,
+    "cross_month_assignment": "Si una semana cruza dos meses, se asigna al mes que contiene 4 o más días.",
+    "folder_month_governs_week_ownership": false,
+    "examples": [
+      {
+        "week_start": "2026-06-01",
+        "week_end": "2026-06-07",
+        "assigned_operational_month": "2026-06"
+      },
+      {
+        "week_start": "2026-06-08",
+        "week_end": "2026-06-14",
+        "assigned_operational_month": "2026-06"
+      },
+      {
+        "week_start": "2026-06-15",
+        "week_end": "2026-06-21",
+        "assigned_operational_month": "2026-06"
+      },
+      {
+        "week_start": "2026-06-22",
+        "week_end": "2026-06-28",
+        "assigned_operational_month": "2026-06"
+      },
+      {
+        "week_start": "2026-06-29",
+        "week_end": "2026-07-05",
+        "assigned_operational_month": "2026-07",
+        "days_in_june": 2,
+        "days_in_july": 5
+      }
+    ]
+  },
+  "photo_report_files": {
+    "expected_count": 11,
+    "legacy_root_count_after_move": 0,
+    "monthly_count_after_move": 11,
+    "files": [
+      {
+        "source_file_id": "1781973512473",
+        "source_file_name": "photo-excel-admin_1781973512473.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781973512473.xlsx",
+        "sha256": "e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d",
+        "size_bytes": 3176684,
+        "row_count": 46078,
+        "fecha_min": "2026-06-15",
+        "fecha_max": "2026-06-19",
+        "role": "include_candidate"
+      },
+      {
+        "source_file_id": "1781975989376",
+        "source_file_name": "photo-excel-admin_1781975989376.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781975989376.xlsx",
+        "sha256": "8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d",
+        "size_bytes": 3228103,
+        "row_count": 46807,
+        "fecha_min": "2026-06-01",
+        "fecha_max": "2026-06-07",
+        "role": "include_candidate"
+      },
+      {
+        "source_file_id": "1781976368641",
+        "source_file_name": "photo-excel-admin_1781976368641.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781976368641.xlsx",
+        "sha256": "0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa",
+        "size_bytes": 3438539,
+        "row_count": 50001,
+        "fecha_min": "2026-06-08",
+        "fecha_max": "2026-06-13",
+        "role": "quarantine_truncation"
+      },
+      {
+        "source_file_id": "1781976423312",
+        "source_file_name": "photo-excel-admin_1781976423312.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781976423312.xlsx",
+        "sha256": "ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0",
+        "size_bytes": 14548,
+        "row_count": 107,
+        "fecha_min": "2026-06-14",
+        "fecha_max": "2026-06-14",
+        "role": "include_candidate"
+      },
+      {
+        "source_file_id": "1782012877303",
+        "source_file_name": "photo-excel-admin_1782012877303.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1782012877303.xlsx",
+        "sha256": "d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881",
+        "size_bytes": 584705,
+        "row_count": 8372,
+        "fecha_min": "2026-06-08",
+        "fecha_max": "2026-06-08",
+        "role": "compare_only"
+      },
+      {
+        "source_file_id": "1782440454408",
+        "source_file_name": "photo-excel-admin_1782440454408.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1782440454408.xlsx",
+        "sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+        "size_bytes": 2621405,
+        "row_count": 37908,
+        "fecha_min": "2026-06-20",
+        "fecha_max": "2026-06-24",
+        "role": "include_candidate"
+      },
+      {
+        "source_file_id": "1783219885210",
+        "source_file_name": "photo-excel-admin_1783219885210.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783219885210.xlsx",
+        "sha256": "43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978",
+        "size_bytes": 584673,
+        "row_count": 8372,
+        "fecha_min": "2026-06-08",
+        "fecha_max": "2026-06-08",
+        "role": "include_candidate"
+      },
+      {
+        "source_file_id": "1783219914054",
+        "source_file_name": "photo-excel-admin_1783219914054.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783219914054.xlsx",
+        "sha256": "679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7",
+        "size_bytes": 609299,
+        "row_count": 8672,
+        "fecha_min": "2026-06-13",
+        "fecha_max": "2026-06-13",
+        "role": "include_candidate"
+      },
+      {
+        "source_file_id": "1783220085725",
+        "source_file_name": "photo-excel-admin_1783220085725.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220085725.xlsx",
+        "sha256": "8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b",
+        "size_bytes": 2804511,
+        "row_count": 40488,
+        "fecha_min": "2026-06-24",
+        "fecha_max": "2026-06-28",
+        "role": "include_candidate"
+      },
+      {
+        "source_file_id": "1783220157694",
+        "source_file_name": "photo-excel-admin_1783220157694.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220157694.xlsx",
+        "sha256": "3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72",
+        "size_bytes": 1114940,
+        "row_count": 15889,
+        "fecha_min": "2026-06-29",
+        "fecha_max": "2026-06-30",
+        "role": "include_candidate"
+      },
+      {
+        "source_file_id": "1783220552913",
+        "source_file_name": "photo-excel-admin_1783220552913.xlsx",
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220552913.xlsx",
+        "sha256": "45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b",
+        "size_bytes": 2417813,
+        "row_count": 34838,
+        "fecha_min": "2026-06-09",
+        "fecha_max": "2026-06-12",
+        "role": "include_candidate"
+      }
+    ],
+    "hash_evidence": {
+      "local_csv_pre_move": "research/015_INPUT_LAYOUT_TRACEABILITY_NO_APPLY/015_kpione_photo_reports_2026_06_pre_move_manifest.csv",
+      "local_csv_post_move": "research/015_INPUT_LAYOUT_TRACEABILITY_NO_APPLY/015_kpione_photo_reports_2026_06_post_move_manifest.csv",
+      "comparison_result_reported_by_operator": "Compare-Object por file_name, sha256, size_bytes sin diferencias",
+      "csv_files_are_local_evidence": true,
+      "json_is_versioned_authority_for_file_identity": true
+    }
+  },
+  "ruta_rutero_reference": {
+    "month": "2026-06",
+    "directory": "data/RUTA_RUTERO/06 - JUNIO",
+    "files": [
+      {
+        "source_file_name": "RUTA_RUTEROS_JUNIO_S1.xlsx",
+        "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S1.xlsx",
+        "sha256": "dcb29192454a870c8a5c4970f0424731f3652776ff8f257a3fe2646975c16b63",
+        "size_bytes": 1616613,
+        "row_count": 3469,
+        "row_count_sheet": "RUTA RUTERO",
+        "week_label": "S1",
+        "week_start": "2026-06-01",
+        "assigned_operational_month": "2026-06"
+      },
+      {
+        "source_file_name": "RUTA_RUTEROS_JUNIO_S2.xlsx",
+        "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S2.xlsx",
+        "sha256": "5538152ac8f4308bf3bee55c9b299799024d23a39746d7ffb4960863b74bc040",
+        "size_bytes": 801690,
+        "row_count": 3542,
+        "row_count_sheet": "RUTA RUTERO",
+        "week_label": "S2",
+        "week_start": "2026-06-08",
+        "assigned_operational_month": "2026-06"
+      },
+      {
+        "source_file_name": "RUTA_RUTEROS_JUNIO_S3.xlsx",
+        "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S3.xlsx",
+        "sha256": "2759905096521d1140a1f39373c6f7fd7db577abb260b6f27c9396835b29595c",
+        "size_bytes": 819252,
+        "row_count": 3606,
+        "row_count_sheet": "RUTA RUTERO",
+        "week_label": "S3",
+        "week_start": "2026-06-15",
+        "assigned_operational_month": "2026-06"
+      },
+      {
+        "source_file_name": "RUTA_RUTEROS_JUNIO_S4.xlsx",
+        "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S4.xlsx",
+        "sha256": "b5bc722d9ae505dec2a3d0e665576f1b36c25eb030b47e670e788fc257575e54",
+        "size_bytes": 884612,
+        "row_count": 4056,
+        "row_count_sheet": "RUTA RUTERO",
+        "week_label": "S4",
+        "week_start": "2026-06-22",
+        "assigned_operational_month": "2026-06"
+      }
+    ],
+    "transition_week": {
+      "week_start": "2026-06-29",
+      "week_end": "2026-07-05",
+      "assigned_operational_month": "2026-07",
+      "days_in_june": 2,
+      "days_in_july": 5,
+      "ruta_file_in_june_layout": null,
+      "status": "pending_july_route_reference",
+      "blocking_for_015a_traceability": false,
+      "required_before_future_operational_load": true
+    },
+    "week_assignment_note": "S1-S4 pertenecen a 2026-06; no existe S5 junio. La semana 2026-06-29..2026-07-05 pertenece operacionalmente a 2026-07."
+  },
+  "historical_phase_policy": {
+    "scripts_014c_014d_014e_rewritten": false,
+    "existing_reports_rewritten": false,
+    "015_contract_is_forward_authority_for_monthly_layout": true
+  },
+  "future_apply_boundary": {
+    "supabase_ready_now": false,
+    "required_before_any_future_apply": [
+      "manifest JSON versionado con month_id, layout activo, source_path, source_file_id, sha256 y row_count por archivo",
+      "validación de fechas internas contra assigned_operational_month derivado desde Fecha",
+      "validación de ruta_rutero mensual/semanal contra las semanas operacionales asignadas",
+      "resolver la referencia ruta de la semana transicional 2026-06-29..2026-07-05 desde el layout julio",
+      "preflight DB read-only y autorización explícita de fase futura",
+      "SQL review y no-apply evidence antes de cualquier ejecución"
+    ]
+  }
+}
