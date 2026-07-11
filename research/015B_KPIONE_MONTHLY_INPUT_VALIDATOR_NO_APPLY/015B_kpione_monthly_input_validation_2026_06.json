@@ -1,0 +1,1240 @@
+{
+  "adjacent_operational_month_rows": [
+    {
+      "assigned_operational_month": "2026-07",
+      "row_count": 15889,
+      "source_calendar_month": "2026-06",
+      "source_file_ids": [
+        "1783220157694"
+      ],
+      "status": "valid_carry_forward"
+    }
+  ],
+  "as_of_date": "2026-07-11",
+  "blockers": [],
+  "contract_reference": {
+    "path": "research/015_INPUT_LAYOUT_TRACEABILITY_NO_APPLY/015_monthly_input_layout_manifest_2026_06.json",
+    "present": true,
+    "required": false,
+    "sha256": "6e257750a881aa4da26e3b12d343c3dd0b9242a10441d9f70a8c4c2d0bb6444e"
+  },
+  "discovery": {
+    "legacy_files_detected_not_used": [],
+    "monthly_photo_dir": "data/kpione_photo_reports/2026-06",
+    "monthly_photo_dirs": {
+      "2026-06": "data/kpione_photo_reports/2026-06"
+    },
+    "required_calendar_months": [
+      "2026-06"
+    ],
+    "required_calendar_months_at_close": [
+      "2026-06"
+    ],
+    "required_calendar_months_now": [
+      "2026-06"
+    ],
+    "ruta_month_dir": "data/RUTA_RUTERO/06 - JUNIO"
+  },
+  "generated_at": "2026-07-11T17:40:46+00:00",
+  "guardrails": {
+    "app_runtime_modified": false,
+    "data_movement": false,
+    "db_access": {
+      "used": false
+    },
+    "ddl": false,
+    "excel_files_modified": false,
+    "mode": "LOCAL_INPUT_VALIDATION_NO_APPLY",
+    "productive_loader_run": false,
+    "sql_apply": false,
+    "supabase_used": false
+  },
+  "input_contract": {
+    "cumplimiento_frecuencia_is_authority": false,
+    "legacy_and_monthly_layouts_are_not_merged": true,
+    "month_semantics": "operational_month",
+    "photo_reports": "data/kpione_photo_reports/{calendar_month}/photo-excel-admin_*.xlsx",
+    "photo_reports_are_operational_source": true,
+    "ruta_rutero": "data/RUTA_RUTERO/<CARPETA_MES>/RUTA_RUTEROS_<MES>_S*.xlsx",
+    "ruta_rutero_defines_operational_expected": true,
+    "week_rule_authority": "scripts/monthly_input_layout_contract_015.py"
+  },
+  "month_id": "2026-06",
+  "operational_coverage": {
+    "month_id": "2026-06",
+    "operational_coverage_end": "2026-06-28",
+    "operational_coverage_start": "2026-06-01",
+    "week_count": 4
+  },
+  "operational_coverage_end": "2026-06-28",
+  "operational_coverage_start": "2026-06-01",
+  "operational_period_status": "CLOSED_ELIGIBLE",
+  "operational_week_assignments": [
+    {
+      "assigned_operational_month": "2026-06",
+      "folder_month_governs_week_ownership": false,
+      "folder_month_id": "2026-06",
+      "folder_month_matches_assigned_operational_month": true,
+      "row_count": 46807,
+      "source_file_ids": [
+        "1781975989376"
+      ],
+      "week_end": "2026-06-07",
+      "week_start": "2026-06-01"
+    },
+    {
+      "assigned_operational_month": "2026-06",
+      "folder_month_governs_week_ownership": false,
+      "folder_month_id": "2026-06",
+      "folder_month_matches_assigned_operational_month": true,
+      "row_count": 110361,
+      "source_file_ids": [
+        "1781976368641",
+        "1781976423312",
+        "1782012877303",
+        "1783219885210",
+        "1783219914054",
+        "1783220552913"
+      ],
+      "week_end": "2026-06-14",
+      "week_start": "2026-06-08"
+    },
+    {
+      "assigned_operational_month": "2026-06",
+      "folder_month_governs_week_ownership": false,
+      "folder_month_id": "2026-06",
+      "folder_month_matches_assigned_operational_month": true,
+      "row_count": 54726,
+      "source_file_ids": [
+        "1781973512473",
+        "1782440454408"
+      ],
+      "week_end": "2026-06-21",
+      "week_start": "2026-06-15"
+    },
+    {
+      "assigned_operational_month": "2026-06",
+      "folder_month_governs_week_ownership": false,
+      "folder_month_id": "2026-06",
+      "folder_month_matches_assigned_operational_month": true,
+      "row_count": 69748,
+      "source_file_ids": [
+        "1782440454408",
+        "1783220085725"
+      ],
+      "week_end": "2026-06-28",
+      "week_start": "2026-06-22"
+    }
+  ],
+  "pending_future_end": null,
+  "pending_future_start": null,
+  "phase_id": "015B_KPIONE_MONTHLY_INPUT_VALIDATOR_NO_DB_APPLY",
+  "photo_reports": {
+    "files": [
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 46078,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-21",
+            "week_start": "2026-06-15"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-19",
+        "fecha_min": "2026-06-15",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781973512473.xlsx",
+          "role": "include_candidate",
+          "sha256": "e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d",
+          "size_bytes": 3176684
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 46078,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-21",
+            "week_start": "2026-06-15"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781973512473.xlsx",
+        "role": "include_candidate",
+        "row_count": 46078,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 46078,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 3176684,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1781973512473",
+        "source_file_name": "photo-excel-admin_1781973512473.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 46807,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-07",
+            "week_start": "2026-06-01"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-07",
+        "fecha_min": "2026-06-01",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781975989376.xlsx",
+          "role": "include_candidate",
+          "sha256": "8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d",
+          "size_bytes": 3228103
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 46807,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-07",
+            "week_start": "2026-06-01"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781975989376.xlsx",
+        "role": "include_candidate",
+        "row_count": 46807,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 46807,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 3228103,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1781975989376",
+        "source_file_name": "photo-excel-admin_1781975989376.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 50000,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-13",
+        "fecha_min": "2026-06-08",
+        "invalid_date_rows": 1,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781976368641.xlsx",
+          "role": "quarantine_truncation",
+          "sha256": "0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa",
+          "size_bytes": 3438539
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 50000,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781976368641.xlsx",
+        "role": "quarantine_truncation",
+        "row_count": 50001,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 50000,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 3438539,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1781976368641",
+        "source_file_name": "photo-excel-admin_1781976368641.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 107,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-14",
+        "fecha_min": "2026-06-14",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781976423312.xlsx",
+          "role": "include_candidate",
+          "sha256": "ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0",
+          "size_bytes": 14548
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 107,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781976423312.xlsx",
+        "role": "include_candidate",
+        "row_count": 107,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 107,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 14548,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1781976423312",
+        "source_file_name": "photo-excel-admin_1781976423312.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 8372,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-08",
+        "fecha_min": "2026-06-08",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1782012877303.xlsx",
+          "role": "compare_only",
+          "sha256": "d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881",
+          "size_bytes": 584705
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 8372,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1782012877303.xlsx",
+        "role": "compare_only",
+        "row_count": 8372,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 8372,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 584705,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1782012877303",
+        "source_file_name": "photo-excel-admin_1782012877303.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 8648,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-21",
+            "week_start": "2026-06-15"
+          },
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 29260,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-28",
+            "week_start": "2026-06-22"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-24",
+        "fecha_min": "2026-06-20",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1782440454408.xlsx",
+          "role": "include_candidate",
+          "sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+          "size_bytes": 2621405
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 8648,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-21",
+            "week_start": "2026-06-15"
+          },
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 29260,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-28",
+            "week_start": "2026-06-22"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1782440454408.xlsx",
+        "role": "include_candidate",
+        "row_count": 37908,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 37908,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 2621405,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1782440454408",
+        "source_file_name": "photo-excel-admin_1782440454408.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 8372,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-08",
+        "fecha_min": "2026-06-08",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783219885210.xlsx",
+          "role": "include_candidate",
+          "sha256": "43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978",
+          "size_bytes": 584673
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 8372,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783219885210.xlsx",
+        "role": "include_candidate",
+        "row_count": 8372,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 8372,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 584673,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1783219885210",
+        "source_file_name": "photo-excel-admin_1783219885210.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 8672,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-13",
+        "fecha_min": "2026-06-13",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783219914054.xlsx",
+          "role": "include_candidate",
+          "sha256": "679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7",
+          "size_bytes": 609299
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 8672,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783219914054.xlsx",
+        "role": "include_candidate",
+        "row_count": 8672,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 8672,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 609299,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1783219914054",
+        "source_file_name": "photo-excel-admin_1783219914054.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 40488,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-28",
+            "week_start": "2026-06-22"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-28",
+        "fecha_min": "2026-06-24",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220085725.xlsx",
+          "role": "include_candidate",
+          "sha256": "8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b",
+          "size_bytes": 2804511
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 40488,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-28",
+            "week_start": "2026-06-22"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220085725.xlsx",
+        "role": "include_candidate",
+        "row_count": 40488,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 40488,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 2804511,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1783220085725",
+        "source_file_name": "photo-excel-admin_1783220085725.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 15889,
+        "adjacent_operational_month_rows": [
+          {
+            "assigned_operational_month": "2026-07",
+            "row_count": 15889,
+            "source_calendar_month": "2026-06",
+            "status": "valid_carry_forward"
+          }
+        ],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-07",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": false,
+            "row_count": 15889,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-07-05",
+            "week_start": "2026-06-29"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-30",
+        "fecha_min": "2026-06-29",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220157694.xlsx",
+          "role": "include_candidate",
+          "sha256": "3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72",
+          "size_bytes": 1114940
+        },
+        "operational_week_assignments": [],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220157694.xlsx",
+        "role": "include_candidate",
+        "row_count": 15889,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 0,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 1114940,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1783220157694",
+        "source_file_name": "photo-excel-admin_1783220157694.xlsx"
+      },
+      {
+        "adjacent_operational_month_row_count": 0,
+        "adjacent_operational_month_rows": [],
+        "available_sheets": [
+          "Fotos"
+        ],
+        "calendar_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 34838,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "columns": [
+          "ID",
+          "SP Item ID",
+          "Holding",
+          "Subcadena",
+          "Codigo Local",
+          "Marca",
+          "Local",
+          "Direccion",
+          "Reponedor",
+          "Fecha",
+          "Fecha de subida",
+          "Hora",
+          "Tipo de Tarea",
+          "Foto Nº/Total",
+          "Comentarios",
+          "Link Foto"
+        ],
+        "fecha_max": "2026-06-12",
+        "fecha_min": "2026-06-09",
+        "invalid_date_rows": 0,
+        "manifest_expected": {
+          "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220552913.xlsx",
+          "role": "include_candidate",
+          "sha256": "45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b",
+          "size_bytes": 2417813
+        },
+        "operational_week_assignments": [
+          {
+            "assigned_operational_month": "2026-06",
+            "folder_month_governs_week_ownership": false,
+            "folder_month_matches_assigned_operational_month": true,
+            "row_count": 34838,
+            "source_calendar_month": "2026-06",
+            "week_end": "2026-06-14",
+            "week_start": "2026-06-08"
+          }
+        ],
+        "pending_future_coverage": [],
+        "pending_future_coverage_row_count": 0,
+        "read_error": null,
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220552913.xlsx",
+        "role": "include_candidate",
+        "row_count": 34838,
+        "rows_outside_calendar_month": 0,
+        "rows_selected_for_operational_month": 34838,
+        "schema_signature": "96a5ed1608268e1319021d6a7827f20304fbb00740474c39bf7e30dc4cf6755f",
+        "sha256": "45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b",
+        "sheet": "Fotos",
+        "sheet_present": true,
+        "size_bytes": 2417813,
+        "source_calendar_month": "2026-06",
+        "source_file_id": "1783220552913",
+        "source_file_name": "photo-excel-admin_1783220552913.xlsx"
+      }
+    ],
+    "missing_expected_files": [],
+    "role_counts": {
+      "compare_only": 1,
+      "include_candidate": 9,
+      "quarantine_truncation": 1
+    },
+    "source_file_id_duplicates": [],
+    "unexpected_files": []
+  },
+  "required_calendar_months_at_close": [
+    "2026-06"
+  ],
+  "required_calendar_months_now": [
+    "2026-06"
+  ],
+  "required_coverage_through": "2026-06-28",
+  "ruta_rutero": {
+    "expected_route_mapping": [
+      {
+        "assigned_operational_month": "2026-06",
+        "week_end": "2026-06-07",
+        "week_label": "S1",
+        "week_start": "2026-06-01"
+      },
+      {
+        "assigned_operational_month": "2026-06",
+        "week_end": "2026-06-14",
+        "week_label": "S2",
+        "week_start": "2026-06-08"
+      },
+      {
+        "assigned_operational_month": "2026-06",
+        "week_end": "2026-06-21",
+        "week_label": "S3",
+        "week_start": "2026-06-15"
+      },
+      {
+        "assigned_operational_month": "2026-06",
+        "week_end": "2026-06-28",
+        "week_label": "S4",
+        "week_start": "2026-06-22"
+      }
+    ],
+    "expected_week_count": 4,
+    "files": [
+      {
+        "assigned_operational_month": "2026-06",
+        "available_sheets": [
+          "DISTRIBUCION-CLIENTES",
+          "RESUMEN",
+          "RUTA RUTERO",
+          "RUTA_PARCHES",
+          "LISTA_GESTOR",
+          "RR_ANTES"
+        ],
+        "columns": [
+          "CADENA",
+          "FORMATO",
+          "REGION",
+          "COMUNA",
+          "COD KPI ONE",
+          "COD B2B",
+          "LOCAL",
+          "DIRECCIÓN",
+          "VECES POR SEMANA",
+          "RUTERO",
+          "EQUIPO",
+          "GESTORES",
+          "CLIENTE",
+          "SUPERVISOR",
+          "REPONEDOR",
+          "LUNES",
+          "MARTES",
+          "MIERCOLES",
+          "JUEVES",
+          "VIERNES",
+          "SABADO",
+          "DOMINGO",
+          "Visita mensual",
+          "DIF",
+          "OBS",
+          "AUX",
+          "GG",
+          "MODALIDAD"
+        ],
+        "manifest_expected": {
+          "assigned_operational_month": "2026-06",
+          "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S1.xlsx",
+          "row_count": 3469,
+          "sha256": "dcb29192454a870c8a5c4970f0424731f3652776ff8f257a3fe2646975c16b63",
+          "size_bytes": 1616613,
+          "week_start": "2026-06-01"
+        },
+        "read_error": null,
+        "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S1.xlsx",
+        "row_count": 3469,
+        "schema_signature": "da7d8b6362b81fc6b80d1003729183ca29ff3b57b5c127a42f20481186db4995",
+        "sha256": "dcb29192454a870c8a5c4970f0424731f3652776ff8f257a3fe2646975c16b63",
+        "sheet": "RUTA RUTERO",
+        "sheet_present": true,
+        "size_bytes": 1616613,
+        "source_file_name": "RUTA_RUTEROS_JUNIO_S1.xlsx",
+        "week_end": "2026-06-07",
+        "week_label": "S1",
+        "week_start": "2026-06-01"
+      },
+      {
+        "assigned_operational_month": "2026-06",
+        "available_sheets": [
+          "DISTRIBUCION-CLIENTES",
+          "RESUMEN",
+          "RUTA RUTERO"
+        ],
+        "columns": [
+          "CADENA",
+          "FORMATO",
+          "REGION",
+          "COMUNA",
+          "COD KPI ONE",
+          "COD B2B",
+          "LOCAL",
+          "DIRECCIÓN",
+          "VECES POR SEMANA",
+          "RUTERO",
+          "GESTORES",
+          "CLIENTE",
+          "SUPERVISOR",
+          "REPONEDOR",
+          "LUNES",
+          "MARTES",
+          "MIERCOLES",
+          "JUEVES",
+          "VIERNES",
+          "SABADO",
+          "DOMINGO",
+          "Visita mensual",
+          "DIF",
+          "OBS",
+          "AUX",
+          "GG",
+          "MODALIDAD"
+        ],
+        "manifest_expected": {
+          "assigned_operational_month": "2026-06",
+          "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S2.xlsx",
+          "row_count": 3542,
+          "sha256": "5538152ac8f4308bf3bee55c9b299799024d23a39746d7ffb4960863b74bc040",
+          "size_bytes": 801690,
+          "week_start": "2026-06-08"
+        },
+        "read_error": null,
+        "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S2.xlsx",
+        "row_count": 3542,
+        "schema_signature": "4b55dab09effa9324bb7de6525902a9f1ca0702c3daf2a322e2ee23065fe69e5",
+        "sha256": "5538152ac8f4308bf3bee55c9b299799024d23a39746d7ffb4960863b74bc040",
+        "sheet": "RUTA RUTERO",
+        "sheet_present": true,
+        "size_bytes": 801690,
+        "source_file_name": "RUTA_RUTEROS_JUNIO_S2.xlsx",
+        "week_end": "2026-06-14",
+        "week_label": "S2",
+        "week_start": "2026-06-08"
+      },
+      {
+        "assigned_operational_month": "2026-06",
+        "available_sheets": [
+          "DISTRIBUCION-CLIENTES",
+          "RESUMEN",
+          "RUTA RUTERO"
+        ],
+        "columns": [
+          "CADENA",
+          "FORMATO",
+          "REGION",
+          "COMUNA",
+          "COD KPI ONE",
+          "COD B2B",
+          "LOCAL",
+          "DIRECCIÓN",
+          "VECES POR SEMANA",
+          "RUTERO",
+          "GESTORES",
+          "CLIENTE",
+          "SUPERVISOR",
+          "REPONEDOR",
+          "LUNES",
+          "MARTES",
+          "MIERCOLES",
+          "JUEVES",
+          "VIERNES",
+          "SABADO",
+          "DOMINGO",
+          "Visita mensual",
+          "DIF",
+          "OBS",
+          "AUX",
+          "GG",
+          "MODALIDAD"
+        ],
+        "manifest_expected": {
+          "assigned_operational_month": "2026-06",
+          "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S3.xlsx",
+          "row_count": 3606,
+          "sha256": "2759905096521d1140a1f39373c6f7fd7db577abb260b6f27c9396835b29595c",
+          "size_bytes": 819252,
+          "week_start": "2026-06-15"
+        },
+        "read_error": null,
+        "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S3.xlsx",
+        "row_count": 3606,
+        "schema_signature": "4b55dab09effa9324bb7de6525902a9f1ca0702c3daf2a322e2ee23065fe69e5",
+        "sha256": "2759905096521d1140a1f39373c6f7fd7db577abb260b6f27c9396835b29595c",
+        "sheet": "RUTA RUTERO",
+        "sheet_present": true,
+        "size_bytes": 819252,
+        "source_file_name": "RUTA_RUTEROS_JUNIO_S3.xlsx",
+        "week_end": "2026-06-21",
+        "week_label": "S3",
+        "week_start": "2026-06-15"
+      },
+      {
+        "assigned_operational_month": "2026-06",
+        "available_sheets": [
+          "DISTRIBUCION-CLIENTES",
+          "RESUMEN",
+          "RUTA RUTERO"
+        ],
+        "columns": [
+          "CADENA",
+          "FORMATO",
+          "REGION",
+          "COMUNA",
+          "COD KPI ONE",
+          "COD B2B",
+          "LOCAL",
+          "DIRECCIÓN",
+          "VECES POR SEMANA",
+          "RUTERO",
+          "GESTORES",
+          "CLIENTE",
+          "SUPERVISOR",
+          "REPONEDOR",
+          "LUNES",
+          "MARTES",
+          "MIERCOLES",
+          "JUEVES",
+          "VIERNES",
+          "SABADO",
+          "DOMINGO",
+          "Visita mensual",
+          "DIF",
+          "OBS",
+          "AUX",
+          "GG",
+          "MODALIDAD"
+        ],
+        "manifest_expected": {
+          "assigned_operational_month": "2026-06",
+          "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S4.xlsx",
+          "row_count": 4056,
+          "sha256": "b5bc722d9ae505dec2a3d0e665576f1b36c25eb030b47e670e788fc257575e54",
+          "size_bytes": 884612,
+          "week_start": "2026-06-22"
+        },
+        "read_error": null,
+        "relative_path": "data/RUTA_RUTERO/06 - JUNIO/RUTA_RUTEROS_JUNIO_S4.xlsx",
+        "row_count": 4056,
+        "schema_signature": "4b55dab09effa9324bb7de6525902a9f1ca0702c3daf2a322e2ee23065fe69e5",
+        "sha256": "b5bc722d9ae505dec2a3d0e665576f1b36c25eb030b47e670e788fc257575e54",
+        "sheet": "RUTA RUTERO",
+        "sheet_present": true,
+        "size_bytes": 884612,
+        "source_file_name": "RUTA_RUTEROS_JUNIO_S4.xlsx",
+        "week_end": "2026-06-28",
+        "week_label": "S4",
+        "week_start": "2026-06-22"
+      }
+    ],
+    "missing_declared_routes": [],
+    "missing_expected_route_weeks": [],
+    "unmapped_files": []
+  },
+  "transition_week": {
+    "assigned_operational_month": "2026-07",
+    "blocking_for_015a_traceability": false,
+    "days_in_july": 5,
+    "days_in_june": 2,
+    "required_before_future_operational_load": true,
+    "ruta_file_in_june_layout": null,
+    "status": "pending_july_route_reference",
+    "week_end": "2026-07-05",
+    "week_start": "2026-06-29"
+  },
+  "validation_mode": "open",
+  "verdict": "WARN",
+  "warnings": [
+    "photo_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1"
+  ]
+}
