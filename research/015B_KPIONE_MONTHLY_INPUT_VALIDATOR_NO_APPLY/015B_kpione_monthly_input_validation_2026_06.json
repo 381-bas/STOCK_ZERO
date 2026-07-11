@@ -15,7 +15,7 @@
   "contract_reference": {
     "path": "research/015_INPUT_LAYOUT_TRACEABILITY_NO_APPLY/015_monthly_input_layout_manifest_2026_06.json",
     "present": true,
-    "required": false,
+    "required": true,
     "sha256": "6e257750a881aa4da26e3b12d343c3dd0b9242a10441d9f70a8c4c2d0bb6444e"
   },
   "discovery": {
@@ -35,7 +35,7 @@
     ],
     "ruta_month_dir": "data/RUTA_RUTERO/06 - JUNIO"
   },
-  "generated_at": "2026-07-11T17:40:46+00:00",
+  "generated_at": "2026-07-11T18:05:28+00:00",
   "guardrails": {
     "app_runtime_modified": false,
     "data_movement": false,
@@ -1232,7 +1232,7 @@
     "week_end": "2026-07-05",
     "week_start": "2026-06-29"
   },
-  "validation_mode": "open",
+  "validation_mode": "close",
   "verdict": "WARN",
   "warnings": [
     "photo_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1"
