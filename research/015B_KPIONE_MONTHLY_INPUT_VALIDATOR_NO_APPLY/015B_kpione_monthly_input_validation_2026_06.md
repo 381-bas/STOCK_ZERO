@@ -3,7 +3,7 @@
 ## Executive summary
 
 - Operational month: `2026-06`
-- Validation mode: `open`
+- Validation mode: `close`
 - As-of date: `2026-07-11`
 - Operational period status: `CLOSED_ELIGIBLE`
 - Verdict: `WARN`
