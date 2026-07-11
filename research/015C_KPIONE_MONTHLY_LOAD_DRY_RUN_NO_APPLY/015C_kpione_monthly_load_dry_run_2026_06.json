@@ -1,0 +1,481 @@
+{
+  "as_of_date": "2026-07-11",
+  "authorities": {
+    "grain_contract": {
+      "path": "contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+      "present": true,
+      "sha256": "9f833d6e4ac3e128f1b4a1a7eb525f0ce9d40de227a7b3d1b0fba2915b16b9a6"
+    },
+    "input_validation_015b": {
+      "path": "research/015B_KPIONE_MONTHLY_INPUT_VALIDATOR_NO_APPLY/015B_kpione_monthly_input_validation_2026_06.json",
+      "phase_id": "015B_KPIONE_MONTHLY_INPUT_VALIDATOR_NO_DB_APPLY",
+      "present": true,
+      "semantic_sha256": "8788b507d9ad8339b97e14fa4696fffba0cc651ef83642c3807ff211fb5edc41",
+      "sha256": "536ebfeb36e9bb5029d5d4424fb22bfc9b20fa676968c6575c843225614d736b",
+      "verdict": "WARN"
+    },
+    "normalization_and_dedupe": {
+      "014c_script": "scripts/validate_kpione_raw_exports_014C_no_apply.py",
+      "014e_script": "scripts/load_kpione_raw_exports_014E_dry_run_no_apply.py",
+      "dedupe_key": [
+        "event_id",
+        "photo_row_hash"
+      ],
+      "keep_rule": "first after source_file_id/source_row_number sort"
+    },
+    "operational_calendar_contract": {
+      "path": "contracts/control_gestion/operational_calendar_contract_v1.json",
+      "present": true,
+      "sha256": "157037b29f20bcc6b260e710928a0ad6286a699e2dd693c66dbc475b9c9be97a"
+    },
+    "reference_manifest_015a": {
+      "expected_sha256_from_015b": "6e257750a881aa4da26e3b12d343c3dd0b9242a10441d9f70a8c4c2d0bb6444e",
+      "path": "research/015_INPUT_LAYOUT_TRACEABILITY_NO_APPLY/015_monthly_input_layout_manifest_2026_06.json",
+      "present": true,
+      "required": true,
+      "semantic_sha256": "dc2102d95ef54d1fb262069f8eb649c6d33d42610fad96137c35e54421122571",
+      "sha256": "6e257750a881aa4da26e3b12d343c3dd0b9242a10441d9f70a8c4c2d0bb6444e"
+    }
+  },
+  "baseline_014e": {
+    "date_max": "2026-06-30",
+    "date_min": "2026-06-01",
+    "distinct_event_ids_calendar": 35287,
+    "exact_duplicate_rows_removed": 10089,
+    "note": "014E is calendar-month historical baseline; 015C stages by operational month.",
+    "path": "research/014E_KPIONE_RAW_DRY_RUN_LOADER_NO_APPLY/014E_dry_run_loader_manifest.json",
+    "phase_id": "014E_KPIONE_RAW_DRY_RUN_LOADER_NO_APPLY",
+    "present": true,
+    "source_rows_total": 239159,
+    "verdict": "DRY_RUN_READY_WITH_WARNINGS",
+    "would_stage_calendar_rows": 229070
+  },
+  "batch_plan": {
+    "batch_count": 1,
+    "batches": [
+      {
+        "batch_number": 1,
+        "deterministic_payload_sha256": "1f99a2b3a34fc7f721a0ea5d5836e340def688516edd871f2eeb710d496b34e4",
+        "first_source_row_identity": {
+          "source_file_id": "1781973512473",
+          "source_row_number": 2
+        },
+        "last_source_row_identity": {
+          "source_file_id": "1783220552913",
+          "source_row_number": 34839
+        },
+        "operational_week_starts": [
+          "2026-06-01",
+          "2026-06-08",
+          "2026-06-15",
+          "2026-06-22"
+        ],
+        "row_count": 213181,
+        "source_file_ids": [
+          "1781973512473",
+          "1781975989376",
+          "1781976423312",
+          "1782440454408",
+          "1783219885210",
+          "1783219914054",
+          "1783220085725",
+          "1783220552913"
+        ]
+      }
+    ],
+    "dry_run_batch_id": "015C_e634b4720b66db7a3036302e",
+    "mode": "logical_batch_only"
+  },
+  "blockers": [],
+  "dedupe_summary": {
+    "conflict_blocker_ids_sample": [],
+    "cross_file_exact_photo_row_count": 10089,
+    "dedupe_silent_candidate_ids_sample": [
+      "882090",
+      "882091",
+      "882092",
+      "882093",
+      "882094",
+      "882096",
+      "882097",
+      "882098",
+      "882099",
+      "882100",
+      "882101",
+      "882102",
+      "882103",
+      "882104",
+      "882105",
+      "882106",
+      "882107",
+      "882108",
+      "882109",
+      "882111"
+    ],
+    "event_stable_hash_conflict_count": 0,
+    "event_stable_hash_conflict_ids_sample": [],
+    "exact_duplicate_rows_detected": 20178,
+    "exact_duplicate_rows_removed": 10089,
+    "keep": "first",
+    "key": [
+      "event_id",
+      "photo_row_hash"
+    ],
+    "overlapping_id_count": 1579,
+    "same_id_diff_hash_count": 0,
+    "same_id_same_hash_count": 1579,
+    "sort_before_keep": [
+      "source_file_id",
+      "source_row_number"
+    ]
+  },
+  "eligible_data_warnings": [
+    "exact_duplicate_rows_removed:10089",
+    "same_id_same_hash:1579"
+  ],
+  "excluded_evidence": {
+    "compare_only": [
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1782012877303.xlsx",
+        "role": "compare_only",
+        "row_count": 8372,
+        "sha256": "d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881",
+        "size_bytes": 584705,
+        "source_file_id": "1782012877303",
+        "source_file_name": "photo-excel-admin_1782012877303.xlsx"
+      }
+    ],
+    "quarantine_truncation": [
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781976368641.xlsx",
+        "role": "quarantine_truncation",
+        "row_count": 50001,
+        "sha256": "0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa",
+        "size_bytes": 3438539,
+        "source_file_id": "1781976368641",
+        "source_file_name": "photo-excel-admin_1781976368641.xlsx"
+      }
+    ],
+    "unclassified": []
+  },
+  "excluded_file_warnings": [
+    "excluded_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1"
+  ],
+  "guardrails": {
+    "data_movement": false,
+    "db_access": false,
+    "ddl": false,
+    "payload_rows_persisted": false,
+    "sql_apply": false,
+    "supabase_access": false
+  },
+  "input_validation": {
+    "blockers": [],
+    "operational_coverage": {
+      "month_id": "2026-06",
+      "operational_coverage_end": "2026-06-28",
+      "operational_coverage_start": "2026-06-01",
+      "week_count": 4
+    },
+    "operational_period_status": "CLOSED_ELIGIBLE",
+    "phase_id": "015B_KPIONE_MONTHLY_INPUT_VALIDATOR_NO_DB_APPLY",
+    "verdict": "WARN",
+    "warnings": [
+      "photo_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1"
+    ]
+  },
+  "load_plan_sha256": "e634b4720b66db7a3036302e2553c53d7a93475257bb27410804f6b9efe8f7cd",
+  "metric_definitions": {
+    "cross_file_exact_photo_row_count": {
+      "definition": "Distinct event_id plus photo_row_hash keys present in more than one source file.",
+      "unit": "distinct_duplicate_keys",
+      "universe": "normalized_candidate_rows"
+    },
+    "event_stable_hash_conflict_count": {
+      "definition": "Distinct event IDs associated with more than one event_stable_hash.",
+      "unit": "distinct_event_ids",
+      "universe": "normalized_candidate_rows"
+    },
+    "exact_duplicate_rows_detected": {
+      "calculation": "duplicated(subset=[event_id, photo_row_hash], keep=False)",
+      "definition": "All rows participating in exact duplicate groups identified by event_id plus photo_row_hash, including both retained and removed rows.",
+      "unit": "rows",
+      "universe": "normalized_candidate_rows"
+    },
+    "exact_duplicate_rows_removed": {
+      "calculation": "normalized_candidate_rows minus survivor_rows_after_dedupe",
+      "definition": "Rows removed after sorting by source_file_id and source_row_number and keeping the first row for each event_id plus photo_row_hash key.",
+      "unit": "rows",
+      "universe": "normalized_candidate_rows"
+    },
+    "same_id_diff_hash_count": {
+      "definition": "Distinct event IDs present in more than one source file whose per-file photo-row-hash fingerprint differs.",
+      "unit": "distinct_event_ids",
+      "universe": "event_ids_present_in_multiple_source_files"
+    },
+    "same_id_same_hash_count": {
+      "definition": "Distinct event IDs present in more than one source file whose per-file photo-row-hash fingerprint is identical.",
+      "unit": "distinct_event_ids",
+      "universe": "event_ids_present_in_multiple_source_files"
+    }
+  },
+  "month_id": "2026-06",
+  "operational_partition": {
+    "carry_backfill_out": [],
+    "carry_forward_out": [
+      {
+        "assigned_operational_month": "2026-07",
+        "direction": "future",
+        "fecha_max": "2026-06-30",
+        "fecha_min": "2026-06-29",
+        "operational_week_starts": [
+          "2026-06-29"
+        ],
+        "row_count": 15889,
+        "source_file_ids": [
+          "1783220157694"
+        ]
+      }
+    ],
+    "target_month": {
+      "coverage_end": "2026-06-28",
+      "coverage_start": "2026-06-01",
+      "fecha_max": "2026-06-28",
+      "fecha_min": "2026-06-01",
+      "month_id": "2026-06",
+      "operational_week_starts": [
+        "2026-06-01",
+        "2026-06-08",
+        "2026-06-15",
+        "2026-06-22"
+      ],
+      "row_count": 213181,
+      "week_start_counts": [
+        {
+          "row_count": 46807,
+          "week_start": "2026-06-01"
+        },
+        {
+          "row_count": 51989,
+          "week_start": "2026-06-08"
+        },
+        {
+          "row_count": 54726,
+          "week_start": "2026-06-15"
+        },
+        {
+          "row_count": 59659,
+          "week_start": "2026-06-22"
+        }
+      ]
+    }
+  },
+  "phase_id": "015C_KPIONE_MONTHLY_LOAD_DRY_RUN_NO_DB_APPLY",
+  "row_accounting": {
+    "carry_backfill_out_rows": 0,
+    "carry_forward_out_rows": 15889,
+    "distinct_event_ids_would_stage": 32798,
+    "exact_duplicate_rows_detected": 20178,
+    "exact_duplicate_rows_removed": 10089,
+    "invalid_date_rows_eligible": 0,
+    "normalized_candidate_rows": 239159,
+    "source_rows_selected_files": 239159,
+    "survivor_rows_after_dedupe": 229070,
+    "would_stage_rows": 213181
+  },
+  "run_metadata": {
+    "canonical": true,
+    "duration_seconds": 329.376,
+    "generated_at": "2026-07-11T22:08:00+00:00",
+    "local_paths": {
+      "input_validation_json": "research/015B_KPIONE_MONTHLY_INPUT_VALIDATOR_NO_APPLY/015B_kpione_monthly_input_validation_2026_06.json",
+      "reference_manifest": "research/015_INPUT_LAYOUT_TRACEABILITY_NO_APPLY/015_monthly_input_layout_manifest_2026_06.json"
+    }
+  },
+  "selection": {
+    "compare_only_files": [
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1782012877303.xlsx",
+        "role": "compare_only",
+        "row_count": 8372,
+        "sha256": "d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881",
+        "size_bytes": 584705,
+        "source_file_id": "1782012877303",
+        "source_file_name": "photo-excel-admin_1782012877303.xlsx"
+      }
+    ],
+    "include_candidate_files": [
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781973512473.xlsx",
+        "role": "include_candidate",
+        "row_count": 46078,
+        "sha256": "e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d",
+        "size_bytes": 3176684,
+        "source_file_id": "1781973512473",
+        "source_file_name": "photo-excel-admin_1781973512473.xlsx"
+      },
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781975989376.xlsx",
+        "role": "include_candidate",
+        "row_count": 46807,
+        "sha256": "8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d",
+        "size_bytes": 3228103,
+        "source_file_id": "1781975989376",
+        "source_file_name": "photo-excel-admin_1781975989376.xlsx"
+      },
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781976423312.xlsx",
+        "role": "include_candidate",
+        "row_count": 107,
+        "sha256": "ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0",
+        "size_bytes": 14548,
+        "source_file_id": "1781976423312",
+        "source_file_name": "photo-excel-admin_1781976423312.xlsx"
+      },
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1782440454408.xlsx",
+        "role": "include_candidate",
+        "row_count": 37908,
+        "sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+        "size_bytes": 2621405,
+        "source_file_id": "1782440454408",
+        "source_file_name": "photo-excel-admin_1782440454408.xlsx"
+      },
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783219885210.xlsx",
+        "role": "include_candidate",
+        "row_count": 8372,
+        "sha256": "43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978",
+        "size_bytes": 584673,
+        "source_file_id": "1783219885210",
+        "source_file_name": "photo-excel-admin_1783219885210.xlsx"
+      },
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783219914054.xlsx",
+        "role": "include_candidate",
+        "row_count": 8672,
+        "sha256": "679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7",
+        "size_bytes": 609299,
+        "source_file_id": "1783219914054",
+        "source_file_name": "photo-excel-admin_1783219914054.xlsx"
+      },
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220085725.xlsx",
+        "role": "include_candidate",
+        "row_count": 40488,
+        "sha256": "8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b",
+        "size_bytes": 2804511,
+        "source_file_id": "1783220085725",
+        "source_file_name": "photo-excel-admin_1783220085725.xlsx"
+      },
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220157694.xlsx",
+        "role": "include_candidate",
+        "row_count": 15889,
+        "sha256": "3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72",
+        "size_bytes": 1114940,
+        "source_file_id": "1783220157694",
+        "source_file_name": "photo-excel-admin_1783220157694.xlsx"
+      },
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1783220552913.xlsx",
+        "role": "include_candidate",
+        "row_count": 34838,
+        "sha256": "45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b",
+        "size_bytes": 2417813,
+        "source_file_id": "1783220552913",
+        "source_file_name": "photo-excel-admin_1783220552913.xlsx"
+      }
+    ],
+    "quarantine_files": [
+      {
+        "relative_path": "data/kpione_photo_reports/2026-06/photo-excel-admin_1781976368641.xlsx",
+        "role": "quarantine_truncation",
+        "row_count": 50001,
+        "sha256": "0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa",
+        "size_bytes": 3438539,
+        "source_file_id": "1781976368641",
+        "source_file_name": "photo-excel-admin_1781976368641.xlsx"
+      }
+    ],
+    "unclassified_files": []
+  },
+  "semantic_plan": {
+    "as_of_date": "2026-07-11",
+    "dedupe_key": [
+      "event_id",
+      "photo_row_hash"
+    ],
+    "grain_contract_sha256": "9f833d6e4ac3e128f1b4a1a7eb525f0ce9d40de227a7b3d1b0fba2915b16b9a6",
+    "input_validation_015b_sha256": "8788b507d9ad8339b97e14fa4696fffba0cc651ef83642c3807ff211fb5edc41",
+    "keep": "first",
+    "logical_batch_definition": {
+      "batch_count": 1,
+      "mode": "logical_batch_only",
+      "reason": "014E has no contractual batch size authority"
+    },
+    "month_id": "2026-06",
+    "operational_calendar_contract_sha256": "157037b29f20bcc6b260e710928a0ad6286a699e2dd693c66dbc475b9c9be97a",
+    "operational_coverage": {
+      "month_id": "2026-06",
+      "operational_coverage_end": "2026-06-28",
+      "operational_coverage_start": "2026-06-01",
+      "week_count": 4
+    },
+    "payload_columns": [
+      "event_id",
+      "source_file_id",
+      "source_file_name",
+      "source_file_sha256",
+      "source_row_number",
+      "fecha",
+      "week_start",
+      "assigned_operational_month",
+      "cod_rt",
+      "local_nombre",
+      "cliente_norm",
+      "reponedor",
+      "tipo_tarea",
+      "n_fotos",
+      "link_foto",
+      "event_stable_hash",
+      "photo_row_hash",
+      "dry_run_batch_id"
+    ],
+    "payload_layer": "raw_candidate_photo_rows",
+    "phase_id": "015C_KPIONE_MONTHLY_LOAD_DRY_RUN_NO_DB_APPLY",
+    "reference_manifest_015a_sha256": "dc2102d95ef54d1fb262069f8eb649c6d33d42610fad96137c35e54421122571",
+    "required_calendar_months_at_close": [
+      "2026-06"
+    ],
+    "sort_before_keep": [
+      "source_file_id",
+      "source_row_number"
+    ],
+    "source_file_tokens": [
+      "1781973512473:e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d",
+      "1781975989376:8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d",
+      "1781976423312:ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0",
+      "1782440454408:1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+      "1783219885210:43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978",
+      "1783219914054:679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7",
+      "1783220085725:8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b",
+      "1783220157694:3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72",
+      "1783220552913:45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b"
+    ],
+    "validation_mode": "close"
+  },
+  "upstream_validation_warnings": [
+    "photo_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1"
+  ],
+  "validation_mode": "close",
+  "verdict": "WARN",
+  "warnings": [
+    "exact_duplicate_rows_removed:10089",
+    "excluded_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1",
+    "input_validation_verdict_warn",
+    "non_candidate_files_excluded:2",
+    "photo_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1",
+    "same_id_same_hash:1579"
+  ]
+}
