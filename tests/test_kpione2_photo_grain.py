@@ -18,6 +18,19 @@ if str(SCRIPTS) not in sys.path:
 import load_kpione2_photo_from_excel as loader
 
 
+def _photo_report_source_candidates(file_name: str) -> list[Path]:
+    monthly = ROOT / "data" / "kpione_photo_reports" / "2026-06" / file_name
+    legacy = ROOT / "data" / file_name
+    return [monthly, legacy]
+
+
+def _photo_report_source_path(file_name: str) -> Path:
+    monthly, legacy = _photo_report_source_candidates(file_name)
+    if monthly.exists():
+        return monthly
+    return legacy
+
+
 def fixture_contract(expected: dict) -> dict:
     return {
         "status": "ACTIVE",
@@ -179,9 +192,14 @@ class Kpione2PhotoGrainTests(unittest.TestCase):
             self.assertEqual(payload["photo_row_traceability"]["photo_rows_mapped"], 6)
 
     def test_real_workbook_matches_required_010c_evidence(self):
-        source = ROOT / "data" / "photo-excel-admin_1782440454408.xlsx"
+        file_name = "photo-excel-admin_1782440454408.xlsx"
+        source = _photo_report_source_path(file_name)
         if not source.exists():
-            self.skipTest("route b source workbook is not present")
+            candidates = ", ".join(
+                path.relative_to(ROOT).as_posix()
+                for path in _photo_report_source_candidates(file_name)
+            )
+            self.skipTest(f"route b source workbook is not present in: {candidates}")
         payload = loader.build_dry_run_payload(
             source,
             sheet_name="Fotos",
