@@ -22,10 +22,11 @@ EXPECTED_WOULD_STAGE_ROWS = 213181
 EXPECTED_LOAD_PLAN_SHA256 = "e634b4720b66db7a3036302e2553c53d7a93475257bb27410804f6b9efe8f7cd"
 EXPECTED_USER = "stock_zero_codex_ro"
 ROADMAP_LOCK_ID = "KPIONE_DB_TRANSITION_016_019_LOCK_V1"
-ROADMAP_LOCK_SHA256 = "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e"
+ROADMAP_LOCK_SHA256 = "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22"
+ROADMAP_LOCK_SHA256_METHOD = "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF"
 ROADMAP_LOCK_COMMIT = "5c0aa19ac753c21aa9bb43b6fdd72a927b694a5f"
-CURRENT_PHASE = "016"
-EXPECTED_NEXT_PHASE = "016A"
+CURRENT_PHASE = "016A"
+EXPECTED_NEXT_PHASE = "016B"
 TARGET_SCHEMA = "cg_raw"
 TARGET_TABLE = "kpione2_raw"
 TARGET_RELATION = f"{TARGET_SCHEMA}.{TARGET_TABLE}"
@@ -562,6 +563,7 @@ def make_base_payload(month: str, load_plan_path: Path) -> dict[str, Any]:
         "roadmap_compliance": {
             "roadmap_lock_id": ROADMAP_LOCK_ID,
             "roadmap_lock_sha256": ROADMAP_LOCK_SHA256,
+            "roadmap_lock_sha256_method": ROADMAP_LOCK_SHA256_METHOD,
             "roadmap_lock_commit": ROADMAP_LOCK_COMMIT,
             "current_phase": CURRENT_PHASE,
             "expected_next_phase": EXPECTED_NEXT_PHASE,

@@ -216,6 +216,46 @@
         "No DB write, SQL execution, Supabase mutation, loader modification, app runtime modification, contracts 014/015 modification, git add, commit, or push is authorized by this ADR."
       ],
       "impact": "The KPIONE DB transition is now locked to a governed, auditable sequence before any future apply or trial work."
+    },
+    {
+      "id": "ADR_016A_DIRECTIVE_AMENDMENT_AND_LEGACY_EVIDENCE_CLOSEOUT",
+      "date": "2026-07-12",
+      "status": "ACTIVE_LOCKED",
+      "decision": "Amend KPIONE_DB_TRANSITION_016_019_LOCK_V1 to redefine 016A as legacy evidence closeout and governed transition readiness for separately authorized 016B.",
+      "context": [
+        "PR #44 technically closed phase 016 and merged to main at 26fed014a2429811723ea35218a8619d9178efea.",
+        "016 evidence documents TABLE_STATE_CHANGED, historical rows 526022, current rows 45736, legacy_migration_authority=false, NO_SOURCE_SIGNAL not FRESH, exact overlap UNVERIFIABLE, and apply gate BLOCKED_FOR_IDEMPOTENCY_CONTRACT.",
+        "Hash reconciliation classified the prior cce9/a3cc mismatch as HASH_METHOD_MISMATCH_LINE_ENDINGS: Git blob LF bytes are canonical and CRLF working-tree bytes are not authority."
+      ],
+      "evidence": {
+        "roadmap_lock_id": "KPIONE_DB_TRANSITION_016_019_LOCK_V1",
+        "previous_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+        "new_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
+        "hash_method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
+        "working_tree_crlf_sha256": "a3ccfb17f74cd9bff06a119bb584ae835f2600f2bf140e9e8950e9c4108ae150",
+        "pr_44": {
+          "status": "MERGED",
+          "merge_commit": "26fed014a2429811723ea35218a8619d9178efea"
+        },
+        "current_phase": "016A",
+        "allowed_next_phase": "016B",
+        "016b_authorized": false,
+        "db_access": false,
+        "sql_executed": false,
+        "db_writes": false,
+        "apply_executed": false,
+        "cutover_executed": false,
+        "legacy_destructive_action": false
+      },
+      "rules": [
+        "The canonical roadmap SHA method is SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF.",
+        "The previous SHA remains valid only for the pre-amendment directive.",
+        "016 is closed by PR #44.",
+        "016A is the registered current phase after this amendment.",
+        "The allowed next phase is 016B, but 016B is not authorized by this ADR.",
+        "No Supabase access, SQL execution, DB writes, apply, cutover, app runtime change, loader change, contracts 014/015 change, or legacy destructive action occurred or is authorized."
+      ],
+      "impact": "Governance may review the 016A amendment PR; any 016B design still requires a separate explicit authorization after the 016A PR is accepted."
     }
   ],
   "deprecated_patterns": [

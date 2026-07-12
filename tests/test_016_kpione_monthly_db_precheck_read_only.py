@@ -317,10 +317,11 @@ class Precheck016Tests(unittest.TestCase):
         payload, _, _ = self.run_fake()
         compliance = payload["roadmap_compliance"]
         self.assertEqual(compliance["roadmap_lock_id"], "KPIONE_DB_TRANSITION_016_019_LOCK_V1")
-        self.assertEqual(compliance["roadmap_lock_sha256"], "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e")
+        self.assertEqual(compliance["roadmap_lock_sha256"], "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22")
+        self.assertEqual(compliance["roadmap_lock_sha256_method"], "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF")
         self.assertEqual(compliance["roadmap_lock_commit"], "5c0aa19ac753c21aa9bb43b6fdd72a927b694a5f")
-        self.assertEqual(compliance["current_phase"], "016")
-        self.assertEqual(compliance["expected_next_phase"], "016A")
+        self.assertEqual(compliance["current_phase"], "016A")
+        self.assertEqual(compliance["expected_next_phase"], "016B")
         self.assertEqual(compliance["roadmap_compliance"], "COMPLIANT")
         self.assertEqual(compliance["deviations_detected"], [])
 
