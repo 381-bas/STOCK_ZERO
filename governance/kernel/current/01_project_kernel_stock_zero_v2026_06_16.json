@@ -215,5 +215,49 @@
     "KERNEL_como_base_exhaustiva",
     "reducir_caracteres_a_costa_de_garantías",
     "añadir_control_sin_impacto_en_producto"
-  ]
+  ],
+  "operating_model_v2": {
+    "status": "ACTIVE",
+    "risk_classification": "R1_REPO_SAFE_GOVERNANCE_REFACTOR",
+    "single_authority": {
+      "PROJECT_KERNEL": "Principles, architecture, and actor authority.",
+      "PROJECT_STATE": "Current live state only.",
+      "PROJECT_LEDGER": "Durable decisions only.",
+      "Git/GitHub": "Branches, commits, pull requests, changed files, and merge history.",
+      "research": "Technical execution evidence when risk justifies it.",
+      "directive": "Current execution sequence and safety gates."
+    },
+    "duplication_rule": "Do not manually duplicate facts that can be referenced from Git/GitHub or repository paths.",
+    "risk_classes": {
+      "R1_REPO_SAFE": {
+        "minimum_governance": "PR + tests",
+        "productive_access": false
+      },
+      "R2_ARCHITECTURE": {
+        "minimum_governance": "ADR + PR + tests",
+        "productive_access": false
+      },
+      "R3_PRODUCTIVE": {
+        "minimum_governance": "authorization + plan + precheck + execution evidence + postcheck",
+        "productive_access": "explicit Bastian authorization required"
+      },
+      "R4_DESTRUCTIVE": {
+        "minimum_governance": "explicit authorization + impact analysis + backup + recovery plan",
+        "productive_access": "explicit Bastian authorization required"
+      }
+    },
+    "completion_rule": "A normal repository unit is complete when its objective is satisfied, tests pass, the PR is merged, and PROJECT_STATE is updated; no separate closeout phase is required.",
+    "evidence_rule": {
+      "R1": "PR and tests.",
+      "R2": "ADR, PR, and tests.",
+      "R3": "Authorization, plan, precheck, execution evidence, and postcheck.",
+      "R4": "Explicit authorization, impact analysis, backup, and recovery plan."
+    },
+    "agent_authority": {
+      "Bastian": "Business priority and R3/R4 authorization.",
+      "ChatGPT": "Architecture, scope, and risk classification.",
+      "Claude": "Adversarial review for material architecture uncertainty and R3/R4.",
+      "Codex": "Implementation, tests, and Git; may repair derived issues inside the same objective and risk class when productive behavior is not expanded."
+    }
+  }
 }

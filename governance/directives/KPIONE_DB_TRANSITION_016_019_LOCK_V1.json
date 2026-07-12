@@ -8,9 +8,9 @@
   "activated_on_branch": "lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only",
   "base_main_commit": "986d4b0f143a443527a0121d87e9b5981a6feef3",
   "created_at_utc": "2026-07-12T01:24:58Z",
-  "current_phase": "016A",
-  "allowed_next_phase": "016B",
-  "active_phase_count": 1,
+  "current_phase": "016A_CLOSED",
+  "allowed_next_phase": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+  "active_phase_count": 0,
   "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
   "destructive_action_authorized": false,
   "db_writes_authorized": false,
@@ -20,107 +20,92 @@
   "app_runtime_modification_authorized": false,
   "contracts_014_015_modification_authorized": false,
   "scope": {
-    "locked_sequence": [
+    "closed_history": [
       "016",
-      "016A",
-      "016B",
-      "016C",
-      "017A",
-      "017B",
-      "017C",
-      "018",
-      "019"
+      "016A"
+    ],
+    "future_operational_units": [
+      "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+      "017_APPLY_RUNNER_AND_REHEARSAL",
+      "018_PRODUCTIVE_APPLY",
+      "019_POST_APPLY_TRIAL"
     ],
     "sequence_is_non_negotiable": true,
     "no_parallel_phase_tracks": true,
-    "no_new_branch_required": true,
-    "no_new_phase_opened_by_this_directive": false,
-    "phase_opened_by_this_amendment": "016A",
-    "phase_not_opened_by_this_amendment": "016B"
+    "016b_authorized": false,
+    "productive_authorization_granted": false
   },
   "non_negotiable_sequence": [
     "016",
     "016A",
-    "016B",
-    "016C",
-    "017A",
-    "017B",
-    "017C",
-    "018",
-    "019"
+    "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+    "017_APPLY_RUNNER_AND_REHEARSAL",
+    "018_PRODUCTIVE_APPLY",
+    "019_POST_APPLY_TRIAL"
   ],
   "phases": [
     {
       "phase": "016",
+      "status": "CLOSED_HISTORY",
       "objective": "Complete read-only DB precheck evidence for KPIONE monthly transition without writes.",
-      "entry_gate": "Branch lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only at main@986d4b0; DB_URL_CODEX_RO only if DB is touched.",
-      "exit_gate": "Evidence is aggregate, read-only guardrails pass, discrepancy and NO_SOURCE_SIGNAL caveats are documented.",
-      "writes_allowed": "Repo-only evidence/script/test writes already authorized for 016; no DB writes.",
-      "authorization_required": "Bastian/ChatGPT explicit authorization for any additional file outside 016 scope."
+      "historical_evidence": "research/016_KPIONE_MONTHLY_DB_PRECHECK_READ_ONLY/",
+      "productive_authorization_granted": false
     },
     {
       "phase": "016A",
-      "objective": "Formally close phase 016 evidence, register PR #44 and merge 26fed01, reconcile the canonical roadmap hash method, and transition governance to allow a separately authorized 016B design phase.",
-      "entry_gate": "Phase 016 evidence is merged in PR #44; repository main is 26fed01; hash reconciliation classified the prior mismatch as line-ending-only; Bastian and ChatGPT explicitly authorize this amendment.",
-      "exit_gate": "Directive, human roadmap, PROJECT_STATE, PROJECT_LEDGER, derived roadmap constants, tests, and 016A evidence agree on current_phase 016A, allowed_next_phase 016B, canonical Git-blob SHA method, and all no-apply guardrails. No DB access or 016B work occurred.",
-      "writes_allowed": "Only the nine explicitly authorized repository files recorded in the 016A closeout evidence. No DB writes.",
-      "authorization_required": "Explicit separate Bastian and ChatGPT prompt before any 016B work."
+      "status": "CLOSED_HISTORY",
+      "objective": "Close phase 016 evidence, reconcile roadmap authority, and transition governance to the Operating Model V2 roadmap.",
+      "merge_evidence": "PR #45 merged at e115f45713c30ab3d0fecb4a75d2b0b35a693088",
+      "productive_authorization_granted": false
     },
     {
-      "phase": "016B",
-      "objective": "Design exact overlap/idempotency subphase using persisted identities or safe staging contract.",
-      "entry_gate": "016A evidence accepted.",
-      "exit_gate": "Exact comparison strategy is documented with cost, indexes, and no row-level export.",
-      "writes_allowed": "Design artifacts only.",
-      "authorization_required": "Explicit 016B reprompt."
+      "phase": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+      "short_name": "016B",
+      "status": "DEFINED_NOT_AUTHORIZED",
+      "objective": "Decide source grain, persisted grain, destination table or staging boundary, authoritative identity, idempotency behavior, correction/replay behavior, and readiness for runner construction.",
+      "entry_gate": "Separate explicit Bastian and ChatGPT authorization after Operating Model V2 is accepted.",
+      "exit_gate": "Either IDEMPOTENCY_CONTRACT_SELECTED or BLOCKED_EXACT_GAP_IDENTIFIED is recorded. The old 016C readiness decision is absorbed into this exit gate.",
+      "allowed_outputs": [
+        "IDEMPOTENCY_CONTRACT_SELECTED",
+        "BLOCKED_EXACT_GAP_IDENTIFIED"
+      ],
+      "writes_allowed": "Design/governance artifacts only when separately authorized; no DB access or SQL.",
+      "authorization_required": "Explicit 016B prompt. This directive reform does not authorize 016B."
     },
     {
-      "phase": "016C",
-      "objective": "Close pre-apply readiness decision for KPIONE June plan.",
-      "entry_gate": "016B design accepted.",
-      "exit_gate": "Apply is either blocked with evidence or promoted to 017A with gates.",
-      "writes_allowed": "Governance/evidence artifacts only.",
-      "authorization_required": "Explicit 016C reprompt."
+      "phase": "017_APPLY_RUNNER_AND_REHEARSAL",
+      "short_name": "017",
+      "status": "FUTURE_NOT_AUTHORIZED",
+      "objective": "Design or implement apply runner and rehearse under no-apply/dry-run gates after 016B acceptance.",
+      "entry_gate": "016B exit accepted and explicit 017 authorization granted.",
+      "internal_gates": [
+        "017A design readiness",
+        "017B runner implementation under no-apply guardrails",
+        "017C dry-run rehearsal and readiness"
+      ],
+      "compatibility_note": "Old 017A, 017B, and 017C are absorbed as internal gates of 017; historical evidence is not renamed.",
+      "writes_allowed": "Repo code/tests/evidence only when separately authorized; no DB writes.",
+      "authorization_required": "Explicit 017 prompt."
     },
     {
-      "phase": "017A",
-      "objective": "Prepare apply design and rollback design without execution.",
-      "entry_gate": "016C promotes the work to 017A.",
-      "exit_gate": "Apply/rollback plan is auditable and no execution has occurred.",
-      "writes_allowed": "Design artifacts and tests only.",
-      "authorization_required": "Explicit 017A reprompt."
-    },
-    {
-      "phase": "017B",
-      "objective": "Implement apply runner or staging mechanism under no-apply guardrails.",
-      "entry_gate": "017A design accepted.",
-      "exit_gate": "Runner/tests exist and default to no-apply.",
-      "writes_allowed": "Repo code/tests/evidence only; no DB writes.",
-      "authorization_required": "Explicit 017B reprompt."
-    },
-    {
-      "phase": "017C",
-      "objective": "Dry-run apply rehearsal and final apply readiness gate.",
-      "entry_gate": "017B implementation accepted.",
-      "exit_gate": "Dry-run evidence proves scope, idempotency, rollback path, and safety gates.",
-      "writes_allowed": "Read-only/dry-run evidence only.",
-      "authorization_required": "Explicit 017C reprompt."
-    },
-    {
-      "phase": "018",
+      "phase": "018_PRODUCTIVE_APPLY",
+      "short_name": "018",
+      "status": "FUTURE_NOT_AUTHORIZED",
       "objective": "Execute approved productive apply only if separately authorized.",
-      "entry_gate": "017C readiness accepted and explicit productive apply authorization granted.",
+      "entry_gate": "017 readiness accepted and explicit productive apply authorization granted.",
       "exit_gate": "Apply result, rollback readiness, and post-apply validation documented.",
       "writes_allowed": "DB writes only if exact command, role, phase, rollback, and confirmation are authorized.",
       "authorization_required": "Separate Bastian productive apply authorization."
     },
     {
-      "phase": "019",
+      "phase": "019_POST_APPLY_TRIAL",
+      "short_name": "019",
+      "status": "FUTURE_NOT_AUTHORIZED",
       "objective": "Post-apply trial, monitoring, and final transition decision.",
       "entry_gate": "018 apply completed or explicitly skipped with evidence.",
       "exit_gate": "Trial outcome accepted; deferred retention/destructive topics may be reconsidered only after this phase.",
       "writes_allowed": "Monitoring/evidence; destructive actions remain disallowed unless a new directive amendment exists.",
-      "authorization_required": "Explicit 019 reprompt and any separate production authorization."
+      "authorization_required": "Explicit 019 prompt and any separate production authorization."
     }
   ],
   "deferred_until_post_trial": [
@@ -142,31 +127,33 @@
       "changed_sequence_or_gate",
       "risk_assessment",
       "authorization_source",
-      "new_sha256"
+      "git_commit_reference_and_repository_path"
     ]
   },
   "hard_restrictions": [
-    "No DB writes",
-    "No SQL execution for this amendment",
-    "No Supabase mutation",
-    "No loader modification",
-    "No app runtime modification",
-    "No contracts 014/015 modification",
-    "No destructive action",
-    "No 016B design, implementation, execution, or PR readiness change in this phase",
-    "No merge of the resulting pull request by this phase"
+    "No Supabase access without separate authorization.",
+    "No SQL execution without separate authorization.",
+    "No DB reads or writes without separate authorization.",
+    "No app runtime modification in this reform.",
+    "No loader modification in this reform.",
+    "No contracts 013-016 technical artifact modification in this reform.",
+    "No apply, cutover, or destructive action.",
+    "016B is defined but not authorized."
   ],
   "validation_requirements": {
     "json_valid": true,
     "utf8": true,
     "mojibake_free": true,
-    "no_parallel_kernel": true,
-    "current_phase": "016A",
-    "allowed_next_phase": "016B",
-    "active_phase_count": 1,
+    "current_work": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+    "016b_authorized": false,
+    "future_operational_units": [
+      "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+      "017_APPLY_RUNNER_AND_REHEARSAL",
+      "018_PRODUCTIVE_APPLY",
+      "019_POST_APPLY_TRIAL"
+    ],
     "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
-    "destructive_action_authorized": false,
-    "016b_authorized": false
+    "destructive_action_authorized": false
   },
   "integrity_contract": {
     "method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
@@ -174,7 +161,8 @@
     "working_tree_bytes_are_not_authoritative": true,
     "line_ending_note": "CRLF checkout bytes may produce a different SHA256 without semantic drift.",
     "superseded_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
-    "superseded_sha256_status": "VALID_FOR_PRE_AMENDMENT_DIRECTIVE"
+    "superseded_sha256_status": "VALID_FOR_PRE_AMENDMENT_DIRECTIVE",
+    "future_manual_sha256_propagation": "RETIRED_BY_OPERATING_MODEL_V2"
   },
   "amendments": [
     {
@@ -210,5 +198,28 @@
       "legacy_destructive_action_authorized": false,
       "016b_authorized": false
     }
-  ]
+  ],
+  "authority_model": {
+    "method": "Git commit reference + repository path",
+    "directive_path": "governance/directives/KPIONE_DB_TRANSITION_016_019_LOCK_V1.json",
+    "manual_sha256_propagation_for_future_work": "RETIRED",
+    "historical_sha_fields_status": "HISTORICAL_ONLY"
+  },
+  "roadmap_compression": {
+    "status": "ACTIVE_FOR_FUTURE_WORK",
+    "future_units": [
+      "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+      "017_APPLY_RUNNER_AND_REHEARSAL",
+      "018_PRODUCTIVE_APPLY",
+      "019_POST_APPLY_TRIAL"
+    ],
+    "compatibility": {
+      "016C": "Absorbed into 016B exit gate as readiness decision.",
+      "017A": "Absorbed into 017 internal design readiness gate.",
+      "017B": "Absorbed into 017 internal runner implementation gate.",
+      "017C": "Absorbed into 017 internal dry-run rehearsal/readiness gate."
+    },
+    "historical_evidence_renamed": false,
+    "productive_authorization_granted": false
+  }
 }
