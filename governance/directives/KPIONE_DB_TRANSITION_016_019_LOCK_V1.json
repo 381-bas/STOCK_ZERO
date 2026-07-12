@@ -127,7 +127,7 @@
       "changed_sequence_or_gate",
       "risk_assessment",
       "authorization_source",
-      "new_sha256"
+      "git_commit_reference_and_repository_path"
     ]
   },
   "hard_restrictions": [

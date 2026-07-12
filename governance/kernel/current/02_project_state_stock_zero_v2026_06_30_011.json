@@ -6,8 +6,8 @@
   "state_source_commit": "RESOLVE_FROM_GIT",
   "overall_status": "ACTIVE_CONTROLLED_DEVELOPMENT",
   "executive_progress": {
-    "operating_model": "V2_REPO_ONLY_REFORM_IN_PROGRESS",
-    "last_accepted_governance_unit": "PR45_016A_DIRECTIVE_AMENDMENT_AND_LEGACY_EVIDENCE_CLOSEOUT",
+    "operating_model": "V2_ACTIVE",
+    "last_accepted_governance_unit": "OPERATING_MODEL_V2",
     "current_priority": "Prepare 016B identity grain and idempotency contract only after explicit authorization."
   },
   "active_product_state": {
@@ -27,7 +27,6 @@
     "authorization_required": "Separate explicit Bastian + ChatGPT prompt after Operating Model V2 is accepted."
   },
   "authorization": {
-    "risk_class": "R1_REPO_SAFE_GOVERNANCE_REFACTOR",
     "016B_authorized": false,
     "supabase_access_authorized": false,
     "sql_execution_authorized": false,
@@ -59,8 +58,7 @@
     }
   ],
   "next_actions": [
-    "Review and merge the Operating Model V2 draft PR if accepted.",
-    "After merge, request explicit authorization before any 016B design work.",
+    "Request explicit Bastian + ChatGPT authorization before any 016B design work.",
     "Keep productive gates closed until R3/R4 authorization exists."
   ],
   "references": {
