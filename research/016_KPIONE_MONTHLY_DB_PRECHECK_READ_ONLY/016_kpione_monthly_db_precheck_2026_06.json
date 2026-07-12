@@ -1,0 +1,823 @@
+{
+  "apply_gate": "BLOCKED_FOR_IDEMPOTENCY_CONTRACT",
+  "batch_coverage": {
+    "batches_with_plan_source_files": [],
+    "recent_batches_limited_50": [
+      {
+        "batch_id": "38",
+        "fecha_max": "2026-06-01",
+        "fecha_min": "2026-04-07",
+        "rows": 45736,
+        "source_file_count": 1
+      }
+    ]
+  },
+  "blockers": [],
+  "coarse_overlap_classification": "NO_SOURCE_SIGNAL",
+  "connection_proof": {
+    "current_schema": "public",
+    "current_user": "stock_zero_codex_ro",
+    "database_name_redacted": true,
+    "db_url_source": "env",
+    "default_transaction_read_only": "on",
+    "idle_transaction_timeout": "1min",
+    "lock_timeout": "5s",
+    "statement_timeout": "2min",
+    "transaction_read_only": "on"
+  },
+  "database_state": {
+    "approximate_total_rows": 45736,
+    "batch_count": 1,
+    "batch_ids": [
+      "38"
+    ],
+    "date_counts": [
+      {
+        "fecha": "2026-06-01",
+        "rows": 1221
+      }
+    ],
+    "exact_total_rows": 45736,
+    "fecha_max": "2026-06-01",
+    "fecha_min": "2026-04-07",
+    "null_counts": {
+      "batch_id_nulls": 0,
+      "fecha_visita_nulls": 0,
+      "payload_json_nulls": 0,
+      "source_file_nulls": 0,
+      "source_row_nulls": 0
+    },
+    "range_summary": {
+      "rows_july": 0,
+      "rows_june_carry_forward_window": 0,
+      "rows_june_operational": 1221
+    },
+    "relation_size_bytes": 41017344,
+    "total_relation_size_bytes": 44875776,
+    "week_counts": [
+      {
+        "rows": 1221,
+        "week_start": "2026-06-01"
+      }
+    ]
+  },
+  "db_state_sha256": "efab4a7ba21c05c37a0f5b8fc2eda2f6b6a8dba4c0a8e44e82d6c9203d774bdb",
+  "dependencies": [
+    {
+      "dependent_kind": "v",
+      "dependent_name": "v_cg_evidencia_unificada_v2",
+      "dependent_schema": "cg_core"
+    }
+  ],
+  "exact_overlap_classification": "UNVERIFIABLE",
+  "exact_overlap_feasibility": {
+    "exact_comparison_potentially_feasible": false,
+    "json_identity_present": false,
+    "legacy_source_file_source_row_present": true,
+    "operationally_unsafe_reason": "legacy_source_file_source_row_requires_manifest_mapping",
+    "payload_json_indexed": false,
+    "physical_event_id_photo_row_hash_indexed": false,
+    "physical_event_id_photo_row_hash_present": false,
+    "physical_source_file_id_source_row_number_indexed": false,
+    "physical_source_file_id_source_row_number_present": false
+  },
+  "guardrails": {
+    "db_access_used": true,
+    "default_transaction_read_only": true,
+    "rollback_completed": true,
+    "transaction_read_only": true,
+    "write_privileges_present": false,
+    "writes_attempted": false
+  },
+  "historical_state_discrepancy": {
+    "blocker_for_new_design": false,
+    "classification": "TABLE_STATE_CHANGED",
+    "current_batch_ids": [
+      "38"
+    ],
+    "current_exact_row_count": 45736,
+    "current_fecha_max": "2026-06-01",
+    "current_fecha_min": "2026-04-07",
+    "current_matches_latest_historical_batch_loaded_rows": true,
+    "explanation": [
+      "526022 corresponds to a previously evidenced accumulated historical state.",
+      "45736 is the current reproducible live state.",
+      "The current count matches loaded_rows for historical batch 38.",
+      "This is consistent with replacement, cleanup, or reconstruction of table state.",
+      "The exact operation that produced the change is not asserted without evidence.",
+      "The legacy table is documented as evidence of the previous runtime.",
+      "The legacy table does not govern the design of the new architecture."
+    ],
+    "historical_batch_count": 19,
+    "historical_evidence": [
+      "research/C002_B0_PARITY_ROOTCAUSE.json",
+      "research/C005_BUILD_PROVENANCE_AUDIT.json"
+    ],
+    "historical_row_count": 526022,
+    "latest_historical_batch_id": "38",
+    "latest_historical_batch_loaded_rows": 45736,
+    "legacy_migration_authority": false,
+    "resolution_status": "DOCUMENTED_NOT_RECONSTRUCTED",
+    "target": "cg_raw.kpione2_raw",
+    "warning_condition": true
+  },
+  "json_identity_key_presence": {
+    "dry_run_batch_id": 0,
+    "event_id": 0,
+    "event_stable_hash": 0,
+    "photo_row_hash": 0,
+    "source_file_id": 0,
+    "source_file_sha256": 0,
+    "source_row_number": 0
+  },
+  "load_plan": {
+    "carry_forward_out_rows": 15889,
+    "dry_run_batch_id_present_in_plan": true,
+    "file_sha256_after": "e31be4b63b9e039ebcdd4b41fe00c1c559cc950af02792dc5ac55fb4521bac02",
+    "file_sha256_before": "e31be4b63b9e039ebcdd4b41fe00c1c559cc950af02792dc5ac55fb4521bac02",
+    "load_plan_sha256": "e634b4720b66db7a3036302e2553c53d7a93475257bb27410804f6b9efe8f7cd",
+    "path": "research/015C_KPIONE_MONTHLY_LOAD_DRY_RUN_NO_APPLY/015C_kpione_monthly_load_dry_run_2026_06.json",
+    "sha256_after": "e634b4720b66db7a3036302e2553c53d7a93475257bb27410804f6b9efe8f7cd",
+    "sha256_before": "e634b4720b66db7a3036302e2553c53d7a93475257bb27410804f6b9efe8f7cd",
+    "source_file_count": 9,
+    "would_stage_rows": 213181
+  },
+  "month_id": "2026-06",
+  "observed_at": "2026-07-12T02:35:19+00:00",
+  "persisted_grain": {
+    "inferred_from_loader": "one raw Excel row per target row; unique protection is batch_id + source_row in local SQL/loader",
+    "physical_columns_present": {
+      "batch_id": true,
+      "dry_run_batch_id": false,
+      "event_id": false,
+      "event_stable_hash": false,
+      "fecha_visita": true,
+      "inserted_at": false,
+      "loader_version": false,
+      "payload_json": true,
+      "photo_row_hash": false,
+      "source_file": true,
+      "source_file_id": false,
+      "source_file_sha256": false,
+      "source_row": true,
+      "source_row_number": false
+    }
+  },
+  "phase_id": "016_KPIONE_MONTHLY_DB_PRECHECK_READ_ONLY",
+  "query_audit": [
+    {
+      "duration_ms": 178,
+      "error": null,
+      "purpose": "Resolve target schema/table existence.",
+      "result_rows": 1,
+      "statement_id": "target_exists"
+    },
+    {
+      "duration_ms": 167,
+      "error": null,
+      "purpose": "Check effective table privileges for the current role.",
+      "result_rows": 1,
+      "statement_id": "target_privileges"
+    },
+    {
+      "duration_ms": 163,
+      "error": null,
+      "purpose": "Read target physical columns and generated/identity metadata.",
+      "result_rows": 34,
+      "statement_id": "target_columns"
+    },
+    {
+      "duration_ms": 172,
+      "error": null,
+      "purpose": "Read primary, unique, check, and foreign-key constraints.",
+      "result_rows": 3,
+      "statement_id": "target_constraints"
+    },
+    {
+      "duration_ms": 220,
+      "error": null,
+      "purpose": "Read target index definitions and validity state.",
+      "result_rows": 6,
+      "statement_id": "target_indexes"
+    },
+    {
+      "duration_ms": 272,
+      "error": null,
+      "purpose": "Read non-internal triggers.",
+      "result_rows": 0,
+      "statement_id": "target_triggers"
+    },
+    {
+      "duration_ms": 316,
+      "error": null,
+      "purpose": "Read owner, RLS flags, relation sizes, and approximate row count.",
+      "result_rows": 1,
+      "statement_id": "target_owner_rls_size"
+    },
+    {
+      "duration_ms": 309,
+      "error": null,
+      "purpose": "Read RLS policy metadata without row data.",
+      "result_rows": 0,
+      "statement_id": "target_policies"
+    },
+    {
+      "duration_ms": 321,
+      "error": null,
+      "purpose": "Read view and materialized-view dependencies on target.",
+      "result_rows": 1,
+      "statement_id": "target_dependencies"
+    },
+    {
+      "duration_ms": 359,
+      "error": null,
+      "purpose": "Aggregate total rows and fecha_visita min/max.",
+      "result_rows": 1,
+      "statement_id": "state_total_minmax"
+    },
+    {
+      "duration_ms": 266,
+      "error": null,
+      "purpose": "Aggregate date coverage for June and July 2026.",
+      "result_rows": 1,
+      "statement_id": "state_date_counts"
+    },
+    {
+      "duration_ms": 297,
+      "error": null,
+      "purpose": "Aggregate operational June, carry-forward, and July windows.",
+      "result_rows": 1,
+      "statement_id": "state_range_summary"
+    },
+    {
+      "duration_ms": 269,
+      "error": null,
+      "purpose": "Aggregate rows by Monday week start.",
+      "result_rows": 1,
+      "statement_id": "state_week_counts"
+    },
+    {
+      "duration_ms": 253,
+      "error": null,
+      "purpose": "Aggregate nulls in technical identity columns.",
+      "result_rows": 1,
+      "statement_id": "state_null_counts"
+    },
+    {
+      "duration_ms": 278,
+      "error": null,
+      "purpose": "Aggregate presence of known identity keys inside payload_json.",
+      "result_rows": 1,
+      "statement_id": "json_identity_key_presence"
+    },
+    {
+      "duration_ms": 238,
+      "error": null,
+      "purpose": "Aggregate source_file coverage for 015C file names.",
+      "result_rows": 0,
+      "statement_id": "source_file_scope_counts"
+    },
+    {
+      "duration_ms": 228,
+      "error": null,
+      "purpose": "Aggregate batches containing 015C file names.",
+      "result_rows": 0,
+      "statement_id": "batch_scope_counts"
+    },
+    {
+      "duration_ms": 229,
+      "error": null,
+      "purpose": "Aggregate recent target batches.",
+      "result_rows": 1,
+      "statement_id": "recent_batch_counts"
+    },
+    {
+      "duration_ms": 243,
+      "error": null,
+      "purpose": "Aggregate exact distinct target batch ids.",
+      "result_rows": 1,
+      "statement_id": "state_batch_ids"
+    }
+  ],
+  "query_plan_sha256": "eaf746c2960c8c9dc8a54ceb8073a4b506e18a9a3a2fdd63091cc3600523cf2b",
+  "roadmap_compliance": {
+    "current_phase": "016",
+    "deviations_detected": [],
+    "expected_next_phase": "016A",
+    "roadmap_compliance": "COMPLIANT",
+    "roadmap_lock_commit": "5c0aa19ac753c21aa9bb43b6fdd72a927b694a5f",
+    "roadmap_lock_id": "KPIONE_DB_TRANSITION_016_019_LOCK_V1",
+    "roadmap_lock_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e"
+  },
+  "schema": {
+    "columns": [
+      {
+        "column_default": "nextval('cg_raw.kpione2_raw_id_seq'::regclass)",
+        "column_name": "id",
+        "data_type": "bigint",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "NO",
+        "ordinal_position": 1,
+        "udt_name": "int8"
+      },
+      {
+        "column_default": null,
+        "column_name": "batch_id",
+        "data_type": "bigint",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "NO",
+        "ordinal_position": 2,
+        "udt_name": "int8"
+      },
+      {
+        "column_default": null,
+        "column_name": "source_file",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "NO",
+        "ordinal_position": 3,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "source_sheet",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "NO",
+        "ordinal_position": 4,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "source_row",
+        "data_type": "integer",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "NO",
+        "ordinal_position": 5,
+        "udt_name": "int4"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "ingested_at",
+        "data_type": "timestamp with time zone",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "NO",
+        "ordinal_position": 6,
+        "udt_name": "timestamptz"
+      },
+      {
+        "column_default": null,
+        "column_name": "payload_json",
+        "data_type": "jsonb",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "NO",
+        "ordinal_position": 7,
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": null,
+        "column_name": "source_event_id",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 8,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "sp_item_id",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 9,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "holding_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 10,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "subcadena_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 11,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "codigo_local_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 12,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "marca_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 13,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "local_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 14,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "direccion_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 15,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "reponedor_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 16,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "fecha_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 17,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "hora_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 18,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "tipo_tarea_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 19,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "n_fotos_raw",
+        "data_type": "integer",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 20,
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "comentarios_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 21,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "link_foto_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 22,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "visita_raw",
+        "data_type": "numeric",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 23,
+        "udt_name": "numeric"
+      },
+      {
+        "column_default": null,
+        "column_name": "registro_fuera_cruce_raw",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 24,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "semana_raw",
+        "data_type": "integer",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 25,
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "holding_norm",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 26,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "codigo_local_norm",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 27,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "marca_norm",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 28,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "reponedor_norm",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 29,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "fecha_visita",
+        "data_type": "date",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 30,
+        "udt_name": "date"
+      },
+      {
+        "column_default": null,
+        "column_name": "semana_iso",
+        "data_type": "integer",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 31,
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "visita_value",
+        "data_type": "numeric",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 32,
+        "udt_name": "numeric"
+      },
+      {
+        "column_default": null,
+        "column_name": "registro_fuera_cruce",
+        "data_type": "text",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 33,
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "has_evidence",
+        "data_type": "boolean",
+        "generation_expression": null,
+        "identity_generation": null,
+        "is_generated": "NEVER",
+        "is_nullable": "YES",
+        "ordinal_position": 34,
+        "udt_name": "bool"
+      }
+    ],
+    "constraints": [
+      {
+        "constraint_name": "kpione2_raw_batch_id_fkey",
+        "constraint_type": "f",
+        "definition": "FOREIGN KEY (batch_id) REFERENCES cg_audit.batch_registry(batch_id)"
+      },
+      {
+        "constraint_name": "kpione2_raw_pkey",
+        "constraint_type": "p",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "constraint_name": "kpione2_raw_batch_id_source_row_key",
+        "constraint_type": "u",
+        "definition": "UNIQUE (batch_id, source_row)"
+      }
+    ],
+    "indexes": [
+      {
+        "definition": "CREATE INDEX ix_kpione2_raw_batch_id ON cg_raw.kpione2_raw USING btree (batch_id)",
+        "index_name": "ix_kpione2_raw_batch_id",
+        "is_primary": false,
+        "is_ready": true,
+        "is_unique": false,
+        "is_valid": true
+      },
+      {
+        "definition": "CREATE INDEX ix_kpione2_raw_codigo_local_norm ON cg_raw.kpione2_raw USING btree (codigo_local_norm)",
+        "index_name": "ix_kpione2_raw_codigo_local_norm",
+        "is_primary": false,
+        "is_ready": true,
+        "is_unique": false,
+        "is_valid": true
+      },
+      {
+        "definition": "CREATE INDEX ix_kpione2_raw_fecha_visita ON cg_raw.kpione2_raw USING btree (fecha_visita)",
+        "index_name": "ix_kpione2_raw_fecha_visita",
+        "is_primary": false,
+        "is_ready": true,
+        "is_unique": false,
+        "is_valid": true
+      },
+      {
+        "definition": "CREATE INDEX ix_kpione2_raw_marca_norm ON cg_raw.kpione2_raw USING btree (marca_norm)",
+        "index_name": "ix_kpione2_raw_marca_norm",
+        "is_primary": false,
+        "is_ready": true,
+        "is_unique": false,
+        "is_valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX kpione2_raw_batch_id_source_row_key ON cg_raw.kpione2_raw USING btree (batch_id, source_row)",
+        "index_name": "kpione2_raw_batch_id_source_row_key",
+        "is_primary": false,
+        "is_ready": true,
+        "is_unique": true,
+        "is_valid": true
+      },
+      {
+        "definition": "CREATE UNIQUE INDEX kpione2_raw_pkey ON cg_raw.kpione2_raw USING btree (id)",
+        "index_name": "kpione2_raw_pkey",
+        "is_primary": true,
+        "is_ready": true,
+        "is_unique": true,
+        "is_valid": true
+      }
+    ],
+    "owner": "postgres",
+    "privileges": {
+      "can_delete": false,
+      "can_insert": false,
+      "can_references": false,
+      "can_select": true,
+      "can_trigger": false,
+      "can_truncate": false,
+      "can_update": false,
+      "schema_usage": true
+    },
+    "rls": {
+      "policies": [],
+      "relforcerowsecurity": false,
+      "relrowsecurity": false
+    },
+    "triggers": []
+  },
+  "source_file_coverage": {
+    "dry_run_batch_id_present": false,
+    "matched_source_file_count": 0,
+    "matched_source_files": [],
+    "plan_source_file_count": 9,
+    "source_file_counts": []
+  },
+  "source_signal_interpretation": {
+    "apply_gate": "BLOCKED_FOR_IDEMPOTENCY_CONTRACT",
+    "coarse_classification": "NO_SOURCE_SIGNAL",
+    "exact_identity_available": false,
+    "exact_overlap_classification": "UNVERIFIABLE",
+    "explanation": "Absence of legacy source-file matches or dry_run_batch_id does not prove that equivalent rows are absent.",
+    "notes": [
+      "Legacy source_file is not necessarily equivalent to the 015C source_file_id.",
+      "dry_run_batch_id did not exist historically.",
+      "Zero matching filenames does not prove zero overlap.",
+      "There is no persisted identity sufficient for exact comparison.",
+      "exact_overlap_classification remains UNVERIFIABLE.",
+      "apply_gate remains BLOCKED_FOR_IDEMPOTENCY_CONTRACT."
+    ],
+    "policy": "NO_SOURCE_SIGNAL DOES NOT IMPLY FRESH.",
+    "proves_freshness": false,
+    "proves_no_overlap": false
+  },
+  "target_resolution": {
+    "local_proof": {
+      "downstream_sql_mentions_target": true,
+      "incremental_helper_consumes_downstream_marts": true,
+      "loader_v17_points_to_target": true,
+      "schema_draft_defines_target": true,
+      "target_allowlist": [
+        "cg_raw.kpione2_raw"
+      ]
+    },
+    "schema_exists": true,
+    "table_exists": true,
+    "target_relation": "cg_raw.kpione2_raw"
+  },
+  "verdict": "WARN",
+  "warnings": [
+    "exact_duplicate_rows_removed:10089",
+    "excluded_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1",
+    "input_validation_verdict_warn",
+    "non_candidate_files_excluded:2",
+    "photo_invalid_date_rows:photo-excel-admin_1781976368641.xlsx:1",
+    "same_id_same_hash:1579",
+    "historical_state_discrepancy:TABLE_STATE_CHANGED"
+  ]
+}
