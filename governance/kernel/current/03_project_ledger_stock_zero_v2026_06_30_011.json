@@ -268,6 +268,36 @@
         "PR #45 review fix reconciles authorized repository file count to nine without productive behavior changes; 016B remains not authorized."
       ],
       "impact": "Governance may review the 016A amendment PR; any 016B design still requires a separate explicit authorization after the 016A PR is accepted."
+    },
+    {
+      "id": "ADR_OPERATING_MODEL_V2",
+      "date": "2026-07-12",
+      "status": "ACTIVE",
+      "decision": "Adopt Operating Model V2 for STOCK_ZERO governance: single authority surfaces, compact live state, risk-class governance, no standalone closeout phases, compressed future KPIONE roadmap, and Git/path authority instead of future manual directive-hash propagation.",
+      "context": [
+        "Route B structural reform was accepted because governance overhead was displacing functional and operational progress.",
+        "PROJECT_KERNEL remains the constitution, PROJECT_STATE becomes live state only, PROJECT_LEDGER remains append-only durable decisions, and Git/GitHub hold repository history.",
+        "PROJECT_TECHNICAL_EVIDENCE is retained as a historical snapshot but deprecated as a live source."
+      ],
+      "rules": [
+        "Do not manually duplicate facts that can be referenced from Git/GitHub or repository paths.",
+        "R1_REPO_SAFE requires PR + tests; R2_ARCHITECTURE requires ADR + PR + tests; R3_PRODUCTIVE requires authorization + plan + precheck + execution evidence + postcheck; R4_DESTRUCTIVE requires explicit authorization + impact analysis + backup + recovery plan.",
+        "Normal repository units do not require separate closeout phases once objective, tests, merge, and PROJECT_STATE update are complete.",
+        "Future KPIONE transition roadmap is compressed to 016B, 017, 018, and 019.",
+        "Future manual directive SHA propagation is retired; authority is repository path plus Git commit reference.",
+        "016B remains not authorized."
+      ],
+      "evidence": {
+        "risk_classification": "R1_REPO_SAFE_GOVERNANCE_REFACTOR",
+        "productive_changes_made": false,
+        "db_access": false,
+        "sql_executed": false,
+        "db_writes": false,
+        "apply_executed": false,
+        "cutover_executed": false,
+        "legacy_destructive_action": false
+      },
+      "impact": "Governance is reduced to live state, durable decisions, directive gates, and Git/PR history; 016B may only begin after separate explicit authorization."
     }
   ],
   "deprecated_patterns": [

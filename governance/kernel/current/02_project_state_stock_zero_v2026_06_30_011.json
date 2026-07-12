@@ -1,311 +1,79 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "3.0",
   "document_type": "project_state",
   "project": "STOCK_ZERO",
-  "version": "2026.06.30.011",
-  "generated_at": "2026-07-01T23:32:24+00:00",
+  "state_as_of_utc": "2026-07-12T14:14:32+00:00",
+  "state_source_commit": "RESOLVE_FROM_GIT",
   "overall_status": "ACTIVE_CONTROLLED_DEVELOPMENT",
-  "current_focus": "KPIONE_DB_TRANSITION_016_019_LOCK_V1: 016 cerrada por PR #44; 016A registra la enmienda de directiva, cierre de evidencia legacy, método SHA256 canónico Git-blob LF y transición gobernada hacia 016B, sin autorizar 016B, Supabase, SQL, DB writes, apply, cutover ni acciones destructivas.",
-  "roadmap_lock": {
-    "roadmap_lock_id": "KPIONE_DB_TRANSITION_016_019_LOCK_V1",
-    "roadmap_lock_sha256": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
-    "status": "ACTIVE_LOCKED",
-    "directive_path": "governance/directives/KPIONE_DB_TRANSITION_016_019_LOCK_V1.json",
-    "human_doc_path": "docs/governance/KPIONE_DB_TRANSITION_016_019_LOCK.md",
-    "current_phase": "016A",
-    "allowed_next_phase": "016B",
-    "active_phase_count": 1,
-    "parallel_phase_allowed": false,
-    "locked_sequence": [
-      "016",
-      "016A",
-      "016B",
-      "016C",
-      "017A",
-      "017B",
-      "017C",
-      "018",
-      "019"
+  "executive_progress": {
+    "operating_model": "V2_REPO_ONLY_REFORM_IN_PROGRESS",
+    "last_accepted_governance_unit": "PR45_016A_DIRECTIVE_AMENDMENT_AND_LEGACY_EVIDENCE_CLOSEOUT",
+    "current_priority": "Prepare 016B identity grain and idempotency contract only after explicit authorization."
+  },
+  "active_product_state": {
+    "platform": "STOCK_ZERO / GESTIONZERO",
+    "control_gestion": "KPIONE transition is governed; no productive apply or source cutover is authorized.",
+    "legacy_kpione_state": "Evidence of previous runtime, not migration authority for the new architecture."
+  },
+  "current_work": {
+    "unit": "016B",
+    "unit_name": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+    "status": "NOT_AUTHORIZED",
+    "objective_when_authorized": "Decide source grain, persisted grain, destination or staging boundary, authoritative identity, idempotency behavior, correction/replay behavior, and readiness for runner construction.",
+    "allowed_outputs_when_authorized": [
+      "IDEMPOTENCY_CONTRACT_SELECTED",
+      "BLOCKED_EXACT_GAP_IDENTIFIED"
     ],
-    "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
-    "destructive_action_authorized": false,
-    "deviation_requires_directive_amendment": true,
-    "activated_on_branch": "lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only",
-    "base_main_commit": "26fed014a2429811723ea35218a8619d9178efea",
-    "roadmap_lock_previous_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
-    "roadmap_lock_sha256_method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
-    "phase_016_status": "CLOSED_BY_PR_44",
-    "phase_016a_status": "DOCUMENTARY_CLOSEOUT_COMPLETE_PENDING_PR_REVIEW",
-    "phase_016b_authorized": false,
-    "pr_44": {
-      "status": "MERGED",
-      "merge_commit": "26fed014a2429811723ea35218a8619d9178efea",
-      "closed_phase": "016"
-    },
-    "hash_reconciliation": {
-      "classification": "HASH_METHOD_MISMATCH_LINE_ENDINGS",
-      "canonical_method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
-      "previous_canonical_git_blob_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
-      "working_tree_crlf_sha256": "a3ccfb17f74cd9bff06a119bb584ae835f2600f2bf140e9e8950e9c4108ae150",
-      "new_canonical_git_blob_sha256": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
-      "working_tree_bytes_are_authority": false,
-      "pre_review_fix_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22"
-    },
-    "apply_gate": "BLOCKED_FOR_IDEMPOTENCY_CONTRACT",
+    "authorization_required": "Separate explicit Bastian + ChatGPT prompt after Operating Model V2 is accepted."
+  },
+  "authorization": {
+    "risk_class": "R1_REPO_SAFE_GOVERNANCE_REFACTOR",
     "016B_authorized": false,
     "supabase_access_authorized": false,
     "sql_execution_authorized": false,
+    "db_reads_authorized": false,
     "db_writes_authorized": false,
     "apply_authorized": false,
     "cutover_authorized": false,
     "legacy_destructive_action_authorized": false,
-    "amendment_branch": "lab/FAST_REFORM_016A_directive_amendment_legacy_closeout",
-    "next_permitted_action": "Review and merge the 016A draft PR; only after that, a separate explicit prompt may authorize 016B design.",
-    "roadmap_lock_pre_amendment_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
-    "review_fix": {
-      "classification": "AUTHORIZED_FILE_COUNT_RECONCILIATION",
-      "previous_declared_count": 8,
-      "actual_authorized_count": 9,
-      "additional_authorized_file": "tests/test_sz_worktree_tooling.py",
-      "pre_review_fix_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
-      "directive_sha256_after_review_fix": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
-      "productive_behavior_changed": false,
-      "016b_authorized": false
-    }
+    "app_runtime_modification_authorized": false,
+    "loader_modification_authorized": false,
+    "contracts_013_016_modification_authorized": false
   },
-  "repository": {
-    "full_name": "381-bas/STOCK_ZERO",
-    "default_branch": "main",
-    "feature_branch": "codex/CG005N-package-correction",
-    "feature_commit": "a181142ec46711b41d591fe4d5450b8b5859e0cf",
-    "base_main_commit_observed": "4fb7a7f23c2d4a28529c31efb8d206254acd1fcc",
-    "feature_branch_pushed": true,
-    "pull_request_evidence": true,
-    "merge_evidence": true,
-    "pull_request": {
-      "number": 3,
-      "url": "https://github.com/381-bas/STOCK_ZERO/pull/3",
-      "state": "closed",
-      "merged": true,
-      "base": "main",
-      "head": "codex/CG005N-package-correction",
-      "head_sha": "a181142ec46711b41d591fe4d5450b8b5859e0cf",
-      "base_sha_before_merge": "4fb7a7f23c2d4a28529c31efb8d206254acd1fcc",
-      "merge_commit_sha": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
-      "commits": 1,
-      "changed_files": 7
-    },
-    "main_commit_after_cg005n_q_merge": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
-    "main_commit_after_cleanup_register_merge": "57ef2e0b258486ac0bdeffb60b3f5bcf36e6e514",
-    "current_main_commit_observed": "57ef2e0b258486ac0bdeffb60b3f5bcf36e6e514",
-    "cleanup_register_pull_request": {
-      "number": 4,
-      "url": "https://github.com/381-bas/STOCK_ZERO/pull/4",
-      "state": "closed",
-      "merged": true,
-      "base": "main",
-      "base_sha_before_merge": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
-      "head": "codex/supabase-cleanup-no-drop-register",
-      "head_sha": "e870ff76a62c3f2f8ead3960104b0e972090cb82",
-      "merge_commit_sha": "57ef2e0b258486ac0bdeffb60b3f5bcf36e6e514",
-      "commits": 1,
-      "changed_files": 1,
-      "file": "research/SUPABASE_CLEANUP_NO_DROP_REGISTER_20260620.json"
-    }
-  },
-  "control_gestion": {
-    "status": "OPERATIONAL_INCREMENTAL",
-    "runtime_weekly_source": "cg_mart.fact_cg_out_weekly_v2",
-    "daily_fact": "cg_mart.fact_cg_visita_dia_resuelta_v2",
-    "precedence": [
-      "KPIONE2",
-      "POWER_APP",
-      "KPIONE1_AUDIT_ONLY"
-    ],
-    "duplicate_route_fix": "validated",
-    "productive_loader": {
-      "path": "data/CUMPLIMIENTO_FRECUENCIA.xlsx",
-      "sheet": "DB (KPIONE2.0)",
-      "version": "v17_9C6A_forward_source_realign"
-    }
-  },
-  "cg005n_q": {
-    "status": "MERGED_TO_MAIN_CODE_ONLY",
-    "purpose": "Asignación explícita de ruta por semana con fallback legacy y rollback lógico signature-preserving.",
-    "package_commit": "a181142ec46711b41d591fe4d5450b8b5859e0cf",
-    "local_lab": {
-      "verdict": "LAB_PASS",
-      "postgres_image": "postgres:17-alpine",
-      "prestate_fingerprint_match": true,
-      "sql13_apply_passed": true,
-      "behavior_tests_passed": true,
-      "assignment_rollback_blocker_passed": true,
-      "sql14_logical_rollback_passed": true,
-      "cleanup_complete": true,
-      "supabase_writes": false
-    },
-    "productive_drift_audit": {
-      "verdict": "PASS",
-      "drift_class": "NO_DRIFT",
-      "role": "stock_zero_codex_ro",
-      "transaction_read_only": "on",
-      "route_batch_count": 19,
-      "max_ruta_batch_id": 19,
-      "assignment_table_exists": false,
-      "assignment_row_count": 0,
-      "material_dependency_unknowns": 0
-    },
-    "not_authorized": [
-      "Supabase_DDL_apply",
-      "SQL13_productive_apply",
-      "production_data_load",
-      "Supabase_cleanup_drop_or_archive",
-      "DROP_DELETE_TRUNCATE_ARCHIVE"
-    ],
-    "pull_request": {
-      "number": 3,
-      "url": "https://github.com/381-bas/STOCK_ZERO/pull/3",
-      "draft": false,
-      "mergeable_at_review": true,
-      "changed_files": 7,
-      "unexpected_files": [],
-      "loaders_modified": false,
-      "kernels_modified": false,
-      "platform_memory_files_modified": false
-    },
-    "merge": {
-      "verdict": "MERGED_TO_MAIN_CODE_ONLY",
-      "merge_commit_sha": "e46bdb15cd2db2c1e590e411ad39df22e263a0cc",
-      "post_merge_local_sync": "POST_MERGE_OK",
-      "origin_main_matches_expected": true,
-      "tests": {
-        "collected": 58,
-        "passed": 58,
-        "failed": 0
-      },
-      "py_compile_passed": true,
-      "preflight_skip_db_passed_or_warn_only": true,
-      "supabase_access": false
-    }
-  },
-  "security": {
-    "readonly_role": "stock_zero_codex_ro",
-    "app_read_role": "stock_zero_readonly",
-    "ddl_rule": "separate_explicit_authorization",
-    "credential_rule": "Credenciales solo por variable de entorno del proceso; nunca en KERNEL, prompts o repositorio."
-  },
-  "open_risks": [
+  "active_risks": [
     {
-      "risk": "016A closeout mistaken as authorization for 016B",
-      "control": "PROJECT_STATE records 016B_authorized=false and requires separate Bastian/ChatGPT prompt before any 016B work."
+      "risk": "016B treated as implicitly open after roadmap compression.",
+      "control": "current_work.status remains NOT_AUTHORIZED and 016B_authorized=false."
     },
     {
-      "risk": "Working-tree CRLF hash mistaken for roadmap authority",
-      "control": "Canonical hash method is SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF; working-tree bytes are not authoritative."
+      "risk": "Governance duplication displaces product progress.",
+      "control": "PROJECT_STATE contains live state only; history lives in Git, PRs, ledger, and research."
     },
     {
-      "risk": "Legacy KPIONE table state treated as migration authority",
-      "control": "Legacy state remains evidence only; migration authority stays in governed 016B+ contracts."
+      "risk": "Legacy KPIONE evidence treated as migration authority.",
+      "control": "Legacy state is evidence only; 016B must select authority and idempotency contract before implementation."
+    },
+    {
+      "risk": "Productive actions inferred from repo-only governance.",
+      "control": "All DB, SQL, apply, cutover, app, loader, and destructive flags remain false."
     }
   ],
   "next_actions": [
-    "Review the 016A draft PR; do not merge automatically.",
-    "Do not open, design, or execute 016B until a separate explicit Bastian and ChatGPT authorization exists."
+    "Review and merge the Operating Model V2 draft PR if accepted.",
+    "After merge, request explicit authorization before any 016B design work.",
+    "Keep productive gates closed until R3/R4 authorization exists."
   ],
-  "supabase_cleanup_discovery": {
-    "status": "NO_DROP_REGISTERED_IN_MAIN",
-    "decision": "NO_DROP_NO_DEPRECATE_NO_ARCHIVE",
-    "register_file": "research/SUPABASE_CLEANUP_NO_DROP_REGISTER_20260620.json",
-    "register_pr": 4,
-    "register_merge_commit_sha": "57ef2e0b258486ac0bdeffb60b3f5bcf36e6e514",
-    "first_pass": {
-      "phase": "SUPABASE_CLEANUP_DISCOVERY_AND_PLAN_NO_DROP",
-      "verdict": "CLEANUP_PLAN_READY",
-      "objects_scanned": 142,
-      "supabase_reads": true,
-      "supabase_writes": false,
-      "ddl_executed": false,
-      "dml_destructive_executed": false
+  "references": {
+    "project_kernel": "governance/kernel/current/01_project_kernel_stock_zero_v2026_06_16.json",
+    "project_ledger": "governance/kernel/current/03_project_ledger_stock_zero_v2026_06_30_011.json",
+    "technical_evidence_snapshot": "governance/kernel/current/04_project_technical_evidence_stock_zero_v2026_06_30_011.json",
+    "kpione_transition_directive": {
+      "path": "governance/directives/KPIONE_DB_TRANSITION_016_019_LOCK_V1.json",
+      "authority": "repository path + Git commit history",
+      "latest_relevant_commit": "RESOLVE_FROM_GIT"
     },
-    "claude_review": {
-      "phase": "CLAUDE_CLEANUP_MATRIX_CRITICAL_REVIEW",
-      "verdict": "CRITICAL_REVIEW_READY",
-      "key_finding": "Primera matriz era inventory-grade only; faltaba grafo dirigido, exposición/grants, recencia y clasificación completa."
-    },
-    "second_pass": {
-      "phase": "CODEX_CLEANUP_SECOND_PASS_TARGETED_READ_ONLY",
-      "verdict": "SECOND_PASS_READY",
-      "objects_scanned": 142,
-      "objects_classified": 142,
-      "keep_active": 136,
-      "stop_unknown": 6,
-      "deprecate_candidates": 0,
-      "archive_candidates": 0,
-      "drop_candidates": 0,
-      "supabase_reads": true,
-      "supabase_writes": false,
-      "ddl_executed": false,
-      "dml_destructive_executed": false
-    },
-    "stop_unknown_objects": [
-      "cg_core.v_cg_match_resumen",
-      "cg_core.v_rr_frecuencia_base_v2",
-      "cg_core.v_rr_operativa_base_v2",
-      "cg_mart.v_cg_conflictos_scope_v2",
-      "public.v_cg_doble_marcaje_dia",
-      "public.v_selector_modalidad_rutero"
-    ],
-    "protected_baseline": {
-      "keep_active_objects": 136,
-      "largest_high_risk_objects": [
-        "cg_raw.kpione_raw",
-        "cg_raw.kpione2_raw",
-        "cg_core.ruta_rutero_load_rows",
-        "public.fact_stock_venta",
-        "cg_raw.power_app_raw"
-      ]
-    },
-    "not_authorized": [
-      "DROP",
-      "DELETE",
-      "TRUNCATE",
-      "ARCHIVE",
-      "DEPRECATE",
-      "SQL13_productive_apply",
-      "DB_URL_DDL",
-      "DB_URL_LOAD",
-      "loaders_productivos"
-    ]
-  },
-  "execution_model_reform_011": {
-    "status": "ACTIVE",
-    "main_base_commit": "23bab44",
-    "governance_commit": "853f3a7",
-    "rule_pr_unit_of_value": "1 operational objective = 1 branch = 1 PR; subtasks live as internal commits.",
-    "split_rule": "Split PR only when risk class changes.",
-    "no_more_010": true,
-    "route_b_implementation_started": false,
-    "db_apply": false,
-    "sql_apply": false,
-    "productive_loader_change": false
-  },
-  "kernel_source_of_truth": {
-    "repo_canonical_path": "governance/kernel/current/",
-    "local_ignored_source": "Documentos/KERNEL BASE FINAL/",
-    "chatgpt_project_sources_role": "operational_context",
-    "rule": "If Git governance/KERNEL differs from ChatGPT Project sources, alert the divergence and treat Git as authoritative."
-  },
-  "route_b_010_series_closure": {
-    "status": "CLOSED_AFTER_010H",
-    "last_phase": "FAST_REFORM_010H_ROUTE_B_INTEGRATION_PLAN_CROSS_AUDIT",
-    "merge_pr": 33,
-    "main_merge_commit": "23bab44",
-    "verdict": "APPROVE_WITH_WARNINGS",
-    "implementation_authorized": false,
-    "required_before_future_implementation": [
-      "compliance denominator reconciliation gate",
-      "forward-only/backfill scope decision",
-      "rollback and production cutover gate"
-    ]
+    "human_directive": "docs/governance/KPIONE_DB_TRANSITION_016_019_LOCK.md",
+    "latest_016_evidence": "research/016_KPIONE_MONTHLY_DB_PRECHECK_READ_ONLY/016_kpione_monthly_db_precheck_2026_06.json",
+    "pr45_merge_commit": "e115f45713c30ab3d0fecb4a75d2b0b35a693088"
   }
 }

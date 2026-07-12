@@ -12,7 +12,13 @@
       "git",
       "checkpoint",
       "conversation_memory"
-    ]
+    ],
+    "live_source_status": "DEPRECATED_AS_LIVE_SOURCE",
+    "future_authority": {
+      "execution_evidence": "research/ and pull requests",
+      "repository_history": "Git/GitHub",
+      "live_state": "governance/kernel/current/02_project_state_stock_zero_v2026_06_30_011.json"
+    }
   },
   "repository": {
     "repository": "381-bas/STOCK_ZERO",
@@ -381,5 +387,13 @@
       "production cutover",
       "destructive cleanup"
     ]
+  },
+  "live_source_status": "DEPRECATED_AS_LIVE_SOURCE",
+  "deprecation_note": {
+    "status": "DEPRECATED_AS_LIVE_SOURCE",
+    "historical_snapshot_retained": true,
+    "future_execution_evidence": "research/ and pull requests",
+    "project_state_reference_rule": "PROJECT_STATE references only latest relevant evidence and does not manually synchronize this historical payload.",
+    "manual_synchronization_required": false
   }
 }
