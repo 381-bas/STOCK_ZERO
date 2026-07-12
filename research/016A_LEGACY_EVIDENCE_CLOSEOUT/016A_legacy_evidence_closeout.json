@@ -1,0 +1,76 @@
+{
+  "phase_id": "016A_DIRECTIVE_AMENDMENT_AND_LEGACY_EVIDENCE_CLOSEOUT_REPO_ONLY",
+  "verdict": "PASS_016A_AMENDMENT_CLOSEOUT_PR_DRAFTED",
+  "previous_execution_verdict": "FAIL_TESTS",
+  "test_gate_repair": {
+    "classification": "PRE_EXISTING_ENVIRONMENT_COUPLED_TEST_DEFECTS",
+    "authorized_additional_file": "tests/test_sz_worktree_tooling.py",
+    "logical_changes": [
+      "Branch match test now resolves the current branch dynamically while still exercising -ExpectedBranch.",
+      "Setup dry-run test now asserts .venv existence is unchanged before and after dry-run execution."
+    ],
+    "scripts_powershell_modified": false,
+    "guardrails_relaxed": false
+  },
+  "roadmap_lock_id": "KPIONE_DB_TRANSITION_016_019_LOCK_V1",
+  "base_main_commit": "26fed014a2429811723ea35218a8619d9178efea",
+  "pr_44": {
+    "status": "MERGED",
+    "merge_commit": "26fed014a2429811723ea35218a8619d9178efea"
+  },
+  "merge_commit": "26fed014a2429811723ea35218a8619d9178efea",
+  "previous_directive_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+  "previous_hash_method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
+  "hash_reconciliation_classification": "HASH_METHOD_MISMATCH_LINE_ENDINGS",
+  "working_tree_crlf_sha256": "a3ccfb17f74cd9bff06a119bb584ae835f2600f2bf140e9e8950e9c4108ae150",
+  "canonical_git_blob_sha256_before_amendment": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+  "canonical_git_blob_sha256_after_amendment": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
+  "canonical_hash_method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
+  "directive_git_blob_oid_after_amendment": "47f0333d6257e12b73c1991de7573f45110baf2c",
+  "current_phase": "016A",
+  "allowed_next_phase": "016B",
+  "phase_016_status": "CLOSED_BY_PR_44",
+  "phase_016a_status": "DOCUMENTARY_CLOSEOUT_COMPLETE_PENDING_PR_REVIEW",
+  "phase_016b_authorized": false,
+  "supabase_access": false,
+  "sql_executed": false,
+  "db_writes": false,
+  "apply_executed": false,
+  "cutover_executed": false,
+  "legacy_destructive_action": false,
+  "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
+  "files_changed": [
+    "governance/directives/KPIONE_DB_TRANSITION_016_019_LOCK_V1.json",
+    "docs/governance/KPIONE_DB_TRANSITION_016_019_LOCK.md",
+    "governance/kernel/current/02_project_state_stock_zero_v2026_06_30_011.json",
+    "governance/kernel/current/03_project_ledger_stock_zero_v2026_06_30_011.json",
+    "scripts/precheck_kpione_monthly_db_016_read_only.py",
+    "tests/test_016_kpione_monthly_db_precheck_read_only.py",
+    "tests/test_sz_worktree_tooling.py",
+    "research/016A_LEGACY_EVIDENCE_CLOSEOUT/016A_legacy_evidence_closeout.json",
+    "research/016A_LEGACY_EVIDENCE_CLOSEOUT/016A_legacy_evidence_closeout.md"
+  ],
+  "files_changed_total": 9,
+  "tests": {
+    "preflight_generic": "WARN_NO_BLOCKERS",
+    "unit_tests_016": "OK_32",
+    "worktree_tooling": "OK_26_TESTS_8_SKIPPED",
+    "unittest_discover": "OK_543_TESTS_11_SKIPPED",
+    "py_compile": "OK",
+    "git_diff_check": "OK_WITH_CRLF_WARNINGS"
+  },
+  "blockers": [],
+  "warnings": [
+    ".pytest_cache/: Permission denied may appear in git status and is not a tracked diff."
+  ],
+  "next_action": "Review the 016A draft PR. Do not merge automatically. Do not open, design, or execute 016B.",
+  "pr_review_fix": {
+    "classification": "AUTHORIZED_FILE_COUNT_RECONCILIATION",
+    "previous_declared_count": 8,
+    "actual_authorized_count": 9,
+    "additional_authorized_file": "tests/test_sz_worktree_tooling.py",
+    "previous_directive_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
+    "directive_sha256_after_review_fix": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
+    "productive_behavior_changed": false
+  }
+}

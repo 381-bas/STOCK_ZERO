@@ -11,7 +11,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 AUDIT = ROOT / "scripts" / "sz_worktree_audit.ps1"
 SETUP = ROOT / "scripts" / "sz_local_env_setup.ps1"
-EXPECTED_BRANCH = "codex/PLATFORM_005B-load-observation-correction"
 
 
 def run_ps(script: Path, *args: str, cwd: Path = ROOT):
@@ -31,6 +30,10 @@ def git_text(*args: str, cwd: Path = ROOT) -> str:
 
 def is_detached() -> bool:
     return git_text("rev-parse", "--abbrev-ref", "HEAD") == "HEAD"
+
+
+def current_branch() -> str:
+    return git_text("branch", "--show-current")
 
 
 def current_head() -> str:
@@ -55,9 +58,11 @@ class WorktreeToolingTests(unittest.TestCase):
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
             self.assertEqual(payload["branch_mode"], "DETACHED")
         else:
-            cp, payload = run_ps(AUDIT, "-ExpectedBranch", EXPECTED_BRANCH)
+            expected_branch = current_branch()
+            self.assertTrue(expected_branch)
+            cp, payload = run_ps(AUDIT, "-ExpectedBranch", expected_branch)
             self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
-            self.assertEqual(payload["branch"], EXPECTED_BRANCH)
+            self.assertEqual(payload["branch"], expected_branch)
 
     def test_02_expected_branch_mismatch_fails_on_branch(self):
         if is_detached():
@@ -137,13 +142,15 @@ class WorktreeToolingTests(unittest.TestCase):
         self.assertIn("git_results", payload)
 
     def test_13_setup_default_dry_run(self):
+        venv = ROOT / ".venv"
+        venv_existed_before = venv.exists()
         cp, payload = run_ps(SETUP)
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
         self.assertTrue(payload["ok"])
         self.assertTrue(payload["dry_run"])
         self.assertEqual(payload["environment_source"], "NONE")
         self.assertFalse(payload["environment_reproducible"])
-        self.assertFalse((ROOT / ".venv").exists())
+        self.assertEqual(venv.exists(), venv_existed_before)
 
     def test_14_import_smoke_without_venv_fails(self):
         if (ROOT / ".venv").exists():

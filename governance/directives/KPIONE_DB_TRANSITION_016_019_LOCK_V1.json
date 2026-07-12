@@ -8,8 +8,8 @@
   "activated_on_branch": "lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only",
   "base_main_commit": "986d4b0f143a443527a0121d87e9b5981a6feef3",
   "created_at_utc": "2026-07-12T01:24:58Z",
-  "current_phase": "016",
-  "allowed_next_phase": "016A",
+  "current_phase": "016A",
+  "allowed_next_phase": "016B",
   "active_phase_count": 1,
   "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
   "destructive_action_authorized": false,
@@ -34,7 +34,9 @@
     "sequence_is_non_negotiable": true,
     "no_parallel_phase_tracks": true,
     "no_new_branch_required": true,
-    "no_new_phase_opened_by_this_directive": true
+    "no_new_phase_opened_by_this_directive": false,
+    "phase_opened_by_this_amendment": "016A",
+    "phase_not_opened_by_this_amendment": "016B"
   },
   "non_negotiable_sequence": [
     "016",
@@ -58,11 +60,11 @@
     },
     {
       "phase": "016A",
-      "objective": "Patch 016 evidence gaps and rerun controlled read-only validation.",
-      "entry_gate": "016 audit findings accepted and patch scope explicitly authorized.",
-      "exit_gate": "Historical count discrepancy documented and NO_SOURCE_SIGNAL cannot be confused with FRESH.",
-      "writes_allowed": "Repo evidence/script/test updates only; no DB writes.",
-      "authorization_required": "Explicit 016A reprompt before implementation."
+      "objective": "Formally close phase 016 evidence, register PR #44 and merge 26fed01, reconcile the canonical roadmap hash method, and transition governance to allow a separately authorized 016B design phase.",
+      "entry_gate": "Phase 016 evidence is merged in PR #44; repository main is 26fed01; hash reconciliation classified the prior mismatch as line-ending-only; Bastian and ChatGPT explicitly authorize this amendment.",
+      "exit_gate": "Directive, human roadmap, PROJECT_STATE, PROJECT_LEDGER, derived roadmap constants, tests, and 016A evidence agree on current_phase 016A, allowed_next_phase 016B, canonical Git-blob SHA method, and all no-apply guardrails. No DB access or 016B work occurred.",
+      "writes_allowed": "Only the nine explicitly authorized repository files recorded in the 016A closeout evidence. No DB writes.",
+      "authorization_required": "Explicit separate Bastian and ChatGPT prompt before any 016B work."
     },
     {
       "phase": "016B",
@@ -145,25 +147,68 @@
   },
   "hard_restrictions": [
     "No DB writes",
-    "No SQL execution for this roadmap-lock patch",
+    "No SQL execution for this amendment",
     "No Supabase mutation",
     "No loader modification",
     "No app runtime modification",
     "No contracts 014/015 modification",
     "No destructive action",
-    "No git add",
-    "No commit",
-    "No push"
+    "No 016B design, implementation, execution, or PR readiness change in this phase",
+    "No merge of the resulting pull request by this phase"
   ],
   "validation_requirements": {
     "json_valid": true,
     "utf8": true,
     "mojibake_free": true,
     "no_parallel_kernel": true,
-    "current_phase": "016",
-    "allowed_next_phase": "016A",
+    "current_phase": "016A",
+    "allowed_next_phase": "016B",
     "active_phase_count": 1,
     "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
-    "destructive_action_authorized": false
-  }
+    "destructive_action_authorized": false,
+    "016b_authorized": false
+  },
+  "integrity_contract": {
+    "method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
+    "canonical_source": "git_index_or_committed_blob",
+    "working_tree_bytes_are_not_authoritative": true,
+    "line_ending_note": "CRLF checkout bytes may produce a different SHA256 without semantic drift.",
+    "superseded_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+    "superseded_sha256_status": "VALID_FOR_PRE_AMENDMENT_DIRECTIVE"
+  },
+  "amendments": [
+    {
+      "amendment_id": "ADR_016A_DIRECTIVE_AMENDMENT_AND_LEGACY_EVIDENCE_CLOSEOUT",
+      "amended_at_utc": "2026-07-12T03:12:44+00:00",
+      "reason": "PR #44 closed phase 016 evidence and hash reconciliation proved the previous SHA mismatch was line-ending-only, so 016A is redefined as legacy evidence closeout and governed transition readiness for separately authorized 016B.",
+      "modified_elements": [
+        "current_phase 016 -> 016A",
+        "allowed_next_phase 016A -> 016B",
+        "016A phase objective, entry gate, exit gate, writes_allowed, authorization_required",
+        "integrity_contract added for SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
+        "hard restrictions updated to remove obsolete no-git actions for this authorized amendment while preserving productive bans",
+        "016A authorized repository file count reconciled from eight to nine after the separately authorized portable tooling test repair."
+      ],
+      "risk": "Governance-only transition could be mistaken as 016B authorization unless no-016B guardrails remain explicit.",
+      "authorization": "Bastian and ChatGPT prompt for 016A_DIRECTIVE_AMENDMENT_AND_LEGACY_EVIDENCE_CLOSEOUT_REPO_ONLY.",
+      "previous_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+      "new_sha256_registered_externally_in": [
+        "governance/kernel/current/02_project_state_stock_zero_v2026_06_30_011.json",
+        "governance/kernel/current/03_project_ledger_stock_zero_v2026_06_30_011.json",
+        "scripts/precheck_kpione_monthly_db_016_read_only.py",
+        "tests/test_016_kpione_monthly_db_precheck_read_only.py",
+        "research/016A_LEGACY_EVIDENCE_CLOSEOUT/016A_legacy_evidence_closeout.json",
+        "research/016A_LEGACY_EVIDENCE_CLOSEOUT/016A_legacy_evidence_closeout.md"
+      ],
+      "sequence_preserved": true,
+      "productive_guardrails_preserved": true,
+      "db_writes_authorized": false,
+      "sql_execution_authorized": false,
+      "supabase_access_authorized": false,
+      "apply_authorized": false,
+      "cutover_authorized": false,
+      "legacy_destructive_action_authorized": false,
+      "016b_authorized": false
+    }
+  ]
 }

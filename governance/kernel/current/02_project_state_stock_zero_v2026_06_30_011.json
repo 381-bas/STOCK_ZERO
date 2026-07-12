@@ -5,15 +5,15 @@
   "version": "2026.06.30.011",
   "generated_at": "2026-07-01T23:32:24+00:00",
   "overall_status": "ACTIVE_CONTROLLED_DEVELOPMENT",
-  "current_focus": "KPIONE_DB_TRANSITION_016_019_LOCK_V1: ejecutar la transición controlada desde el estado legacy KPIONE hacia la nueva arquitectura de base de datos, con fase activa 016, siguiente fase permitida 016A, sin saltos, tracks paralelos, apply ni acciones destructivas fuera de autorización explícita.",
+  "current_focus": "KPIONE_DB_TRANSITION_016_019_LOCK_V1: 016 cerrada por PR #44; 016A registra la enmienda de directiva, cierre de evidencia legacy, método SHA256 canónico Git-blob LF y transición gobernada hacia 016B, sin autorizar 016B, Supabase, SQL, DB writes, apply, cutover ni acciones destructivas.",
   "roadmap_lock": {
     "roadmap_lock_id": "KPIONE_DB_TRANSITION_016_019_LOCK_V1",
-    "roadmap_lock_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+    "roadmap_lock_sha256": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
     "status": "ACTIVE_LOCKED",
     "directive_path": "governance/directives/KPIONE_DB_TRANSITION_016_019_LOCK_V1.json",
     "human_doc_path": "docs/governance/KPIONE_DB_TRANSITION_016_019_LOCK.md",
-    "current_phase": "016",
-    "allowed_next_phase": "016A",
+    "current_phase": "016A",
+    "allowed_next_phase": "016B",
     "active_phase_count": 1,
     "parallel_phase_allowed": false,
     "locked_sequence": [
@@ -31,7 +31,47 @@
     "destructive_action_authorized": false,
     "deviation_requires_directive_amendment": true,
     "activated_on_branch": "lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only",
-    "base_main_commit": "986d4b0f143a443527a0121d87e9b5981a6feef3"
+    "base_main_commit": "26fed014a2429811723ea35218a8619d9178efea",
+    "roadmap_lock_previous_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
+    "roadmap_lock_sha256_method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
+    "phase_016_status": "CLOSED_BY_PR_44",
+    "phase_016a_status": "DOCUMENTARY_CLOSEOUT_COMPLETE_PENDING_PR_REVIEW",
+    "phase_016b_authorized": false,
+    "pr_44": {
+      "status": "MERGED",
+      "merge_commit": "26fed014a2429811723ea35218a8619d9178efea",
+      "closed_phase": "016"
+    },
+    "hash_reconciliation": {
+      "classification": "HASH_METHOD_MISMATCH_LINE_ENDINGS",
+      "canonical_method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
+      "previous_canonical_git_blob_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+      "working_tree_crlf_sha256": "a3ccfb17f74cd9bff06a119bb584ae835f2600f2bf140e9e8950e9c4108ae150",
+      "new_canonical_git_blob_sha256": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
+      "working_tree_bytes_are_authority": false,
+      "pre_review_fix_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22"
+    },
+    "apply_gate": "BLOCKED_FOR_IDEMPOTENCY_CONTRACT",
+    "016B_authorized": false,
+    "supabase_access_authorized": false,
+    "sql_execution_authorized": false,
+    "db_writes_authorized": false,
+    "apply_authorized": false,
+    "cutover_authorized": false,
+    "legacy_destructive_action_authorized": false,
+    "amendment_branch": "lab/FAST_REFORM_016A_directive_amendment_legacy_closeout",
+    "next_permitted_action": "Review and merge the 016A draft PR; only after that, a separate explicit prompt may authorize 016B design.",
+    "roadmap_lock_pre_amendment_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+    "review_fix": {
+      "classification": "AUTHORIZED_FILE_COUNT_RECONCILIATION",
+      "previous_declared_count": 8,
+      "actual_authorized_count": 9,
+      "additional_authorized_file": "tests/test_sz_worktree_tooling.py",
+      "pre_review_fix_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
+      "directive_sha256_after_review_fix": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
+      "productive_behavior_changed": false,
+      "016b_authorized": false
+    }
   },
   "repository": {
     "full_name": "381-bas/STOCK_ZERO",
@@ -156,39 +196,21 @@
   },
   "open_risks": [
     {
-      "risk": "Sobreingeniería metodológica",
-      "control": "Priorizar funcionalidad y reutilizar gates existentes"
+      "risk": "016A closeout mistaken as authorization for 016B",
+      "control": "PROJECT_STATE records 016B_authorized=false and requires separate Bastian/ChatGPT prompt before any 016B work."
     },
     {
-      "risk": "Divergencia entre checkout y worktree",
-      "control": "Auditar branch, HEAD, loaders y dirty preexistente"
+      "risk": "Working-tree CRLF hash mistaken for roadmap authority",
+      "control": "Canonical hash method is SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF; working-tree bytes are not authoritative."
     },
     {
-      "risk": "Pérdida de contexto entre agentes",
-      "control": "KERNEL compactos + Git + tests + checkpoints"
-    },
-    {
-      "risk": "Confundir código mergeado con apply productivo autorizado",
-      "control": "SQL13 productivo sigue en fase separada con autorización explícita, baseline, rollback y postcheck"
-    },
-    {
-      "risk": "Dirty files preexistentes en checkout operacional",
-      "control": "No usar checkout operacional para gates limpios hasta auditar o aislar worktree"
-    },
-    {
-      "risk": "Usar matriz de inventario como autorización destructiva",
-      "control": "La segunda pasada convirtió limpieza a NO_DROP: 136 KEEP_ACTIVE, 6 STOP_UNKNOWN, 0 candidatos deprecate/archive/drop."
-    },
-    {
-      "risk": "Quedar atrapado en limpieza en vez de producto",
-      "control": "Cerrar discovery y volver a desarrollo funcional visible; SQL13 productivo queda separado y no autorizado."
+      "risk": "Legacy KPIONE table state treated as migration authority",
+      "control": "Legacy state remains evidence only; migration authority stays in governed 016B+ contracts."
     }
   ],
   "next_actions": [
-    "Commit canonical KERNEL copy under governance/kernel/current.",
-    "Open PR 011 after KERNEL validation.",
-    "After merge, replace ChatGPT Project KERNEL sources with governance/kernel/current versions.",
-    "Only then decide Route B next step under PR unit-of-value rule."
+    "Review the 016A draft PR; do not merge automatically.",
+    "Do not open, design, or execute 016B until a separate explicit Bastian and ChatGPT authorization exists."
   ],
   "supabase_cleanup_discovery": {
     "status": "NO_DROP_REGISTERED_IN_MAIN",

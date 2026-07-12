@@ -4,24 +4,36 @@ Directive ID: `KPIONE_DB_TRANSITION_016_019_LOCK_V1`
 
 Status: `ACTIVE_LOCKED`
 
-Branch: `lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only`
+Original activation branch: `lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only`
 
-Base: `main@986d4b0f143a443527a0121d87e9b5981a6feef3`
+016A amendment branch: `lab/FAST_REFORM_016A_directive_amendment_legacy_closeout`
 
-Current phase: `016`
+Base: `main@26fed014a2429811723ea35218a8619d9178efea`
 
-Allowed next phase: `016A`
+Current phase: `016A`
+
+Allowed next phase: `016B`
 
 Retention policy: `DEFERRED_UNTIL_POST_TRIAL`
 
 Destructive action authorized: `false`
+
+## Integrity Contract
+
+Canonical hash method: `SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF`
+
+Canonical source: Git index or committed blob bytes with LF line endings.
+
+Working-tree checkout bytes are not authoritative. A Windows CRLF checkout can produce a different SHA256 without semantic drift.
+
+Previous canonical SHA for the pre-amendment directive: `cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e`
 
 ## Phase Table
 
 | phase | objective | entry gate | exit gate | writes allowed | authorization required |
 | --- | --- | --- | --- | --- | --- |
 | 016 | Complete read-only DB precheck evidence for KPIONE monthly transition without writes. | Branch `lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only` at `main@986d4b0`; `DB_URL_CODEX_RO` only if DB is touched. | Evidence is aggregate, read-only guardrails pass, discrepancy and `NO_SOURCE_SIGNAL` caveats are documented. | Repo-only evidence/script/test writes already authorized for 016; no DB writes. | Bastian/ChatGPT explicit authorization for any additional file outside 016 scope. |
-| 016A | Patch 016 evidence gaps and rerun controlled read-only validation. | 016 audit findings accepted and patch scope explicitly authorized. | Historical count discrepancy documented and `NO_SOURCE_SIGNAL` cannot be confused with `FRESH`. | Repo evidence/script/test updates only; no DB writes. | Explicit 016A reprompt before implementation. |
+| 016A | Formally close phase 016 evidence, register PR #44 and merge 26fed01, reconcile the canonical roadmap hash method, and transition governance to allow a separately authorized 016B design phase. | Phase 016 evidence is merged in PR #44; repository main is 26fed01; hash reconciliation classified the prior mismatch as line-ending-only; Bastian and ChatGPT explicitly authorize this amendment. | Directive, human roadmap, PROJECT_STATE, PROJECT_LEDGER, derived roadmap constants, tests, and 016A evidence agree on current_phase 016A, allowed_next_phase 016B, canonical Git-blob SHA method, and all no-apply guardrails. No DB access or 016B work occurred. | Only the nine explicitly authorized repository files recorded in the 016A closeout evidence. No DB writes. | Explicit separate Bastian and ChatGPT prompt before any 016B work. |
 | 016B | Design exact overlap/idempotency subphase using persisted identities or safe staging contract. | 016A evidence accepted. | Exact comparison strategy is documented with cost, indexes, and no row-level export. | Design artifacts only. | Explicit 016B reprompt. |
 | 016C | Close pre-apply readiness decision for KPIONE June plan. | 016B design accepted. | Apply is either blocked with evidence or promoted to 017A with gates. | Governance/evidence artifacts only. | Explicit 016C reprompt. |
 | 017A | Prepare apply design and rollback design without execution. | 016C promotes the work to 017A. | Apply/rollback plan is auditable and no execution has occurred. | Design artifacts and tests only. | Explicit 017A reprompt. |
@@ -44,7 +56,15 @@ The sequence is locked:
 8. `018`
 9. `019`
 
-Only one phase is active: `016`. The only allowed next phase is `016A`.
+Only one phase is active: `016A`. The only allowed next phase is `016B`.
+
+`allowed_next_phase = 016B` does not authorize 016B. Phase 016B requires a separate explicit Bastian and ChatGPT prompt after 016A evidence is accepted.
+
+## 016 And 016A Status
+
+Phase `016` is closed by PR #44 merged at `26fed014a2429811723ea35218a8619d9178efea`.
+
+Phase `016A` is a governance closeout and directive amendment phase. It does not access Supabase, execute SQL, write to DB, apply, cut over, modify app runtime, modify loaders, modify contracts 014/015, or perform destructive legacy action.
 
 ## DEFERRED_UNTIL_POST_TRIAL
 
@@ -70,17 +90,16 @@ An amendment must include:
 - `changed_sequence_or_gate`
 - `risk_assessment`
 - `authorization_source`
-- `new_sha256`
+- external registration of the new reproducible SHA256
 
 ## Hard Restrictions
 
 - No DB writes.
-- No SQL execution for this roadmap-lock patch.
-- No Supabase mutation.
+- No SQL execution for this amendment.
+- No Supabase mutation or access.
 - No loader modification.
 - No app runtime modification.
 - No contracts 014/015 modification.
 - No destructive action.
-- No git add.
-- No commit.
-- No push.
+- No 016B design, implementation, execution, or PR readiness change in this phase.
+- No automatic merge of the resulting pull request.
