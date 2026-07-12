@@ -1,0 +1,169 @@
+{
+  "directive_id": "KPIONE_DB_TRANSITION_016_019_LOCK_V1",
+  "document_type": "roadmap_lock_directive",
+  "project": "STOCK_ZERO",
+  "module": "CONTROL_GESTION_KPIONE_DB_TRANSITION",
+  "status": "ACTIVE_LOCKED",
+  "issued_by": "ChatGPT/Bastian",
+  "activated_on_branch": "lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only",
+  "base_main_commit": "986d4b0f143a443527a0121d87e9b5981a6feef3",
+  "created_at_utc": "2026-07-12T01:24:58Z",
+  "current_phase": "016",
+  "allowed_next_phase": "016A",
+  "active_phase_count": 1,
+  "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
+  "destructive_action_authorized": false,
+  "db_writes_authorized": false,
+  "sql_execution_authorized": false,
+  "supabase_mutation_authorized": false,
+  "loader_modification_authorized": false,
+  "app_runtime_modification_authorized": false,
+  "contracts_014_015_modification_authorized": false,
+  "scope": {
+    "locked_sequence": [
+      "016",
+      "016A",
+      "016B",
+      "016C",
+      "017A",
+      "017B",
+      "017C",
+      "018",
+      "019"
+    ],
+    "sequence_is_non_negotiable": true,
+    "no_parallel_phase_tracks": true,
+    "no_new_branch_required": true,
+    "no_new_phase_opened_by_this_directive": true
+  },
+  "non_negotiable_sequence": [
+    "016",
+    "016A",
+    "016B",
+    "016C",
+    "017A",
+    "017B",
+    "017C",
+    "018",
+    "019"
+  ],
+  "phases": [
+    {
+      "phase": "016",
+      "objective": "Complete read-only DB precheck evidence for KPIONE monthly transition without writes.",
+      "entry_gate": "Branch lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only at main@986d4b0; DB_URL_CODEX_RO only if DB is touched.",
+      "exit_gate": "Evidence is aggregate, read-only guardrails pass, discrepancy and NO_SOURCE_SIGNAL caveats are documented.",
+      "writes_allowed": "Repo-only evidence/script/test writes already authorized for 016; no DB writes.",
+      "authorization_required": "Bastian/ChatGPT explicit authorization for any additional file outside 016 scope."
+    },
+    {
+      "phase": "016A",
+      "objective": "Patch 016 evidence gaps and rerun controlled read-only validation.",
+      "entry_gate": "016 audit findings accepted and patch scope explicitly authorized.",
+      "exit_gate": "Historical count discrepancy documented and NO_SOURCE_SIGNAL cannot be confused with FRESH.",
+      "writes_allowed": "Repo evidence/script/test updates only; no DB writes.",
+      "authorization_required": "Explicit 016A reprompt before implementation."
+    },
+    {
+      "phase": "016B",
+      "objective": "Design exact overlap/idempotency subphase using persisted identities or safe staging contract.",
+      "entry_gate": "016A evidence accepted.",
+      "exit_gate": "Exact comparison strategy is documented with cost, indexes, and no row-level export.",
+      "writes_allowed": "Design artifacts only.",
+      "authorization_required": "Explicit 016B reprompt."
+    },
+    {
+      "phase": "016C",
+      "objective": "Close pre-apply readiness decision for KPIONE June plan.",
+      "entry_gate": "016B design accepted.",
+      "exit_gate": "Apply is either blocked with evidence or promoted to 017A with gates.",
+      "writes_allowed": "Governance/evidence artifacts only.",
+      "authorization_required": "Explicit 016C reprompt."
+    },
+    {
+      "phase": "017A",
+      "objective": "Prepare apply design and rollback design without execution.",
+      "entry_gate": "016C promotes the work to 017A.",
+      "exit_gate": "Apply/rollback plan is auditable and no execution has occurred.",
+      "writes_allowed": "Design artifacts and tests only.",
+      "authorization_required": "Explicit 017A reprompt."
+    },
+    {
+      "phase": "017B",
+      "objective": "Implement apply runner or staging mechanism under no-apply guardrails.",
+      "entry_gate": "017A design accepted.",
+      "exit_gate": "Runner/tests exist and default to no-apply.",
+      "writes_allowed": "Repo code/tests/evidence only; no DB writes.",
+      "authorization_required": "Explicit 017B reprompt."
+    },
+    {
+      "phase": "017C",
+      "objective": "Dry-run apply rehearsal and final apply readiness gate.",
+      "entry_gate": "017B implementation accepted.",
+      "exit_gate": "Dry-run evidence proves scope, idempotency, rollback path, and safety gates.",
+      "writes_allowed": "Read-only/dry-run evidence only.",
+      "authorization_required": "Explicit 017C reprompt."
+    },
+    {
+      "phase": "018",
+      "objective": "Execute approved productive apply only if separately authorized.",
+      "entry_gate": "017C readiness accepted and explicit productive apply authorization granted.",
+      "exit_gate": "Apply result, rollback readiness, and post-apply validation documented.",
+      "writes_allowed": "DB writes only if exact command, role, phase, rollback, and confirmation are authorized.",
+      "authorization_required": "Separate Bastian productive apply authorization."
+    },
+    {
+      "phase": "019",
+      "objective": "Post-apply trial, monitoring, and final transition decision.",
+      "entry_gate": "018 apply completed or explicitly skipped with evidence.",
+      "exit_gate": "Trial outcome accepted; deferred retention/destructive topics may be reconsidered only after this phase.",
+      "writes_allowed": "Monitoring/evidence; destructive actions remain disallowed unless a new directive amendment exists.",
+      "authorization_required": "Explicit 019 reprompt and any separate production authorization."
+    }
+  ],
+  "deferred_until_post_trial": [
+    "retention_policy_changes",
+    "cleanup_drop_archive_deprecate",
+    "destructive_sql",
+    "loader_productive_refactor",
+    "app_runtime_source_switch",
+    "contracts_014_015_semantic_changes",
+    "materialized_view_refresh_policy_changes",
+    "historical_backfill_beyond_approved_kpione_transition"
+  ],
+  "deviation_requires_directive_amendment": {
+    "required": true,
+    "rule": "Any deviation from the locked sequence, active phase, allowed next phase, deferred topics, or destructive-action ban requires an explicit amendment to this directive before work continues.",
+    "amendment_must_include": [
+      "directive_id",
+      "reason",
+      "changed_sequence_or_gate",
+      "risk_assessment",
+      "authorization_source",
+      "new_sha256"
+    ]
+  },
+  "hard_restrictions": [
+    "No DB writes",
+    "No SQL execution for this roadmap-lock patch",
+    "No Supabase mutation",
+    "No loader modification",
+    "No app runtime modification",
+    "No contracts 014/015 modification",
+    "No destructive action",
+    "No git add",
+    "No commit",
+    "No push"
+  ],
+  "validation_requirements": {
+    "json_valid": true,
+    "utf8": true,
+    "mojibake_free": true,
+    "no_parallel_kernel": true,
+    "current_phase": "016",
+    "allowed_next_phase": "016A",
+    "active_phase_count": 1,
+    "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
+    "destructive_action_authorized": false
+  }
+}
