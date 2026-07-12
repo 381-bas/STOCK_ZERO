@@ -16,6 +16,161 @@
     "compliance_grain": "day_presence",
     "forbidden_assumption": "one_excel_row_equals_one_visit"
   },
+  "identity_idempotency_contract_016B": {
+    "status": "IDEMPOTENCY_CONTRACT_SELECTED",
+    "risk_class": "R2_ARCHITECTURE",
+    "source_grain": {
+      "selected": "source_photo_row",
+      "definition": "One data row from sheet Fotos inside one content-addressed KPIONE source file version.",
+      "rejected": {
+        "source_workbook_row_as_business_identity": "Accepted only as traceability because row numbers change across exports and corrections.",
+        "visit_or_day_presence_as_source_grain": "Rejected because KPIONE source rows are photo-level and daily presence is derived.",
+        "legacy_destination_row": "Rejected because legacy state is evidence of previous runtime, not future migration authority.",
+        "latest_file_or_filename": "Rejected because filename is mutable provenance and latest is not a temporal contract."
+      }
+    },
+    "persisted_grain": {
+      "selected": "immutable_event_photo_staging_row",
+      "raw_source_representation": "Store immutable file, sheet and row provenance for every accepted photo row.",
+      "normalized_event": "Derived by grouping accepted photo rows by business event identity and event stability checks.",
+      "daily_presence": "Derived binary presence by fecha, location key and cliente_norm; never counted directly from photo rows.",
+      "weekly_metrics": "Derived downstream from daily presence and route/calendar contracts."
+    },
+    "persistence_boundary": {
+      "selected": "new_versioned_staging_boundary",
+      "future_authority": [
+        "cg_raw.kpione_raw_ingest_batch_v1",
+        "cg_raw.kpione_raw_ingest_batch_file_v1",
+        "cg_raw.kpione_raw_event_photo_staging_v1"
+      ],
+      "compatibility_or_history_only": [
+        "cg_raw.kpione2_raw",
+        "cg_raw.kpione2_photo_raw review DDL"
+      ],
+      "legacy_database_state_is_migration_authority": false
+    },
+    "identity_hierarchy": {
+      "ingestion_run": {
+        "components": [
+          "runner_execution_id"
+        ],
+        "represents": "one attempted runner execution",
+        "does_not_represent": "source content identity or business event identity"
+      },
+      "source_file_version": {
+        "components": [
+          "source_file_sha256",
+          "source_sheet"
+        ],
+        "represents": "one immutable source content version",
+        "provenance_only": [
+          "source_file_name",
+          "source_file_id_from_filename_epoch"
+        ]
+      },
+      "source_row": {
+        "components": [
+          "source_file_sha256",
+          "source_sheet",
+          "source_row_number"
+        ],
+        "represents": "one worksheet row in one source content version",
+        "does_not_represent": "business event identity"
+      },
+      "photo_record": {
+        "components": [
+          "event_id",
+          "photo_row_hash"
+        ],
+        "represents": "one normalized photo-level content record",
+        "hash_algorithm": "sha256 over normalized source photo content"
+      },
+      "business_event": {
+        "components": [
+          "event_id"
+        ],
+        "stability_fields": [
+          "sp_item_id",
+          "event_stable_hash"
+        ],
+        "represents": "one KPIONE operational event before photo aggregation",
+        "conflict_rule": "same event_id with multiple sp_item_id or event_stable_hash values blocks activation until classified as correction or source conflict"
+      },
+      "day_presence": {
+        "components": [
+          "fecha",
+          "location_key",
+          "cliente_norm"
+        ],
+        "location_key": "cod_rt_norm when present, otherwise local_nombre_norm",
+        "represents": "binary daily presence derived from at least one accepted business event"
+      }
+    },
+    "normalization_rules": {
+      "text": "trim, collapse internal whitespace, normalize Unicode, strip combining marks for identity keys, uppercase identity keys",
+      "nulls": "required identity fields reject or quarantine; optional fields normalize to empty string only inside fingerprints",
+      "dates": "parse Fecha to ISO calendar date; derive week_start as Monday of that date",
+      "times": "retain source time text for photo evidence; do not use time as event identity",
+      "file_sha256": "lowercase 64-character hex content digest",
+      "duplicate_source_rows": "exact duplicate normalized photo records do not create additional active photo records"
+    },
+    "idempotency_rules": {
+      "exact_rerun_same_file": {
+        "outcome": "no_op",
+        "rule": "same source_file_sha256, sheet and row identities already accepted produce no new active rows"
+      },
+      "same_logical_file_different_filename": {
+        "outcome": "no_op",
+        "rule": "same source_file_sha256 is the same source version; filename/source_file_id are provenance only"
+      },
+      "corrected_file_replacing_previous_delivery": {
+        "outcome": "new_source_version",
+        "rule": "different source_file_sha256 for the same declared coverage requires explicit supersession before active projection changes"
+      },
+      "appended_rows": {
+        "outcome": "insert",
+        "rule": "new source row identities insert into staging only inside a declared batch or source version"
+      },
+      "removed_rows": {
+        "outcome": "supersession",
+        "rule": "absence in a correcting source version creates an active-projection tombstone; immutable prior rows are not deleted"
+      },
+      "partial_failed_ingestion": {
+        "outcome": "quarantine",
+        "rule": "incomplete runs remain inactive and cannot feed derived event or day-presence projections"
+      },
+      "resumed_ingestion": {
+        "outcome": "update",
+        "rule": "resume may complete the same inactive run only when the semantic plan and source file versions are unchanged"
+      },
+      "duplicate_rows_inside_one_source": {
+        "outcome": "no_op",
+        "rule": "exact duplicate photo_row_hash values keep one active normalized photo record and retain duplicate provenance/counts"
+      },
+      "same_event_multiple_source_files": {
+        "outcome": "no_op",
+        "conflict_outcome": "quarantine",
+        "rule": "same event_id plus same photo_row_hash is deduped; same event_id with different event_stable_hash is quarantined as correction/conflict"
+      },
+      "concurrent_or_overlapping_runs": {
+        "outcome": "rejection",
+        "rule": "overlapping active coverage is rejected unless it is the same semantic plan and same source file versions"
+      }
+    },
+    "correction_and_replay": {
+      "source_versioning": "source_file_sha256 identifies immutable content; declared batch coverage groups source versions",
+      "supersession": "a correcting batch supersedes prior active projection for the declared coverage only after explicit validation",
+      "tombstone_semantics": "removed rows are represented in active projection as tombstones or exclusions, never by deleting immutable source evidence",
+      "rebuild_boundary": "event rows, day presence and weekly metrics rebuild from the active source-version set for the declared coverage",
+      "rollback_or_isolation": "a batch can remain inactive/quarantined or be marked rolled back; child source rows remain immutable evidence"
+    },
+    "readiness_result": "IDEMPOTENCY_CONTRACT_SELECTED",
+    "implications_for_017": [
+      "017 must build the runner around the versioned staging boundary, not cg_raw.kpione2_raw.",
+      "017 must implement source version registry, supersession gates, inactive-run isolation and deterministic rebuild tests before any apply.",
+      "017 remains not authorized by this contract."
+    ]
+  },
   "event_identity": [
     "ID",
     "SP Item ID"

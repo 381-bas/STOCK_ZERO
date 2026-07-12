@@ -2,32 +2,36 @@
   "schema_version": "3.0",
   "document_type": "project_state",
   "project": "STOCK_ZERO",
-  "state_as_of_utc": "2026-07-12T14:14:32+00:00",
+  "state_as_of_utc": "2026-07-12T17:51:59+00:00",
   "state_source_commit": "RESOLVE_FROM_GIT",
   "overall_status": "ACTIVE_CONTROLLED_DEVELOPMENT",
   "executive_progress": {
     "operating_model": "V2_ACTIVE",
-    "last_accepted_governance_unit": "OPERATING_MODEL_V2",
-    "current_priority": "Prepare 016B identity grain and idempotency contract only after explicit authorization."
+    "last_accepted_governance_unit": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+    "current_priority": "Keep 017 apply-runner and rehearsal work closed until explicit Bastian + ChatGPT authorization exists."
   },
   "active_product_state": {
     "platform": "STOCK_ZERO / GESTIONZERO",
-    "control_gestion": "KPIONE transition is governed; no productive apply or source cutover is authorized.",
+    "control_gestion": "KPIONE identity, grain and idempotency contract selected; no productive apply or source cutover is authorized.",
     "legacy_kpione_state": "Evidence of previous runtime, not migration authority for the new architecture."
   },
   "current_work": {
     "unit": "016B",
     "unit_name": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
-    "status": "NOT_AUTHORIZED",
-    "objective_when_authorized": "Decide source grain, persisted grain, destination or staging boundary, authoritative identity, idempotency behavior, correction/replay behavior, and readiness for runner construction.",
-    "allowed_outputs_when_authorized": [
-      "IDEMPOTENCY_CONTRACT_SELECTED",
-      "BLOCKED_EXACT_GAP_IDENTIFIED"
-    ],
-    "authorization_required": "Separate explicit Bastian + ChatGPT prompt after Operating Model V2 is accepted."
+    "status": "IDEMPOTENCY_CONTRACT_SELECTED",
+    "selected_contract": {
+      "source_grain": "source_photo_row",
+      "persisted_grain": "immutable_event_photo_staging_row",
+      "persistence_boundary": "new_versioned_staging_boundary",
+      "identity_authority": "source_file_sha256 + sheet + source_row_number for source rows; event_id with stability checks for business events",
+      "idempotency_authority": "content-addressed source versions with explicit supersession for corrections and inactive isolation for failed runs"
+    },
+    "next_permitted_unit": "017_APPLY_RUNNER_AND_REHEARSAL",
+    "next_unit_status": "NOT_AUTHORIZED"
   },
   "authorization": {
-    "016B_authorized": false,
+    "016B_architecture_authorized": true,
+    "017_authorized": false,
     "supabase_access_authorized": false,
     "sql_execution_authorized": false,
     "db_reads_authorized": false,
@@ -37,41 +41,39 @@
     "legacy_destructive_action_authorized": false,
     "app_runtime_modification_authorized": false,
     "loader_modification_authorized": false,
-    "contracts_013_016_modification_authorized": false
+    "productive_contract_modification_authorized": false
   },
   "active_risks": [
     {
-      "risk": "016B treated as implicitly open after roadmap compression.",
-      "control": "current_work.status remains NOT_AUTHORIZED and 016B_authorized=false."
+      "risk": "017 treated as implicitly authorized by the 016B contract selection.",
+      "control": "current_work.next_unit_status remains NOT_AUTHORIZED and 017_authorized=false."
     },
     {
-      "risk": "Governance duplication displaces product progress.",
-      "control": "PROJECT_STATE contains live state only; history lives in Git, PRs, ledger, and research."
+      "risk": "A future runner treats filename, latest download, or legacy table state as identity authority.",
+      "control": "The selected contract makes source_file_sha256, sheet, row provenance, event stability checks, and declared supersession the authority."
     },
     {
-      "risk": "Legacy KPIONE evidence treated as migration authority.",
-      "control": "Legacy state is evidence only; 016B must select authority and idempotency contract before implementation."
+      "risk": "Correction handling mutates or deletes immutable source evidence.",
+      "control": "Corrections use source version supersession and active-projection tombstones; immutable staging rows remain evidence."
     },
     {
-      "risk": "Productive actions inferred from repo-only governance.",
-      "control": "All DB, SQL, apply, cutover, app, loader, and destructive flags remain false."
+      "risk": "Productive actions inferred from repo-only R2 architecture work.",
+      "control": "All DB, SQL, apply, cutover, app, loader, productive-contract, and destructive flags remain false."
     }
   ],
   "next_actions": [
-    "Request explicit Bastian + ChatGPT authorization before any 016B design work.",
+    "Request explicit Bastian + ChatGPT authorization before any 017 apply-runner or rehearsal work.",
     "Keep productive gates closed until R3/R4 authorization exists."
   ],
   "references": {
     "project_kernel": "governance/kernel/current/01_project_kernel_stock_zero_v2026_06_16.json",
     "project_ledger": "governance/kernel/current/03_project_ledger_stock_zero_v2026_06_30_011.json",
-    "technical_evidence_snapshot": "governance/kernel/current/04_project_technical_evidence_stock_zero_v2026_06_30_011.json",
     "kpione_transition_directive": {
       "path": "governance/directives/KPIONE_DB_TRANSITION_016_019_LOCK_V1.json",
       "authority": "repository path + Git commit history",
       "latest_relevant_commit": "RESOLVE_FROM_GIT"
     },
-    "human_directive": "docs/governance/KPIONE_DB_TRANSITION_016_019_LOCK.md",
-    "latest_016_evidence": "research/016_KPIONE_MONTHLY_DB_PRECHECK_READ_ONLY/016_kpione_monthly_db_precheck_2026_06.json",
-    "pr45_merge_commit": "e115f45713c30ab3d0fecb4a75d2b0b35a693088"
+    "identity_idempotency_contract": "contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+    "latest_016_evidence": "research/016_KPIONE_MONTHLY_DB_PRECHECK_READ_ONLY/016_kpione_monthly_db_precheck_2026_06.json"
   }
 }

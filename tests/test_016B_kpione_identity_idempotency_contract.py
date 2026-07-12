@@ -1,0 +1,141 @@
+import json
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+CONTRACT_PATH = ROOT / "contracts" / "control_gestion" / "kpione2_photo_export_contract_v1.json"
+STATE_PATH = ROOT / "governance" / "kernel" / "current" / "02_project_state_stock_zero_v2026_06_30_011.json"
+LEDGER_PATH = ROOT / "governance" / "kernel" / "current" / "03_project_ledger_stock_zero_v2026_06_30_011.json"
+DIRECTIVE_PATH = ROOT / "governance" / "directives" / "KPIONE_DB_TRANSITION_016_019_LOCK_V1.json"
+
+
+def load_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.contract = load_json(CONTRACT_PATH)["identity_idempotency_contract_016B"]
+        self.state = load_json(STATE_PATH)
+        self.ledger = load_json(LEDGER_PATH)
+        self.directive = load_json(DIRECTIVE_PATH)
+
+    def test_contract_selects_source_and_persisted_grains(self):
+        self.assertEqual(self.contract["status"], "IDEMPOTENCY_CONTRACT_SELECTED")
+        self.assertEqual(self.contract["source_grain"]["selected"], "source_photo_row")
+        self.assertEqual(
+            self.contract["persisted_grain"]["selected"],
+            "immutable_event_photo_staging_row",
+        )
+        self.assertEqual(
+            self.contract["persistence_boundary"]["selected"],
+            "new_versioned_staging_boundary",
+        )
+        self.assertFalse(
+            self.contract["persistence_boundary"]["legacy_database_state_is_migration_authority"]
+        )
+
+    def test_identity_hierarchy_keeps_traceability_separate_from_business_identity(self):
+        hierarchy = self.contract["identity_hierarchy"]
+        self.assertEqual(hierarchy["source_file_version"]["components"], ["source_file_sha256", "source_sheet"])
+        self.assertEqual(
+            hierarchy["source_row"]["components"],
+            ["source_file_sha256", "source_sheet", "source_row_number"],
+        )
+        self.assertEqual(hierarchy["source_row"]["does_not_represent"], "business event identity")
+        self.assertEqual(hierarchy["business_event"]["components"], ["event_id"])
+        self.assertIn("event_stable_hash", hierarchy["business_event"]["stability_fields"])
+        self.assertEqual(
+            hierarchy["day_presence"]["location_key"],
+            "cod_rt_norm when present, otherwise local_nombre_norm",
+        )
+
+    def test_idempotency_matrix_covers_required_cases_with_allowed_outcomes(self):
+        rules = self.contract["idempotency_rules"]
+        expected_cases = {
+            "exact_rerun_same_file",
+            "same_logical_file_different_filename",
+            "corrected_file_replacing_previous_delivery",
+            "appended_rows",
+            "removed_rows",
+            "partial_failed_ingestion",
+            "resumed_ingestion",
+            "duplicate_rows_inside_one_source",
+            "same_event_multiple_source_files",
+            "concurrent_or_overlapping_runs",
+        }
+        self.assertEqual(set(rules), expected_cases)
+        allowed = {"no_op", "insert", "update", "supersession", "rejection", "quarantine", "new_source_version"}
+        for case, spec in rules.items():
+            self.assertIn(spec["outcome"], allowed, case)
+            if "conflict_outcome" in spec:
+                self.assertIn(spec["conflict_outcome"], allowed, case)
+
+        self.assertEqual(rules["exact_rerun_same_file"]["outcome"], "no_op")
+        self.assertEqual(rules["same_logical_file_different_filename"]["outcome"], "no_op")
+        self.assertEqual(rules["corrected_file_replacing_previous_delivery"]["outcome"], "new_source_version")
+        self.assertEqual(rules["removed_rows"]["outcome"], "supersession")
+        self.assertEqual(rules["partial_failed_ingestion"]["outcome"], "quarantine")
+        self.assertEqual(rules["concurrent_or_overlapping_runs"]["outcome"], "rejection")
+
+    def test_state_marks_016b_selected_and_keeps_productive_gates_closed(self):
+        self.assertEqual(self.state["executive_progress"]["operating_model"], "V2_ACTIVE")
+        self.assertEqual(self.state["current_work"]["unit"], "016B")
+        self.assertEqual(self.state["current_work"]["status"], "IDEMPOTENCY_CONTRACT_SELECTED")
+        self.assertEqual(self.state["current_work"]["next_permitted_unit"], "017_APPLY_RUNNER_AND_REHEARSAL")
+        self.assertEqual(self.state["current_work"]["next_unit_status"], "NOT_AUTHORIZED")
+        self.assertTrue(self.state["authorization"]["016B_architecture_authorized"])
+        self.assertFalse(self.state["authorization"]["017_authorized"])
+
+        productive_flags = [
+            "supabase_access_authorized",
+            "sql_execution_authorized",
+            "db_reads_authorized",
+            "db_writes_authorized",
+            "apply_authorized",
+            "cutover_authorized",
+            "legacy_destructive_action_authorized",
+            "app_runtime_modification_authorized",
+            "loader_modification_authorized",
+            "productive_contract_modification_authorized",
+        ]
+        self.assertTrue(all(self.state["authorization"][flag] is False for flag in productive_flags))
+
+    def test_directive_advances_only_to_017_without_authorizing_it(self):
+        self.assertEqual(self.directive["current_phase"], "016B_CLOSED")
+        self.assertEqual(self.directive["allowed_next_phase"], "017_APPLY_RUNNER_AND_REHEARSAL")
+        self.assertEqual(self.directive["active_phase_count"], 0)
+        self.assertEqual(self.directive["scope"]["016b_result"], "IDEMPOTENCY_CONTRACT_SELECTED")
+        self.assertFalse(self.directive["scope"]["productive_authorization_granted"])
+
+        phase_by_name = {phase["phase"]: phase for phase in self.directive["phases"]}
+        self.assertEqual(
+            phase_by_name["016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT"]["status"],
+            "CLOSED_SELECTED",
+        )
+        self.assertEqual(phase_by_name["017_APPLY_RUNNER_AND_REHEARSAL"]["status"], "FUTURE_NOT_AUTHORIZED")
+
+        amendment_requirements = self.directive["deviation_requires_directive_amendment"]["amendment_must_include"]
+        self.assertIn("git_commit_reference_and_repository_path", amendment_requirements)
+        self.assertNotIn("new_sha256", amendment_requirements)
+
+    def test_ledger_has_single_durable_016b_adr(self):
+        entries = self.ledger["entries"]
+        matches = [
+            entry
+            for entry in entries
+            if entry.get("id") == "ADR_016B_IDENTITY_GRAIN_IDEMPOTENCY_CONTRACT"
+        ]
+        self.assertEqual(len(matches), 1)
+        adr = matches[0]
+        self.assertEqual(adr["readiness_result"], "IDEMPOTENCY_CONTRACT_SELECTED")
+        self.assertEqual(adr["selected_contract"]["source_grain"], "source_photo_row")
+        self.assertFalse(adr["evidence"]["db_access"])
+        self.assertFalse(adr["evidence"]["sql_executed"])
+        self.assertFalse(adr["evidence"]["apply_executed"])
+        self.assertIn("017 is the next permitted unit but remains unauthorized.", adr["implications_for_017"])
+
+
+if __name__ == "__main__":
+    unittest.main()
