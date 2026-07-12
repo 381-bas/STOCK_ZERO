@@ -12,7 +12,7 @@ Repair classification: `PRE_EXISTING_ENVIRONMENT_COUPLED_TEST_DEFECTS`
 
 - Directive: `KPIONE_DB_TRANSITION_016_019_LOCK_V1`
 - Previous SHA: `cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e`
-- New SHA: `6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22`
+- New SHA: `375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e`
 - Hash method: `SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF`
 - 016A is redefined as legacy evidence closeout and governed transition readiness for a separately authorized 016B design phase.
 
@@ -21,8 +21,18 @@ Repair classification: `PRE_EXISTING_ENVIRONMENT_COUPLED_TEST_DEFECTS`
 - Classification: `HASH_METHOD_MISMATCH_LINE_ENDINGS`
 - Canonical Git blob SHA before amendment: `cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e`
 - Working-tree CRLF SHA: `a3ccfb17f74cd9bff06a119bb584ae835f2600f2bf140e9e8950e9c4108ae150`
-- Canonical Git blob SHA after amendment: `6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22`
-- Git blob object ID after amendment: `2a3e49337b3742e0f5d70b293e0b04305c3f4df8`
+- Canonical Git blob SHA after amendment: `375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e`
+- Git blob object ID after amendment: `47f0333d6257e12b73c1991de7573f45110baf2c`
+
+## PR45 Review Fix
+
+- Classification: `AUTHORIZED_FILE_COUNT_RECONCILIATION`
+- Previous declared count: `8`
+- Actual authorized count: `9`
+- Additional authorized file: `tests/test_sz_worktree_tooling.py`
+- Previous directive SHA: `6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22`
+- Directive SHA after review fix: `375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e`
+- Productive behavior changed: `false`
 
 ## Phase Transition
 

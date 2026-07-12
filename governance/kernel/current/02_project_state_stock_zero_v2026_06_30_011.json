@@ -8,7 +8,7 @@
   "current_focus": "KPIONE_DB_TRANSITION_016_019_LOCK_V1: 016 cerrada por PR #44; 016A registra la enmienda de directiva, cierre de evidencia legacy, método SHA256 canónico Git-blob LF y transición gobernada hacia 016B, sin autorizar 016B, Supabase, SQL, DB writes, apply, cutover ni acciones destructivas.",
   "roadmap_lock": {
     "roadmap_lock_id": "KPIONE_DB_TRANSITION_016_019_LOCK_V1",
-    "roadmap_lock_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
+    "roadmap_lock_sha256": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
     "status": "ACTIVE_LOCKED",
     "directive_path": "governance/directives/KPIONE_DB_TRANSITION_016_019_LOCK_V1.json",
     "human_doc_path": "docs/governance/KPIONE_DB_TRANSITION_016_019_LOCK.md",
@@ -32,7 +32,7 @@
     "deviation_requires_directive_amendment": true,
     "activated_on_branch": "lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only",
     "base_main_commit": "26fed014a2429811723ea35218a8619d9178efea",
-    "roadmap_lock_previous_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+    "roadmap_lock_previous_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
     "roadmap_lock_sha256_method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
     "phase_016_status": "CLOSED_BY_PR_44",
     "phase_016a_status": "DOCUMENTARY_CLOSEOUT_COMPLETE_PENDING_PR_REVIEW",
@@ -47,8 +47,9 @@
       "canonical_method": "SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
       "previous_canonical_git_blob_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
       "working_tree_crlf_sha256": "a3ccfb17f74cd9bff06a119bb584ae835f2600f2bf140e9e8950e9c4108ae150",
-      "new_canonical_git_blob_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
-      "working_tree_bytes_are_authority": false
+      "new_canonical_git_blob_sha256": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
+      "working_tree_bytes_are_authority": false,
+      "pre_review_fix_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22"
     },
     "apply_gate": "BLOCKED_FOR_IDEMPOTENCY_CONTRACT",
     "016B_authorized": false,
@@ -59,7 +60,18 @@
     "cutover_authorized": false,
     "legacy_destructive_action_authorized": false,
     "amendment_branch": "lab/FAST_REFORM_016A_directive_amendment_legacy_closeout",
-    "next_permitted_action": "Review and merge the 016A draft PR; only after that, a separate explicit prompt may authorize 016B design."
+    "next_permitted_action": "Review and merge the 016A draft PR; only after that, a separate explicit prompt may authorize 016B design.",
+    "roadmap_lock_pre_amendment_sha256": "cce9eea337c07c56b722968beaa7eb481e79028b60fa218e20875fb71be2e46e",
+    "review_fix": {
+      "classification": "AUTHORIZED_FILE_COUNT_RECONCILIATION",
+      "previous_declared_count": 8,
+      "actual_authorized_count": 9,
+      "additional_authorized_file": "tests/test_sz_worktree_tooling.py",
+      "pre_review_fix_sha256": "6fcfd7e45c91b921387de93a5fb5de19ef45287083151881a02471ccf27f3b22",
+      "directive_sha256_after_review_fix": "375cc1a4cde7b6ebffaac6fef1669a4933d99707e260316b1d7cadb1c1b7a93e",
+      "productive_behavior_changed": false,
+      "016b_authorized": false
+    }
   },
   "repository": {
     "full_name": "381-bas/STOCK_ZERO",

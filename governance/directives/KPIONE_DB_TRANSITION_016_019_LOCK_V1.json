@@ -63,7 +63,7 @@
       "objective": "Formally close phase 016 evidence, register PR #44 and merge 26fed01, reconcile the canonical roadmap hash method, and transition governance to allow a separately authorized 016B design phase.",
       "entry_gate": "Phase 016 evidence is merged in PR #44; repository main is 26fed01; hash reconciliation classified the prior mismatch as line-ending-only; Bastian and ChatGPT explicitly authorize this amendment.",
       "exit_gate": "Directive, human roadmap, PROJECT_STATE, PROJECT_LEDGER, derived roadmap constants, tests, and 016A evidence agree on current_phase 016A, allowed_next_phase 016B, canonical Git-blob SHA method, and all no-apply guardrails. No DB access or 016B work occurred.",
-      "writes_allowed": "Only the eight explicitly authorized repository files. No DB writes.",
+      "writes_allowed": "Only the nine explicitly authorized repository files recorded in the 016A closeout evidence. No DB writes.",
       "authorization_required": "Explicit separate Bastian and ChatGPT prompt before any 016B work."
     },
     {
@@ -186,7 +186,8 @@
         "allowed_next_phase 016A -> 016B",
         "016A phase objective, entry gate, exit gate, writes_allowed, authorization_required",
         "integrity_contract added for SHA256_OF_CANONICAL_GIT_BLOB_BYTES_LF",
-        "hard restrictions updated to remove obsolete no-git actions for this authorized amendment while preserving productive bans"
+        "hard restrictions updated to remove obsolete no-git actions for this authorized amendment while preserving productive bans",
+        "016A authorized repository file count reconciled from eight to nine after the separately authorized portable tooling test repair."
       ],
       "risk": "Governance-only transition could be mistaken as 016B authorization unless no-016B guardrails remain explicit.",
       "authorization": "Bastian and ChatGPT prompt for 016A_DIRECTIVE_AMENDMENT_AND_LEGACY_EVIDENCE_CLOSEOUT_REPO_ONLY.",
