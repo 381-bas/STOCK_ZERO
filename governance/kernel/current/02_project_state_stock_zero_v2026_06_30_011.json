@@ -24,6 +24,16 @@
     "next_permitted_unit": "018_PRODUCTIVE_APPLY",
     "next_unit_status": "NOT_AUTHORIZED"
   },
+  "current_preparation": {
+    "unit": "018_PRODUCTIVE_APPLY",
+    "status": "BLOCKED_SOURCE_PACKAGE",
+    "plan": "plans/018_kpione_route_b_productive_apply_plan.json",
+    "blockers": [
+      "One candidate workbook declares export truncation at 50000 photos.",
+      "Expected Supabase project identity and productive executing role are not registered."
+    ],
+    "productive_apply_authorized": false
+  },
   "authorization": {
     "016B_architecture_authorized": true,
     "017_authorized": true,

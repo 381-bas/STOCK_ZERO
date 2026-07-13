@@ -1,0 +1,130 @@
+{
+  "document_type": "kpione_route_b_productive_apply_plan",
+  "plan_version": "018_V1",
+  "phase": "018_PRODUCTIVE_APPLY",
+  "risk_class": "R3_PRODUCTIVE",
+  "status": "BLOCKED_SOURCE_PACKAGE",
+  "expected_repository_commit": "407cb86a8f47f1a6650229c0a479a7c8d9cc897e",
+  "runner_version": "017_ROUTE_B_V1",
+  "runner_path": "scripts/run_kpione_route_b_ingestion_v1.py",
+  "input_directory": {
+    "configuration_key": "KPIONE_ROUTE_B_INPUT_DIR",
+    "repository_relative_value": "data/kpione_photo_reports/2026-06",
+    "file_pattern": "photo-excel-admin_*.xlsx",
+    "sheet": "Fotos"
+  },
+  "source_package": {
+    "candidate_count": 11,
+    "total_candidate_bytes": 20595220,
+    "total_observed_photo_rows_including_truncated_export": 297531,
+    "approved_for_apply": false,
+    "expected_coverage": null,
+    "expected_source_rows": null,
+    "expected_distinct_events": null,
+    "expected_day_presence_rows": null,
+    "blockers": [
+      "SOURCE_EXPORT_TRUNCATED:photo-excel-admin_1781976368641.xlsx:row_50002",
+      "EXPECTED_SUPABASE_PROJECT_REF_NOT_REGISTERED",
+      "PRODUCTIVE_EXECUTING_ROLE_NOT_REGISTERED"
+    ],
+    "files": [
+      {"filename":"photo-excel-admin_1781973512473.xlsx","sha256":"e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d","size_bytes":3176684,"sheet_exists":true,"required_columns_valid":true,"row_count":46078,"distinct_event_count":6997,"coverage_start":"2026-06-15","coverage_end":"2026-06-19","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":6956,"classification":"VALID_CANDIDATE"},
+      {"filename":"photo-excel-admin_1781975989376.xlsx","sha256":"8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d","size_bytes":3228103,"sheet_exists":true,"required_columns_valid":true,"row_count":46807,"distinct_event_count":7101,"coverage_start":"2026-06-01","coverage_end":"2026-06-07","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":7069,"classification":"VALID_CANDIDATE"},
+      {"filename":"photo-excel-admin_1781976368641.xlsx","sha256":"0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa","size_bytes":3438539,"sheet_exists":true,"required_columns_valid":true,"row_count":50000,"distinct_event_count":7832,"coverage_start":"2026-06-08","coverage_end":"2026-06-13","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":7766,"classification":"INVALID_OR_QUARANTINED","invalid_reason":"Export sentinel at worksheet row 50002 declares truncation at 50000 photos."},
+      {"filename":"photo-excel-admin_1781976423312.xlsx","sha256":"ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0","size_bytes":14548,"sheet_exists":true,"required_columns_valid":true,"row_count":107,"distinct_event_count":14,"coverage_start":"2026-06-14","coverage_end":"2026-06-14","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":10,"classification":"VALID_CANDIDATE"},
+      {"filename":"photo-excel-admin_1782012877303.xlsx","sha256":"d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881","size_bytes":584705,"sheet_exists":true,"required_columns_valid":true,"row_count":8372,"distinct_event_count":1295,"coverage_start":"2026-06-08","coverage_end":"2026-06-08","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":1294,"classification":"VALID_CANDIDATE"},
+      {"filename":"photo-excel-admin_1782440454408.xlsx","sha256":"1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180","size_bytes":2621405,"sheet_exists":true,"required_columns_valid":true,"row_count":37908,"distinct_event_count":5892,"coverage_start":"2026-06-20","coverage_end":"2026-06-24","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":5869,"classification":"VALID_CANDIDATE"},
+      {"filename":"photo-excel-admin_1783219885210.xlsx","sha256":"43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978","size_bytes":584673,"sheet_exists":true,"required_columns_valid":true,"row_count":8372,"distinct_event_count":1295,"coverage_start":"2026-06-08","coverage_end":"2026-06-08","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":1294,"classification":"VALID_CANDIDATE"},
+      {"filename":"photo-excel-admin_1783219914054.xlsx","sha256":"679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7","size_bytes":609299,"sheet_exists":true,"required_columns_valid":true,"row_count":8672,"distinct_event_count":1311,"coverage_start":"2026-06-13","coverage_end":"2026-06-13","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":1305,"classification":"VALID_CANDIDATE"},
+      {"filename":"photo-excel-admin_1783220085725.xlsx","sha256":"8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b","size_bytes":2804511,"sheet_exists":true,"required_columns_valid":true,"row_count":40488,"distinct_event_count":6290,"coverage_start":"2026-06-24","coverage_end":"2026-06-28","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":6189,"classification":"VALID_CANDIDATE"},
+      {"filename":"photo-excel-admin_1783220157694.xlsx","sha256":"3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72","size_bytes":1114940,"sheet_exists":true,"required_columns_valid":true,"row_count":15889,"distinct_event_count":2489,"coverage_start":"2026-06-29","coverage_end":"2026-06-30","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":2457,"classification":"VALID_CANDIDATE"},
+      {"filename":"photo-excel-admin_1783220552913.xlsx","sha256":"45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b","size_bytes":2417813,"sheet_exists":true,"required_columns_valid":true,"row_count":34838,"distinct_event_count":5477,"coverage_start":"2026-06-09","coverage_end":"2026-06-12","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":5417,"classification":"VALID_CANDIDATE"}
+    ]
+  },
+  "physical_contract": {
+    "sql_file": "sql/17_kpione_route_b_ingestion_v1.sql",
+    "sql_sha256": "94b6049454435bf03b2a348a8c93653528a011a94339ac3c13b071c8e0e2da0e",
+    "sql_sha256_method": "SHA256_OF_LF_NORMALIZED_BYTES",
+    "required_schemas": ["cg_raw", "cg_core"],
+    "required_extensions": [],
+    "objects": [
+      "cg_raw.kpione_raw_ingest_batch_v1",
+      "cg_raw.kpione_raw_ingest_batch_file_v1",
+      "cg_raw.kpione_raw_event_photo_staging_v1",
+      "cg_core.kpione_event_normalized_v1",
+      "cg_core.kpione_day_presence_v1"
+    ],
+    "object_signatures": {
+      "cg_raw.kpione_raw_ingest_batch_v1": {"relation_kind":"r","columns":["batch_id","runner_execution_id","semantic_plan_hash","status","coverage_start","coverage_end","file_count","row_count","event_count","created_at","validated_at","activated_at","rolled_back_at","supersedes_batch_id","error_summary"]},
+      "cg_raw.kpione_raw_ingest_batch_file_v1": {"relation_kind":"r","columns":["batch_id","source_file_sha256","source_file_name","source_sheet","file_size","coverage_start","coverage_end","row_count","event_count","validation_status","quarantine_reason"]},
+      "cg_raw.kpione_raw_event_photo_staging_v1": {"relation_kind":"r","columns":["staging_id","batch_id","source_file_sha256","source_sheet","source_row_number","source_row_identity","event_id","sp_item_id","source_payload","photo_row_hash","event_stable_hash","event_date","location_key","cliente_norm","duplicate_classification","conflict_classification","created_at"]},
+      "cg_core.kpione_event_normalized_v1": {"relation_kind":"v","columns":["event_id","sp_item_id","event_date","location_key","cliente_norm","event_stable_hash","photo_count","source_batch_ids"]},
+      "cg_core.kpione_day_presence_v1": {"relation_kind":"v","columns":["fecha","location_key","cliente_norm","presence","event_count"]}
+    }
+  },
+  "target": {
+    "readonly_precheck_env": "DB_URL_CODEX_RO",
+    "future_productive_env": "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
+    "expected_supabase_project_ref": null,
+    "expected_hostname": null,
+    "allowed_readonly_roles": ["stock_zero_codex_ro"],
+    "allowed_productive_roles": [],
+    "expected_database": "postgres"
+  },
+  "transaction_sequence": [
+    "Validate approved plan Git reference, plan content, source hashes, schema and counts before connecting.",
+    "Run the separately authorized read-only precheck and accept only an exact target and role match.",
+    "Begin one read-write transaction and acquire the KPIONE_ROUTE_B_V1 transaction advisory lock.",
+    "Apply the committed SQL contract idempotently and verify object signatures.",
+    "Register batch and all selected files, stage immutable rows, and run conflict gates.",
+    "Activate only after every planned hash and expected count matches.",
+    "Commit once, then run read-only postchecks into the approved evidence path."
+  ],
+  "activation_gate": {
+    "all_source_files_valid": false,
+    "source_hashes_match": true,
+    "target_identity_registered": false,
+    "productive_role_registered": false,
+    "rollback_route_demonstrated": true,
+    "gate_open": false
+  },
+  "readonly_precheck_command": "python scripts/precheck_kpione_route_b_018_read_only.py --plan plans/018_kpione_route_b_productive_apply_plan.json --db-url-env DB_URL_CODEX_RO --expected-project-ref <REGISTERED_PROJECT_REF> --report-json <TEMP_OR_SEPARATELY_AUTHORIZED_PATH>",
+  "future_productive_command": {
+    "status": "NOT_EXECUTABLE_UNTIL_BLOCKERS_RESOLVED_AND_SEPARATELY_AUTHORIZED",
+    "minimum_runner_change_required": "Add a separate --apply-productive mode that accepts only the approved plan and never reuses --apply-local or DB_URL_CODEX_LOCAL.",
+    "command": "python scripts/run_kpione_route_b_ingestion_v1.py --apply-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --expected-plan-git-ref <APPROVED_COMMIT> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-productive KPIONE_ROUTE_B_018_APPLY --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
+  },
+  "postcheck_queries": [
+    "SELECT to_regclass(object_name) FROM unnest(ARRAY['cg_raw.kpione_raw_ingest_batch_v1','cg_raw.kpione_raw_ingest_batch_file_v1','cg_raw.kpione_raw_event_photo_staging_v1','cg_core.kpione_event_normalized_v1','cg_core.kpione_day_presence_v1']) AS object_name;",
+    "SELECT batch_id,status,coverage_start,coverage_end,file_count,row_count,event_count FROM cg_raw.kpione_raw_ingest_batch_v1 ORDER BY created_at DESC;",
+    "SELECT batch_id,source_file_sha256,source_file_name,row_count,event_count,validation_status FROM cg_raw.kpione_raw_ingest_batch_file_v1 ORDER BY source_file_sha256;",
+    "SELECT batch_id,count(*) AS staged_rows,count(DISTINCT event_id) AS events,min(event_date) AS coverage_start,max(event_date) AS coverage_end FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY batch_id;",
+    "SELECT duplicate_classification,count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY duplicate_classification;",
+    "SELECT conflict_classification,count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY conflict_classification;",
+    "SELECT count(*) FROM cg_core.kpione_event_normalized_v1;",
+    "SELECT count(*) FROM cg_core.kpione_day_presence_v1 WHERE presence=1;",
+    "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE';",
+    "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 a JOIN cg_raw.kpione_raw_ingest_batch_v1 b ON a.batch_id<b.batch_id AND a.status='ACTIVE' AND b.status='ACTIVE' AND daterange(a.coverage_start,a.coverage_end,'[]') && daterange(b.coverage_start,b.coverage_end,'[]');",
+    "SELECT to_regclass('cg_raw.kpione2_raw') AS legacy_object_unchanged;"
+  ],
+  "rollback": {
+    "before_activation": "Rollback the open transaction; no batch becomes ACTIVE.",
+    "during_staging": "Rollback the open transaction; no partial staging survives.",
+    "after_activation_before_downstream_use": "Run separately authorized logical rollback for the activated batch under the advisory lock; preserve immutable rows.",
+    "manual_postcheck_rejection": "Block downstream use and run the same separately authorized logical rollback after recording the rejected postcheck.",
+    "future_command": "python scripts/run_kpione_route_b_ingestion_v1.py --rollback-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --rollback-batch-id <BATCH_UUID> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-rollback KPIONE_ROUTE_B_018_ROLLBACK --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
+  },
+  "abort_conditions": [
+    "Any source filename, SHA256, size, schema, coverage or expected count differs from the approved plan.",
+    "Any workbook is truncated, malformed, quarantined or contains an event conflict.",
+    "Repository commit, SQL SHA256, target project, hostname, database or role differs.",
+    "Precheck transaction is not read-only.",
+    "Existing Route B objects differ from committed signatures or an unexpected ACTIVE batch exists.",
+    "Required schema/extension/privilege is unavailable.",
+    "Estimated counts differ materially or rollback cannot be demonstrated."
+  ],
+  "evidence_fields": [
+    "approved_plan_git_reference","repository_commit","plan_path","sql_sha256","target_fingerprint","current_user","session_user","source_hashes","batch_id","transaction_outcome","postcheck_counts","rollback_readiness"
+  ],
+  "productive_apply_authorized": false
+}
