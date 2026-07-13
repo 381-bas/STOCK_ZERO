@@ -1,0 +1,101 @@
+{
+  "document_type": "historical_technical_evidence_preservation",
+  "project": "STOCK_ZERO",
+  "source_artifact": "governance/kernel/current/04_project_technical_evidence_stock_zero_v2026_06_30_011.json",
+  "source_artifact_git_blob_sha1": "c207beef43df06683bc621ae64599c543c9dc22b",
+  "source_artifact_file_sha256": "5a19f3d552770c67e9325e50881806226a53cc792e52b6160697c70d8b29789f",
+  "source_commit_inspected": "8971bd9768f03815ad7dd5109a51388b1784dbb0",
+  "migration_date": "2026-07-13",
+  "authority_status": [
+    "HISTORICAL_EVIDENCE_ONLY",
+    "NOT_CURRENT_PROJECT_STATE",
+    "NOT_PRODUCTIVE_AUTHORIZATION"
+  ],
+  "provenance_note": "The three preserved sections were migrated verbatim as JSON values from the retired source artifact. No field-level normalization was applied.",
+  "field_level_normalizations": [],
+  "section_sha256_method": "SHA256_OF_CANONICAL_JSON_UTF8_SORT_KEYS_COMPACT",
+  "section_sha256": {
+    "cg005n_lab": "d4e4399085bc4d0556da2b45d241bfd29fc593793be199f4c77c7f8b75208005",
+    "productive_drift": "eb3c2e6ef13c3d3a810678573742b4409c60ee99ffc0b54901fc485a3aac58cf",
+    "control_gestion": "0bee001daa990020e568716491652580e9ce94ee8d35590bd0c880b96de1f7ae"
+  },
+  "replacement_map": {
+    "cg005n_lab.postgres_image": "governance/kernel/current/03_project_ledger_stock_zero_v2026_06_30_011.json entry: PostgreSQL 17 para laboratorio CG005N-Q",
+    "control_gestion.precedence": "governance/kernel/current/01_project_kernel_stock_zero_v2026_06_16.json#source_contracts.visit_precedence"
+  },
+  "current_truth_statement": "Current runtime and productive truth remain governed by Git, PROJECT_KERNEL 01, PROJECT_STATE 02, PROJECT_LEDGER 03, approved plans, and committed research evidence. This artifact is not a live authority.",
+  "preserved_sections": {
+    "cg005n_lab": {
+      "checkpoint": "CG005NQ_LOCAL_POSTGRESQL_APPLY_ROLLBACK_LAB_CHECKPOINT",
+      "verdict": "LAB_PASS",
+      "postgres_image": "postgres:17-alpine",
+      "tests": {
+        "collected": 58,
+        "passed": 58,
+        "failed": 0
+      },
+      "assertions": {
+        "prestate_reconstruction_complete": true,
+        "prestate_technical_fingerprint_match": true,
+        "no_apply_cli_zero_write_confirmed": true,
+        "sql13_runner_apply_passed": true,
+        "postcheck_passed": true,
+        "explicit_assignment_behavior_passed": true,
+        "legacy_fallback_behavior_passed": true,
+        "removed_grain_non_reappearance_passed": true,
+        "rollback_with_assignment_rows_blocked": true,
+        "sql14_runner_rollback_passed": true,
+        "rollback_logical_signature_preserved": true,
+        "final_rollback_fingerprint_match": true,
+        "docker_cleanup_complete": true
+      },
+      "fingerprints": {
+        "post_sql13_technical": "3F3423F7504C550FDDCC4F5C87181316B1CFAF581EFBF266B2DBB9CC96B5686D",
+        "logical_rollback_technical": "DFDD0CBCA4F78971A776E7174E4D790677A6E5667F8864DAC983CC9F7027B894"
+      },
+      "scope": "LOCAL_ONLY_NO_SUPABASE"
+    },
+    "productive_drift": {
+      "checkpoint": "CG005NQ_RESUME_AND_PRODUCTIVE_DRIFT_AUDIT_CHECKPOINT",
+      "verdict": "PASS",
+      "drift_class": "NO_DRIFT",
+      "role": "stock_zero_codex_ro",
+      "transaction_read_only": "on",
+      "technical_fingerprint_match": true,
+      "technical_fingerprint": "A639112F482EE75A7CD41EF1FB83DEFAD937914E6C0490C5CCDA0EF3BA36A8BE",
+      "route_batch_count": 19,
+      "max_ruta_batch_id": 19,
+      "assignment_table_exists": false,
+      "assignment_row_count": 0,
+      "material_dependency_unknowns": 0,
+      "writes_attempted": false
+    },
+    "control_gestion": {
+      "precedence": {
+        "KPIONE2": "principal",
+        "POWER_APP": "fallback",
+        "KPIONE1": "audit_only"
+      },
+      "validated_week": {
+        "week_start": "2026-05-18",
+        "visitas_exigidas": 7373,
+        "reported_compliance_ratio": 0.175
+      },
+      "daily_fact": {
+        "2026-05-18": 1291,
+        "2026-05-19": 1130,
+        "2026-05-20": 1173,
+        "2026-05-21": 1247,
+        "2026-05-22": 1302
+      },
+      "duplicate_fix": {
+        "checked_weeks": [
+          "2026-04-27",
+          "2026-05-04",
+          "2026-05-11"
+        ],
+        "max_multiplicity": 1
+      }
+    }
+  }
+}
