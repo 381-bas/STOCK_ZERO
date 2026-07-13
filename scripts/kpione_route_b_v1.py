@@ -297,6 +297,25 @@ def public_plan(plan: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in plan.items() if not key.startswith("_")}
 
 
+def semantic_content_records(workbook: WorkbookPlan) -> list[tuple[str, ...]]:
+    return sorted(
+        (
+            row["event_id"],
+            row["sp_item_id"],
+            row["event_stable_hash"],
+            row["photo_row_hash"],
+            row["fecha"],
+            row["location_key"],
+            row["cliente_norm"],
+        )
+        for row in workbook.rows
+    )
+
+
+def semantic_content_hash(workbook: WorkbookPlan) -> str:
+    return sha256_text(stable_json(semantic_content_records(workbook)))
+
+
 def _semantic_plan_hash(workbooks: list[WorkbookPlan]) -> str:
     semantic = {
         "runner_version": RUNNER_VERSION,

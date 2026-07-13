@@ -26,12 +26,14 @@
   },
   "current_preparation": {
     "unit": "018_PRODUCTIVE_APPLY",
-    "status": "BLOCKED_SOURCE_PACKAGE",
+    "status": "SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING",
     "plan": "plans/018_kpione_route_b_productive_apply_plan.json",
     "blockers": [
-      "One candidate workbook declares export truncation at 50000 photos.",
-      "Expected Supabase project identity and productive executing role are not registered."
+      "Expected Supabase project identity and hostname are not registered.",
+      "Productive executing role is not registered.",
+      "Read-only productive precheck is not authorized or executed."
     ],
+    "source_manifest": "Nine approved files cover June 1-30; the truncated fixture and one semantic day-8 duplicate are intentionally excluded.",
     "productive_apply_authorized": false
   },
   "authorization": {

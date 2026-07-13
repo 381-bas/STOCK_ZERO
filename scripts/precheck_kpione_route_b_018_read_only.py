@@ -4,9 +4,15 @@ import argparse
 import hashlib
 import json
 import os
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
+
+try:
+    from scripts.kpione_route_b_v1 import inspect_workbook, semantic_content_hash, stable_json
+except ModuleNotFoundError:  # Direct execution from scripts/.
+    from kpione_route_b_v1 import inspect_workbook, semantic_content_hash, stable_json
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,8 +47,8 @@ def load_plan(path: Path) -> dict[str, Any]:
 
 
 def validate_plan_readiness(plan: dict[str, Any]) -> None:
-    blockers = list(plan["source_package"].get("blockers") or [])
-    if plan.get("status") != "READY_FOR_READ_ONLY_PRECHECK":
+    blockers: list[str] = []
+    if plan.get("status") not in {"SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING", "READY_FOR_READ_ONLY_PRECHECK"}:
         blockers.append("plan_status_not_ready")
     target = plan["target"]
     if not target.get("expected_supabase_project_ref") or not target.get("expected_hostname"):
@@ -53,19 +59,119 @@ def validate_plan_readiness(plan: dict[str, Any]) -> None:
         raise PrecheckBlock("plan_blocked:" + ",".join(sorted(set(blockers))))
 
 
-def validate_local_artifacts(plan: dict[str, Any], root: Path = ROOT) -> None:
-    sql_path = root / plan["physical_contract"]["sql_file"]
-    if sha256_lf_normalized(sql_path) != plan["physical_contract"]["sql_sha256"]:
-        raise PrecheckBlock("sql_sha256_mismatch")
+def _date_range(start: str, end: str) -> list[str]:
+    current, final = date.fromisoformat(start), date.fromisoformat(end)
+    values: list[str] = []
+    while current <= final:
+        values.append(current.isoformat())
+        current += timedelta(days=1)
+    return values
+
+
+def summarize_approved_workbooks(workbooks: list[Any]) -> dict[str, Any]:
+    rows = [row for workbook in workbooks for row in workbook.rows]
+    event_stability: dict[str, tuple[str, str]] = {}
+    conflicts: set[str] = set()
+    for row in rows:
+        value = (row["sp_item_id"], row["event_stable_hash"])
+        if row["event_id"] in event_stability and event_stability[row["event_id"]] != value:
+            conflicts.add(row["event_id"])
+        event_stability.setdefault(row["event_id"], value)
+    photo_ids = [(row["event_id"], row["photo_row_hash"]) for row in rows]
+    presence = {(row["fecha"], row["location_key"], row["cliente_norm"]) for row in rows}
+    dates = sorted({row["fecha"] for row in rows})
+    semantic_hashes = sorted(semantic_content_hash(workbook) for workbook in workbooks)
+    plan_hash = hashlib.sha256(stable_json({
+        "runner_version": "017_ROUTE_B_V1",
+        "approved_semantic_hashes": semantic_hashes,
+        "grain": "immutable_event_photo_staging_row",
+    }).encode("utf-8")).hexdigest()
+    return {
+        "approved_file_count": len(workbooks),
+        "expected_source_rows": len(rows),
+        "expected_distinct_events": len(event_stability),
+        "expected_duplicate_photo_rows": len(photo_ids) - len(set(photo_ids)),
+        "expected_event_conflicts": len(conflicts),
+        "expected_day_presence_rows": len(presence),
+        "coverage_start": dates[0],
+        "coverage_end": dates[-1],
+        "distinct_dates": len(dates),
+        "missing_dates": sorted(set(_date_range(dates[0], dates[-1])) - set(dates)),
+        "semantic_plan_hash": plan_hash,
+    }
+
+
+def validate_source_manifest(plan: dict[str, Any], root: Path = ROOT) -> dict[str, Any]:
     input_dir = root / plan["input_directory"]["repository_relative_value"]
-    expected = {item["filename"]: item["sha256"] for item in plan["source_package"]["files"]}
+    package = plan["source_package"]
+    approved = {item["filename"]: item for item in package["approved_files"]}
+    excluded = {item["filename"]: item for item in package["excluded_files"]}
+    inventory = {item["filename"]: item for item in package["observed_directory_inventory"]}
+    if set(approved) & set(excluded):
+        raise PrecheckBlock("approved_excluded_filename_overlap")
+    if {item["sha256"] for item in approved.values()} & {item["sha256"] for item in excluded.values()}:
+        raise PrecheckBlock("approved_excluded_hash_overlap")
+    if any(item.get("classification") == "NEGATIVE_TEST_FIXTURE_TRUNCATED" for item in approved.values()):
+        raise PrecheckBlock("truncated_fixture_in_approved_manifest")
     actual = {
-        path.name: sha256_file(path)
+        path.name: path
         for path in sorted(input_dir.glob(plan["input_directory"]["file_pattern"]))
         if not path.name.startswith("~$")
     }
-    if actual != expected:
-        raise PrecheckBlock("source_hash_manifest_mismatch")
+    unknown = sorted(set(actual) - set(inventory))
+    if unknown:
+        raise PrecheckBlock("unknown_matching_files:" + ",".join(unknown))
+    missing = sorted(set(approved) - set(actual))
+    if missing:
+        raise PrecheckBlock("missing_approved_files:" + ",".join(missing))
+    for filename, path in actual.items():
+        expected_hash = inventory[filename]["sha256"]
+        if sha256_file(path) != expected_hash:
+            raise PrecheckBlock("observed_file_hash_mismatch:" + filename)
+    workbooks = []
+    for filename, entry in approved.items():
+        if filename in excluded:
+            raise PrecheckBlock("excluded_file_in_approved_manifest:" + filename)
+        workbook = inspect_workbook(actual[filename])
+        if workbook.source_file_sha256 != entry["sha256"]:
+            raise PrecheckBlock("approved_raw_hash_mismatch:" + filename)
+        if semantic_content_hash(workbook) != entry["semantic_content_hash"]:
+            raise PrecheckBlock("approved_semantic_hash_mismatch:" + filename)
+        for field, observed in (
+            ("row_count", len(workbook.rows)),
+            ("distinct_event_count", workbook.event_count),
+            ("day_presence_count", workbook.day_presence_count),
+            ("duplicate_photo_rows", workbook.duplicate_rows),
+            ("coverage_start", workbook.coverage_start),
+            ("coverage_end", workbook.coverage_end),
+        ):
+            if entry[field] != observed:
+                raise PrecheckBlock(f"approved_metric_mismatch:{filename}:{field}")
+        workbooks.append(workbook)
+    summary = summarize_approved_workbooks(workbooks)
+    expected_summary = {
+        "approved_file_count": package["approved_file_count"],
+        "expected_source_rows": package["expected_source_rows"],
+        "expected_distinct_events": package["expected_distinct_events"],
+        "expected_duplicate_photo_rows": package["expected_duplicate_photo_rows"],
+        "expected_event_conflicts": package["expected_event_conflicts"],
+        "expected_day_presence_rows": package["expected_day_presence_rows"],
+        "coverage_start": package["expected_coverage"]["start"],
+        "coverage_end": package["expected_coverage"]["end"],
+        "distinct_dates": package["expected_coverage"]["distinct_dates"],
+        "missing_dates": package["expected_coverage"]["missing_dates"],
+        "semantic_plan_hash": package["semantic_plan_hash"],
+    }
+    if summary != expected_summary:
+        raise PrecheckBlock("approved_aggregate_mismatch")
+    return summary
+
+
+def validate_local_artifacts(plan: dict[str, Any], root: Path = ROOT) -> dict[str, Any]:
+    sql_path = root / plan["physical_contract"]["sql_file"]
+    if sha256_lf_normalized(sql_path) != plan["physical_contract"]["sql_sha256"]:
+        raise PrecheckBlock("sql_sha256_mismatch")
+    return validate_source_manifest(plan, root)
 
 
 def validate_target(dsn: str | None, env_name: str, plan: dict[str, Any], expected_project_ref: str) -> str:
