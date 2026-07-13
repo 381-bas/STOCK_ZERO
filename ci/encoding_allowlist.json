@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "utf8_bom": {
+    ".env.example": "Historical tracked environment template; removal is outside this CI-only reform.",
+    ".gitignore": "Historical repository control file; removal is outside this CI-only reform.",
+    "docs/governance/014B_kpione_raw_ingestion_synthesis.md": "Historical governance document preserved byte-for-byte.",
+    "research/010B_route_b_claude_audit/CLAUDE_ROUTE_B_AUDIT.md": "Historical research evidence preserved byte-for-byte.",
+    "research/012_route_b_readiness_gates_no_apply/CLOSEOUT.md": "Historical research evidence preserved byte-for-byte.",
+    "research/012_route_b_readiness_gates_no_apply/EXISTING_TEST_RUN.md": "Historical research evidence preserved byte-for-byte.",
+    "research/012_route_b_readiness_gates_no_apply/ROUTE_B_READINESS_GATES.md": "Historical research evidence preserved byte-for-byte.",
+    "scripts/validate_june_data_foundation_gate_014A_no_apply.py": "Existing active Python BOM tracked by preflight; remediation is outside this CI-only reform."
+  }
+}
