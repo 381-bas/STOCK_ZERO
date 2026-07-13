@@ -3,8 +3,11 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
-import unittest
 import re
+import subprocess
+import sys
+import tempfile
+import unittest
 from pathlib import Path
 
 import yaml
@@ -78,6 +81,13 @@ class CIQualityGateTests(unittest.TestCase):
         groups = validate_registry(self.registry)
         self.assertEqual(sum(map(len, groups.values())), len(list((ROOT / "tests").glob("test_*.py"))))
         self.assertIn("tests/test_ci_quality_gates.py", groups["CI_CORE"])
+        self.assertEqual({category: len(modules) for category, modules in groups.items()}, {
+            "CI_CORE": 21,
+            "CI_POSTGRESQL": 1,
+            "LOCAL_SOURCE_INTEGRATION": 2,
+            "LOCAL_ENVIRONMENT": 2,
+            "PRODUCTIVE_NEVER_CI": 0,
+        })
 
     def test_unknown_and_duplicate_modules_fail_classification(self) -> None:
         unknown = copy.deepcopy(self.registry)
@@ -95,6 +105,54 @@ class CIQualityGateTests(unittest.TestCase):
         self.assertIn("python scripts/run_test_group.py --group CI_CORE", unit_runs)
         self.assertFalse(any("LOCAL_" in command for command in unit_runs))
         self.assertFalse(set(self.registry["modules"]["CI_CORE"]) & set(self.registry["modules"]["LOCAL_SOURCE_INTEGRATION"]))
+        worktree_test = "tests/test_sz_worktree_tooling.py"
+        self.assertNotIn(worktree_test, self.registry["modules"]["CI_CORE"])
+        self.assertIn(worktree_test, self.registry["modules"]["LOCAL_ENVIRONMENT"])
+        self.assertTrue(all(self.registry["reasons"].get(module, "").strip() for module in self.registry["modules"]["LOCAL_ENVIRONMENT"]))
+
+    def test_safety_command_does_not_require_json5(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "json5.py").write_text("raise RuntimeError('json5 import attempted')\n", encoding="utf-8")
+            environment = dict(__import__("os").environ, PYTHONPATH=tmp)
+            completed = subprocess.run(
+                [sys.executable, "scripts/ci_repository_checks.py", "safety"],
+                cwd=ROOT,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("safety_static=pass", completed.stdout)
+
+    def test_real_productive_credential_assignments_are_detected_without_values(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+            root = Path(tmp)
+            fixture = root / "fixture.txt"
+            secret_fragment = "eyJ" + "not-a-real-token"
+            database_value = "postgresql://user:password@host/database"
+            fixture.write_text(
+                f"SUPABASE_SERVICE_ROLE_KEY={secret_fragment}\nDB_URL_CODEX_LOAD={database_value}\n",
+                encoding="utf-8",
+            )
+            findings = ci_repository_checks.find_productive_credential_assignments([fixture], root)
+        self.assertEqual([finding["variable"] for finding in findings], ["SUPABASE_SERVICE_ROLE_KEY", "DB_URL_CODEX_LOAD"])
+        rendered = json.dumps(findings)
+        self.assertNotIn(secret_fragment, rendered)
+        self.assertNotIn(database_value, rendered)
+
+    def test_placeholders_and_documentation_references_are_not_credentials(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+            root = Path(tmp)
+            fixture = root / "fixture.txt"
+            fixture.write_text(
+                "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}\n"
+                "DB_URL_CODEX_LOAD=<PLACEHOLDER>\n"
+                "The variable DB_URL_CODEX_LOAD must not be used in CI.\n",
+                encoding="utf-8",
+            )
+            findings = ci_repository_checks.find_productive_credential_assignments([fixture], root)
+        self.assertEqual(findings, [])
 
     def test_local_source_runner_fails_when_sources_are_absent(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "local test prerequisites failed"):

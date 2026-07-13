@@ -29,8 +29,7 @@
       "tests/test_kernel04_retirement.py",
       "tests/test_route_b_denominator_dry_run.py",
       "tests/test_sz_context_bundle.py",
-      "tests/test_sz_load_observation.py",
-      "tests/test_sz_worktree_tooling.py"
+      "tests/test_sz_load_observation.py"
     ],
     "CI_POSTGRESQL": [
       "tests/test_017_route_b_postgres_integration.py"
@@ -40,7 +39,8 @@
       "tests/test_load_ruta_rutero_weekly_replace.py"
     ],
     "LOCAL_ENVIRONMENT": [
-      "tests/test_cg_route_weekly_local_lab.py"
+      "tests/test_cg_route_weekly_local_lab.py",
+      "tests/test_sz_worktree_tooling.py"
     ],
     "PRODUCTIVE_NEVER_CI": []
   },
@@ -48,7 +48,8 @@
     "tests/test_017_route_b_postgres_integration.py": "Requires an isolated PostgreSQL database and is safe only with DB_URL_CODEX_LOCAL pointing to loopback.",
     "tests/test_kpione2_photo_grain.py": "Includes validation against ignored Route B source workbooks when they are present locally.",
     "tests/test_load_ruta_rutero_weekly_replace.py": "Includes hash-bound validation against an ignored authorized route workbook.",
-    "tests/test_cg_route_weekly_local_lab.py": "Contains a machine-local CONTROL_GESTION PostgreSQL lab boundary and local loader integration mocks."
+    "tests/test_cg_route_weekly_local_lab.py": "Contains a machine-local CONTROL_GESTION PostgreSQL lab boundary and local loader integration mocks.",
+    "tests/test_sz_worktree_tooling.py": "Invokes Windows PowerShell via the powershell executable and validates machine/worktree behavior not proven reproducible on the Ubuntu GitHub runner."
   },
   "local_requirements": {
     "LOCAL_SOURCE_INTEGRATION": [
