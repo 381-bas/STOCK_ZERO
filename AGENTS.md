@@ -4,6 +4,14 @@
 
 This repository powers STOCK_ZERO / GESTIONZERO. Work must stay small, auditable, evidence-driven, and safe.
 
+## Operating Model V2.1
+
+- Keep pre-merge corrections in the same PR while objective and risk class remain unchanged; open a new PR for a material objective/risk change, merged unit, or independently reversible change.
+- Limit normal review to primary review, one corrective round, and one focused delta review; a third material correction requires redesign, split, controlled debt, or PR replacement.
+- Update PROJECT_STATE only for live unit/phase, gate, authorization, blocker, next action, or operating-model changes; do not copy Git, PR, test, or implementation history.
+- Use Claude or another independent model selectively for material semantics, source exclusion, duplicate/precedence decisions, durable contracts, R3/R4, or difficult-to-recover work; routine R1 does not require it.
+- Treat prechecks, productive applies, postchecks, and rollbacks without repository-logic changes as operations with exact evidence, not artificial code PRs.
+
 ## Self-preflight rule
 
 Before modifying files, run the relevant preflight unless the task is read-only investigation.

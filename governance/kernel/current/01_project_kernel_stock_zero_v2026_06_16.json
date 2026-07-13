@@ -284,6 +284,100 @@
       "ChatGPT": "Architecture, scope, and risk classification.",
       "Claude": "Adversarial review for material architecture uncertainty and R3/R4.",
       "Codex": "Implementation, tests, and Git; may repair derived issues inside the same objective and risk class when productive behavior is not expanded."
+    },
+    "delivery_and_review_contract_v2_1": {
+      "status": "OPERATING_MODEL_V2_1_ACTIVE",
+      "pull_request_unit": {
+        "definition": "One integrable, reviewable, reversible decision inside one risk class; absolute PR count is not governance.",
+        "same_pr_when": [
+          "objective unchanged",
+          "risk class unchanged",
+          "pre-merge findings corrected",
+          "result remains one independently integrable unit"
+        ],
+        "new_pr_when": [
+          "objective changes materially",
+          "risk class changes",
+          "previous unit is merged",
+          "change can be deployed or reverted independently"
+        ]
+      },
+      "productive_operations": {
+        "rule": "Read-only prechecks, applies, postchecks, and rollbacks without repository-logic changes are operations, not artificial code PRs.",
+        "required_evidence": [
+          "exact target identity",
+          "command or operation identifier",
+          "approved manifest or plan reference",
+          "authorization evidence",
+          "transaction result",
+          "postcheck evidence",
+          "rollback readiness",
+          "immutable execution reference when appropriate"
+        ]
+      },
+      "review_limit": {
+        "normal_rounds": [
+          "primary review",
+          "one corrective implementation round",
+          "one focused delta review"
+        ],
+        "third_material_correction_requires": [
+          "scope redesign",
+          "cohesive PR split",
+          "explicit controlled technical debt",
+          "close and replace the PR"
+        ]
+      },
+      "second_model_escalation": {
+        "selective_not_routine_r1": true,
+        "required_or_strongly_recommended_for": [
+          "business semantics",
+          "source exclusion",
+          "semantic duplicate classification",
+          "precedence",
+          "durable data contracts",
+          "R3 productive behavior",
+          "R4 destructive behavior",
+          "irreversible or difficult-to-recover decisions"
+        ]
+      },
+      "human_business_authority": {
+        "Bastian": [
+          "source exclusions",
+          "business duplicate interpretation",
+          "metric meaning",
+          "source precedence",
+          "GO/NO-GO decisions",
+          "productive writes",
+          "cutover",
+          "destructive actions"
+        ],
+        "technical_tests_substitute_for_approval": false
+      },
+      "project_state_mutation": {
+        "update_only_when": [
+          "current phase or operating unit changes",
+          "gate status changes",
+          "authorization changes",
+          "blocker changes",
+          "next executable action changes",
+          "active operating-model version changes"
+        ],
+        "exclude": [
+          "commit history",
+          "PR history",
+          "test history",
+          "implementation detail available in Git"
+        ]
+      },
+      "visible_phase_numbering": "Reserve numbered phases for a new risk class, durable architectural decision, productive operation, trial, cutover, or materially different objective; corrections and tests are commits or internal gates.",
+      "prompt_proportionality": {
+        "R1": "objective + invariants + prohibited scope + acceptance tests",
+        "R2": "R1 + architecture + contract + tradeoffs + rollback or compatibility expectations",
+        "R3_R4": "exact target + identity + authorization + precheck + command + rollback + postcheck + evidence"
+      },
+      "product_value_balance": "Every significant infrastructure arc declares the user/business result enabled, validation method, and intended operational gate; readiness cannot indefinitely replace product delivery.",
+      "mechanical_gates": "Move repeatable mechanical checks to CI where practical."
     }
   }
 }
