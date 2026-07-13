@@ -1,16 +1,24 @@
 from __future__ import annotations
 
 import copy
+import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 from scripts import precheck_kpione_route_b_018_read_only as precheck
 from scripts.kpione_route_b_v1 import (
+    PLANNED_PRODUCTIVE_ROLE,
+    RouteBError,
     WorkbookPlan,
     classify_global_photo_duplicates,
     inspect_workbook,
     semantic_content_hash,
+    validate_productive_dsn_target,
+    validate_productive_role_contract,
 )
 
 
@@ -95,12 +103,169 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         cls.plan = precheck.load_plan(PLAN_PATH)
 
     def test_plan_source_ready_but_never_authorizes_apply(self) -> None:
-        self.assertEqual(self.plan["status"], "SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING")
+        self.assertEqual(self.plan["status"], "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING")
         self.assertTrue(self.plan["source_package"]["approved_for_apply"])
         self.assertFalse(self.plan["productive_apply_authorized"])
         self.assertFalse(self.plan["activation_gate"]["gate_open"])
-        with self.assertRaisesRegex(precheck.PrecheckBlock, "target_identity_not_registered"):
+        with self.assertRaisesRegex(precheck.PrecheckBlock, "productive_role_not_provisioned_or_verified"):
             precheck.validate_plan_readiness(self.plan)
+
+    def test_planned_productive_role_registered_but_not_allowed(self) -> None:
+        target = self.plan["target"]
+        self.assertEqual(target["planned_productive_role"], PLANNED_PRODUCTIVE_ROLE)
+        self.assertEqual(target["productive_role_status"], "PLANNED_NOT_PROVISIONED")
+        self.assertEqual(target["allowed_productive_roles"], [])
+        self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+
+    def test_registered_target_identity_is_exact(self) -> None:
+        target = self.plan["target"]
+        self.assertEqual(target["expected_supabase_project_ref"], "xheyrgfagpoigpgakilu")
+        self.assertEqual(target["expected_hostname"], "db.xheyrgfagpoigpgakilu.supabase.co")
+        self.assertEqual(target["expected_database"], "postgres")
+        self.assertEqual(target["allowed_readonly_roles"], ["stock_zero_codex_ro"])
+        self.assertTrue(self.plan["activation_gate"]["target_identity_registered"])
+        self.assertFalse(self.plan["activation_gate"]["productive_role_registered"])
+        self.assertFalse(self.plan["activation_gate"]["gate_open"])
+
+    def test_productive_dsn_future_username_must_match_planned_role(self) -> None:
+        role = "stock_zero_kpione_route_b_load"
+        password = "synthetic-test-password"
+        project_ref = "xheyrgfagpoigpgakilu"
+        hostname = f"db.{project_ref}.supabase.co"
+        synthetic_dsn = (
+            "postgresql://"
+            f"{role}:{password}@"
+            f"{hostname}/postgres"
+            "?sslmode=require"
+        )
+        result = validate_productive_dsn_target(synthetic_dsn, self.plan)
+        self.assertEqual(result, {
+            "hostname": hostname,
+            "database": "postgres",
+            "username": role,
+            "project_ref": project_ref,
+            "sslmode": "require",
+        })
+        self.assertNotIn(synthetic_dsn, json.dumps(result))
+        self.assertNotIn(password, json.dumps(result))
+
+        wrong_project_plan = copy.deepcopy(self.plan)
+        wrong_project_plan["target"]["expected_supabase_project_ref"] = "wrong-project-ref"
+        invalid_targets = {
+            "role": (
+                "productive_dsn_role_mismatch",
+                synthetic_dsn.replace(role, "postgres", 1),
+                self.plan,
+            ),
+            "hostname": (
+                "productive_dsn_hostname_mismatch",
+                synthetic_dsn.replace(hostname, "db.wrong.supabase.co", 1),
+                self.plan,
+            ),
+            "project_ref": (
+                "productive_dsn_project_ref_mismatch",
+                synthetic_dsn,
+                wrong_project_plan,
+            ),
+            "database": (
+                "productive_dsn_database_mismatch",
+                synthetic_dsn.replace("/postgres?", "/wrong?", 1),
+                self.plan,
+            ),
+        }
+        invalid_sslmodes = {
+            "missing": synthetic_dsn.replace("?sslmode=require", ""),
+            "empty": synthetic_dsn.replace("sslmode=require", "sslmode="),
+            "disable": synthetic_dsn.replace("sslmode=require", "sslmode=disable"),
+            "allow": synthetic_dsn.replace("sslmode=require", "sslmode=allow"),
+            "prefer": synthetic_dsn.replace("sslmode=require", "sslmode=prefer"),
+            "verify-ca": synthetic_dsn.replace("sslmode=require", "sslmode=verify-ca"),
+            "verify-full": synthetic_dsn.replace("sslmode=require", "sslmode=verify-full"),
+            "duplicate_conflict": synthetic_dsn.replace(
+                "sslmode=require", "sslmode=require&sslmode=disable"
+            ),
+        }
+
+        for case, (expected_error, invalid_dsn, plan) in invalid_targets.items():
+            with self.subTest(case=case):
+                with self.assertRaises(RouteBError) as caught:
+                    validate_productive_dsn_target(invalid_dsn, plan)
+                report = {
+                    "error": str(caught.exception),
+                    "connection_attempted": False,
+                    "writes_attempted": False,
+                }
+                self.assertEqual(report["error"], expected_error)
+                self.assertFalse(report["connection_attempted"])
+                self.assertFalse(report["writes_attempted"])
+                self.assertNotIn(invalid_dsn, json.dumps(report))
+                self.assertNotIn(password, json.dumps(report))
+
+        for case, invalid_dsn in invalid_sslmodes.items():
+            with self.subTest(case=case):
+                with self.assertRaises(RouteBError) as caught:
+                    validate_productive_dsn_target(invalid_dsn, self.plan)
+                report = {
+                    "error": str(caught.exception),
+                    "connection_attempted": False,
+                    "writes_attempted": False,
+                }
+                self.assertEqual(report["error"], "productive_sslmode_require_required")
+                self.assertFalse(report["connection_attempted"])
+                self.assertFalse(report["writes_attempted"])
+                self.assertNotIn(invalid_dsn, json.dumps(report))
+                self.assertNotIn(password, json.dumps(report))
+
+    def test_apply_productive_blocks_before_dsn_env_read_when_gate_closed(self) -> None:
+        runner = ROOT / "scripts" / "run_kpione_route_b_ingestion_v1.py"
+        env = os.environ.copy()
+        env.pop("DB_URL_KPIONE_ROUTE_B_PRODUCTIVE", None)
+        completed = subprocess.run(
+            [
+                sys.executable, str(runner),
+                "--apply-productive",
+                "--approved-plan", str(PLAN_PATH),
+                "--db-url-env", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
+                "--expected-project-ref", "xheyrgfagpoigpgakilu",
+                "--confirm-productive", "KPIONE_ROUTE_B_018_APPLY",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        report = json.loads(completed.stdout)
+        self.assertEqual(report["verdict"], "BLOCKED")
+        self.assertEqual(report["planned_productive_role"], PLANNED_PRODUCTIVE_ROLE)
+        self.assertEqual(report["productive_role_status"], "PLANNED_NOT_PROVISIONED")
+        self.assertEqual(report["allowed_productive_roles"], [])
+        self.assertEqual(report["remaining_blockers"], [
+            "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
+            "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
+        ])
+        self.assertFalse(report["dsn_read"])
+        self.assertFalse(report["writes_attempted"])
+
+    def test_apply_productive_rejects_wrong_project_ref_before_dsn_env_read(self) -> None:
+        runner = ROOT / "scripts" / "run_kpione_route_b_ingestion_v1.py"
+        env = os.environ.copy()
+        env.pop("DB_URL_KPIONE_ROUTE_B_PRODUCTIVE", None)
+        completed = subprocess.run(
+            [
+                sys.executable, str(runner),
+                "--apply-productive",
+                "--approved-plan", str(PLAN_PATH),
+                "--db-url-env", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
+                "--expected-project-ref", "wrong-ref",
+                "--confirm-productive", "KPIONE_ROUTE_B_018_APPLY",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(completed.returncode, 2)
+        report = json.loads(completed.stdout)
+        self.assertEqual(report["error"], "productive_expected_project_ref_mismatch")
 
     def test_approved_manifest_ignores_known_truncated_fixture(self) -> None:
         package = self.plan["source_package"]

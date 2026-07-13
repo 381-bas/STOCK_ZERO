@@ -58,13 +58,17 @@ def load_plan(path: Path) -> dict[str, Any]:
 
 def validate_plan_readiness(plan: dict[str, Any]) -> None:
     blockers: list[str] = []
-    if plan.get("status") not in {"SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING", "READY_FOR_READ_ONLY_PRECHECK"}:
+    if plan.get("status") not in {
+        "SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING",
+        "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING",
+        "READY_FOR_READ_ONLY_PRECHECK",
+    }:
         blockers.append("plan_status_not_ready")
     target = plan["target"]
     if not target.get("expected_supabase_project_ref") or not target.get("expected_hostname"):
         blockers.append("target_identity_not_registered")
     if not target.get("allowed_productive_roles"):
-        blockers.append("productive_role_not_registered")
+        blockers.append("productive_role_not_provisioned_or_verified")
     if blockers:
         raise PrecheckBlock("plan_blocked:" + ",".join(sorted(set(blockers))))
 

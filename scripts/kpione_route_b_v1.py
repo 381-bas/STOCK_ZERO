@@ -18,6 +18,16 @@ RUNNER_VERSION = "017_ROUTE_B_V1"
 SOURCE_SHEET = "Fotos"
 FILE_PATTERN = "photo-excel-admin_*.xlsx"
 LOCAL_DB_ENV = "DB_URL_CODEX_LOCAL"
+PRODUCTIVE_DB_ENV = "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"
+PRODUCTIVE_CONFIRM_TOKEN = "KPIONE_ROUTE_B_018_APPLY"
+PRODUCTIVE_ROLLBACK_CONFIRM_TOKEN = "KPIONE_ROUTE_B_018_ROLLBACK"
+PLANNED_PRODUCTIVE_ROLE = "stock_zero_kpione_route_b_load"
+EXPECTED_PRODUCTIVE_DATABASE = "postgres"
+EXPECTED_PRODUCTIVE_PROJECT_REF = "xheyrgfagpoigpgakilu"
+EXPECTED_PRODUCTIVE_HOSTNAME = "db.xheyrgfagpoigpgakilu.supabase.co"
+BANNED_PRODUCTIVE_ROLES = {
+    "postgres", "stock_zero_codex_ro", "anon", "authenticated", "service_role",
+}
 ADVISORY_LOCK_KEY = 5426926728611921713  # Stable signed bigint for KPIONE_ROUTE_B_V1.
 LIFECYCLE = (
     "DISCOVERED", "VALIDATING", "VALIDATED", "STAGING", "STAGED", "ACTIVE",
@@ -138,6 +148,212 @@ def assert_local_target(env_name: str, dsn: str | None) -> str:
     if params.get("sslmode", [""])[0].lower() in {"require", "verify-ca", "verify-full"}:
         raise RouteBError("remote_ssl_metadata_rejected")
     return "LOCAL_POSTGRESQL_LOOPBACK"
+
+
+def assert_postgresql_identifier(value: str) -> str:
+    if not value or not re.fullmatch(r"[a-z_][a-z0-9_]{0,62}", value):
+        raise RouteBError("invalid_postgresql_identifier")
+    if value in BANNED_PRODUCTIVE_ROLES:
+        raise RouteBError("banned_productive_role")
+    return value
+
+
+def load_approved_productive_plan(path: Path) -> dict[str, Any]:
+    plan = json.loads(path.read_text(encoding="utf-8"))
+    if plan.get("document_type") != "kpione_route_b_productive_apply_plan":
+        raise RouteBError("invalid_productive_plan_type")
+    if plan.get("productive_apply_authorized") is not False:
+        raise RouteBError("productive_apply_must_remain_unauthorized")
+    if plan.get("status") != "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING":
+        raise RouteBError("productive_plan_status_not_boundary_ready")
+    return plan
+
+
+def validate_productive_role_contract(plan: dict[str, Any]) -> str:
+    role = plan.get("target", {}).get("planned_productive_role")
+    assert_postgresql_identifier(str(role or ""))
+    if role != PLANNED_PRODUCTIVE_ROLE:
+        raise RouteBError("planned_productive_role_mismatch")
+    if plan.get("target", {}).get("productive_role_status") != "PLANNED_NOT_PROVISIONED":
+        raise RouteBError("productive_role_status_mismatch")
+    if plan.get("target", {}).get("allowed_productive_roles") != []:
+        raise RouteBError("productive_role_must_not_be_allowed_before_precheck")
+    return role
+
+
+def validate_registered_productive_target(plan: dict[str, Any]) -> None:
+    target = plan.get("target", {})
+    expected = {
+        "expected_supabase_project_ref": EXPECTED_PRODUCTIVE_PROJECT_REF,
+        "expected_hostname": EXPECTED_PRODUCTIVE_HOSTNAME,
+        "expected_database": EXPECTED_PRODUCTIVE_DATABASE,
+    }
+    for key, value in expected.items():
+        if target.get(key) != value:
+            raise RouteBError(f"productive_target_{key}_mismatch")
+    if target.get("allowed_readonly_roles") != ["stock_zero_codex_ro"]:
+        raise RouteBError("productive_readonly_role_contract_mismatch")
+
+
+def validate_productive_dsn_target(dsn: str, plan: dict[str, Any]) -> dict[str, str]:
+    parsed = urlparse(dsn)
+    if parsed.scheme not in {"postgres", "postgresql"}:
+        raise RouteBError("unsupported_productive_db_scheme")
+    username = parsed.username or ""
+    host = (parsed.hostname or "").lower()
+    database = (parsed.path or "").lstrip("/")
+    target = plan["target"]
+    if username != target["planned_productive_role"]:
+        raise RouteBError("productive_dsn_role_mismatch")
+    if host != target["expected_hostname"]:
+        raise RouteBError("productive_dsn_hostname_mismatch")
+    if target["expected_supabase_project_ref"] not in host or "supabase" not in host:
+        raise RouteBError("productive_dsn_project_ref_mismatch")
+    if database != target["expected_database"]:
+        raise RouteBError("productive_dsn_database_mismatch")
+    sslmodes = parse_qs(parsed.query, keep_blank_values=True).get("sslmode", [])
+    if sslmodes != ["require"]:
+        raise RouteBError("productive_sslmode_require_required")
+    return {
+        "hostname": host,
+        "database": database,
+        "username": username,
+        "project_ref": target["expected_supabase_project_ref"],
+        "sslmode": sslmodes[0],
+    }
+
+
+def current_git_head(root: Path) -> str:
+    import subprocess
+    return subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=root, text=True, stderr=subprocess.DEVNULL
+    ).strip()
+
+
+def validate_productive_git_guard(plan: dict[str, Any], expected_git_ref: str, root: Path) -> str:
+    if not expected_git_ref or not re.fullmatch(r"[0-9a-f]{40}", expected_git_ref):
+        raise RouteBError("expected_plan_git_ref_required")
+    if plan.get("expected_repository_commit") != expected_git_ref:
+        raise RouteBError("expected_plan_git_ref_mismatch")
+    head = current_git_head(root)
+    if head != expected_git_ref:
+        raise RouteBError("repository_head_mismatch")
+    return head
+
+
+def build_approved_plan_from_manifest(plan: dict[str, Any], root: Path) -> dict[str, Any]:
+    input_dir = root / plan["input_directory"]["repository_relative_value"]
+    approved = plan["source_package"]["approved_files"]
+    excluded_names = {item["filename"] for item in plan["source_package"].get("excluded_files", [])}
+    workbooks: list[WorkbookPlan] = []
+    files: list[dict[str, Any]] = []
+    for entry in approved:
+        filename = entry["filename"]
+        if filename in excluded_names:
+            raise RouteBError("approved_manifest_overlaps_excluded")
+        path = input_dir / filename
+        if not path.is_file():
+            raise RouteBError(f"approved_file_missing:{filename}")
+        if sha256_file(path) != entry["sha256"]:
+            raise RouteBError(f"approved_file_sha256_mismatch:{filename}")
+        workbook = inspect_workbook(path)
+        if semantic_content_hash(workbook) != entry["semantic_content_hash"]:
+            raise RouteBError(f"approved_file_semantic_hash_mismatch:{filename}")
+        workbooks.append(workbook)
+        files.append({
+            "source_file_name": workbook.source_file_name,
+            "source_file_sha256": workbook.source_file_sha256,
+            "coverage_start": workbook.coverage_start,
+            "coverage_end": workbook.coverage_end,
+            "row_count": len(workbook.rows),
+            "event_count": workbook.event_count,
+            "classification": "APPROVED_MANIFEST_SOURCE",
+        })
+    classified = classify_global_photo_duplicates(workbooks)
+    presence = {(row["fecha"], row["location_key"], row["cliente_norm"]) for row in classified
+                if row["duplicate_classification"] == "UNIQUE"}
+    package = plan["source_package"]
+    observed = {
+        "approved_file_count": len(workbooks),
+        "expected_source_rows": sum(len(workbook.rows) for workbook in workbooks),
+        "expected_distinct_events": len({row["event_id"] for row in classified
+                                         if row["duplicate_classification"] == "UNIQUE"}),
+        "expected_duplicate_photo_rows": sum(row["duplicate_classification"] != "UNIQUE" for row in classified),
+        "expected_exact_duplicate_rows": sum(row["duplicate_classification"] == "EXACT_DUPLICATE" for row in classified),
+        "expected_cross_file_duplicate_rows": sum(row["duplicate_classification"] == "CROSS_FILE_DUPLICATE" for row in classified),
+        "expected_day_presence_rows": len(presence),
+    }
+    for key, value in observed.items():
+        if package.get(key) != value:
+            raise RouteBError(f"approved_manifest_metric_mismatch:{key}")
+    if package.get("expected_event_conflicts") != 0:
+        raise RouteBError("approved_manifest_event_conflicts_not_zero")
+    return {
+        "runner_version": RUNNER_VERSION,
+        "semantic_plan_hash": package["semantic_plan_hash"],
+        "apply_authorized": False,
+        "db_target_classification": "PRODUCTIVE_TARGET_NOT_CONNECTED",
+        "coverage_start": package["expected_coverage"]["start"],
+        "coverage_end": package["expected_coverage"]["end"],
+        "discovered_file_count": len(workbooks),
+        "already_active_file_count": 0,
+        "renamed_no_op_count": 0,
+        "new_file_count": len(workbooks),
+        "files_selected_for_staging": len(workbooks),
+        "files_skipped_as_no_op": 0,
+        "source_rows": package["expected_source_rows"],
+        "duplicate_rows": package["expected_duplicate_photo_rows"],
+        "distinct_events": package["expected_distinct_events"],
+        "event_conflicts": 0,
+        "day_presence_count": package["expected_day_presence_rows"],
+        "expected_inserts": package["expected_source_rows"],
+        "expected_no_ops": 0,
+        "expected_quarantines": 0,
+        "expected_supersession_requirement": False,
+        "files": files,
+        "_workbooks": workbooks,
+        "_classified_rows": classified,
+    }
+
+
+def productive_blocked_report(plan: dict[str, Any], mode: str) -> dict[str, Any]:
+    return {
+        "verdict": "BLOCKED",
+        "mode": mode,
+        "status": plan.get("status"),
+        "productive_apply_authorized": False,
+        "planned_productive_role": plan.get("target", {}).get("planned_productive_role"),
+        "productive_role_status": plan.get("target", {}).get("productive_role_status"),
+        "allowed_productive_roles": plan.get("target", {}).get("allowed_productive_roles", []),
+        "remaining_blockers": plan.get("remaining_blockers", []),
+        "writes_attempted": False,
+        "dsn_read": False,
+    }
+
+
+def require_productive_gate_open(plan: dict[str, Any], mode: str) -> None:
+    validate_productive_role_contract(plan)
+    validate_registered_productive_target(plan)
+    if plan.get("activation_gate", {}).get("gate_open") is not True:
+        raise RouteBError(f"{mode}_gate_closed")
+    if plan.get("target", {}).get("productive_role_status") != "PROVISIONED_AND_VERIFIED":
+        raise RouteBError("productive_role_not_provisioned_or_verified")
+    if plan.get("target", {}).get("allowed_productive_roles") != [PLANNED_PRODUCTIVE_ROLE]:
+        raise RouteBError("productive_role_not_allowed_by_verified_precheck")
+
+
+def run_productive_apply(plan: dict[str, Any], approved_plan: dict[str, Any],
+                         dsn: str, postcheck_report_json: Path | None = None) -> dict[str, Any]:
+    validate_productive_dsn_target(dsn, plan)
+    raise RouteBError("productive_apply_execution_requires_separate_authorization")
+
+
+def run_productive_rollback(plan: dict[str, Any], rollback_batch_id: str,
+                            dsn: str, postcheck_report_json: Path | None = None) -> dict[str, Any]:
+    if not rollback_batch_id:
+        raise RouteBError("rollback_batch_id_required")
+    validate_productive_dsn_target(dsn, plan)
+    raise RouteBError("productive_rollback_execution_requires_separate_authorization")
 
 
 def _resolved_columns(headers: Iterable[Any]) -> tuple[dict[str, str], list[str], list[str]]:

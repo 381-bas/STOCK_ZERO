@@ -3,11 +3,9 @@
   "plan_version": "018_V1",
   "phase": "018_PRODUCTIVE_APPLY",
   "risk_class": "R3_PRODUCTIVE",
-  "status": "SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING",
+  "status": "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING",
   "remaining_blockers": [
-    "EXPECTED_SUPABASE_PROJECT_REF_NOT_REGISTERED",
-    "EXPECTED_HOSTNAME_NOT_REGISTERED",
-    "PRODUCTIVE_EXECUTING_ROLE_NOT_REGISTERED",
+    "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
     "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED"
   ],
   "expected_repository_commit": "d2d74a67cea7cff089d0979c492fba0c2947902b",
@@ -93,11 +91,14 @@
   "target": {
     "readonly_precheck_env": "DB_URL_CODEX_RO",
     "future_productive_env": "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
-    "expected_supabase_project_ref": null,
-    "expected_hostname": null,
+    "expected_supabase_project_ref": "xheyrgfagpoigpgakilu",
+    "expected_hostname": "db.xheyrgfagpoigpgakilu.supabase.co",
     "allowed_readonly_roles": ["stock_zero_codex_ro"],
+    "planned_productive_role": "stock_zero_kpione_route_b_load",
+    "productive_role_status": "PLANNED_NOT_PROVISIONED",
     "allowed_productive_roles": [],
-    "expected_database": "postgres"
+    "expected_database": "postgres",
+    "productive_role_contract": "The eventual productive DSN username must equal stock_zero_kpione_route_b_load, but this role is not yet provisioned or verified."
   },
   "transaction_sequence": [
     "Validate approved plan Git reference, plan content, source hashes, schema and counts before connecting.",
@@ -111,7 +112,7 @@
   "activation_gate": {
     "all_source_files_valid": true,
     "source_hashes_match": true,
-    "target_identity_registered": false,
+    "target_identity_registered": true,
     "productive_role_registered": false,
     "rollback_route_demonstrated": true,
     "gate_open": false
