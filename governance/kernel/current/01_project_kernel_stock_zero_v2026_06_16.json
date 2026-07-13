@@ -40,9 +40,35 @@
       "KPIONE1_AUDIT_ONLY"
     ],
     "productive_kpione2": {
-      "file": "data/CUMPLIMIENTO_FRECUENCIA.xlsx",
-      "sheet": "DB (KPIONE2.0)",
-      "fixture_only": "photo-excel-admin.../Fotos"
+      "decision": "PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY",
+      "future_productive_authority": {
+        "route": "Route B",
+        "source_type": "folder-delivered photo exports",
+        "file_pattern": "photo-excel-admin_*.xlsx",
+        "sheet": "Fotos",
+        "source_grain": "source_photo_row",
+        "authority_status": "FUTURE_PRODUCTIVE_SOURCE_AUTHORITY",
+        "delivery_boundary": "controlled input folder containing immutable source files",
+        "identity_authority": "file content SHA256 plus sheet and row provenance",
+        "path_role": "runtime configuration and provenance only"
+      },
+      "historical_bootstrap": {
+        "route": "Route A",
+        "file": "data/CUMPLIMIENTO_FRECUENCIA.xlsx",
+        "sheet": "DB (KPIONE2.0)",
+        "status": "HISTORICAL_BOOTSTRAP_AND_COMPATIBILITY_REFERENCE",
+        "future_ingestion_authority": false,
+        "identity_authority": false,
+        "retained_for": [
+          "parity_validation",
+          "business_rule_reference"
+        ]
+      },
+      "superseded_statement": {
+        "previous": "photo-excel-admin.../Fotos fixture-only",
+        "status": "SUPERSEDED_BY_ROUTE_B_FUTURE_PRODUCTIVE_AUTHORITY"
+      },
+      "permanent_dual_source_authority": false
     }
   },
   "agent_operating_model": {

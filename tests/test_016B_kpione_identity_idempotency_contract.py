@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = ROOT / "contracts" / "control_gestion" / "kpione2_photo_export_contract_v1.json"
+KERNEL_PATH = ROOT / "governance" / "kernel" / "current" / "01_project_kernel_stock_zero_v2026_06_16.json"
 STATE_PATH = ROOT / "governance" / "kernel" / "current" / "02_project_state_stock_zero_v2026_06_30_011.json"
 LEDGER_PATH = ROOT / "governance" / "kernel" / "current" / "03_project_ledger_stock_zero_v2026_06_30_011.json"
 DIRECTIVE_PATH = ROOT / "governance" / "directives" / "KPIONE_DB_TRANSITION_016_019_LOCK_V1.json"
@@ -16,12 +17,45 @@ def load_json(path: Path) -> dict:
 
 class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.contract = load_json(CONTRACT_PATH)["identity_idempotency_contract_016B"]
+        self.contract_payload = load_json(CONTRACT_PATH)
+        self.contract = self.contract_payload["identity_idempotency_contract_016B"]
+        self.kernel = load_json(KERNEL_PATH)
         self.state = load_json(STATE_PATH)
         self.ledger = load_json(LEDGER_PATH)
         self.directive = load_json(DIRECTIVE_PATH)
 
+    def test_kernel_selects_route_b_as_future_authority_and_route_a_as_history(self):
+        productive = self.kernel["source_contracts"]["productive_kpione2"]
+        route_b = productive["future_productive_authority"]
+        route_a = productive["historical_bootstrap"]
+
+        self.assertEqual(productive["decision"], "PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY")
+        self.assertEqual(route_b["file_pattern"], "photo-excel-admin_*.xlsx")
+        self.assertEqual(route_b["sheet"], "Fotos")
+        self.assertEqual(route_b["source_grain"], "source_photo_row")
+        self.assertEqual(route_b["authority_status"], "FUTURE_PRODUCTIVE_SOURCE_AUTHORITY")
+        self.assertEqual(route_a["file"], "data/CUMPLIMIENTO_FRECUENCIA.xlsx")
+        self.assertEqual(route_a["sheet"], "DB (KPIONE2.0)")
+        self.assertEqual(route_a["status"], "HISTORICAL_BOOTSTRAP_AND_COMPATIBILITY_REFERENCE")
+        self.assertFalse(route_a["future_ingestion_authority"])
+        self.assertFalse(route_a["identity_authority"])
+        self.assertFalse(productive["permanent_dual_source_authority"])
+        self.assertNotIn("fixture_only", productive)
+        self.assertEqual(
+            productive["superseded_statement"]["status"],
+            "SUPERSEDED_BY_ROUTE_B_FUTURE_PRODUCTIVE_AUTHORITY",
+        )
+
     def test_contract_selects_source_and_persisted_grains(self):
+        source_export = self.contract_payload["source_export"]
+        self.assertEqual(source_export["authority_status"], "FUTURE_PRODUCTIVE_SOURCE_AUTHORITY")
+        self.assertEqual(source_export["source_type"], "folder-delivered photo exports")
+        self.assertEqual(source_export["file_pattern"], "photo-excel-admin_*.xlsx")
+        self.assertEqual(source_export["sheet"], "Fotos")
+        self.assertEqual(source_export["delivery_boundary"], "controlled input folder containing immutable source files")
+        self.assertEqual(source_export["input_folder_path_role"], "runtime_configuration_not_identity")
+        self.assertEqual(source_export["file_path_role"], "provenance_only")
+        self.assertEqual(source_export["source_version_identity"], "source_file_sha256")
         self.assertEqual(self.contract["status"], "IDEMPOTENCY_CONTRACT_SELECTED")
         self.assertEqual(self.contract["source_grain"]["selected"], "source_photo_row")
         self.assertEqual(
@@ -39,6 +73,9 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
     def test_identity_hierarchy_keeps_traceability_separate_from_business_identity(self):
         hierarchy = self.contract["identity_hierarchy"]
         self.assertEqual(hierarchy["source_file_version"]["components"], ["source_file_sha256", "source_sheet"])
+        self.assertIn("source_file_name", hierarchy["source_file_version"]["provenance_only"])
+        self.assertIn("input_folder_path", hierarchy["source_file_version"]["provenance_only"])
+        self.assertIn("input_folder_path", hierarchy["source_file_version"]["configuration_only"])
         self.assertEqual(
             hierarchy["source_row"]["components"],
             ["source_file_sha256", "source_sheet", "source_row_number"],
@@ -85,6 +122,8 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
         self.assertEqual(self.state["current_work"]["status"], "IDEMPOTENCY_CONTRACT_SELECTED")
         self.assertEqual(self.state["current_work"]["next_permitted_unit"], "017_APPLY_RUNNER_AND_REHEARSAL")
         self.assertEqual(self.state["current_work"]["next_unit_status"], "NOT_AUTHORIZED")
+        self.assertTrue(self.state["current_work"]["selected_contract"]["photo_export_is_future_productive_authority"])
+        self.assertTrue(self.state["current_work"]["selected_contract"]["historical_workbook_is_bootstrap_reference"])
         self.assertTrue(self.state["authorization"]["016B_architecture_authorized"])
         self.assertFalse(self.state["authorization"]["017_authorized"])
 
@@ -114,6 +153,18 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
             phase_by_name["016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT"]["status"],
             "CLOSED_SELECTED",
         )
+        self.assertEqual(
+            phase_by_name["016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT"]["source_authority_result"],
+            "PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY",
+        )
+        self.assertEqual(
+            phase_by_name["016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT"]["route_b_authority"],
+            "photo-excel-admin_*.xlsx / Fotos",
+        )
+        self.assertEqual(
+            phase_by_name["016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT"]["route_a_status"],
+            "HISTORICAL_BOOTSTRAP_AND_COMPATIBILITY_REFERENCE",
+        )
         self.assertEqual(phase_by_name["017_APPLY_RUNNER_AND_REHEARSAL"]["status"], "FUTURE_NOT_AUTHORIZED")
 
         amendment_requirements = self.directive["deviation_requires_directive_amendment"]["amendment_must_include"]
@@ -130,11 +181,29 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         adr = matches[0]
         self.assertEqual(adr["readiness_result"], "IDEMPOTENCY_CONTRACT_SELECTED")
+        self.assertEqual(
+            adr["selected_contract"]["source_authority_decision"],
+            "PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY",
+        )
+        self.assertEqual(
+            adr["selected_contract"]["route_b"]["authority_status"],
+            "FUTURE_PRODUCTIVE_SOURCE_AUTHORITY",
+        )
+        self.assertEqual(
+            adr["selected_contract"]["route_a"]["status"],
+            "HISTORICAL_BOOTSTRAP_AND_COMPATIBILITY_REFERENCE",
+        )
+        self.assertFalse(adr["selected_contract"]["route_a"]["future_ingestion_authority"])
+        self.assertFalse(adr["selected_contract"]["permanent_dual_source_authority"])
         self.assertEqual(adr["selected_contract"]["source_grain"], "source_photo_row")
         self.assertFalse(adr["evidence"]["db_access"])
         self.assertFalse(adr["evidence"]["sql_executed"])
         self.assertFalse(adr["evidence"]["apply_executed"])
         self.assertIn("017 is the next permitted unit but remains unauthorized.", adr["implications_for_017"])
+        self.assertIn(
+            "The input folder path is runtime configuration and provenance, not identity authority.",
+            adr["implications_for_017"],
+        )
 
 
 if __name__ == "__main__":

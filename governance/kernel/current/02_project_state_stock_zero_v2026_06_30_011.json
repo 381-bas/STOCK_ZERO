@@ -20,6 +20,8 @@
     "unit_name": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
     "status": "IDEMPOTENCY_CONTRACT_SELECTED",
     "selected_contract": {
+      "photo_export_is_future_productive_authority": true,
+      "historical_workbook_is_bootstrap_reference": true,
       "source_grain": "source_photo_row",
       "persisted_grain": "immutable_event_photo_staging_row",
       "persistence_boundary": "new_versioned_staging_boundary",
@@ -74,6 +76,7 @@
       "latest_relevant_commit": "RESOLVE_FROM_GIT"
     },
     "identity_idempotency_contract": "contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+    "source_authority_kernel": "governance/kernel/current/01_project_kernel_stock_zero_v2026_06_16.json",
     "latest_016_evidence": "research/016_KPIONE_MONTHLY_DB_PRECHECK_READ_ONLY/016_kpione_monthly_db_precheck_2026_06.json"
   }
 }

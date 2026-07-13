@@ -8,6 +8,10 @@ Status: `ACTIVE_LOCKED`
 
 016B result: `IDEMPOTENCY_CONTRACT_SELECTED`
 
+016B source authority: `PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY`
+
+Route A status: `HISTORICAL_BOOTSTRAP_AND_COMPATIBILITY_REFERENCE`
+
 Next permitted unit: `017_APPLY_RUNNER_AND_REHEARSAL`
 
 017 authorization: `false`
@@ -24,16 +28,17 @@ Normal repo-only units do not require a separate closeout phase. A unit is compl
 
 | unit | purpose | status |
 | --- | --- | --- |
-| `016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT` | Decide source grain, persisted grain, destination or staging boundary, authoritative identity, idempotency behavior, correction/replay behavior, and readiness for runner construction. | Selected and closed. |
-| `017_APPLY_RUNNER_AND_REHEARSAL` | Build or rehearse the runner after 016B selects the contract. Old 017A, 017B, and 017C are internal gates. | Next permitted unit, not authorized. |
-| `018_PRODUCTIVE_APPLY` | Execute productive apply only after explicit productive authorization. | Not authorized. |
-| `019_POST_APPLY_TRIAL` | Monitor trial outcome and decide final transition posture. | Not authorized. |
+| `016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT` | Select `photo-excel-admin_*.xlsx / Fotos` as future productive authority and keep `data/CUMPLIMIENTO_FRECUENCIA.xlsx / DB (KPIONE2.0)` as historical bootstrap/parity reference only. | Selected and closed. |
+| `017_APPLY_RUNNER_AND_REHEARSAL` | Build or rehearse the folder-based Route B ingestion runner after 016B selects the contract. Old 017A, 017B, and 017C are internal gates. | Next permitted unit, not authorized. |
+| `018_PRODUCTIVE_APPLY` | Execute the productive apply gate only after explicit productive authorization. | Not authorized. |
+| `019_POST_APPLY_TRIAL` | Run correction, monitoring trial, and final transition decision. | Not authorized. |
 
 Compatibility:
 
 - Old `016C` is absorbed into the `016B` exit gate.
 - Old `017A`, `017B`, and `017C` are absorbed into internal gates of `017`.
 - Historical evidence keeps its original names.
+- Route A is not the target architecture.
 
 ## Risk Classes
 

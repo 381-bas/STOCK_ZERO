@@ -5,10 +5,16 @@
   "status": "ACTIVE",
   "created_after_phase": "FAST_REFORM_009F_LOADER_STRUCTURE_VALIDATION",
   "source_export": {
+    "authority_status": "FUTURE_PRODUCTIVE_SOURCE_AUTHORITY",
+    "source_type": "folder-delivered photo exports",
     "file_pattern": "photo-excel-admin_*.xlsx",
     "sheet": "Fotos",
     "example_file": "data/photo-excel-admin_1782440454408.xlsx",
-    "example_sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180"
+    "example_sha256": "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+    "delivery_boundary": "controlled input folder containing immutable source files",
+    "input_folder_path_role": "runtime_configuration_not_identity",
+    "file_path_role": "provenance_only",
+    "source_version_identity": "source_file_sha256"
   },
   "grain_contract": {
     "input_grain": "photo_row",
@@ -65,7 +71,11 @@
         "represents": "one immutable source content version",
         "provenance_only": [
           "source_file_name",
-          "source_file_id_from_filename_epoch"
+          "source_file_id_from_filename_epoch",
+          "input_folder_path"
+        ],
+        "configuration_only": [
+          "input_folder_path"
         ]
       },
       "source_row": {
@@ -166,8 +176,9 @@
     },
     "readiness_result": "IDEMPOTENCY_CONTRACT_SELECTED",
     "implications_for_017": [
-      "017 must build the runner around the versioned staging boundary, not cg_raw.kpione2_raw.",
-      "017 must implement source version registry, supersession gates, inactive-run isolation and deterministic rebuild tests before any apply.",
+      "017 must build a folder-based ingestion runner around the versioned staging boundary, not cg_raw.kpione2_raw.",
+      "017 must scan a configured input folder, identify candidate photo-excel-admin_*.xlsx files, compute file SHA256 before processing, register batch and file versions, validate sheet and schema, stage photo rows immutably, activate only complete validated runs, quarantine malformed or partial files, avoid reprocessing identical content, and derive events and daily presence from active source versions.",
+      "017 input folder path must be runtime configuration, not hardcoded identity.",
       "017 remains not authorized by this contract."
     ]
   },

@@ -304,8 +304,23 @@
       "date": "2026-07-12",
       "status": "ACTIVE",
       "risk_classification": "R2_ARCHITECTURE",
-      "decision": "Select the KPIONE source-photo-row to immutable event-photo staging-row contract with content-addressed source versions, explicit correction supersession, and derived event/day-presence outputs.",
+      "decision": "Select Route B photo exports as the future productive KPIONE source authority and use the source-photo-row to immutable event-photo staging-row contract with content-addressed source versions, explicit correction supersession, and derived event/day-presence outputs.",
       "selected_contract": {
+        "source_authority_decision": "PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY",
+        "route_b": {
+          "file_pattern": "photo-excel-admin_*.xlsx",
+          "sheet": "Fotos",
+          "authority_status": "FUTURE_PRODUCTIVE_SOURCE_AUTHORITY",
+          "delivery_boundary": "controlled input folder containing immutable source files"
+        },
+        "route_a": {
+          "file": "data/CUMPLIMIENTO_FRECUENCIA.xlsx",
+          "sheet": "DB (KPIONE2.0)",
+          "status": "HISTORICAL_BOOTSTRAP_AND_COMPATIBILITY_REFERENCE",
+          "future_ingestion_authority": false,
+          "identity_authority": false
+        },
+        "permanent_dual_source_authority": false,
         "source_grain": "source_photo_row",
         "persisted_grain": "immutable_event_photo_staging_row",
         "persistence_boundary": "new_versioned_staging_boundary using batch, batch-file, and event-photo staging objects from the 014F design",
@@ -345,6 +360,8 @@
       },
       "rejected_alternatives": [
         "legacy table state as identity authority",
+        "Route A operational workbook as future ingestion authority",
+        "permanent dual-source authority between Route A and Route B",
         "filename or latest download as source identity",
         "source row number alone as business identity",
         "photo row counted directly as visit or daily presence",
@@ -369,7 +386,9 @@
       },
       "implications_for_017": [
         "017 is the next permitted unit but remains unauthorized.",
-        "017 must build source-version registry, supersession gates, inactive-run isolation, replay and deterministic rebuild tests.",
+        "017 must implement a folder-based Route B runner that scans a configured input folder, identifies candidate photo-excel-admin_*.xlsx files, computes SHA256 before processing, registers batch and file versions, validates sheet/schema, stages photo rows immutably, activates only complete validated runs, quarantines malformed or partial files, avoids reprocessing identical content, and derives events/day presence from active source versions.",
+        "The input folder path is runtime configuration and provenance, not identity authority.",
+        "Migration mistakes must be corrected through versioned staging, replay, supersession, rehearsal, and trial rather than by retaining Route A as future authority.",
         "017 must not use cg_raw.kpione2_raw, filename, or latest-download semantics as identity authority."
       ]
     }
