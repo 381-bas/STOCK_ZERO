@@ -2,38 +2,32 @@
   "schema_version": "3.0",
   "document_type": "project_state",
   "project": "STOCK_ZERO",
-  "state_as_of_utc": "2026-07-12T17:51:59+00:00",
+  "state_as_of_utc": "2026-07-13T00:45:00+00:00",
   "state_source_commit": "RESOLVE_FROM_GIT",
   "overall_status": "ACTIVE_CONTROLLED_DEVELOPMENT",
   "executive_progress": {
     "operating_model": "V2_ACTIVE",
-    "last_accepted_governance_unit": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
-    "current_priority": "Keep 017 apply-runner and rehearsal work closed until explicit Bastian + ChatGPT authorization exists."
+    "last_accepted_governance_unit": "017_APPLY_RUNNER_AND_REHEARSAL",
+    "current_priority": "Keep 018 productive apply closed until separate R3 authorization exists."
   },
   "active_product_state": {
     "platform": "STOCK_ZERO / GESTIONZERO",
-    "control_gestion": "KPIONE identity, grain and idempotency contract selected; no productive apply or source cutover is authorized.",
+    "control_gestion": "KPIONE Route B runner and local PostgreSQL rehearsal are ready; no productive apply or source cutover is authorized.",
     "legacy_kpione_state": "Evidence of previous runtime, not migration authority for the new architecture."
   },
   "current_work": {
-    "unit": "016B",
-    "unit_name": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
-    "status": "IDEMPOTENCY_CONTRACT_SELECTED",
-    "selected_contract": {
-      "photo_export_is_future_productive_authority": true,
-      "historical_workbook_is_bootstrap_reference": true,
-      "source_grain": "source_photo_row",
-      "persisted_grain": "immutable_event_photo_staging_row",
-      "persistence_boundary": "new_versioned_staging_boundary",
-      "identity_authority": "source_file_sha256 + sheet + source_row_number for source rows; event_id with stability checks for business events",
-      "idempotency_authority": "content-addressed source versions with explicit supersession for corrections and inactive isolation for failed runs"
-    },
-    "next_permitted_unit": "017_APPLY_RUNNER_AND_REHEARSAL",
+    "unit": "017",
+    "unit_name": "017_APPLY_RUNNER_AND_REHEARSAL",
+    "status": "RUNNER_AND_REHEARSAL_READY",
+    "route_b_runner_implemented": true,
+    "local_postgresql_rehearsal_passed": true,
+    "next_permitted_unit": "018_PRODUCTIVE_APPLY",
     "next_unit_status": "NOT_AUTHORIZED"
   },
   "authorization": {
     "016B_architecture_authorized": true,
-    "017_authorized": false,
+    "017_authorized": true,
+    "018_authorized": false,
     "supabase_access_authorized": false,
     "sql_execution_authorized": false,
     "db_reads_authorized": false,
@@ -47,8 +41,8 @@
   },
   "active_risks": [
     {
-      "risk": "017 treated as implicitly authorized by the 016B contract selection.",
-      "control": "current_work.next_unit_status remains NOT_AUTHORIZED and 017_authorized=false."
+      "risk": "017 local readiness treated as implicit authorization for productive apply.",
+      "control": "current_work.next_unit_status remains NOT_AUTHORIZED, 018_authorized=false, and every productive flag remains false."
     },
     {
       "risk": "A future runner treats filename, latest download, or legacy table state as identity authority.",
@@ -64,7 +58,7 @@
     }
   ],
   "next_actions": [
-    "Request explicit Bastian + ChatGPT authorization before any 017 apply-runner or rehearsal work.",
+    "Request explicit Bastian + ChatGPT R3 authorization before any 018 productive apply.",
     "Keep productive gates closed until R3/R4 authorization exists."
   ],
   "references": {
