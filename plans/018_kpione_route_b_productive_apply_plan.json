@@ -3,8 +3,14 @@
   "plan_version": "018_V1",
   "phase": "018_PRODUCTIVE_APPLY",
   "risk_class": "R3_PRODUCTIVE",
-  "status": "BLOCKED_SOURCE_PACKAGE",
-  "expected_repository_commit": "407cb86a8f47f1a6650229c0a479a7c8d9cc897e",
+  "status": "SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING",
+  "remaining_blockers": [
+    "EXPECTED_SUPABASE_PROJECT_REF_NOT_REGISTERED",
+    "EXPECTED_HOSTNAME_NOT_REGISTERED",
+    "PRODUCTIVE_EXECUTING_ROLE_NOT_REGISTERED",
+    "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED"
+  ],
+  "expected_repository_commit": "d2d74a67cea7cff089d0979c492fba0c2947902b",
   "runner_version": "017_ROUTE_B_V1",
   "runner_path": "scripts/run_kpione_route_b_ingestion_v1.py",
   "input_directory": {
@@ -14,31 +20,53 @@
     "sheet": "Fotos"
   },
   "source_package": {
-    "candidate_count": 11,
-    "total_candidate_bytes": 20595220,
-    "total_observed_photo_rows_including_truncated_export": 297531,
-    "approved_for_apply": false,
-    "expected_coverage": null,
-    "expected_source_rows": null,
-    "expected_distinct_events": null,
-    "expected_day_presence_rows": null,
-    "blockers": [
-      "SOURCE_EXPORT_TRUNCATED:photo-excel-admin_1781976368641.xlsx:row_50002",
-      "EXPECTED_SUPABASE_PROJECT_REF_NOT_REGISTERED",
-      "PRODUCTIVE_EXECUTING_ROLE_NOT_REGISTERED"
+    "authority": "EXPLICIT_APPROVED_MANIFEST_ONLY",
+    "approved_for_apply": true,
+    "approved_file_count": 9,
+    "expected_coverage": {"start":"2026-06-01","end":"2026-06-30","distinct_dates":30,"missing_dates":[]},
+    "expected_source_rows": 239159,
+    "expected_distinct_events": 35287,
+    "expected_duplicate_photo_rows": 10089,
+    "expected_exact_duplicate_rows": 0,
+    "expected_cross_file_duplicate_rows": 10089,
+    "expected_event_conflicts": 0,
+    "expected_day_presence_rows": 34996,
+    "semantic_plan_hash": "4bcdbb9e33c1b343802a5c3d55e6ecc5200a65ff17da08f1ccbf135fe500a773",
+    "source_byte_metrics": {
+      "approved_source_bytes": 16571976,
+      "excluded_source_bytes": 4023244,
+      "observed_directory_bytes": 20595220,
+      "approved_file_count": 9,
+      "excluded_file_count": 2,
+      "observed_file_count": 11
+    },
+    "approved_files": [
+      {"filename":"photo-excel-admin_1781975989376.xlsx","sha256":"8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d","semantic_content_hash":"e4e1ba606208e414503c59cbaf181262df5864dcb5a746bc18786193210dbe50","coverage_start":"2026-06-01","coverage_end":"2026-06-07","row_count":46807,"distinct_event_count":7101,"day_presence_count":7069,"duplicate_photo_rows":0,"approval_reason":"Canonical complete export for June 1-7."},
+      {"filename":"photo-excel-admin_1783219885210.xlsx","sha256":"43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978","semantic_content_hash":"019287f8db7439d3d0c5ad5de392faea3e26dec984060318a6b517cd3b954288","coverage_start":"2026-06-08","coverage_end":"2026-06-08","row_count":8372,"distinct_event_count":1295,"day_presence_count":1294,"duplicate_photo_rows":0,"approval_reason":"Canonical day-8 export selected by lexicographically smallest raw SHA256 among semantic equivalents."},
+      {"filename":"photo-excel-admin_1783220552913.xlsx","sha256":"45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b","semantic_content_hash":"058aa151b04066adbe6f75b6760bb3b9ef5a88a9f7b3a222e3b010925625c7cf","coverage_start":"2026-06-09","coverage_end":"2026-06-12","row_count":34838,"distinct_event_count":5477,"day_presence_count":5417,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 9-12."},
+      {"filename":"photo-excel-admin_1783219914054.xlsx","sha256":"679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7","semantic_content_hash":"dde5b638f32762214413d56c0a0fd9029c1f213f2e2b3764b4498083f7ed2702","coverage_start":"2026-06-13","coverage_end":"2026-06-13","row_count":8672,"distinct_event_count":1311,"day_presence_count":1305,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 13."},
+      {"filename":"photo-excel-admin_1781976423312.xlsx","sha256":"ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0","semantic_content_hash":"1ae5ce97599701c1fecd21155bf57141daaec657228a08641b73dad96ea2bd19","coverage_start":"2026-06-14","coverage_end":"2026-06-14","row_count":107,"distinct_event_count":14,"day_presence_count":10,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 14."},
+      {"filename":"photo-excel-admin_1781973512473.xlsx","sha256":"e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d","semantic_content_hash":"d99e970f6169c63e045e483022a81c9e1a655a2770e4fb16dfcbb8ff982d2776","coverage_start":"2026-06-15","coverage_end":"2026-06-19","row_count":46078,"distinct_event_count":6997,"day_presence_count":6956,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 15-19."},
+      {"filename":"photo-excel-admin_1782440454408.xlsx","sha256":"1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180","semantic_content_hash":"51885fd6ec2c06b2e235144754987547c1e4effba176831c3e4902e5fe0b7fee","coverage_start":"2026-06-20","coverage_end":"2026-06-24","row_count":37908,"distinct_event_count":5892,"day_presence_count":5869,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 20-24."},
+      {"filename":"photo-excel-admin_1783220085725.xlsx","sha256":"8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b","semantic_content_hash":"ea6a22fb740cef50cb7e4674b145a78be8c384995e51b7ef0c0fb0e6776e8df3","coverage_start":"2026-06-24","coverage_end":"2026-06-28","row_count":40488,"distinct_event_count":6290,"day_presence_count":6189,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 24-28; overlap is resolved by photo identity."},
+      {"filename":"photo-excel-admin_1783220157694.xlsx","sha256":"3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72","semantic_content_hash":"1d6390bfa0aa13090d3fffa830213c33677b09ad70e021cc0db8a072250aa829","coverage_start":"2026-06-29","coverage_end":"2026-06-30","row_count":15889,"distinct_event_count":2489,"day_presence_count":2457,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 29-30."}
     ],
-    "files": [
-      {"filename":"photo-excel-admin_1781973512473.xlsx","sha256":"e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d","size_bytes":3176684,"sheet_exists":true,"required_columns_valid":true,"row_count":46078,"distinct_event_count":6997,"coverage_start":"2026-06-15","coverage_end":"2026-06-19","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":6956,"classification":"VALID_CANDIDATE"},
-      {"filename":"photo-excel-admin_1781975989376.xlsx","sha256":"8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d","size_bytes":3228103,"sheet_exists":true,"required_columns_valid":true,"row_count":46807,"distinct_event_count":7101,"coverage_start":"2026-06-01","coverage_end":"2026-06-07","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":7069,"classification":"VALID_CANDIDATE"},
-      {"filename":"photo-excel-admin_1781976368641.xlsx","sha256":"0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa","size_bytes":3438539,"sheet_exists":true,"required_columns_valid":true,"row_count":50000,"distinct_event_count":7832,"coverage_start":"2026-06-08","coverage_end":"2026-06-13","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":7766,"classification":"INVALID_OR_QUARANTINED","invalid_reason":"Export sentinel at worksheet row 50002 declares truncation at 50000 photos."},
-      {"filename":"photo-excel-admin_1781976423312.xlsx","sha256":"ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0","size_bytes":14548,"sheet_exists":true,"required_columns_valid":true,"row_count":107,"distinct_event_count":14,"coverage_start":"2026-06-14","coverage_end":"2026-06-14","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":10,"classification":"VALID_CANDIDATE"},
-      {"filename":"photo-excel-admin_1782012877303.xlsx","sha256":"d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881","size_bytes":584705,"sheet_exists":true,"required_columns_valid":true,"row_count":8372,"distinct_event_count":1295,"coverage_start":"2026-06-08","coverage_end":"2026-06-08","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":1294,"classification":"VALID_CANDIDATE"},
-      {"filename":"photo-excel-admin_1782440454408.xlsx","sha256":"1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180","size_bytes":2621405,"sheet_exists":true,"required_columns_valid":true,"row_count":37908,"distinct_event_count":5892,"coverage_start":"2026-06-20","coverage_end":"2026-06-24","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":5869,"classification":"VALID_CANDIDATE"},
-      {"filename":"photo-excel-admin_1783219885210.xlsx","sha256":"43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978","size_bytes":584673,"sheet_exists":true,"required_columns_valid":true,"row_count":8372,"distinct_event_count":1295,"coverage_start":"2026-06-08","coverage_end":"2026-06-08","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":1294,"classification":"VALID_CANDIDATE"},
-      {"filename":"photo-excel-admin_1783219914054.xlsx","sha256":"679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7","size_bytes":609299,"sheet_exists":true,"required_columns_valid":true,"row_count":8672,"distinct_event_count":1311,"coverage_start":"2026-06-13","coverage_end":"2026-06-13","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":1305,"classification":"VALID_CANDIDATE"},
-      {"filename":"photo-excel-admin_1783220085725.xlsx","sha256":"8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b","size_bytes":2804511,"sheet_exists":true,"required_columns_valid":true,"row_count":40488,"distinct_event_count":6290,"coverage_start":"2026-06-24","coverage_end":"2026-06-28","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":6189,"classification":"VALID_CANDIDATE"},
-      {"filename":"photo-excel-admin_1783220157694.xlsx","sha256":"3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72","size_bytes":1114940,"sheet_exists":true,"required_columns_valid":true,"row_count":15889,"distinct_event_count":2489,"coverage_start":"2026-06-29","coverage_end":"2026-06-30","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":2457,"classification":"VALID_CANDIDATE"},
-      {"filename":"photo-excel-admin_1783220552913.xlsx","sha256":"45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b","size_bytes":2417813,"sheet_exists":true,"required_columns_valid":true,"row_count":34838,"distinct_event_count":5477,"coverage_start":"2026-06-09","coverage_end":"2026-06-12","duplicate_photo_rows":0,"event_conflicts":0,"day_presence_count":5417,"classification":"VALID_CANDIDATE"}
+    "excluded_files": [
+      {"filename":"photo-excel-admin_1781976368641.xlsx","sha256":"0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa","observed_coverage_start":"2026-06-08","observed_coverage_end":"2026-06-13","classification":"NEGATIVE_TEST_FIXTURE_TRUNCATED","exclusion_reason":"Worksheet row 50002 declares export truncation at 50000 photos; landing fixture only.","semantic_equivalent_approved_file":null},
+      {"filename":"photo-excel-admin_1782012877303.xlsx","sha256":"d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881","observed_coverage_start":"2026-06-08","observed_coverage_end":"2026-06-08","classification":"DUPLICATE_SEMANTIC_EXPORT","exclusion_reason":"Semantically identical to the canonical day-8 export and has the lexicographically larger raw SHA256.","semantic_equivalent_approved_file":"photo-excel-admin_1783219885210.xlsx","semantic_content_hash":"019287f8db7439d3d0c5ad5de392faea3e26dec984060318a6b517cd3b954288"}
+    ],
+    "observed_directory_inventory": [
+      {"filename":"photo-excel-admin_1781973512473.xlsx","sha256":"e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d","manifest_role":"APPROVED"},
+      {"filename":"photo-excel-admin_1781975989376.xlsx","sha256":"8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d","manifest_role":"APPROVED"},
+      {"filename":"photo-excel-admin_1781976368641.xlsx","sha256":"0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa","manifest_role":"EXCLUDED"},
+      {"filename":"photo-excel-admin_1781976423312.xlsx","sha256":"ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0","manifest_role":"APPROVED"},
+      {"filename":"photo-excel-admin_1782012877303.xlsx","sha256":"d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881","manifest_role":"EXCLUDED"},
+      {"filename":"photo-excel-admin_1782440454408.xlsx","sha256":"1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180","manifest_role":"APPROVED"},
+      {"filename":"photo-excel-admin_1783219885210.xlsx","sha256":"43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978","manifest_role":"APPROVED"},
+      {"filename":"photo-excel-admin_1783219914054.xlsx","sha256":"679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7","manifest_role":"APPROVED"},
+      {"filename":"photo-excel-admin_1783220085725.xlsx","sha256":"8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b","manifest_role":"APPROVED"},
+      {"filename":"photo-excel-admin_1783220157694.xlsx","sha256":"3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72","manifest_role":"APPROVED"},
+      {"filename":"photo-excel-admin_1783220552913.xlsx","sha256":"45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b","manifest_role":"APPROVED"}
     ]
   },
   "physical_contract": {
@@ -81,7 +109,7 @@
     "Commit once, then run read-only postchecks into the approved evidence path."
   ],
   "activation_gate": {
-    "all_source_files_valid": false,
+    "all_source_files_valid": true,
     "source_hashes_match": true,
     "target_identity_registered": false,
     "productive_role_registered": false,
@@ -91,7 +119,7 @@
   "readonly_precheck_command": "python scripts/precheck_kpione_route_b_018_read_only.py --plan plans/018_kpione_route_b_productive_apply_plan.json --db-url-env DB_URL_CODEX_RO --expected-project-ref <REGISTERED_PROJECT_REF> --report-json <TEMP_OR_SEPARATELY_AUTHORIZED_PATH>",
   "future_productive_command": {
     "status": "NOT_EXECUTABLE_UNTIL_BLOCKERS_RESOLVED_AND_SEPARATELY_AUTHORIZED",
-    "minimum_runner_change_required": "Add a separate --apply-productive mode that accepts only the approved plan and never reuses --apply-local or DB_URL_CODEX_LOCAL.",
+    "minimum_runner_change_required": "Add a separate --apply-productive mode that stages only source_package.approved_files, globally classifies event_id + photo_row_hash in source_file_sha256/source_sheet/source_row_number order, preserves duplicate evidence, requires total duplicates to equal expected_duplicate_photo_rows before activation, rejects raw folder-glob authority, and never reuses --apply-local or DB_URL_CODEX_LOCAL.",
     "command": "python scripts/run_kpione_route_b_ingestion_v1.py --apply-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --expected-plan-git-ref <APPROVED_COMMIT> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-productive KPIONE_ROUTE_B_018_APPLY --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
   },
   "postcheck_queries": [
@@ -99,10 +127,14 @@
     "SELECT batch_id,status,coverage_start,coverage_end,file_count,row_count,event_count FROM cg_raw.kpione_raw_ingest_batch_v1 ORDER BY created_at DESC;",
     "SELECT batch_id,source_file_sha256,source_file_name,row_count,event_count,validation_status FROM cg_raw.kpione_raw_ingest_batch_file_v1 ORDER BY source_file_sha256;",
     "SELECT batch_id,count(*) AS staged_rows,count(DISTINCT event_id) AS events,min(event_date) AS coverage_start,max(event_date) AS coverage_end FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY batch_id;",
-    "SELECT duplicate_classification,count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY duplicate_classification;",
+    "SELECT count(*) AS exact_duplicate_rows FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification='EXACT_DUPLICATE';",
+    "SELECT count(*) AS cross_file_duplicate_rows FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification='CROSS_FILE_DUPLICATE';",
+    "SELECT count(*) AS total_duplicate_rows FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification IN ('EXACT_DUPLICATE','CROSS_FILE_DUPLICATE');",
+    "SELECT count(*)=10089 AS approved_duplicate_total_matches FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification IN ('EXACT_DUPLICATE','CROSS_FILE_DUPLICATE');",
+    "SELECT count(*) AS identities_without_exactly_one_unique FROM (SELECT event_id,photo_row_hash,count(*) FILTER (WHERE duplicate_classification='UNIQUE') AS unique_count FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY event_id,photo_row_hash HAVING count(*) FILTER (WHERE duplicate_classification='UNIQUE')<>1) q;",
     "SELECT conflict_classification,count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY conflict_classification;",
-    "SELECT count(*) FROM cg_core.kpione_event_normalized_v1;",
-    "SELECT count(*) FROM cg_core.kpione_day_presence_v1 WHERE presence=1;",
+    "SELECT count(*)=35287 AS approved_event_count_matches FROM cg_core.kpione_event_normalized_v1;",
+    "SELECT count(*)=34996 AS approved_day_presence_count_matches FROM cg_core.kpione_day_presence_v1 WHERE presence=1;",
     "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE';",
     "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 a JOIN cg_raw.kpione_raw_ingest_batch_v1 b ON a.batch_id<b.batch_id AND a.status='ACTIVE' AND b.status='ACTIVE' AND daterange(a.coverage_start,a.coverage_end,'[]') && daterange(b.coverage_start,b.coverage_end,'[]');",
     "SELECT to_regclass('cg_raw.kpione2_raw') AS legacy_object_unchanged;"
