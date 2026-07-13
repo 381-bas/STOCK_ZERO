@@ -42,6 +42,15 @@ class Kernel04RetirementTests(unittest.TestCase):
         self.assertEqual(set(self.manifest["files"]), {"01_project_kernel", "02_project_state", "03_project_ledger"})
         self.assertNotIn("04_project_technical_evidence", self.manifest["files"])
 
+    def test_promotion_scope_does_not_restore_kernel04(self) -> None:
+        for entry in self.manifest["promotion_scope"]:
+            normalized = entry.casefold()
+            self.assertNotIn("kernel 04", normalized)
+            self.assertNotIn("04_project_technical_evidence", normalized)
+            if "fourth kernel" in normalized:
+                self.assertIn("do not maintain", normalized)
+                self.assertNotIn("update a fourth kernel", normalized)
+
     def test_retired_file_absent_and_preservation_artifact_present(self) -> None:
         self.assertFalse(RETIRED.exists())
         self.assertTrue(PRESERVED.is_file())

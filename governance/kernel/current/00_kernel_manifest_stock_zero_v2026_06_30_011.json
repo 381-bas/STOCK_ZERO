@@ -21,6 +21,6 @@
     "Preserve 01 as stable kernel base.",
     "Update 02 for active state.",
     "Update 03 for durable decision.",
-    "Update 04 for direction/evidence candidate."
+    "Store point-in-time technical evidence under research/; do not maintain a fourth kernel evidence file."
   ]
 }
