@@ -117,7 +117,7 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
         self.assertEqual(rules["concurrent_or_overlapping_runs"]["outcome"], "rejection")
 
     def test_state_preserves_016b_authority_and_keeps_018_productive_gates_closed(self):
-        self.assertEqual(self.state["executive_progress"]["operating_model"], "V2_ACTIVE")
+        self.assertEqual(self.state["executive_progress"]["operating_model"], "V2_1_ACTIVE")
         self.assertEqual(self.state["current_work"]["unit"], "017")
         self.assertEqual(self.state["current_work"]["status"], "RUNNER_AND_REHEARSAL_READY")
         self.assertEqual(self.state["current_work"]["next_permitted_unit"], "018_PRODUCTIVE_APPLY")
@@ -141,6 +141,20 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
             "productive_contract_modification_authorized",
         ]
         self.assertTrue(all(self.state["authorization"][flag] is False for flag in productive_flags))
+
+    def test_operating_model_v21_has_one_canonical_contract_and_one_ledger_decision(self):
+        model = self.kernel["operating_model_v2"]
+        contract = model["delivery_and_review_contract_v2_1"]
+        self.assertEqual(contract["status"], "OPERATING_MODEL_V2_1_ACTIVE")
+        self.assertFalse(contract["human_business_authority"]["technical_tests_substitute_for_approval"])
+        self.assertEqual(json.dumps(self.kernel, ensure_ascii=True).count("delivery_and_review_contract_v2_1"), 1)
+        self.assertIn("delivery_and_review_contract_v2_1", self.state["executive_progress"]["delivery_review_contract"])
+        decisions = [entry for entry in self.ledger["entries"] if entry.get("id") == "ADR_OPERATING_MODEL_V2_1_PR_REVIEW_PRODUCTIVE_BOUNDARIES"]
+        self.assertEqual(len(decisions), 1)
+        self.assertIn("preserves its authority split and R1-R4 risk model", decisions[0]["compatibility"])
+        self.assertEqual(self.state["current_preparation"]["status"], "SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING")
+        self.assertFalse(self.state["authorization"]["018_authorized"])
+        self.assertTrue({"history", "commits", "pull_requests", "tests"}.isdisjoint(self.state))
 
     def test_directive_closes_017_and_advances_only_to_018_without_authorizing_it(self):
         self.assertEqual(self.directive["current_phase"], "017_COMPLETED")

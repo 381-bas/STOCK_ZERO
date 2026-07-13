@@ -430,6 +430,27 @@
         "destructive_action": false
       },
       "impact": "Route B is technically ready for 018 planning; no productive authority, apply, cutover, or destructive action is granted."
+    },
+    {
+      "id": "ADR_OPERATING_MODEL_V2_1_PR_REVIEW_PRODUCTIVE_BOUNDARIES",
+      "title": "Operating Model V2.1 - PR, Review and Productive Operation Boundaries",
+      "date": "2026-07-12",
+      "status": "ACTIVE",
+      "risk_classification": "R2_ARCHITECTURE",
+      "decision": "Refine Operating Model V2 with explicit pull-request unit, review-loop, productive-operation, business-authority, state-mutation, phase-numbering, and selective second-model boundaries.",
+      "rules": [
+        "A PR is one integrable, reviewable, reversible decision inside one risk class; pre-merge corrections stay in that PR while objective and risk remain unchanged.",
+        "A new PR is required for a material objective or risk-class change, an already merged unit, or an independently deployable/revertible change.",
+        "Read-only prechecks, productive applies, postchecks, and rollbacks without repository-logic changes are operations and do not require artificial code PRs; they retain exact target, authorization, plan, transaction, postcheck, rollback, and immutable execution evidence.",
+        "Normal review is capped at primary review, one corrective implementation round, and one focused delta review; a third material correction triggers redesign, split, controlled debt, or PR replacement.",
+        "Independent-model review is selective: required or strongly recommended for business semantics, source exclusion, semantic duplicates, precedence, durable contracts, R3/R4 behavior, and difficult-to-recover decisions; it is not mandatory for routine R1.",
+        "Bastian retains explicit authority for source exclusions, business duplicate meaning, metrics, precedence, GO/NO-GO, productive writes, cutover, and destructive actions; tests do not substitute for approval.",
+        "PROJECT_STATE changes only for live phase/unit, gate, authorization, blocker, next action, or operating-model changes and does not duplicate Git history, PR history, test history, or implementation detail.",
+        "Visible numbered phases are reserved for risk or objective transitions, durable architecture, productive operations, trials, or cutovers; normal corrections are commits or internal gates.",
+        "Repeatable mechanical gates should move to CI where practical."
+      ],
+      "compatibility": "This decision refines Operating Model V2 and preserves its authority split and R1-R4 risk model.",
+      "productive_authorization_granted": false
     }
   ],
   "deprecated_patterns": [

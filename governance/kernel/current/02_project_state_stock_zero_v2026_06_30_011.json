@@ -2,11 +2,12 @@
   "schema_version": "3.0",
   "document_type": "project_state",
   "project": "STOCK_ZERO",
-  "state_as_of_utc": "2026-07-13T00:45:00+00:00",
+  "state_as_of_utc": "2026-07-13T02:45:00+00:00",
   "state_source_commit": "RESOLVE_FROM_GIT",
   "overall_status": "ACTIVE_CONTROLLED_DEVELOPMENT",
   "executive_progress": {
-    "operating_model": "V2_ACTIVE",
+    "operating_model": "V2_1_ACTIVE",
+    "delivery_review_contract": "governance/kernel/current/01_project_kernel_stock_zero_v2026_06_16.json#operating_model_v2.delivery_and_review_contract_v2_1",
     "last_accepted_governance_unit": "017_APPLY_RUNNER_AND_REHEARSAL",
     "current_priority": "Keep 018 productive apply closed until separate R3 authorization exists."
   },
