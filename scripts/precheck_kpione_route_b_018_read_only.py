@@ -10,9 +10,19 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 try:
-    from scripts.kpione_route_b_v1 import inspect_workbook, semantic_content_hash, stable_json
+    from scripts.kpione_route_b_v1 import (
+        classify_global_photo_duplicates,
+        inspect_workbook,
+        semantic_content_hash,
+        stable_json,
+    )
 except ModuleNotFoundError:  # Direct execution from scripts/.
-    from kpione_route_b_v1 import inspect_workbook, semantic_content_hash, stable_json
+    from kpione_route_b_v1 import (
+        classify_global_photo_duplicates,
+        inspect_workbook,
+        semantic_content_hash,
+        stable_json,
+    )
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,6 +80,8 @@ def _date_range(start: str, end: str) -> list[str]:
 
 def summarize_approved_workbooks(workbooks: list[Any]) -> dict[str, Any]:
     rows = [row for workbook in workbooks for row in workbook.rows]
+    classified = classify_global_photo_duplicates(workbooks)
+    canonical_rows = [row for row in classified if row["duplicate_classification"] == "UNIQUE"]
     event_stability: dict[str, tuple[str, str]] = {}
     conflicts: set[str] = set()
     for row in rows:
@@ -77,8 +89,7 @@ def summarize_approved_workbooks(workbooks: list[Any]) -> dict[str, Any]:
         if row["event_id"] in event_stability and event_stability[row["event_id"]] != value:
             conflicts.add(row["event_id"])
         event_stability.setdefault(row["event_id"], value)
-    photo_ids = [(row["event_id"], row["photo_row_hash"]) for row in rows]
-    presence = {(row["fecha"], row["location_key"], row["cliente_norm"]) for row in rows}
+    presence = {(row["fecha"], row["location_key"], row["cliente_norm"]) for row in canonical_rows}
     dates = sorted({row["fecha"] for row in rows})
     semantic_hashes = sorted(semantic_content_hash(workbook) for workbook in workbooks)
     plan_hash = hashlib.sha256(stable_json({
@@ -89,8 +100,10 @@ def summarize_approved_workbooks(workbooks: list[Any]) -> dict[str, Any]:
     return {
         "approved_file_count": len(workbooks),
         "expected_source_rows": len(rows),
-        "expected_distinct_events": len(event_stability),
-        "expected_duplicate_photo_rows": len(photo_ids) - len(set(photo_ids)),
+        "expected_distinct_events": len({row["event_id"] for row in canonical_rows}),
+        "expected_duplicate_photo_rows": sum(row["duplicate_classification"] != "UNIQUE" for row in classified),
+        "expected_exact_duplicate_rows": sum(row["duplicate_classification"] == "EXACT_DUPLICATE" for row in classified),
+        "expected_cross_file_duplicate_rows": sum(row["duplicate_classification"] == "CROSS_FILE_DUPLICATE" for row in classified),
         "expected_event_conflicts": len(conflicts),
         "expected_day_presence_rows": len(presence),
         "coverage_start": dates[0],
@@ -149,11 +162,22 @@ def validate_source_manifest(plan: dict[str, Any], root: Path = ROOT) -> dict[st
                 raise PrecheckBlock(f"approved_metric_mismatch:{filename}:{field}")
         workbooks.append(workbook)
     summary = summarize_approved_workbooks(workbooks)
+    approved_bytes = sum(actual[item["filename"]].stat().st_size for item in package["approved_files"])
+    excluded_bytes = sum(actual[item["filename"]].stat().st_size for item in package["excluded_files"] if item["filename"] in actual)
+    summary.update({
+        "approved_source_bytes": approved_bytes,
+        "excluded_source_bytes": excluded_bytes,
+        "observed_directory_bytes": sum(path.stat().st_size for path in actual.values()),
+        "excluded_file_count": len(package["excluded_files"]),
+        "observed_file_count": len(actual),
+    })
     expected_summary = {
         "approved_file_count": package["approved_file_count"],
         "expected_source_rows": package["expected_source_rows"],
         "expected_distinct_events": package["expected_distinct_events"],
         "expected_duplicate_photo_rows": package["expected_duplicate_photo_rows"],
+        "expected_exact_duplicate_rows": package["expected_exact_duplicate_rows"],
+        "expected_cross_file_duplicate_rows": package["expected_cross_file_duplicate_rows"],
         "expected_event_conflicts": package["expected_event_conflicts"],
         "expected_day_presence_rows": package["expected_day_presence_rows"],
         "coverage_start": package["expected_coverage"]["start"],
@@ -161,6 +185,7 @@ def validate_source_manifest(plan: dict[str, Any], root: Path = ROOT) -> dict[st
         "distinct_dates": package["expected_coverage"]["distinct_dates"],
         "missing_dates": package["expected_coverage"]["missing_dates"],
         "semantic_plan_hash": package["semantic_plan_hash"],
+        **package["source_byte_metrics"],
     }
     if summary != expected_summary:
         raise PrecheckBlock("approved_aggregate_mismatch")
@@ -247,7 +272,7 @@ def run_precheck(plan: dict[str, Any], dsn: str, connect_fn: Callable[[str], Any
             "active_batch_count": active_batches,
             "legacy_object": legacy_object,
             "productive_schema_create_privileges": list(productive_privileges),
-            "estimated_source_bytes": plan["source_package"]["total_candidate_bytes"],
+            **plan["source_package"]["source_byte_metrics"],
             "writes_attempted": False,
         }
     finally:

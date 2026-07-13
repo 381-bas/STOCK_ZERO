@@ -27,9 +27,19 @@
     "expected_source_rows": 239159,
     "expected_distinct_events": 35287,
     "expected_duplicate_photo_rows": 10089,
+    "expected_exact_duplicate_rows": 0,
+    "expected_cross_file_duplicate_rows": 10089,
     "expected_event_conflicts": 0,
     "expected_day_presence_rows": 34996,
     "semantic_plan_hash": "4bcdbb9e33c1b343802a5c3d55e6ecc5200a65ff17da08f1ccbf135fe500a773",
+    "source_byte_metrics": {
+      "approved_source_bytes": 16571976,
+      "excluded_source_bytes": 4023244,
+      "observed_directory_bytes": 20595220,
+      "approved_file_count": 9,
+      "excluded_file_count": 2,
+      "observed_file_count": 11
+    },
     "approved_files": [
       {"filename":"photo-excel-admin_1781975989376.xlsx","sha256":"8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d","semantic_content_hash":"e4e1ba606208e414503c59cbaf181262df5864dcb5a746bc18786193210dbe50","coverage_start":"2026-06-01","coverage_end":"2026-06-07","row_count":46807,"distinct_event_count":7101,"day_presence_count":7069,"duplicate_photo_rows":0,"approval_reason":"Canonical complete export for June 1-7."},
       {"filename":"photo-excel-admin_1783219885210.xlsx","sha256":"43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978","semantic_content_hash":"019287f8db7439d3d0c5ad5de392faea3e26dec984060318a6b517cd3b954288","coverage_start":"2026-06-08","coverage_end":"2026-06-08","row_count":8372,"distinct_event_count":1295,"day_presence_count":1294,"duplicate_photo_rows":0,"approval_reason":"Canonical day-8 export selected by lexicographically smallest raw SHA256 among semantic equivalents."},
@@ -109,7 +119,7 @@
   "readonly_precheck_command": "python scripts/precheck_kpione_route_b_018_read_only.py --plan plans/018_kpione_route_b_productive_apply_plan.json --db-url-env DB_URL_CODEX_RO --expected-project-ref <REGISTERED_PROJECT_REF> --report-json <TEMP_OR_SEPARATELY_AUTHORIZED_PATH>",
   "future_productive_command": {
     "status": "NOT_EXECUTABLE_UNTIL_BLOCKERS_RESOLVED_AND_SEPARATELY_AUTHORIZED",
-    "minimum_runner_change_required": "Add a separate --apply-productive mode that stages only source_package.approved_files from the approved plan, rejects raw folder-glob authority, and never reuses --apply-local or DB_URL_CODEX_LOCAL.",
+    "minimum_runner_change_required": "Add a separate --apply-productive mode that stages only source_package.approved_files, globally classifies event_id + photo_row_hash in source_file_sha256/source_sheet/source_row_number order, preserves duplicate evidence, requires total duplicates to equal expected_duplicate_photo_rows before activation, rejects raw folder-glob authority, and never reuses --apply-local or DB_URL_CODEX_LOCAL.",
     "command": "python scripts/run_kpione_route_b_ingestion_v1.py --apply-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --expected-plan-git-ref <APPROVED_COMMIT> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-productive KPIONE_ROUTE_B_018_APPLY --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
   },
   "postcheck_queries": [
@@ -117,10 +127,14 @@
     "SELECT batch_id,status,coverage_start,coverage_end,file_count,row_count,event_count FROM cg_raw.kpione_raw_ingest_batch_v1 ORDER BY created_at DESC;",
     "SELECT batch_id,source_file_sha256,source_file_name,row_count,event_count,validation_status FROM cg_raw.kpione_raw_ingest_batch_file_v1 ORDER BY source_file_sha256;",
     "SELECT batch_id,count(*) AS staged_rows,count(DISTINCT event_id) AS events,min(event_date) AS coverage_start,max(event_date) AS coverage_end FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY batch_id;",
-    "SELECT duplicate_classification,count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY duplicate_classification;",
+    "SELECT count(*) AS exact_duplicate_rows FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification='EXACT_DUPLICATE';",
+    "SELECT count(*) AS cross_file_duplicate_rows FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification='CROSS_FILE_DUPLICATE';",
+    "SELECT count(*) AS total_duplicate_rows FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification IN ('EXACT_DUPLICATE','CROSS_FILE_DUPLICATE');",
+    "SELECT count(*)=10089 AS approved_duplicate_total_matches FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification IN ('EXACT_DUPLICATE','CROSS_FILE_DUPLICATE');",
+    "SELECT count(*) AS identities_without_exactly_one_unique FROM (SELECT event_id,photo_row_hash,count(*) FILTER (WHERE duplicate_classification='UNIQUE') AS unique_count FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY event_id,photo_row_hash HAVING count(*) FILTER (WHERE duplicate_classification='UNIQUE')<>1) q;",
     "SELECT conflict_classification,count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY conflict_classification;",
-    "SELECT count(*) FROM cg_core.kpione_event_normalized_v1;",
-    "SELECT count(*) FROM cg_core.kpione_day_presence_v1 WHERE presence=1;",
+    "SELECT count(*)=35287 AS approved_event_count_matches FROM cg_core.kpione_event_normalized_v1;",
+    "SELECT count(*)=34996 AS approved_day_presence_count_matches FROM cg_core.kpione_day_presence_v1 WHERE presence=1;",
     "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE';",
     "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 a JOIN cg_raw.kpione_raw_ingest_batch_v1 b ON a.batch_id<b.batch_id AND a.status='ACTIVE' AND b.status='ACTIVE' AND daterange(a.coverage_start,a.coverage_end,'[]') && daterange(b.coverage_start,b.coverage_end,'[]');",
     "SELECT to_regclass('cg_raw.kpione2_raw') AS legacy_object_unchanged;"

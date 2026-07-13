@@ -316,6 +316,38 @@ def semantic_content_hash(workbook: WorkbookPlan) -> str:
     return sha256_text(stable_json(semantic_content_records(workbook)))
 
 
+def classify_global_photo_duplicates(workbooks: Iterable[WorkbookPlan]) -> list[dict[str, Any]]:
+    occurrences: list[tuple[str, str, int, dict[str, Any]]] = []
+    for workbook in workbooks:
+        for row in workbook.rows:
+            occurrences.append((
+                workbook.source_file_sha256,
+                workbook.source_sheet,
+                int(row["source_row_number"]),
+                row,
+            ))
+    occurrences.sort(key=lambda item: (item[0], item[1], item[2]))
+    canonical_source: dict[tuple[str, str], str] = {}
+    classified: list[dict[str, Any]] = []
+    for source_hash, source_sheet, source_row_number, row in occurrences:
+        identity = (row["event_id"], row["photo_row_hash"])
+        if identity not in canonical_source:
+            classification = "UNIQUE"
+            canonical_source[identity] = source_hash
+        elif canonical_source[identity] == source_hash:
+            classification = "EXACT_DUPLICATE"
+        else:
+            classification = "CROSS_FILE_DUPLICATE"
+        classified.append({
+            **row,
+            "source_file_sha256": source_hash,
+            "source_sheet": source_sheet,
+            "source_row_number": source_row_number,
+            "duplicate_classification": classification,
+        })
+    return classified
+
+
 def _semantic_plan_hash(workbooks: list[WorkbookPlan]) -> str:
     semantic = {
         "runner_version": RUNNER_VERSION,
