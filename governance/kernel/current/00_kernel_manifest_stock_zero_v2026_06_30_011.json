@@ -14,14 +14,13 @@
   "files": {
     "01_project_kernel": "01_project_kernel_stock_zero_v2026_06_16.json",
     "02_project_state": "02_project_state_stock_zero_v2026_06_30_011.json",
-    "03_project_ledger": "03_project_ledger_stock_zero_v2026_06_30_011.json",
-    "04_project_technical_evidence": "04_project_technical_evidence_stock_zero_v2026_06_30_011.json"
+    "03_project_ledger": "03_project_ledger_stock_zero_v2026_06_30_011.json"
   },
   "promotion_scope": [
     "Do not use KERNEL as history dump.",
     "Preserve 01 as stable kernel base.",
     "Update 02 for active state.",
     "Update 03 for durable decision.",
-    "Update 04 for direction/evidence candidate."
+    "Store point-in-time technical evidence under research/; do not maintain a fourth kernel evidence file."
   ]
 }
