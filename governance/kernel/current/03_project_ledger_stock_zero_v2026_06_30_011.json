@@ -298,6 +298,99 @@
         "legacy_destructive_action": false
       },
       "impact": "Governance is reduced to live state, durable decisions, directive gates, and Git/PR history; 016B may only begin after separate explicit authorization."
+    },
+    {
+      "id": "ADR_016B_IDENTITY_GRAIN_IDEMPOTENCY_CONTRACT",
+      "date": "2026-07-12",
+      "status": "ACTIVE",
+      "risk_classification": "R2_ARCHITECTURE",
+      "decision": "Select Route B photo exports as the future productive KPIONE source authority and use the source-photo-row to immutable event-photo staging-row contract with content-addressed source versions, explicit correction supersession, and derived event/day-presence outputs.",
+      "selected_contract": {
+        "source_authority_decision": "PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY",
+        "route_b": {
+          "file_pattern": "photo-excel-admin_*.xlsx",
+          "sheet": "Fotos",
+          "authority_status": "FUTURE_PRODUCTIVE_SOURCE_AUTHORITY",
+          "delivery_boundary": "controlled input folder containing immutable source files"
+        },
+        "route_a": {
+          "file": "data/CUMPLIMIENTO_FRECUENCIA.xlsx",
+          "sheet": "DB (KPIONE2.0)",
+          "status": "HISTORICAL_BOOTSTRAP_AND_COMPATIBILITY_REFERENCE",
+          "future_ingestion_authority": false,
+          "identity_authority": false
+        },
+        "permanent_dual_source_authority": false,
+        "source_grain": "source_photo_row",
+        "persisted_grain": "immutable_event_photo_staging_row",
+        "persistence_boundary": "new_versioned_staging_boundary using batch, batch-file, and event-photo staging objects from the 014F design",
+        "future_authority": [
+          "cg_raw.kpione_raw_ingest_batch_v1",
+          "cg_raw.kpione_raw_ingest_batch_file_v1",
+          "cg_raw.kpione_raw_event_photo_staging_v1"
+        ],
+        "legacy_authority": "cg_raw.kpione2_raw and previous legacy state remain compatibility/history evidence only"
+      },
+      "identity_hierarchy": [
+        "ingestion_run: runner execution trace only",
+        "source_file_version: source_file_sha256 + source_sheet",
+        "source_row: source_file_sha256 + source_sheet + source_row_number",
+        "photo_record: event_id + photo_row_hash",
+        "business_event: event_id with sp_item_id and event_stable_hash stability checks",
+        "day_presence: fecha + location_key + cliente_norm, derived as binary presence"
+      ],
+      "idempotency_rules": {
+        "exact_rerun_same_file": "no_op",
+        "same_content_different_filename": "no_op",
+        "corrected_file": "new_source_version with explicit supersession before active projection changes",
+        "appended_rows": "insert within declared batch/source version",
+        "removed_rows": "supersession with tombstone/exclusion in active projection; immutable rows remain",
+        "partial_failed_ingestion": "quarantine inactive run",
+        "resumed_ingestion": "update only if semantic plan and source versions are unchanged",
+        "duplicate_rows_inside_one_source": "no_op for exact duplicate active records, with duplicate provenance retained",
+        "same_event_multiple_source_files": "no_op for same photo hash, quarantine for event_stable_hash conflicts",
+        "concurrent_or_overlapping_runs": "rejection unless same semantic plan and same source versions"
+      },
+      "correction_replay_model": {
+        "source_versioning": "source_file_sha256 identifies immutable content versions; declared batch coverage groups them",
+        "supersession": "corrections activate only through declared supersession for the covered period",
+        "deletion_semantics": "removed rows become active-projection tombstones or exclusions, not destructive deletes",
+        "rebuild_boundary": "event rows, day presence and weekly metrics rebuild from the active source-version set",
+        "rollback_or_isolation": "inactive/quarantined/rolled-back batches do not feed downstream projections"
+      },
+      "rejected_alternatives": [
+        "legacy table state as identity authority",
+        "Route A operational workbook as future ingestion authority",
+        "permanent dual-source authority between Route A and Route B",
+        "filename or latest download as source identity",
+        "source row number alone as business identity",
+        "photo row counted directly as visit or daily presence",
+        "implicit last-write-wins correction handling"
+      ],
+      "constraints_and_known_limitations": [
+        "No DB, SQL, apply, cutover, loader, or app change is authorized by 016B.",
+        "Future 017 must implement runner behavior against this contract before any productive authorization.",
+        "Legacy overlap remains unverifiable and is intentionally not used as the migration authority."
+      ],
+      "readiness_result": "IDEMPOTENCY_CONTRACT_SELECTED",
+      "evidence": {
+        "contract_path": "contracts/control_gestion/kpione2_photo_export_contract_v1.json",
+        "repo_only": true,
+        "productive_changes_made": false,
+        "db_access": false,
+        "sql_executed": false,
+        "db_writes": false,
+        "apply_executed": false,
+        "cutover_executed": false,
+        "legacy_destructive_action": false
+      },
+      "implications_for_017": [
+        "017 is the next permitted unit but remains unauthorized.",
+        "017 must implement a folder-based Route B runner that scans a configured input folder, identifies candidate photo-excel-admin_*.xlsx files, computes SHA256 before processing, registers batch and file versions, validates sheet/schema, stages photo rows immutably, activates only complete validated runs, quarantines malformed or partial files, avoids reprocessing identical content, and derives events/day presence from active source versions.",
+        "The input folder path is runtime configuration and provenance, not identity authority.",
+        "Migration mistakes must be corrected through versioned staging, replay, supersession, rehearsal, and trial rather than by retaining Route A as future authority.",
+        "017 must not use cg_raw.kpione2_raw, filename, or latest-download semantics as identity authority."
+      ]
     }
   ],
   "deprecated_patterns": [

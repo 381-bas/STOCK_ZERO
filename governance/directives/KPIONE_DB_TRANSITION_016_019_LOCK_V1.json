@@ -8,8 +8,8 @@
   "activated_on_branch": "lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only",
   "base_main_commit": "986d4b0f143a443527a0121d87e9b5981a6feef3",
   "created_at_utc": "2026-07-12T01:24:58Z",
-  "current_phase": "016A_CLOSED",
-  "allowed_next_phase": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+  "current_phase": "016B_CLOSED",
+  "allowed_next_phase": "017_APPLY_RUNNER_AND_REHEARSAL",
   "active_phase_count": 0,
   "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
   "destructive_action_authorized": false,
@@ -22,17 +22,18 @@
   "scope": {
     "closed_history": [
       "016",
-      "016A"
+      "016A",
+      "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT"
     ],
     "future_operational_units": [
-      "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
       "017_APPLY_RUNNER_AND_REHEARSAL",
       "018_PRODUCTIVE_APPLY",
       "019_POST_APPLY_TRIAL"
     ],
     "sequence_is_non_negotiable": true,
     "no_parallel_phase_tracks": true,
-    "016b_authorized": false,
+    "016b_authorized": true,
+    "016b_result": "IDEMPOTENCY_CONTRACT_SELECTED",
     "productive_authorization_granted": false
   },
   "non_negotiable_sequence": [
@@ -61,23 +62,28 @@
     {
       "phase": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
       "short_name": "016B",
-      "status": "DEFINED_NOT_AUTHORIZED",
+      "status": "CLOSED_SELECTED",
       "objective": "Decide source grain, persisted grain, destination table or staging boundary, authoritative identity, idempotency behavior, correction/replay behavior, and readiness for runner construction.",
-      "entry_gate": "Separate explicit Bastian and ChatGPT authorization after Operating Model V2 is accepted.",
-      "exit_gate": "Either IDEMPOTENCY_CONTRACT_SELECTED or BLOCKED_EXACT_GAP_IDENTIFIED is recorded. The old 016C readiness decision is absorbed into this exit gate.",
+      "entry_gate": "Explicit Bastian and ChatGPT authorization for R2 architecture-only 016B work.",
+      "exit_gate": "IDEMPOTENCY_CONTRACT_SELECTED is recorded. The old 016C readiness decision is absorbed into this exit gate.",
+      "result": "IDEMPOTENCY_CONTRACT_SELECTED",
+      "source_authority_result": "PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY",
+      "route_b_authority": "photo-excel-admin_*.xlsx / Fotos",
+      "route_a_status": "HISTORICAL_BOOTSTRAP_AND_COMPATIBILITY_REFERENCE",
+      "selected_contract_reference": "contracts/control_gestion/kpione2_photo_export_contract_v1.json#identity_idempotency_contract_016B",
       "allowed_outputs": [
         "IDEMPOTENCY_CONTRACT_SELECTED",
         "BLOCKED_EXACT_GAP_IDENTIFIED"
       ],
-      "writes_allowed": "Design/governance artifacts only when separately authorized; no DB access or SQL.",
-      "authorization_required": "Explicit 016B prompt. This directive reform does not authorize 016B."
+      "writes_allowed": "Completed R2 repository architecture artifacts only; no DB access or SQL.",
+      "authorization_required": "No further 016B work is authorized after selection except review fixes inside the same PR."
     },
     {
       "phase": "017_APPLY_RUNNER_AND_REHEARSAL",
       "short_name": "017",
       "status": "FUTURE_NOT_AUTHORIZED",
-      "objective": "Design or implement apply runner and rehearse under no-apply/dry-run gates after 016B acceptance.",
-      "entry_gate": "016B exit accepted and explicit 017 authorization granted.",
+      "objective": "Design or implement the folder-based Route B photo export ingestion runner and rehearse under no-apply/dry-run gates after 016B acceptance.",
+      "entry_gate": "016B contract selected and explicit 017 authorization granted.",
       "internal_gates": [
         "017A design readiness",
         "017B runner implementation under no-apply guardrails",
@@ -91,7 +97,7 @@
       "phase": "018_PRODUCTIVE_APPLY",
       "short_name": "018",
       "status": "FUTURE_NOT_AUTHORIZED",
-      "objective": "Execute approved productive apply only if separately authorized.",
+      "objective": "Execute approved productive apply gate only if separately authorized.",
       "entry_gate": "017 readiness accepted and explicit productive apply authorization granted.",
       "exit_gate": "Apply result, rollback readiness, and post-apply validation documented.",
       "writes_allowed": "DB writes only if exact command, role, phase, rollback, and confirmation are authorized.",
@@ -101,7 +107,7 @@
       "phase": "019_POST_APPLY_TRIAL",
       "short_name": "019",
       "status": "FUTURE_NOT_AUTHORIZED",
-      "objective": "Post-apply trial, monitoring, and final transition decision.",
+      "objective": "Post-apply correction, monitoring trial, and final transition decision.",
       "entry_gate": "018 apply completed or explicitly skipped with evidence.",
       "exit_gate": "Trial outcome accepted; deferred retention/destructive topics may be reconsidered only after this phase.",
       "writes_allowed": "Monitoring/evidence; destructive actions remain disallowed unless a new directive amendment exists.",
@@ -136,18 +142,19 @@
     "No DB reads or writes without separate authorization.",
     "No app runtime modification in this reform.",
     "No loader modification in this reform.",
-    "No contracts 013-016 technical artifact modification in this reform.",
+    "No further contracts 013-016 technical artifact modification without separate authorization.",
     "No apply, cutover, or destructive action.",
-    "016B is defined but not authorized."
+    "017 is the next permitted unit but is not authorized."
   ],
   "validation_requirements": {
     "json_valid": true,
     "utf8": true,
     "mojibake_free": true,
     "current_work": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
-    "016b_authorized": false,
+    "allowed_next_phase": "017_APPLY_RUNNER_AND_REHEARSAL",
+    "016b_authorized": true,
+    "016b_result": "IDEMPOTENCY_CONTRACT_SELECTED",
     "future_operational_units": [
-      "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
       "017_APPLY_RUNNER_AND_REHEARSAL",
       "018_PRODUCTIVE_APPLY",
       "019_POST_APPLY_TRIAL"
@@ -206,9 +213,11 @@
     "historical_sha_fields_status": "HISTORICAL_ONLY"
   },
   "roadmap_compression": {
-    "status": "ACTIVE_FOR_FUTURE_WORK",
+    "status": "ACTIVE_FOR_REMAINING_FUTURE_WORK",
+    "completed_unit": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+    "completed_result": "IDEMPOTENCY_CONTRACT_SELECTED",
+    "source_authority_result": "PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY",
     "future_units": [
-      "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
       "017_APPLY_RUNNER_AND_REHEARSAL",
       "018_PRODUCTIVE_APPLY",
       "019_POST_APPLY_TRIAL"
