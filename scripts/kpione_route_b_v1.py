@@ -18,6 +18,7 @@ RUNNER_VERSION = "017_ROUTE_B_V1"
 SOURCE_SHEET = "Fotos"
 FILE_PATTERN = "photo-excel-admin_*.xlsx"
 LOCAL_DB_ENV = "DB_URL_CODEX_LOCAL"
+ADVISORY_LOCK_KEY = 5426926728611921713  # Stable signed bigint for KPIONE_ROUTE_B_V1.
 LIFECYCLE = (
     "DISCOVERED", "VALIDATING", "VALIDATED", "STAGING", "STAGED", "ACTIVE",
     "QUARANTINED", "SUPERSEDED", "ROLLED_BACK", "FAILED",
@@ -243,14 +244,11 @@ def inspect_workbook(path: Path) -> WorkbookPlan:
 
 
 def build_plan(input_dir: Path) -> dict[str, Any]:
-    plans = [inspect_workbook(path) for path in discover_files(input_dir)]
-    hashes = [plan.source_file_sha256 for plan in plans]
-    if len(hashes) != len(set(hashes)):
-        # Same content under another name is one source version, never two active inputs.
-        unique: dict[str, WorkbookPlan] = {}
-        for plan in plans:
-            unique.setdefault(plan.source_file_sha256, plan)
-        plans = list(unique.values())
+    discovered_plans = [inspect_workbook(path) for path in discover_files(input_dir)]
+    unique: dict[str, WorkbookPlan] = {}
+    for workbook in discovered_plans:
+        unique.setdefault(workbook.source_file_sha256, workbook)
+    plans = list(unique.values())
     all_rows = [row for plan in plans for row in plan.rows]
     event_stability: dict[str, tuple[str, str]] = {}
     for row in all_rows:
@@ -268,6 +266,12 @@ def build_plan(input_dir: Path) -> dict[str, Any]:
         "apply_authorized": False,
         "db_target_classification": "NOT_EVALUATED_DRY_RUN",
         "coverage_start": coverage[0], "coverage_end": coverage[-1],
+        "discovered_file_count": len(discovered_plans),
+        "already_active_file_count": 0,
+        "renamed_no_op_count": 0,
+        "new_file_count": len(plans),
+        "files_selected_for_staging": len(plans),
+        "files_skipped_as_no_op": len(discovered_plans) - len(plans),
         "source_rows": len(all_rows), "duplicate_rows": sum(p.duplicate_rows for p in plans),
         "distinct_events": len(event_stability), "event_conflicts": 0,
         "day_presence_count": len(presence), "expected_inserts": len(all_rows),
@@ -279,13 +283,48 @@ def build_plan(input_dir: Path) -> dict[str, Any]:
             "coverage_start": p.coverage_start, "coverage_end": p.coverage_end,
             "row_count": len(p.rows), "event_count": p.event_count,
             "optional_columns": list(p.optional_columns),
-        } for p in plans],
+            "classification": (
+                "NEW_SOURCE_VERSION" if unique[p.source_file_sha256] is p
+                else "DUPLICATE_DISCOVERED_SOURCE_VERSION"
+            ),
+        } for p in discovered_plans],
         "_workbooks": plans,
+        "_discovered_workbooks": discovered_plans,
     }
 
 
 def public_plan(plan: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in plan.items() if not key.startswith("_")}
+
+
+def _semantic_plan_hash(workbooks: list[WorkbookPlan]) -> str:
+    semantic = {
+        "runner_version": RUNNER_VERSION,
+        "source_versions": sorted(p.source_file_sha256 for p in workbooks),
+        "source_sheet": SOURCE_SHEET,
+        "grain": "immutable_event_photo_staging_row",
+    }
+    return sha256_text(stable_json(semantic))
+
+
+def _apply_report(plan: dict[str, Any], classifications: list[dict[str, Any]],
+                  selected: list[WorkbookPlan]) -> dict[str, Any]:
+    already_active = [item for item in classifications if item["classification"].startswith("ALREADY_ACTIVE")]
+    renamed = [item for item in classifications if item["classification"] == "ALREADY_ACTIVE_DIFFERENT_NAME"]
+    selected_rows = sum(len(workbook.rows) for workbook in selected)
+    report = public_plan(plan)
+    report.update({
+        "files": classifications,
+        "already_active_file_count": len(already_active),
+        "renamed_no_op_count": len(renamed),
+        "new_file_count": len(selected),
+        "files_selected_for_staging": len(selected),
+        "files_skipped_as_no_op": len(classifications) - len(selected),
+        "expected_inserts": selected_rows,
+        "expected_no_ops": len(classifications) - len(selected),
+        "semantic_plan_hash": _semantic_plan_hash(selected) if selected else None,
+    })
+    return report
 
 
 def apply_local(plan: dict[str, Any], dsn: str, ddl_path: Path,
@@ -294,23 +333,70 @@ def apply_local(plan: dict[str, Any], dsn: str, ddl_path: Path,
     target = assert_local_target(LOCAL_DB_ENV, dsn)
     execution_id = str(uuid.uuid4())
     batch_id = str(uuid.uuid4())
-    workbooks: list[WorkbookPlan] = plan["_workbooks"]
+    discovered: list[WorkbookPlan] = plan["_discovered_workbooks"]
     with psycopg.connect(dsn) as connection:
         with connection.transaction(), connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s)", (ADVISORY_LOCK_KEY,))
             cursor.execute(ddl_path.read_text(encoding="utf-8"))
-            hashes = [p.source_file_sha256 for p in workbooks]
-            cursor.execute("SELECT b.batch_id::text, f.source_file_name FROM cg_raw.kpione_raw_ingest_batch_v1 b JOIN cg_raw.kpione_raw_ingest_batch_file_v1 f USING(batch_id) WHERE b.status='ACTIVE' AND f.source_file_sha256 = ANY(%s)", (hashes,))
-            existing = cursor.fetchone()
-            if existing:
-                outcome = "NO_OP_ALREADY_REGISTERED" if existing[1] in {p.source_file_name for p in workbooks} else "NO_OP_SAME_SOURCE_VERSION"
-                return {"outcome": outcome, "batch_id": existing[0], "apply_authorized": True, "db_target_classification": target}
-            cursor.execute("SELECT batch_id::text FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE' AND daterange(coverage_start, coverage_end, '[]') && daterange(%s,%s,'[]')", (plan["coverage_start"], plan["coverage_end"]))
+            hashes = sorted({p.source_file_sha256 for p in discovered})
+            cursor.execute("SELECT b.batch_id::text, f.source_file_sha256, f.source_file_name FROM cg_raw.kpione_raw_ingest_batch_v1 b JOIN cg_raw.kpione_raw_ingest_batch_file_v1 f USING(batch_id) WHERE b.status='ACTIVE' AND f.source_file_sha256 = ANY(%s)", (hashes,))
+            active_versions: dict[str, dict[str, set[str]]] = {}
+            for active_batch_id, source_hash, source_name in cursor.fetchall():
+                item = active_versions.setdefault(source_hash, {"names": set(), "batch_ids": set()})
+                item["names"].add(source_name)
+                item["batch_ids"].add(active_batch_id)
+            classifications: list[dict[str, Any]] = []
+            selected_by_hash: dict[str, WorkbookPlan] = {}
+            for workbook in discovered:
+                active = active_versions.get(workbook.source_file_sha256)
+                if active:
+                    classification = (
+                        "ALREADY_ACTIVE_SAME_NAME"
+                        if workbook.source_file_name in active["names"]
+                        else "ALREADY_ACTIVE_DIFFERENT_NAME"
+                    )
+                elif workbook.source_file_sha256 in selected_by_hash:
+                    classification = "DUPLICATE_DISCOVERED_SOURCE_VERSION"
+                else:
+                    classification = "NEW_SOURCE_VERSION"
+                    selected_by_hash[workbook.source_file_sha256] = workbook
+                classifications.append({
+                    "source_file_name": workbook.source_file_name,
+                    "source_file_sha256": workbook.source_file_sha256,
+                    "coverage_start": workbook.coverage_start,
+                    "coverage_end": workbook.coverage_end,
+                    "row_count": len(workbook.rows),
+                    "classification": classification,
+                })
+            workbooks = list(selected_by_hash.values())
+            report = _apply_report(plan, classifications, workbooks)
+            if not workbooks:
+                outcome = (
+                    "NO_OP_SAME_SOURCE_VERSION"
+                    if report["renamed_no_op_count"]
+                    else "NO_OP_ALREADY_REGISTERED"
+                )
+                batch_ids = sorted({batch_id for item in active_versions.values() for batch_id in item["batch_ids"]})
+                return {**report, "outcome": outcome, "active_batch_ids": batch_ids,
+                        "apply_authorized": True, "db_target_classification": target}
+            coverage_start = min(p.coverage_start for p in workbooks)
+            coverage_end = max(p.coverage_end for p in workbooks)
+            cursor.execute("SELECT batch_id::text FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE' AND daterange(coverage_start, coverage_end, '[]') && daterange(%s,%s,'[]')", (coverage_start, coverage_end))
             overlaps = [row[0] for row in cursor.fetchall()]
             if overlaps and not supersede_batch_id:
-                return {"outcome": "NEW_SOURCE_VERSION_PENDING_SUPERSESSION", "active_batch_ids": overlaps, "apply_authorized": False, "db_target_classification": target}
+                for item in classifications:
+                    if item["classification"] == "NEW_SOURCE_VERSION":
+                        item["classification"] = "NEW_SOURCE_VERSION_REQUIRES_SUPERSESSION"
+                report = _apply_report(plan, classifications, workbooks)
+                report["expected_supersession_requirement"] = True
+                return {**report, "outcome": "NEW_SOURCE_VERSION_PENDING_SUPERSESSION",
+                        "active_batch_ids": overlaps, "apply_authorized": False,
+                        "db_target_classification": target}
             if supersede_batch_id and (supersede_batch_id not in overlaps or len(overlaps) != 1):
                 raise RouteBError("invalid_or_unrelated_supersession")
-            cursor.execute("INSERT INTO cg_raw.kpione_raw_ingest_batch_v1(batch_id,runner_execution_id,semantic_plan_hash,status,coverage_start,coverage_end,file_count,row_count,event_count,validated_at,supersedes_batch_id) VALUES(%s,%s,%s,'STAGING',%s,%s,%s,%s,%s,clock_timestamp(),%s)", (batch_id, execution_id, plan["semantic_plan_hash"], plan["coverage_start"], plan["coverage_end"], len(workbooks), plan["source_rows"], plan["distinct_events"], supersede_batch_id))
+            selected_rows = [row for workbook in workbooks for row in workbook.rows]
+            selected_events = {row["event_id"] for row in selected_rows}
+            cursor.execute("INSERT INTO cg_raw.kpione_raw_ingest_batch_v1(batch_id,runner_execution_id,semantic_plan_hash,status,coverage_start,coverage_end,file_count,row_count,event_count,validated_at,supersedes_batch_id) VALUES(%s,%s,%s,'STAGING',%s,%s,%s,%s,%s,clock_timestamp(),%s)", (batch_id, execution_id, report["semantic_plan_hash"], coverage_start, coverage_end, len(workbooks), len(selected_rows), len(selected_events), supersede_batch_id))
             for workbook in workbooks:
                 cursor.execute("INSERT INTO cg_raw.kpione_raw_ingest_batch_file_v1(batch_id,source_file_sha256,source_file_name,source_sheet,file_size,coverage_start,coverage_end,row_count,event_count,validation_status) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,'VALIDATED')", (batch_id, workbook.source_file_sha256, workbook.source_file_name, workbook.source_sheet, workbook.file_size, workbook.coverage_start, workbook.coverage_end, len(workbook.rows), workbook.event_count))
                 for row in workbook.rows:
@@ -320,7 +406,8 @@ def apply_local(plan: dict[str, Any], dsn: str, ddl_path: Path,
                 if cursor.rowcount != 1:
                     raise RouteBError("supersession_predecessor_not_active")
             cursor.execute("UPDATE cg_raw.kpione_raw_ingest_batch_v1 SET status='ACTIVE',activated_at=clock_timestamp() WHERE batch_id=%s AND status='STAGING'", (batch_id,))
-    return {"outcome": "ACTIVE", "batch_id": batch_id, "apply_authorized": True, "db_target_classification": target}
+    return {**report, "outcome": "ACTIVE", "batch_id": batch_id, "apply_authorized": True,
+            "db_target_classification": target}
 
 
 def rollback_local(dsn: str, batch_id: str) -> dict[str, Any]:
@@ -328,6 +415,7 @@ def rollback_local(dsn: str, batch_id: str) -> dict[str, Any]:
     target = assert_local_target(LOCAL_DB_ENV, dsn)
     with psycopg.connect(dsn) as connection:
         with connection.transaction(), connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s)", (ADVISORY_LOCK_KEY,))
             cursor.execute("SELECT supersedes_batch_id::text FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE batch_id=%s AND status='ACTIVE' FOR UPDATE", (batch_id,))
             row = cursor.fetchone()
             if not row:

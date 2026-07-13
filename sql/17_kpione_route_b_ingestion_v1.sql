@@ -1,5 +1,3 @@
-BEGIN;
-
 CREATE SCHEMA IF NOT EXISTS cg_raw;
 CREATE SCHEMA IF NOT EXISTS cg_core;
 
@@ -67,6 +65,23 @@ CREATE INDEX IF NOT EXISTS kpione_staging_batch_idx
 CREATE INDEX IF NOT EXISTS kpione_staging_photo_identity_idx
     ON cg_raw.kpione_raw_event_photo_staging_v1(event_id, photo_row_hash);
 
+DO $constraint$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'kpione_one_active_coverage_v1'
+          AND conrelid = 'cg_raw.kpione_raw_ingest_batch_v1'::regclass
+    ) THEN
+        ALTER TABLE cg_raw.kpione_raw_ingest_batch_v1
+            ADD CONSTRAINT kpione_one_active_coverage_v1
+            EXCLUDE USING gist (
+                daterange(coverage_start, coverage_end, '[]') WITH &&
+            ) WHERE (status = 'ACTIVE');
+    END IF;
+END
+$constraint$;
+
 CREATE OR REPLACE VIEW cg_core.kpione_event_normalized_v1 AS
 SELECT s.event_id,
        min(s.sp_item_id) AS sp_item_id,
@@ -86,5 +101,3 @@ SELECT event_date AS fecha, location_key, cliente_norm, 1::integer AS presence,
        count(*)::integer AS event_count
 FROM cg_core.kpione_event_normalized_v1
 GROUP BY event_date, location_key, cliente_norm;
-
-COMMIT;

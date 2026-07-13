@@ -52,6 +52,7 @@ def main() -> int:
         print(json.dumps({
             "verdict": "BLOCKED",
             "outcome": "QUARANTINED_OR_FAILED_INACTIVE",
+            "lifecycle_status": "FAILED_BEFORE_REGISTRATION",
             "error": str(exc),
             "apply_authorized": False,
         }, sort_keys=True))
