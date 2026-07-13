@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "categories": [
+    "CI_CORE",
+    "CI_POSTGRESQL",
+    "LOCAL_SOURCE_INTEGRATION",
+    "LOCAL_ENVIRONMENT",
+    "PRODUCTIVE_NEVER_CI"
+  ],
+  "modules": {
+    "CI_CORE": [
+      "tests/test_014C_visit_formula.py",
+      "tests/test_014D_remediation_policy.py",
+      "tests/test_014E_dry_run_loader_policy.py",
+      "tests/test_014F_staging_contract_static.py",
+      "tests/test_015_monthly_input_layout_contract.py",
+      "tests/test_015B_kpione_monthly_input_validator.py",
+      "tests/test_015C_kpione_monthly_load_dry_run.py",
+      "tests/test_016_kpione_monthly_db_precheck_read_only.py",
+      "tests/test_016B_kpione_identity_idempotency_contract.py",
+      "tests/test_017_route_b_runner.py",
+      "tests/test_018_productive_readiness.py",
+      "tests/test_ai_load_observation_contract.py",
+      "tests/test_apply_cg005n_ddl.py",
+      "tests/test_ci_quality_gates.py",
+      "tests/test_cg_canonical_build_local.py",
+      "tests/test_cg_readonly_extract.py",
+      "tests/test_control_gestion_operational_calendar.py",
+      "tests/test_kernel04_retirement.py",
+      "tests/test_route_b_denominator_dry_run.py",
+      "tests/test_sz_context_bundle.py",
+      "tests/test_sz_load_observation.py"
+    ],
+    "CI_POSTGRESQL": [
+      "tests/test_017_route_b_postgres_integration.py"
+    ],
+    "LOCAL_SOURCE_INTEGRATION": [
+      "tests/test_kpione2_photo_grain.py",
+      "tests/test_load_ruta_rutero_weekly_replace.py"
+    ],
+    "LOCAL_ENVIRONMENT": [
+      "tests/test_cg_route_weekly_local_lab.py",
+      "tests/test_sz_worktree_tooling.py"
+    ],
+    "PRODUCTIVE_NEVER_CI": []
+  },
+  "reasons": {
+    "tests/test_017_route_b_postgres_integration.py": "Requires an isolated PostgreSQL database and is safe only with DB_URL_CODEX_LOCAL pointing to loopback.",
+    "tests/test_kpione2_photo_grain.py": "Includes validation against ignored Route B source workbooks when they are present locally.",
+    "tests/test_load_ruta_rutero_weekly_replace.py": "Includes hash-bound validation against an ignored authorized route workbook.",
+    "tests/test_cg_route_weekly_local_lab.py": "Contains a machine-local CONTROL_GESTION PostgreSQL lab boundary and local loader integration mocks.",
+    "tests/test_sz_worktree_tooling.py": "Invokes Windows PowerShell via the powershell executable and validates machine/worktree behavior not proven reproducible on the Ubuntu GitHub runner."
+  },
+  "local_requirements": {
+    "LOCAL_SOURCE_INTEGRATION": [
+      {
+        "description": "Route B June photo evidence workbook",
+        "any_of": [
+          "data/kpione_photo_reports/2026-06/photo-excel-admin_1782440454408.xlsx",
+          "data/photo-excel-admin_1782440454408.xlsx"
+        ]
+      },
+      {
+        "description": "Authorized route workbook",
+        "any_of": [
+          "data/DB_GLOBAL_INVENTARIO.xlsx"
+        ],
+        "sha256": "454F3CF414B031FB793CA6298CF03638C2EDE3B53B918E6ACAB636C9B4B6AD83"
+      }
+    ]
+  }
+}
