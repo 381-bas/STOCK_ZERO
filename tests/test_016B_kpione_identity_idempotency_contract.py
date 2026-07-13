@@ -116,16 +116,17 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
         self.assertEqual(rules["partial_failed_ingestion"]["outcome"], "quarantine")
         self.assertEqual(rules["concurrent_or_overlapping_runs"]["outcome"], "rejection")
 
-    def test_state_marks_016b_selected_and_keeps_productive_gates_closed(self):
+    def test_state_preserves_016b_authority_and_keeps_018_productive_gates_closed(self):
         self.assertEqual(self.state["executive_progress"]["operating_model"], "V2_ACTIVE")
-        self.assertEqual(self.state["current_work"]["unit"], "016B")
-        self.assertEqual(self.state["current_work"]["status"], "IDEMPOTENCY_CONTRACT_SELECTED")
-        self.assertEqual(self.state["current_work"]["next_permitted_unit"], "017_APPLY_RUNNER_AND_REHEARSAL")
+        self.assertEqual(self.state["current_work"]["unit"], "017")
+        self.assertEqual(self.state["current_work"]["status"], "RUNNER_AND_REHEARSAL_READY")
+        self.assertEqual(self.state["current_work"]["next_permitted_unit"], "018_PRODUCTIVE_APPLY")
         self.assertEqual(self.state["current_work"]["next_unit_status"], "NOT_AUTHORIZED")
-        self.assertTrue(self.state["current_work"]["selected_contract"]["photo_export_is_future_productive_authority"])
-        self.assertTrue(self.state["current_work"]["selected_contract"]["historical_workbook_is_bootstrap_reference"])
+        self.assertTrue(self.state["current_work"]["route_b_runner_implemented"])
+        self.assertTrue(self.state["current_work"]["local_postgresql_rehearsal_passed"])
         self.assertTrue(self.state["authorization"]["016B_architecture_authorized"])
-        self.assertFalse(self.state["authorization"]["017_authorized"])
+        self.assertTrue(self.state["authorization"]["017_authorized"])
+        self.assertFalse(self.state["authorization"]["018_authorized"])
 
         productive_flags = [
             "supabase_access_authorized",
@@ -141,9 +142,9 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
         ]
         self.assertTrue(all(self.state["authorization"][flag] is False for flag in productive_flags))
 
-    def test_directive_advances_only_to_017_without_authorizing_it(self):
-        self.assertEqual(self.directive["current_phase"], "016B_CLOSED")
-        self.assertEqual(self.directive["allowed_next_phase"], "017_APPLY_RUNNER_AND_REHEARSAL")
+    def test_directive_closes_017_and_advances_only_to_018_without_authorizing_it(self):
+        self.assertEqual(self.directive["current_phase"], "017_COMPLETED")
+        self.assertEqual(self.directive["allowed_next_phase"], "018_PRODUCTIVE_APPLY")
         self.assertEqual(self.directive["active_phase_count"], 0)
         self.assertEqual(self.directive["scope"]["016b_result"], "IDEMPOTENCY_CONTRACT_SELECTED")
         self.assertFalse(self.directive["scope"]["productive_authorization_granted"])
@@ -165,7 +166,8 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
             phase_by_name["016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT"]["route_a_status"],
             "HISTORICAL_BOOTSTRAP_AND_COMPATIBILITY_REFERENCE",
         )
-        self.assertEqual(phase_by_name["017_APPLY_RUNNER_AND_REHEARSAL"]["status"], "FUTURE_NOT_AUTHORIZED")
+        self.assertEqual(phase_by_name["017_APPLY_RUNNER_AND_REHEARSAL"]["status"], "COMPLETED_READY")
+        self.assertEqual(phase_by_name["018_PRODUCTIVE_APPLY"]["status"], "FUTURE_NOT_AUTHORIZED")
 
         amendment_requirements = self.directive["deviation_requires_directive_amendment"]["amendment_must_include"]
         self.assertIn("git_commit_reference_and_repository_path", amendment_requirements)

@@ -8,8 +8,8 @@
   "activated_on_branch": "lab/FAST_REFORM_016_kpione_monthly_db_precheck_read_only",
   "base_main_commit": "986d4b0f143a443527a0121d87e9b5981a6feef3",
   "created_at_utc": "2026-07-12T01:24:58Z",
-  "current_phase": "016B_CLOSED",
-  "allowed_next_phase": "017_APPLY_RUNNER_AND_REHEARSAL",
+  "current_phase": "017_COMPLETED",
+  "allowed_next_phase": "018_PRODUCTIVE_APPLY",
   "active_phase_count": 0,
   "retention_policy": "DEFERRED_UNTIL_POST_TRIAL",
   "destructive_action_authorized": false,
@@ -23,10 +23,10 @@
     "closed_history": [
       "016",
       "016A",
-      "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT"
+      "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
+      "017_APPLY_RUNNER_AND_REHEARSAL"
     ],
     "future_operational_units": [
-      "017_APPLY_RUNNER_AND_REHEARSAL",
       "018_PRODUCTIVE_APPLY",
       "019_POST_APPLY_TRIAL"
     ],
@@ -81,7 +81,7 @@
     {
       "phase": "017_APPLY_RUNNER_AND_REHEARSAL",
       "short_name": "017",
-      "status": "FUTURE_NOT_AUTHORIZED",
+      "status": "COMPLETED_READY",
       "objective": "Design or implement the folder-based Route B photo export ingestion runner and rehearse under no-apply/dry-run gates after 016B acceptance.",
       "entry_gate": "016B contract selected and explicit 017 authorization granted.",
       "internal_gates": [
@@ -90,8 +90,9 @@
         "017C dry-run rehearsal and readiness"
       ],
       "compatibility_note": "Old 017A, 017B, and 017C are absorbed as internal gates of 017; historical evidence is not renamed.",
-      "writes_allowed": "Repo code/tests/evidence only when separately authorized; no DB writes.",
-      "authorization_required": "Explicit 017 prompt."
+      "writes_allowed": "Completed repo implementation and ephemeral local PostgreSQL rehearsal only; no productive DB writes.",
+      "authorization_required": "Completed under explicit Bastian and ChatGPT R2 authorization.",
+      "result": "RUNNER_AND_REHEARSAL_READY"
     },
     {
       "phase": "018_PRODUCTIVE_APPLY",
@@ -144,14 +145,14 @@
     "No loader modification in this reform.",
     "No further contracts 013-016 technical artifact modification without separate authorization.",
     "No apply, cutover, or destructive action.",
-    "017 is the next permitted unit but is not authorized."
+    "018 is the next permitted unit but is not authorized."
   ],
   "validation_requirements": {
     "json_valid": true,
     "utf8": true,
     "mojibake_free": true,
-    "current_work": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
-    "allowed_next_phase": "017_APPLY_RUNNER_AND_REHEARSAL",
+    "current_work": "017_APPLY_RUNNER_AND_REHEARSAL",
+    "allowed_next_phase": "018_PRODUCTIVE_APPLY",
     "016b_authorized": true,
     "016b_result": "IDEMPOTENCY_CONTRACT_SELECTED",
     "future_operational_units": [
@@ -214,11 +215,10 @@
   },
   "roadmap_compression": {
     "status": "ACTIVE_FOR_REMAINING_FUTURE_WORK",
-    "completed_unit": "016B_IDENTITY_GRAIN_AND_IDEMPOTENCY_CONTRACT",
-    "completed_result": "IDEMPOTENCY_CONTRACT_SELECTED",
+    "completed_unit": "017_APPLY_RUNNER_AND_REHEARSAL",
+    "completed_result": "RUNNER_AND_REHEARSAL_READY",
     "source_authority_result": "PHOTO_EXPORT_SELECTED_AS_FUTURE_PRODUCTIVE_AUTHORITY",
     "future_units": [
-      "017_APPLY_RUNNER_AND_REHEARSAL",
       "018_PRODUCTIVE_APPLY",
       "019_POST_APPLY_TRIAL"
     ],

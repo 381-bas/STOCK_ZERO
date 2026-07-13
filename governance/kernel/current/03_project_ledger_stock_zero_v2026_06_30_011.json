@@ -391,6 +391,41 @@
         "Migration mistakes must be corrected through versioned staging, replay, supersession, rehearsal, and trial rather than by retaining Route A as future authority.",
         "017 must not use cg_raw.kpione2_raw, filename, or latest-download semantics as identity authority."
       ]
+    },
+    {
+      "id": "ADR_017_ROUTE_B_RUNNER_AND_REHEARSAL",
+      "date": "2026-07-12",
+      "status": "ACTIVE",
+      "risk_classification": "R2_ARCHITECTURE_IMPLEMENTATION",
+      "decision": "Implement the independent folder-based KPIONE Route B runner and select it as ready for a separately authorized 018 productive apply after a successful ephemeral local PostgreSQL rehearsal.",
+      "physical_objects": [
+        "cg_raw.kpione_raw_ingest_batch_v1",
+        "cg_raw.kpione_raw_ingest_batch_file_v1",
+        "cg_raw.kpione_raw_event_photo_staging_v1",
+        "cg_core.kpione_event_normalized_v1",
+        "cg_core.kpione_day_presence_v1"
+      ],
+      "rules": [
+        "scripts/run_kpione_route_b_ingestion_v1.py is the independent Route B ingestion boundary; Route A remains history and parity evidence only.",
+        "The lifecycle is DISCOVERED, VALIDATING, VALIDATED, STAGING, STAGED, ACTIVE, QUARANTINED, SUPERSEDED, ROLLED_BACK, or FAILED.",
+        "Activation occurs only at the final transaction gate after complete file registration, validation, immutable staging, conflict checks, and deterministic projection readiness.",
+        "Corrections require an explicit active predecessor and atomically supersede it; immutable child rows are preserved.",
+        "Rollback is logical: the correction becomes ROLLED_BACK, its eligible predecessor is restored, and views resolve from ACTIVE batches without deleting staging evidence.",
+        "Local apply requires DB_URL_CODEX_LOCAL and a loopback PostgreSQL host; Supabase, remote hosts, generic DB environment names, and remote SSL metadata fail closed.",
+        "The rehearsal covered clean schema, first ingest, same-file and renamed-content no-ops, malformed and event-conflict rejection, correction detection, supersession, removed-row projection, rollback, deterministic replay, and projection count equality.",
+        "018_PRODUCTIVE_APPLY is next permitted but remains NOT_AUTHORIZED."
+      ],
+      "evidence": {
+        "runner": "scripts/run_kpione_route_b_ingestion_v1.py",
+        "physical_contract": "sql/17_kpione_route_b_ingestion_v1.sql",
+        "local_postgresql_rehearsal": "PASSED",
+        "supabase_access": false,
+        "productive_db_access": false,
+        "productive_apply": false,
+        "cutover": false,
+        "destructive_action": false
+      },
+      "impact": "Route B is technically ready for 018 planning; no productive authority, apply, cutover, or destructive action is granted."
     }
   ],
   "deprecated_patterns": [
