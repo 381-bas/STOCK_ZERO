@@ -102,7 +102,7 @@ function ConvertFrom-StockZeroSecureValue {
 function New-StockZeroStartInfo {
     param(
         [Parameter(Mandatory)][string]$Script,
-        [Parameter(Mandatory)][string[]]$Arguments
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Arguments
     )
 
     $scriptPath = (Resolve-Path (Join-Path $repositoryRoot $Script)).Path
