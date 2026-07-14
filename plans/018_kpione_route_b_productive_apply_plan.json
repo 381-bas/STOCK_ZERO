@@ -3,14 +3,26 @@
   "plan_version": "018_V1",
   "phase": "018_PRODUCTIVE_APPLY",
   "risk_class": "R3_PRODUCTIVE",
-  "status": "SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING",
+  "status": "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING",
   "remaining_blockers": [
-    "EXPECTED_SUPABASE_PROJECT_REF_NOT_REGISTERED",
-    "EXPECTED_HOSTNAME_NOT_REGISTERED",
-    "PRODUCTIVE_EXECUTING_ROLE_NOT_REGISTERED",
+    "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
     "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED"
   ],
-  "expected_repository_commit": "d2d74a67cea7cff089d0979c492fba0c2947902b",
+  "readonly_precheck": {
+    "status": "NOT_AUTHORIZED_OR_EXECUTED",
+    "evidence_sha256": null
+  },
+  "git_reference_contract": {
+    "mode": "CLI_EXACT_APPROVED_HEAD",
+    "required_argument": "--expected-plan-git-ref",
+    "requirements": [
+      "HEAD equals the explicitly approved commit",
+      "worktree and index are clean",
+      "approved plan is tracked at HEAD",
+      "working-tree plan equals the plan blob at HEAD",
+      "plan SHA256 is recorded before connection"
+    ]
+  },
   "runner_version": "017_ROUTE_B_V1",
   "runner_path": "scripts/run_kpione_route_b_ingestion_v1.py",
   "input_directory": {
@@ -41,19 +53,19 @@
       "observed_file_count": 11
     },
     "approved_files": [
-      {"filename":"photo-excel-admin_1781975989376.xlsx","sha256":"8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d","semantic_content_hash":"e4e1ba606208e414503c59cbaf181262df5864dcb5a746bc18786193210dbe50","coverage_start":"2026-06-01","coverage_end":"2026-06-07","row_count":46807,"distinct_event_count":7101,"day_presence_count":7069,"duplicate_photo_rows":0,"approval_reason":"Canonical complete export for June 1-7."},
-      {"filename":"photo-excel-admin_1783219885210.xlsx","sha256":"43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978","semantic_content_hash":"019287f8db7439d3d0c5ad5de392faea3e26dec984060318a6b517cd3b954288","coverage_start":"2026-06-08","coverage_end":"2026-06-08","row_count":8372,"distinct_event_count":1295,"day_presence_count":1294,"duplicate_photo_rows":0,"approval_reason":"Canonical day-8 export selected by lexicographically smallest raw SHA256 among semantic equivalents."},
-      {"filename":"photo-excel-admin_1783220552913.xlsx","sha256":"45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b","semantic_content_hash":"058aa151b04066adbe6f75b6760bb3b9ef5a88a9f7b3a222e3b010925625c7cf","coverage_start":"2026-06-09","coverage_end":"2026-06-12","row_count":34838,"distinct_event_count":5477,"day_presence_count":5417,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 9-12."},
-      {"filename":"photo-excel-admin_1783219914054.xlsx","sha256":"679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7","semantic_content_hash":"dde5b638f32762214413d56c0a0fd9029c1f213f2e2b3764b4498083f7ed2702","coverage_start":"2026-06-13","coverage_end":"2026-06-13","row_count":8672,"distinct_event_count":1311,"day_presence_count":1305,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 13."},
-      {"filename":"photo-excel-admin_1781976423312.xlsx","sha256":"ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0","semantic_content_hash":"1ae5ce97599701c1fecd21155bf57141daaec657228a08641b73dad96ea2bd19","coverage_start":"2026-06-14","coverage_end":"2026-06-14","row_count":107,"distinct_event_count":14,"day_presence_count":10,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 14."},
-      {"filename":"photo-excel-admin_1781973512473.xlsx","sha256":"e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d","semantic_content_hash":"d99e970f6169c63e045e483022a81c9e1a655a2770e4fb16dfcbb8ff982d2776","coverage_start":"2026-06-15","coverage_end":"2026-06-19","row_count":46078,"distinct_event_count":6997,"day_presence_count":6956,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 15-19."},
-      {"filename":"photo-excel-admin_1782440454408.xlsx","sha256":"1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180","semantic_content_hash":"51885fd6ec2c06b2e235144754987547c1e4effba176831c3e4902e5fe0b7fee","coverage_start":"2026-06-20","coverage_end":"2026-06-24","row_count":37908,"distinct_event_count":5892,"day_presence_count":5869,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 20-24."},
-      {"filename":"photo-excel-admin_1783220085725.xlsx","sha256":"8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b","semantic_content_hash":"ea6a22fb740cef50cb7e4674b145a78be8c384995e51b7ef0c0fb0e6776e8df3","coverage_start":"2026-06-24","coverage_end":"2026-06-28","row_count":40488,"distinct_event_count":6290,"day_presence_count":6189,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 24-28; overlap is resolved by photo identity."},
-      {"filename":"photo-excel-admin_1783220157694.xlsx","sha256":"3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72","semantic_content_hash":"1d6390bfa0aa13090d3fffa830213c33677b09ad70e021cc0db8a072250aa829","coverage_start":"2026-06-29","coverage_end":"2026-06-30","row_count":15889,"distinct_event_count":2489,"day_presence_count":2457,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 29-30."}
+      {"filename":"photo-excel-admin_1781975989376.xlsx","file_size":3228103,"sha256":"8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d","semantic_content_hash":"e4e1ba606208e414503c59cbaf181262df5864dcb5a746bc18786193210dbe50","coverage_start":"2026-06-01","coverage_end":"2026-06-07","row_count":46807,"distinct_event_count":7101,"day_presence_count":7069,"duplicate_photo_rows":0,"approval_reason":"Canonical complete export for June 1-7."},
+      {"filename":"photo-excel-admin_1783219885210.xlsx","file_size":584673,"sha256":"43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978","semantic_content_hash":"019287f8db7439d3d0c5ad5de392faea3e26dec984060318a6b517cd3b954288","coverage_start":"2026-06-08","coverage_end":"2026-06-08","row_count":8372,"distinct_event_count":1295,"day_presence_count":1294,"duplicate_photo_rows":0,"approval_reason":"Canonical day-8 export selected by lexicographically smallest raw SHA256 among semantic equivalents."},
+      {"filename":"photo-excel-admin_1783220552913.xlsx","file_size":2417813,"sha256":"45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b","semantic_content_hash":"058aa151b04066adbe6f75b6760bb3b9ef5a88a9f7b3a222e3b010925625c7cf","coverage_start":"2026-06-09","coverage_end":"2026-06-12","row_count":34838,"distinct_event_count":5477,"day_presence_count":5417,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 9-12."},
+      {"filename":"photo-excel-admin_1783219914054.xlsx","file_size":609299,"sha256":"679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7","semantic_content_hash":"dde5b638f32762214413d56c0a0fd9029c1f213f2e2b3764b4498083f7ed2702","coverage_start":"2026-06-13","coverage_end":"2026-06-13","row_count":8672,"distinct_event_count":1311,"day_presence_count":1305,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 13."},
+      {"filename":"photo-excel-admin_1781976423312.xlsx","file_size":14548,"sha256":"ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0","semantic_content_hash":"1ae5ce97599701c1fecd21155bf57141daaec657228a08641b73dad96ea2bd19","coverage_start":"2026-06-14","coverage_end":"2026-06-14","row_count":107,"distinct_event_count":14,"day_presence_count":10,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 14."},
+      {"filename":"photo-excel-admin_1781973512473.xlsx","file_size":3176684,"sha256":"e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d","semantic_content_hash":"d99e970f6169c63e045e483022a81c9e1a655a2770e4fb16dfcbb8ff982d2776","coverage_start":"2026-06-15","coverage_end":"2026-06-19","row_count":46078,"distinct_event_count":6997,"day_presence_count":6956,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 15-19."},
+      {"filename":"photo-excel-admin_1782440454408.xlsx","file_size":2621405,"sha256":"1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180","semantic_content_hash":"51885fd6ec2c06b2e235144754987547c1e4effba176831c3e4902e5fe0b7fee","coverage_start":"2026-06-20","coverage_end":"2026-06-24","row_count":37908,"distinct_event_count":5892,"day_presence_count":5869,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 20-24."},
+      {"filename":"photo-excel-admin_1783220085725.xlsx","file_size":2804511,"sha256":"8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b","semantic_content_hash":"ea6a22fb740cef50cb7e4674b145a78be8c384995e51b7ef0c0fb0e6776e8df3","coverage_start":"2026-06-24","coverage_end":"2026-06-28","row_count":40488,"distinct_event_count":6290,"day_presence_count":6189,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 24-28; overlap is resolved by photo identity."},
+      {"filename":"photo-excel-admin_1783220157694.xlsx","file_size":1114940,"sha256":"3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72","semantic_content_hash":"1d6390bfa0aa13090d3fffa830213c33677b09ad70e021cc0db8a072250aa829","coverage_start":"2026-06-29","coverage_end":"2026-06-30","row_count":15889,"distinct_event_count":2489,"day_presence_count":2457,"duplicate_photo_rows":0,"approval_reason":"Complete export for June 29-30."}
     ],
     "excluded_files": [
-      {"filename":"photo-excel-admin_1781976368641.xlsx","sha256":"0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa","observed_coverage_start":"2026-06-08","observed_coverage_end":"2026-06-13","classification":"NEGATIVE_TEST_FIXTURE_TRUNCATED","exclusion_reason":"Worksheet row 50002 declares export truncation at 50000 photos; landing fixture only.","semantic_equivalent_approved_file":null},
-      {"filename":"photo-excel-admin_1782012877303.xlsx","sha256":"d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881","observed_coverage_start":"2026-06-08","observed_coverage_end":"2026-06-08","classification":"DUPLICATE_SEMANTIC_EXPORT","exclusion_reason":"Semantically identical to the canonical day-8 export and has the lexicographically larger raw SHA256.","semantic_equivalent_approved_file":"photo-excel-admin_1783219885210.xlsx","semantic_content_hash":"019287f8db7439d3d0c5ad5de392faea3e26dec984060318a6b517cd3b954288"}
+      {"filename":"photo-excel-admin_1781976368641.xlsx","file_size":3438539,"sha256":"0d479de346b9bbff4c84221e6f761045b714552813b6ea6c4a405573ad13c9fa","observed_coverage_start":"2026-06-08","observed_coverage_end":"2026-06-13","classification":"NEGATIVE_TEST_FIXTURE_TRUNCATED","exclusion_reason":"Worksheet row 50002 declares export truncation at 50000 photos; landing fixture only.","semantic_equivalent_approved_file":null},
+      {"filename":"photo-excel-admin_1782012877303.xlsx","file_size":584705,"sha256":"d026b13e29b7669451e94ae3397f706cdca2e36cbea81406288127a381de3881","observed_coverage_start":"2026-06-08","observed_coverage_end":"2026-06-08","classification":"DUPLICATE_SEMANTIC_EXPORT","exclusion_reason":"Semantically identical to the canonical day-8 export and has the lexicographically larger raw SHA256.","semantic_equivalent_approved_file":"photo-excel-admin_1783219885210.xlsx","semantic_content_hash":"019287f8db7439d3d0c5ad5de392faea3e26dec984060318a6b517cd3b954288"}
     ],
     "observed_directory_inventory": [
       {"filename":"photo-excel-admin_1781973512473.xlsx","sha256":"e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d","manifest_role":"APPROVED"},
@@ -93,11 +105,14 @@
   "target": {
     "readonly_precheck_env": "DB_URL_CODEX_RO",
     "future_productive_env": "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
-    "expected_supabase_project_ref": null,
-    "expected_hostname": null,
+    "expected_supabase_project_ref": "xheyrgfagpoigpgakilu",
+    "expected_hostname": "db.xheyrgfagpoigpgakilu.supabase.co",
     "allowed_readonly_roles": ["stock_zero_codex_ro"],
+    "planned_productive_role": "stock_zero_kpione_route_b_load",
+    "productive_role_status": "PLANNED_NOT_PROVISIONED",
     "allowed_productive_roles": [],
-    "expected_database": "postgres"
+    "expected_database": "postgres",
+    "productive_role_contract": "The eventual productive DSN username must equal stock_zero_kpione_route_b_load, but this role is not yet provisioned or verified."
   },
   "transaction_sequence": [
     "Validate approved plan Git reference, plan content, source hashes, schema and counts before connecting.",
@@ -111,15 +126,15 @@
   "activation_gate": {
     "all_source_files_valid": true,
     "source_hashes_match": true,
-    "target_identity_registered": false,
+    "target_identity_registered": true,
     "productive_role_registered": false,
     "rollback_route_demonstrated": true,
     "gate_open": false
   },
   "readonly_precheck_command": "python scripts/precheck_kpione_route_b_018_read_only.py --plan plans/018_kpione_route_b_productive_apply_plan.json --db-url-env DB_URL_CODEX_RO --expected-project-ref <REGISTERED_PROJECT_REF> --report-json <TEMP_OR_SEPARATELY_AUTHORIZED_PATH>",
   "future_productive_command": {
-    "status": "NOT_EXECUTABLE_UNTIL_BLOCKERS_RESOLVED_AND_SEPARATELY_AUTHORIZED",
-    "minimum_runner_change_required": "Add a separate --apply-productive mode that stages only source_package.approved_files, globally classifies event_id + photo_row_hash in source_file_sha256/source_sheet/source_row_number order, preserves duplicate evidence, requires total duplicates to equal expected_duplicate_photo_rows before activation, rejects raw folder-glob authority, and never reuses --apply-local or DB_URL_CODEX_LOCAL.",
+    "status": "TECHNICAL_BOUNDARY_IMPLEMENTED_GATE_CLOSED",
+    "minimum_runner_change_required": "No repository implementation gap remains; execution stays fail-closed until the productive role, read-only precheck, approved Git head, clean tree, explicit authorization and gate-open contract are all satisfied.",
     "command": "python scripts/run_kpione_route_b_ingestion_v1.py --apply-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --expected-plan-git-ref <APPROVED_COMMIT> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-productive KPIONE_ROUTE_B_018_APPLY --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
   },
   "postcheck_queries": [
@@ -133,8 +148,8 @@
     "SELECT count(*)=10089 AS approved_duplicate_total_matches FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification IN ('EXACT_DUPLICATE','CROSS_FILE_DUPLICATE');",
     "SELECT count(*) AS identities_without_exactly_one_unique FROM (SELECT event_id,photo_row_hash,count(*) FILTER (WHERE duplicate_classification='UNIQUE') AS unique_count FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY event_id,photo_row_hash HAVING count(*) FILTER (WHERE duplicate_classification='UNIQUE')<>1) q;",
     "SELECT conflict_classification,count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY conflict_classification;",
-    "SELECT count(*)=35287 AS approved_event_count_matches FROM cg_core.kpione_event_normalized_v1;",
-    "SELECT count(*)=34996 AS approved_day_presence_count_matches FROM cg_core.kpione_day_presence_v1 WHERE presence=1;",
+    "SELECT count(*)=CASE WHEN EXISTS(SELECT 1 FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE') THEN 35287 ELSE 0 END AS approved_event_count_matches FROM cg_core.kpione_event_normalized_v1;",
+    "SELECT count(*)=CASE WHEN EXISTS(SELECT 1 FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE') THEN 34996 ELSE 0 END AS approved_day_presence_count_matches FROM cg_core.kpione_day_presence_v1 WHERE presence=1;",
     "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE';",
     "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 a JOIN cg_raw.kpione_raw_ingest_batch_v1 b ON a.batch_id<b.batch_id AND a.status='ACTIVE' AND b.status='ACTIVE' AND daterange(a.coverage_start,a.coverage_end,'[]') && daterange(b.coverage_start,b.coverage_end,'[]');",
     "SELECT to_regclass('cg_raw.kpione2_raw') AS legacy_object_unchanged;"
@@ -144,7 +159,7 @@
     "during_staging": "Rollback the open transaction; no partial staging survives.",
     "after_activation_before_downstream_use": "Run separately authorized logical rollback for the activated batch under the advisory lock; preserve immutable rows.",
     "manual_postcheck_rejection": "Block downstream use and run the same separately authorized logical rollback after recording the rejected postcheck.",
-    "future_command": "python scripts/run_kpione_route_b_ingestion_v1.py --rollback-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --rollback-batch-id <BATCH_UUID> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-rollback KPIONE_ROUTE_B_018_ROLLBACK --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
+    "future_command": "python scripts/run_kpione_route_b_ingestion_v1.py --rollback-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --expected-plan-git-ref <APPROVED_COMMIT> --rollback-batch-id <BATCH_UUID> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-rollback KPIONE_ROUTE_B_018_ROLLBACK --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
   },
   "abort_conditions": [
     "Any source filename, SHA256, size, schema, coverage or expected count differs from the approved plan.",
@@ -156,7 +171,8 @@
     "Estimated counts differ materially or rollback cannot be demonstrated."
   ],
   "evidence_fields": [
-    "approved_plan_git_reference","repository_commit","plan_path","sql_sha256","target_fingerprint","current_user","session_user","source_hashes","batch_id","transaction_outcome","postcheck_counts","rollback_readiness"
+    "document_type","operation","execution_uuid","timestamp_utc","approved_git_sha","plan_path","plan_sha256","sql_sha256","target_fingerprint","current_user","session_user","source_hashes","batch_id","expected_counts","observed_counts","transaction_outcome","committed","postcheck_verdict","rollback_readiness","downstream_use_allowed","connection_attempted","writes_attempted"
   ],
+  "productive_rollback_authorized": false,
   "productive_apply_authorized": false
 }

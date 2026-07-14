@@ -21,7 +21,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "repository-quality.yml"
 STATE = ROOT / "governance" / "kernel" / "current" / "02_project_state_stock_zero_v2026_06_30_011.json"
 PROTECTED = {
     "01_project_kernel_stock_zero_v2026_06_16.json": "67fc0036733ebc6293552ce080c1903e051c7280e488518b326c745517157123",
-    "02_project_state_stock_zero_v2026_06_30_011.json": "5f78b58d5dbbb0e3ea8140e0f032eaacd61a0774c705737a24b7a9ba0c65a3c5",
+    "02_project_state_stock_zero_v2026_06_30_011.json": "bb3b14d20228b4d6edfb6922435f000bbbd3eb71192e193d0d8ab6ebce17c68f",
     "03_project_ledger_stock_zero_v2026_06_30_011.json": "c54b6d63d871ebcbb9d3a8c3131cabeb4cf15da5c063907ccee19669b1fd6bbc",
 }
 

@@ -152,7 +152,7 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
         decisions = [entry for entry in self.ledger["entries"] if entry.get("id") == "ADR_OPERATING_MODEL_V2_1_PR_REVIEW_PRODUCTIVE_BOUNDARIES"]
         self.assertEqual(len(decisions), 1)
         self.assertIn("preserves its authority split and R1-R4 risk model", decisions[0]["compatibility"])
-        self.assertEqual(self.state["current_preparation"]["status"], "SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING")
+        self.assertEqual(self.state["current_preparation"]["status"], "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING")
         self.assertFalse(self.state["authorization"]["018_authorized"])
         self.assertTrue({"history", "commits", "pull_requests", "tests"}.isdisjoint(self.state))
 

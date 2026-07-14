@@ -9,11 +9,11 @@
     "operating_model": "V2_1_ACTIVE",
     "delivery_review_contract": "governance/kernel/current/01_project_kernel_stock_zero_v2026_06_16.json#operating_model_v2.delivery_and_review_contract_v2_1",
     "last_accepted_governance_unit": "017_APPLY_RUNNER_AND_REHEARSAL",
-    "current_priority": "Keep 018 productive apply closed until separate R3 authorization exists."
+    "current_priority": "Keep 018 productive apply closed while the technical boundary is ready and productive role provisioning plus read-only precheck remain pending."
   },
   "active_product_state": {
     "platform": "STOCK_ZERO / GESTIONZERO",
-    "control_gestion": "KPIONE Route B runner and local PostgreSQL rehearsal are ready; no productive apply or source cutover is authorized.",
+    "control_gestion": "KPIONE Route B runner, local PostgreSQL rehearsal and 018 productive-mode technical guards are ready; no productive apply or source cutover is authorized.",
     "legacy_kpione_state": "Evidence of previous runtime, not migration authority for the new architecture."
   },
   "current_work": {
@@ -27,13 +27,29 @@
   },
   "current_preparation": {
     "unit": "018_PRODUCTIVE_APPLY",
-    "status": "SOURCE_PACKAGE_READY_TARGET_IDENTITY_PENDING",
+    "status": "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING",
     "plan": "plans/018_kpione_route_b_productive_apply_plan.json",
     "blockers": [
-      "Expected Supabase project identity and hostname are not registered.",
-      "Productive executing role is not registered.",
-      "Read-only productive precheck is not authorized or executed."
+      "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
+      "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED"
     ],
+    "target_identity": {
+      "expected_supabase_project_ref": "xheyrgfagpoigpgakilu",
+      "expected_hostname": "db.xheyrgfagpoigpgakilu.supabase.co",
+      "expected_database": "postgres",
+      "allowed_readonly_roles": ["stock_zero_codex_ro"]
+    },
+    "productive_role": {
+      "planned_productive_role": "stock_zero_kpione_route_b_load",
+      "productive_role_status": "PLANNED_NOT_PROVISIONED",
+      "allowed_productive_roles": []
+    },
+    "activation_gate": {
+      "target_identity_registered": true,
+      "productive_role_registered": false,
+      "rollback_route_demonstrated": true,
+      "gate_open": false
+    },
     "source_manifest": "Nine approved files cover June 1-30; the truncated fixture and one semantic day-8 duplicate are intentionally excluded.",
     "productive_apply_authorized": false
   },
