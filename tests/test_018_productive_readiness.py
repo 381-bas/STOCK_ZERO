@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import subprocess
@@ -16,9 +17,15 @@ from scripts.kpione_route_b_v1 import (
     WorkbookPlan,
     classify_global_photo_duplicates,
     inspect_workbook,
+    productive_blocked_report,
+    run_productive_apply,
+    run_productive_rollback,
     semantic_content_hash,
+    validate_productive_git_guard,
+    validate_productive_local_artifacts,
     validate_productive_dsn_target,
     validate_productive_role_contract,
+    validate_registered_productive_target,
 )
 
 
@@ -36,6 +43,7 @@ def synthetic_workbook(source_hash: str, name: str, rows: list[dict[str, object]
 def synthetic_row(row_number: int, event_id: str = "E1", photo_hash: str = "P1") -> dict[str, object]:
     return {
         "source_row_number": row_number,
+        "source_row_identity": hashlib.sha256(f"row:{row_number}".encode()).hexdigest(),
         "event_id": event_id,
         "sp_item_id": "S1",
         "event_stable_hash": "H1",
@@ -44,6 +52,7 @@ def synthetic_row(row_number: int, event_id: str = "E1", photo_hash: str = "P1")
         "location_key": "L1",
         "cliente_norm": "C1",
         "duplicate_classification": "UNIQUE",
+        "conflict_classification": "NONE",
     }
 
 
@@ -97,16 +106,234 @@ class FakeConnection:
         self.close_called = True
 
 
+class FakeProductiveDatabase:
+    def __init__(self, plan: dict[str, object]) -> None:
+        self.plan = plan
+        self.state: dict[str, object] = {
+            "objects_exist": False,
+            "batches": {},
+            "files": [],
+            "staging": [],
+        }
+        self.commands: list[str] = []
+        self.connection_count = 0
+        self.role = PLANNED_PRODUCTIVE_ROLE
+        self.write_session_readonly = False
+        self.reject_postcheck = False
+        self.rollback_staging_mismatch = False
+
+    def connect(self, _dsn: str):
+        self.connection_count += 1
+        return FakeProductiveDbConnection(self)
+
+
+class FakeProductiveDbConnection:
+    def __init__(self, database: FakeProductiveDatabase) -> None:
+        self.database = database
+        self.snapshot = copy.deepcopy(database.state)
+        self.autocommit = True
+        self.readonly = False
+        self.closed = False
+
+    def cursor(self):
+        return FakeProductiveDbCursor(self)
+
+    def commit(self) -> None:
+        self.snapshot = copy.deepcopy(self.database.state)
+
+    def rollback(self) -> None:
+        self.database.state.clear()
+        self.database.state.update(copy.deepcopy(self.snapshot))
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class FakeProductiveDbCursor:
+    def __init__(self, connection: FakeProductiveDbConnection) -> None:
+        self.connection = connection
+        self.database = connection.database
+        self.rows: list[tuple[object, ...]] = []
+        self.rowcount = -1
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def _batch_counts(self, batch_id: str) -> tuple[int, ...]:
+        rows = [row for row in self.database.state["staging"] if row[0] == batch_id]
+        unique = [row for row in rows if row[13] == "UNIQUE"]
+        exact = [row for row in rows if row[13] == "EXACT_DUPLICATE"]
+        cross = [row for row in rows if row[13] == "CROSS_FILE_DUPLICATE"]
+        events = {row[5] for row in unique}
+        presence = {(row[10], row[11], row[12]) for row in unique}
+        conflicts = [row for row in rows if row[14] != "NONE"]
+        values = (len(rows), len(unique), len(exact), len(cross), len(exact) + len(cross),
+                  len(events), len(presence), len(conflicts))
+        if self.connection.readonly and self.database.reject_postcheck:
+            values = (values[0], values[1] + 1, *values[2:])
+        return values
+
+    def execute(self, sql: str, params=None) -> None:
+        normalized = " ".join(sql.split()).lower()
+        self.database.commands.append(normalized)
+        self.rows = []
+        self.rowcount = -1
+        batches = self.database.state["batches"]
+        if normalized == "begin read only":
+            self.connection.readonly = True
+        elif normalized.startswith("select current_user,session_user,current_database()"):
+            readonly = "on" if (self.connection.readonly or self.database.write_session_readonly) else "off"
+            self.rows = [(self.database.role, self.database.role, "postgres", readonly)]
+        elif normalized.startswith("set local") or "pg_advisory_xact_lock" in normalized:
+            pass
+        elif "from pg_class c join pg_namespace" in normalized:
+            if self.database.state["objects_exist"]:
+                expected = self.database.plan["physical_contract"]["object_signatures"]
+                self.rows = [(name, spec["relation_kind"]) for name, spec in sorted(expected.items())]
+        elif "from information_schema.columns" in normalized:
+            expected = self.database.plan["physical_contract"]["object_signatures"]
+            self.rows = [
+                (name, column)
+                for name, spec in sorted(expected.items())
+                for column in spec["columns"]
+            ]
+        elif normalized.startswith("create schema if not exists cg_raw"):
+            self.database.state["objects_exist"] = True
+        elif normalized.startswith("insert into cg_raw.kpione_raw_ingest_batch_v1"):
+            batch_id = params[0]
+            batches[batch_id] = {"status": "STAGING", "predecessor": None}
+            self.rowcount = 1
+        elif normalized.startswith("select batch_id::text from cg_raw.kpione_raw_ingest_batch_v1"):
+            self.rows = [(batch_id,) for batch_id, item in batches.items() if item["status"] == "ACTIVE"]
+        elif normalized.startswith("select count(*),count(*) filter"):
+            self.rows = [self._batch_counts(params[0])]
+        elif normalized.startswith("select count(*) from (select event_id,photo_row_hash"):
+            self.rows = [(0,)]
+        elif normalized.startswith("select count(*) from cg_raw.kpione_raw_ingest_batch_file_v1 where batch_id"):
+            self.rows = [(sum(row[0] == params[0] for row in self.database.state["files"]),)]
+        elif normalized.startswith("update cg_raw.kpione_raw_ingest_batch_v1 set status='active'"):
+            item = batches.get(params[0])
+            if item and item["status"] in {"STAGING", "SUPERSEDED"}:
+                item["status"] = "ACTIVE"
+                self.rowcount = 1
+            else:
+                self.rowcount = 0
+        elif normalized.startswith("select status,supersedes_batch_id::text"):
+            item = batches.get(params[0])
+            self.rows = [(item["status"], item["predecessor"])] if item else []
+        elif normalized.startswith("select count(*) from cg_raw.kpione_raw_event_photo_staging_v1 where batch_id"):
+            item = batches.get(params[0])
+            count = sum(row[0] == params[0] for row in self.database.state["staging"])
+            if item and item["status"] == "ROLLED_BACK" and self.database.rollback_staging_mismatch:
+                count = 0
+            self.rows = [(count,)]
+        elif normalized.startswith("select status from cg_raw.kpione_raw_ingest_batch_v1"):
+            item = batches.get(params[0])
+            self.rows = [(item["status"],)] if item else []
+        elif normalized.startswith("update cg_raw.kpione_raw_ingest_batch_v1 set status='rolled_back'"):
+            item = batches.get(params[0])
+            if item and item["status"] == "ACTIVE":
+                item["status"] = "ROLLED_BACK"
+                self.rowcount = 1
+            else:
+                self.rowcount = 0
+        elif normalized.startswith("select count(*) from cg_raw.kpione_raw_ingest_batch_v1 where status='active'"):
+            self.rows = [(sum(item["status"] == "ACTIVE" for item in batches.values()),)]
+        elif "join cg_raw.kpione_raw_ingest_batch_v1 b" in normalized:
+            self.rows = [(0,)]
+        elif "to_regclass('cg_raw.kpione2_raw')" in normalized:
+            self.rows = [("cg_raw.kpione2_raw",)]
+        else:
+            self.rows = [(True,)] if normalized.startswith("select") else []
+
+    def executemany(self, sql: str, rows) -> None:
+        normalized = " ".join(sql.split()).lower()
+        self.database.commands.append(normalized)
+        materialized = list(rows)
+        if "kpione_raw_ingest_batch_file_v1" in normalized:
+            self.database.state["files"].extend(materialized)
+        elif "kpione_raw_event_photo_staging_v1" in normalized:
+            self.database.state["staging"].extend(materialized)
+        self.rowcount = len(materialized)
+
+    def fetchone(self):
+        return self.rows[0] if self.rows else None
+
+    def fetchall(self):
+        return list(self.rows)
+
+
 class ProductiveReadiness018Tests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.plan = precheck.load_plan(PLAN_PATH)
 
+    def productive_unit_fixture(self) -> tuple[dict[str, object], dict[str, object], str, dict[str, str]]:
+        plan = copy.deepcopy(self.plan)
+        plan["target"]["productive_role_status"] = "PROVISIONED_AND_VERIFIED"
+        plan["target"]["allowed_productive_roles"] = [PLANNED_PRODUCTIVE_ROLE]
+        plan["activation_gate"]["productive_role_registered"] = True
+        plan["activation_gate"]["gate_open"] = True
+        plan["productive_apply_authorized"] = True
+        plan["productive_rollback_authorized"] = True
+        first = synthetic_workbook("a" * 64, "first.xlsx", [synthetic_row(2)])
+        second = synthetic_workbook("b" * 64, "second.xlsx", [synthetic_row(2)])
+        classified = classify_global_photo_duplicates([first, second])
+        plan["source_package"].update({
+            "approved_file_count": 2,
+            "expected_source_rows": 2,
+            "expected_distinct_events": 1,
+            "expected_duplicate_photo_rows": 1,
+            "expected_exact_duplicate_rows": 0,
+            "expected_cross_file_duplicate_rows": 1,
+            "expected_event_conflicts": 0,
+            "expected_day_presence_rows": 1,
+        })
+        approved = {
+            "files": [
+                {"source_file_sha256": first.source_file_sha256},
+                {"source_file_sha256": second.source_file_sha256},
+            ],
+            "_workbooks": [first, second],
+            "_classified_rows": classified,
+        }
+        role = PLANNED_PRODUCTIVE_ROLE
+        password = "synthetic-test-password"
+        hostname = plan["target"]["expected_hostname"]
+        dsn = "postgresql://" + f"{role}:{password}@" + f"{hostname}/postgres?sslmode=require"
+        git_guard = {
+            "approved_git_sha": "a" * 40,
+            "plan_path": "plans/018_kpione_route_b_productive_apply_plan.json",
+            "plan_sha256": "b" * 64,
+        }
+        return plan, approved, dsn, git_guard
+
+    def init_git_fixture(self, folder: str) -> tuple[Path, Path, str]:
+        root = Path(folder)
+        plan_path = root / "plan.json"
+        plan_path.write_text('{"document_type":"test"}\n', encoding="utf-8")
+        subprocess.run(["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "tests@example.invalid"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Tests"], cwd=root, check=True)
+        subprocess.run(["git", "config", "core.autocrlf", "false"], cwd=root, check=True)
+        subprocess.run(["git", "add", "plan.json"], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-m", "fixture"], cwd=root, check=True, capture_output=True)
+        head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+        return root, plan_path, head
+
     def test_plan_source_ready_but_never_authorizes_apply(self) -> None:
         self.assertEqual(self.plan["status"], "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING")
         self.assertTrue(self.plan["source_package"]["approved_for_apply"])
         self.assertFalse(self.plan["productive_apply_authorized"])
+        self.assertFalse(self.plan["productive_rollback_authorized"])
         self.assertFalse(self.plan["activation_gate"]["gate_open"])
+        self.assertEqual(
+            self.plan["future_productive_command"]["status"],
+            "TECHNICAL_BOUNDARY_IMPLEMENTED_GATE_CLOSED",
+        )
         with self.assertRaisesRegex(precheck.PrecheckBlock, "productive_role_not_provisioned_or_verified"):
             precheck.validate_plan_readiness(self.plan)
 
@@ -126,6 +353,210 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertTrue(self.plan["activation_gate"]["target_identity_registered"])
         self.assertFalse(self.plan["activation_gate"]["productive_role_registered"])
         self.assertFalse(self.plan["activation_gate"]["gate_open"])
+
+    def test_git_reference_contract_is_external_and_non_self_referential(self) -> None:
+        self.assertNotIn("expected_repository_commit", self.plan)
+        contract = self.plan["git_reference_contract"]
+        self.assertEqual(contract["mode"], "CLI_EXACT_APPROVED_HEAD")
+        self.assertEqual(contract["required_argument"], "--expected-plan-git-ref")
+        self.assertIn("plan SHA256 is recorded before connection", contract["requirements"])
+
+    def test_productive_modes_are_mutually_exclusive_and_arguments_required(self) -> None:
+        runner = ROOT / "scripts" / "run_kpione_route_b_ingestion_v1.py"
+        conflict = subprocess.run(
+            [sys.executable, str(runner), "--apply-local", "--apply-productive"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(conflict.returncode, 2)
+        self.assertIn("not allowed with argument", conflict.stderr)
+
+        env = os.environ.copy()
+        env["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"] = "must-not-be-read"
+        missing = subprocess.run(
+            [sys.executable, str(runner), "--apply-productive"],
+            capture_output=True, text=True, env=env,
+        )
+        report = json.loads(missing.stdout)
+        self.assertEqual(missing.returncode, 2)
+        self.assertIn("productive_arguments_required", report["error"])
+        self.assertFalse(report["dsn_read"])
+        self.assertFalse(report["connection_attempted"])
+        self.assertFalse(report["writes_attempted"])
+        self.assertNotIn(env["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"], missing.stdout)
+
+    def test_git_guard_requires_exact_clean_tracked_head_blob_and_returns_plan_sha(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root, plan_path, head = self.init_git_fixture(folder)
+            result = validate_productive_git_guard(plan_path, head, root)
+            self.assertEqual(result["approved_git_sha"], head)
+            self.assertEqual(result["plan_path"], "plan.json")
+            self.assertEqual(result["plan_sha256"], hashlib.sha256(plan_path.read_bytes()).hexdigest())
+            with self.assertRaisesRegex(RouteBError, "repository_head_mismatch"):
+                validate_productive_git_guard(plan_path, "0" * 40, root)
+
+        with tempfile.TemporaryDirectory() as folder:
+            root, plan_path, head = self.init_git_fixture(folder)
+            plan_path.write_text('{"document_type":"dirty"}\n', encoding="utf-8")
+            with self.assertRaisesRegex(RouteBError, "repository_worktree_not_clean"):
+                validate_productive_git_guard(plan_path, head, root)
+
+        with tempfile.TemporaryDirectory() as folder:
+            root, plan_path, head = self.init_git_fixture(folder)
+            plan_path.write_text('{"document_type":"staged"}\n', encoding="utf-8")
+            subprocess.run(["git", "add", "plan.json"], cwd=root, check=True)
+            with self.assertRaisesRegex(RouteBError, "repository_index_not_clean"):
+                validate_productive_git_guard(plan_path, head, root)
+
+        with tempfile.TemporaryDirectory() as folder:
+            root, plan_path, head = self.init_git_fixture(folder)
+            subprocess.run(
+                ["git", "update-index", "--assume-unchanged", "plan.json"],
+                cwd=root, check=True,
+            )
+            plan_path.write_text('{"document_type":"hidden-drift"}\n', encoding="utf-8")
+            with self.assertRaisesRegex(RouteBError, "approved_plan_worktree_blob_mismatch"):
+                validate_productive_git_guard(plan_path, head, root)
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            subprocess.run(["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "tests@example.invalid"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Tests"], cwd=root, check=True)
+            tracked = root / "tracked.txt"
+            tracked.write_text("tracked\n", encoding="utf-8")
+            subprocess.run(["git", "add", "tracked.txt"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "fixture"], cwd=root, check=True, capture_output=True)
+            head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            untracked_plan = root / "plan.json"
+            untracked_plan.write_text("{}\n", encoding="utf-8")
+            with self.assertRaisesRegex(RouteBError, "repository_worktree_not_clean"):
+                validate_productive_git_guard(untracked_plan, head, root)
+
+    def test_productive_local_validation_blocks_sql_and_file_metric_drift(self) -> None:
+        altered_sql = copy.deepcopy(self.plan)
+        altered_sql["physical_contract"]["sql_sha256"] = "0" * 64
+        with self.assertRaisesRegex(RouteBError, "sql_sha256_mismatch"):
+            validate_productive_local_artifacts(altered_sql, ROOT)
+
+        altered_size = copy.deepcopy(self.plan)
+        altered_size["source_package"]["approved_files"][0]["file_size"] += 1
+        with self.assertRaisesRegex(RouteBError, "observed_file_size_mismatch"):
+            validate_productive_local_artifacts(altered_size, ROOT)
+
+    def test_productive_apply_core_stages_activates_last_postchecks_and_redacts(self) -> None:
+        plan, approved, dsn, git_guard = self.productive_unit_fixture()
+        database = FakeProductiveDatabase(plan)
+        with tempfile.TemporaryDirectory() as folder:
+            evidence_path = Path(folder) / "apply.json"
+            report = run_productive_apply(
+                plan, approved, dsn, evidence_path,
+                git_guard=git_guard, root=ROOT, connect_fn=database.connect,
+            )
+            persisted = json.loads(evidence_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["postcheck_verdict"], "PASS")
+        self.assertTrue(report["committed"])
+        self.assertTrue(report["downstream_use_allowed"])
+        self.assertEqual(report, persisted)
+        self.assertEqual(database.connection_count, 2)
+        self.assertEqual(len(database.state["files"]), 2)
+        self.assertEqual(len(database.state["staging"]), 2)
+        self.assertEqual({item["status"] for item in database.state["batches"].values()}, {"ACTIVE"})
+        staging_index = next(i for i, sql in enumerate(database.commands)
+                             if sql.startswith("insert into cg_raw.kpione_raw_event_photo_staging_v1"))
+        activation_index = next(i for i, sql in enumerate(database.commands)
+                                if sql.startswith("update cg_raw.kpione_raw_ingest_batch_v1 set status='active'"))
+        self.assertLess(staging_index, activation_index)
+        rendered = json.dumps(report)
+        self.assertNotIn(dsn, rendered)
+        self.assertNotIn("synthetic-test-password", rendered)
+
+    def test_productive_apply_session_and_transaction_fail_closed(self) -> None:
+        for case in ("wrong_role", "read_only"):
+            with self.subTest(case=case):
+                plan, approved, dsn, git_guard = self.productive_unit_fixture()
+                database = FakeProductiveDatabase(plan)
+                if case == "wrong_role":
+                    database.role = "postgres"
+                    expected = "productive_session_role_mismatch"
+                else:
+                    database.write_session_readonly = True
+                    expected = "productive_apply_transaction_not_read_write"
+                with tempfile.TemporaryDirectory() as folder:
+                    with self.assertRaisesRegex(RouteBError, expected) as caught:
+                        run_productive_apply(
+                            plan, approved, dsn, Path(folder) / "evidence.json",
+                            git_guard=git_guard, root=ROOT, connect_fn=database.connect,
+                        )
+                self.assertTrue(caught.exception.connection_attempted)
+                self.assertFalse(caught.exception.writes_attempted)
+                self.assertFalse(caught.exception.committed)
+                self.assertEqual(database.state["batches"], {})
+
+        plan, approved, dsn, git_guard = self.productive_unit_fixture()
+        plan["source_package"]["expected_source_rows"] = 3
+        database = FakeProductiveDatabase(plan)
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(RouteBError, "productive_staging_count_mismatch") as caught:
+                run_productive_apply(
+                    plan, approved, dsn, Path(folder) / "evidence.json",
+                    git_guard=git_guard, root=ROOT, connect_fn=database.connect,
+                )
+        self.assertTrue(caught.exception.writes_attempted)
+        self.assertFalse(caught.exception.committed)
+        self.assertEqual(database.state["batches"], {})
+        self.assertEqual(database.state["staging"], [])
+
+    def test_postcheck_rejection_blocks_downstream_without_automatic_rollback(self) -> None:
+        plan, approved, dsn, git_guard = self.productive_unit_fixture()
+        database = FakeProductiveDatabase(plan)
+        database.reject_postcheck = True
+        with tempfile.TemporaryDirectory() as folder:
+            evidence_path = Path(folder) / "rejected.json"
+            with self.assertRaisesRegex(
+                RouteBError, "POSTCHECK_REJECTED_REQUIRES_EXPLICIT_ROLLBACK_AUTHORIZATION"
+            ) as caught:
+                run_productive_apply(
+                    plan, approved, dsn, evidence_path,
+                    git_guard=git_guard, root=ROOT, connect_fn=database.connect,
+                )
+            evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        self.assertTrue(caught.exception.committed)
+        self.assertEqual(evidence["postcheck_verdict"], "REJECTED")
+        self.assertFalse(evidence["downstream_use_allowed"])
+        self.assertEqual({item["status"] for item in database.state["batches"].values()}, {"ACTIVE"})
+
+    def test_productive_logical_rollback_preserves_staging_and_is_transactional(self) -> None:
+        plan, approved, dsn, git_guard = self.productive_unit_fixture()
+        database = FakeProductiveDatabase(plan)
+        with tempfile.TemporaryDirectory() as folder:
+            applied = run_productive_apply(
+                plan, approved, dsn, Path(folder) / "apply.json",
+                git_guard=git_guard, root=ROOT, connect_fn=database.connect,
+            )
+            staged_before = copy.deepcopy(database.state["staging"])
+            rolled_back = run_productive_rollback(
+                plan, approved, applied["batch_id"], dsn, Path(folder) / "rollback.json",
+                git_guard=git_guard, connect_fn=database.connect,
+            )
+        self.assertEqual(rolled_back["postcheck_verdict"], "PASS")
+        self.assertEqual(database.state["staging"], staged_before)
+        self.assertEqual(database.state["batches"][applied["batch_id"]]["status"], "ROLLED_BACK")
+
+        plan, approved, dsn, git_guard = self.productive_unit_fixture()
+        database = FakeProductiveDatabase(plan)
+        with tempfile.TemporaryDirectory() as folder:
+            applied = run_productive_apply(
+                plan, approved, dsn, Path(folder) / "apply.json",
+                git_guard=git_guard, root=ROOT, connect_fn=database.connect,
+            )
+            database.rollback_staging_mismatch = True
+            with self.assertRaisesRegex(RouteBError, "rollback_mutated_staging"):
+                run_productive_rollback(
+                    plan, approved, applied["batch_id"], dsn,
+                    Path(folder) / "rollback.json", git_guard=git_guard,
+                    connect_fn=database.connect,
+                )
+        self.assertEqual(database.state["batches"][applied["batch_id"]]["status"], "ACTIVE")
 
     def test_productive_dsn_future_username_must_match_planned_role(self) -> None:
         role = "stock_zero_kpione_route_b_load"
@@ -217,24 +648,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
                 self.assertNotIn(password, json.dumps(report))
 
     def test_apply_productive_blocks_before_dsn_env_read_when_gate_closed(self) -> None:
-        runner = ROOT / "scripts" / "run_kpione_route_b_ingestion_v1.py"
-        env = os.environ.copy()
-        env.pop("DB_URL_KPIONE_ROUTE_B_PRODUCTIVE", None)
-        completed = subprocess.run(
-            [
-                sys.executable, str(runner),
-                "--apply-productive",
-                "--approved-plan", str(PLAN_PATH),
-                "--db-url-env", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
-                "--expected-project-ref", "xheyrgfagpoigpgakilu",
-                "--confirm-productive", "KPIONE_ROUTE_B_018_APPLY",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
-        report = json.loads(completed.stdout)
+        report = productive_blocked_report(self.plan, "apply_productive")
         self.assertEqual(report["verdict"], "BLOCKED")
         self.assertEqual(report["planned_productive_role"], PLANNED_PRODUCTIVE_ROLE)
         self.assertEqual(report["productive_role_status"], "PLANNED_NOT_PROVISIONED")
@@ -244,28 +658,15 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
         ])
         self.assertFalse(report["dsn_read"])
+        self.assertFalse(report["connection_attempted"])
         self.assertFalse(report["writes_attempted"])
+        self.assertFalse(report["committed"])
 
     def test_apply_productive_rejects_wrong_project_ref_before_dsn_env_read(self) -> None:
-        runner = ROOT / "scripts" / "run_kpione_route_b_ingestion_v1.py"
-        env = os.environ.copy()
-        env.pop("DB_URL_KPIONE_ROUTE_B_PRODUCTIVE", None)
-        completed = subprocess.run(
-            [
-                sys.executable, str(runner),
-                "--apply-productive",
-                "--approved-plan", str(PLAN_PATH),
-                "--db-url-env", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
-                "--expected-project-ref", "wrong-ref",
-                "--confirm-productive", "KPIONE_ROUTE_B_018_APPLY",
-            ],
-            capture_output=True,
-            text=True,
-            env=env,
-        )
-        self.assertEqual(completed.returncode, 2)
-        report = json.loads(completed.stdout)
-        self.assertEqual(report["error"], "productive_expected_project_ref_mismatch")
+        altered = copy.deepcopy(self.plan)
+        altered["target"]["expected_supabase_project_ref"] = "wrong-ref"
+        with self.assertRaisesRegex(RouteBError, "productive_target_expected_supabase_project_ref_mismatch"):
+            validate_registered_productive_target(altered)
 
     def test_approved_manifest_ignores_known_truncated_fixture(self) -> None:
         package = self.plan["source_package"]
@@ -384,7 +785,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             root = Path(folder)
             altered["input_directory"]["repository_relative_value"] = "."
             (root / approved["filename"]).write_bytes(b"altered")
-            with self.assertRaisesRegex(precheck.PrecheckBlock, "observed_file_hash_mismatch"):
+            with self.assertRaisesRegex(precheck.PrecheckBlock, "observed_file_size_mismatch"):
                 precheck.validate_source_manifest(altered, root)
 
     def test_folder_path_and_filename_do_not_affect_semantic_hash(self) -> None:

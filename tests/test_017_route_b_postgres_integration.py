@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import unittest
@@ -13,13 +14,17 @@ from scripts.kpione_route_b_v1 import (
     RouteBError,
     apply_local,
     build_plan,
+    classify_global_photo_duplicates,
     rollback_local,
+    run_productive_apply,
+    run_productive_rollback,
 )
 from tests.test_017_route_b_runner import HEADERS, row, write_book
 
 
 DSN = os.environ.get("DB_URL_CODEX_LOCAL")
 DDL = Path(__file__).resolve().parents[1] / "sql" / "17_kpione_route_b_ingestion_v1.sql"
+PRODUCTIVE_PLAN = Path(__file__).resolve().parents[1] / "plans" / "018_kpione_route_b_productive_apply_plan.json"
 
 
 @unittest.skipUnless(DSN, "DB_URL_CODEX_LOCAL is required for the local PostgreSQL rehearsal")
@@ -196,6 +201,83 @@ class RouteBPostgresRehearsal(unittest.TestCase):
                     "AND contype='x'"
                 )
                 self.assertEqual(second_cursor.fetchone()[0], 1)
+
+    def test_productive_core_apply_postcheck_and_logical_rollback_on_local_postgres(self) -> None:
+        with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT current_user,current_database(),to_regclass('cg_raw.kpione2_raw')::text")
+            role, database, legacy_before = cursor.fetchone()
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            write_book(root / "photo-excel-admin_productive_fixture.xlsx", [row()])
+            local_plan = build_plan(root)
+            workbook = local_plan["_workbooks"][0]
+            classified = classify_global_photo_duplicates([workbook])
+            plan = json.loads(PRODUCTIVE_PLAN.read_text(encoding="utf-8"))
+            plan["target"].update({
+                "expected_supabase_project_ref": "local-test",
+                "expected_hostname": "db.local-test.supabase.co",
+                "expected_database": database,
+                "planned_productive_role": role,
+                "productive_role_status": "PROVISIONED_AND_VERIFIED",
+                "allowed_productive_roles": [role],
+            })
+            plan["activation_gate"].update({
+                "productive_role_registered": True,
+                "gate_open": True,
+            })
+            plan["productive_apply_authorized"] = True
+            plan["productive_rollback_authorized"] = True
+            plan["source_package"].update({
+                "approved_file_count": 1,
+                "expected_source_rows": 1,
+                "expected_distinct_events": 1,
+                "expected_duplicate_photo_rows": 0,
+                "expected_exact_duplicate_rows": 0,
+                "expected_cross_file_duplicate_rows": 0,
+                "expected_event_conflicts": 0,
+                "expected_day_presence_rows": 1,
+                "semantic_plan_hash": local_plan["semantic_plan_hash"],
+                "expected_coverage": {
+                    "start": workbook.coverage_start,
+                    "end": workbook.coverage_end,
+                    "distinct_dates": 1,
+                    "missing_dates": [],
+                },
+            })
+            approved = {
+                "files": [{"source_file_sha256": workbook.source_file_sha256}],
+                "_workbooks": [workbook],
+                "_classified_rows": classified,
+            }
+            password = "synthetic-test-password"
+            synthetic_dsn = (
+                "postgresql://" + f"{role}:{password}@" +
+                f"db.local-test.supabase.co/{database}?sslmode=require"
+            )
+            git_guard = {
+                "approved_git_sha": "a" * 40,
+                "plan_path": PRODUCTIVE_PLAN.relative_to(Path(__file__).resolve().parents[1]).as_posix(),
+                "plan_sha256": "b" * 64,
+            }
+            connect_fn = lambda _dsn: psycopg.connect(DSN)
+            apply_report = run_productive_apply(
+                plan, approved, synthetic_dsn, root / "apply.json",
+                git_guard=git_guard, root=Path(__file__).resolve().parents[1],
+                connect_fn=connect_fn,
+            )
+            rollback_report = run_productive_rollback(
+                plan, approved, apply_report["batch_id"], synthetic_dsn,
+                root / "rollback.json", git_guard=git_guard, connect_fn=connect_fn,
+            )
+        with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1")
+            staging_after = cursor.fetchone()[0]
+            cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
+            legacy_after = cursor.fetchone()[0]
+        self.assertEqual(apply_report["postcheck_verdict"], "PASS")
+        self.assertEqual(rollback_report["postcheck_verdict"], "PASS")
+        self.assertEqual(staging_after, 1)
+        self.assertEqual(legacy_after, legacy_before)
 
 
 if __name__ == "__main__":
