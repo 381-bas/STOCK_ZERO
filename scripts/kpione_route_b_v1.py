@@ -38,6 +38,12 @@ PRODUCTIVE_PREPARATION_BLOCKERS = [
 PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS = [
     "PRODUCTIVE_EXECUTION_NOT_AUTHORIZED",
 ]
+PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS = (
+    "readonly_baseline_precheck",
+    "admin_provisioning",
+    "productive_role_verification",
+    "readonly_postcheck",
+)
 BANNED_PRODUCTIVE_ROLES = {
     "postgres", "stock_zero_codex_ro", "anon", "authenticated", "service_role",
 }
@@ -211,6 +217,7 @@ def validate_productive_role_contract(plan: dict[str, Any]) -> str:
             "evidence_sha256": None,
         }
         and role_gate_state == ("PLANNED_NOT_PROVISIONED", [], False, False)
+        and plan.get("infrastructure_evidence") is None
         and plan.get("productive_apply_authorized") is False
         and plan.get("productive_rollback_authorized") is False
     )
@@ -224,11 +231,39 @@ def validate_productive_role_contract(plan: dict[str, Any]) -> str:
         and isinstance(evidence_sha256, str)
         and re.fullmatch(r"[0-9a-f]{64}", evidence_sha256) is not None
     )
+    infrastructure_evidence = plan.get("infrastructure_evidence")
+    infrastructure_components = (
+        infrastructure_evidence.get("components")
+        if isinstance(infrastructure_evidence, dict) else None
+    )
+    passed_infrastructure_evidence = (
+        isinstance(infrastructure_evidence, dict)
+        and set(infrastructure_evidence) == {"status", "bundle_sha256", "components"}
+        and infrastructure_evidence.get("status") == "PASSED"
+        and isinstance(infrastructure_evidence.get("bundle_sha256"), str)
+        and re.fullmatch(
+            r"[0-9a-f]{64}", infrastructure_evidence["bundle_sha256"]
+        ) is not None
+        and isinstance(infrastructure_components, dict)
+        and set(infrastructure_components) == set(
+            PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS
+        )
+        and all(
+            isinstance(infrastructure_components.get(component), str)
+            and re.fullmatch(
+                r"[0-9a-f]{64}", infrastructure_components[component]
+            ) is not None
+            for component in PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS
+        )
+        and infrastructure_components.get("readonly_baseline_precheck")
+        == evidence_sha256
+    )
     infrastructure_ready_gate_closed_state = (
         plan.get("status") == PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS
         and plan.get("remaining_blockers")
         == PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS
         and passed_readonly_precheck
+        and passed_infrastructure_evidence
         and role_gate_state == (
             "PROVISIONED_AND_VERIFIED", [PLANNED_PRODUCTIVE_ROLE], True, False,
         )
@@ -239,6 +274,7 @@ def validate_productive_role_contract(plan: dict[str, Any]) -> str:
         plan.get("status") == PRODUCTIVE_EXECUTION_STATUS
         and plan.get("remaining_blockers") == []
         and passed_readonly_precheck
+        and passed_infrastructure_evidence
         and role_gate_state == (
             "PROVISIONED_AND_VERIFIED", [PLANNED_PRODUCTIVE_ROLE], True, True,
         )
