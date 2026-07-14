@@ -12,8 +12,8 @@ MANIFEST = KERNEL_DIR / "00_kernel_manifest_stock_zero_v2026_06_30_011.json"
 RETIRED = KERNEL_DIR / "04_project_technical_evidence_stock_zero_v2026_06_30_011.json"
 PRESERVED = ROOT / "research" / "governance" / "kernel04_retirement_preserved_evidence_v1.json"
 PROTECTED = {
-    "01_project_kernel_stock_zero_v2026_06_16.json": "67fc0036733ebc6293552ce080c1903e051c7280e488518b326c745517157123",
-    "02_project_state_stock_zero_v2026_06_30_011.json": "bb3b14d20228b4d6edfb6922435f000bbbd3eb71192e193d0d8ab6ebce17c68f",
+    "01_project_kernel_stock_zero_v2026_06_16.json": "324741809e920b12ed8a34b35996014cae95af5968512c6042c362dbbfca5b92",
+    "02_project_state_stock_zero_v2026_06_30_011.json": "29b522bd15f8e1d86b51059edff80401bb8d01c8fcf1b6aee66631236702b903",
     "03_project_ledger_stock_zero_v2026_06_30_011.json": "c54b6d63d871ebcbb9d3a8c3131cabeb4cf15da5c063907ccee19669b1fd6bbc",
 }
 SECTION_DIGESTS = {

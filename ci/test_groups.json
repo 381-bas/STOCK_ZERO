@@ -20,6 +20,7 @@
       "tests/test_016B_kpione_identity_idempotency_contract.py",
       "tests/test_017_route_b_runner.py",
       "tests/test_018_productive_readiness.py",
+      "tests/test_019_database_credential_architecture.py",
       "tests/test_ai_load_observation_contract.py",
       "tests/test_apply_cg005n_ddl.py",
       "tests/test_ci_quality_gates.py",

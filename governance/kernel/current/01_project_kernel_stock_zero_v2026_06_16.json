@@ -242,6 +242,60 @@
     "reducir_caracteres_a_costa_de_garantías",
     "añadir_control_sin_impacto_en_producto"
   ],
+  "database_access_and_secret_contract": {
+    "contract_version": "STOCK_ZERO_DATABASE_ACCESS_V1",
+    "status": "ACTIVE",
+    "vault": {
+      "name": "STOCK_ZERO",
+      "provider": "Microsoft.PowerShell.SecretManagement + Microsoft.PowerShell.SecretStore",
+      "secret_names": {
+        "readonly_dsn": "STOCK_ZERO_DB_CODEX_RO",
+        "route_b_productive_dsn": "STOCK_ZERO_DB_KPIONE_ROUTE_B_PRODUCTIVE",
+        "admin_dsn": "STOCK_ZERO_DB_ADMIN",
+        "route_b_productive_password": "STOCK_ZERO_DB_KPIONE_ROUTE_B_PASSWORD"
+      }
+    },
+    "credential_classes": {
+      "DB_URL_CODEX_RO": {
+        "purpose": "Read-only inspection and authorized prechecks.",
+        "allowed_actors": ["Bastian", "Codex through approved read-only helpers"],
+        "writes_allowed": false,
+        "ddl_allowed": false
+      },
+      "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE": {
+        "purpose": "Separately authorized Route B data apply and logical rollback.",
+        "allowed_actors": ["Bastian through the guarded Route B runner"],
+        "writes_allowed": "DML_ON_EXACT_ROUTE_B_OBJECTS_ONLY",
+        "ddl_allowed": false
+      },
+      "DB_URL_ADMIN": {
+        "purpose": "Explicit administrative provisioning and DDL.",
+        "allowed_actors": ["Bastian through separately authorized provisioning tooling"],
+        "writes_allowed": "EXPLICIT_PROVISIONING_SCOPE_ONLY",
+        "ddl_allowed": true
+      }
+    },
+    "ddl_boundary": {
+      "exclusive_credential": "DB_URL_ADMIN",
+      "productive_runner": "Must validate exact pre-existing object signatures and execute DML only.",
+      "admin_provisioner": "May apply approved DDL, retain administrative ownership of Route B objects, and grant minimum Route B DML privileges.",
+      "legacy_object": "cg_raw.kpione2_raw must never be modified by Route B provisioning."
+    },
+    "secret_handling": {
+      "persistence": "Vault STOCK_ZERO only.",
+      "injection": "Selected secrets are mapped to environment variables only in the child process.",
+      "persistent_user_or_machine_environment_variables": "FORBIDDEN",
+      "dsn_or_password_in_git_logs_or_evidence": "FORBIDDEN",
+      "productive_role_password": "Stored separately from the administrative DSN.",
+      "provider_abstraction": "Runners consume process environment variables; SecretStore may be replaced by changing only the invocation adapter."
+    },
+    "operation_order": [
+      "read-only precheck",
+      "explicit authorization",
+      "productive apply",
+      "read-only postcheck"
+    ]
+  },
   "operating_model_v2": {
     "status": "ACTIVE",
     "risk_classification": "R1_REPO_SAFE_GOVERNANCE_REFACTOR",

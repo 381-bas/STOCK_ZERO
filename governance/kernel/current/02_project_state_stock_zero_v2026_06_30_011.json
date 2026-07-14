@@ -8,8 +8,8 @@
   "executive_progress": {
     "operating_model": "V2_1_ACTIVE",
     "delivery_review_contract": "governance/kernel/current/01_project_kernel_stock_zero_v2026_06_16.json#operating_model_v2.delivery_and_review_contract_v2_1",
-    "last_accepted_governance_unit": "017_APPLY_RUNNER_AND_REHEARSAL",
-    "current_priority": "Keep 018 productive apply closed while the technical boundary is ready and productive role provisioning plus read-only precheck remain pending."
+    "last_accepted_governance_unit": "018_PRODUCTIVE_MODE_TARGET_GUARDS",
+    "current_priority": "Establish the 019 credential architecture while vault configuration, admin provisioning, read-only precheck and productive execution remain pending."
   },
   "active_product_state": {
     "platform": "STOCK_ZERO / GESTIONZERO",
@@ -17,13 +17,11 @@
     "legacy_kpione_state": "Evidence of previous runtime, not migration authority for the new architecture."
   },
   "current_work": {
-    "unit": "017",
-    "unit_name": "017_APPLY_RUNNER_AND_REHEARSAL",
-    "status": "RUNNER_AND_REHEARSAL_READY",
-    "route_b_runner_implemented": true,
-    "local_postgresql_rehearsal_passed": true,
-    "next_permitted_unit": "018_PRODUCTIVE_APPLY",
-    "next_unit_status": "NOT_AUTHORIZED"
+    "unit": "019",
+    "unit_name": "019_DATABASE_CREDENTIAL_ARCHITECTURE_AND_PROVISIONING_TOOLING",
+    "status": "CREDENTIAL_ARCHITECTURE_READY_PROVISIONING_PENDING",
+    "next_permitted_operation": "SEPARATELY_AUTHORIZED_VAULT_CONFIGURATION_OR_ADMIN_PROVISIONING",
+    "next_operation_status": "NOT_AUTHORIZED"
   },
   "current_preparation": {
     "unit": "018_PRODUCTIVE_APPLY",
@@ -52,6 +50,13 @@
     },
     "source_manifest": "Nine approved files cover June 1-30; the truncated fixture and one semantic day-8 duplicate are intentionally excluded.",
     "productive_apply_authorized": false
+  },
+  "database_credential_status": {
+    "secret_vault": "NOT_CONFIGURED_OR_NOT_VERIFIED",
+    "productive_role": "PLANNED_NOT_PROVISIONED",
+    "admin_provisioning": "NOT_EXECUTED",
+    "readonly_precheck": "NOT_AUTHORIZED_OR_EXECUTED",
+    "productive_gate": "CLOSED"
   },
   "authorization": {
     "016B_architecture_authorized": true,
@@ -87,8 +92,9 @@
     }
   ],
   "next_actions": [
-    "Request explicit Bastian + ChatGPT R3 authorization before any 018 productive apply.",
-    "Keep productive gates closed until R3/R4 authorization exists."
+    "Configure and verify vault STOCK_ZERO only under a separate local-secret operation.",
+    "Request explicit authorization before admin provisioning or the read-only precheck.",
+    "Keep productive apply and rollback closed until every 018 gate is satisfied."
   ],
   "references": {
     "project_kernel": "governance/kernel/current/01_project_kernel_stock_zero_v2026_06_16.json",

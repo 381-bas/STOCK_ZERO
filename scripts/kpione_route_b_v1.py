@@ -887,11 +887,8 @@ def run_productive_apply(plan: dict[str, Any], approved_plan: dict[str, Any],
             cursor.execute("SET LOCAL lock_timeout = '10s'")
             cursor.execute("SET LOCAL idle_in_transaction_session_timeout = '5min'")
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", (ADVISORY_LOCK_KEY,))
-            _assert_route_b_object_signatures(cursor, plan, allow_empty=True)
-            writes_attempted = True
-            sql_path = root / plan["physical_contract"]["sql_file"]
-            cursor.execute(sql_path.read_text(encoding="utf-8"))
             _assert_route_b_object_signatures(cursor, plan, allow_empty=False)
+            writes_attempted = True
             cursor.execute(
                 "SELECT batch_id::text FROM cg_raw.kpione_raw_ingest_batch_v1 "
                 "WHERE status='ACTIVE' FOR UPDATE"

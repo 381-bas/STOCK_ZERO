@@ -102,6 +102,14 @@
       "cg_core.kpione_day_presence_v1": {"relation_kind":"v","columns":["fecha","location_key","cliente_norm","presence","event_count"]}
     }
   },
+  "admin_provisioning_contract": {
+    "status": "NOT_EXECUTED",
+    "tool": "scripts/provision_kpione_route_b_role.py",
+    "ddl_credential_env": "DB_URL_ADMIN",
+    "productive_role_password_env": "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD",
+    "confirmation": "STOCK_ZERO_019_PROVISION_ROUTE_B_ROLE",
+    "productive_runner_ddl_allowed": false
+  },
   "target": {
     "readonly_precheck_env": "DB_URL_CODEX_RO",
     "future_productive_env": "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
@@ -118,7 +126,7 @@
     "Validate approved plan Git reference, plan content, source hashes, schema and counts before connecting.",
     "Run the separately authorized read-only precheck and accept only an exact target and role match.",
     "Begin one read-write transaction and acquire the KPIONE_ROUTE_B_V1 transaction advisory lock.",
-    "Apply the committed SQL contract idempotently and verify object signatures.",
+    "Require the admin-provisioned Route B objects and verify exact signatures without executing DDL.",
     "Register batch and all selected files, stage immutable rows, and run conflict gates.",
     "Activate only after every planned hash and expected count matches.",
     "Commit once, then run read-only postchecks into the approved evidence path."

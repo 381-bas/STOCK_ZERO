@@ -11,6 +11,7 @@ import psycopg
 
 from scripts.kpione_route_b_v1 import (
     ADVISORY_LOCK_KEY,
+    PLANNED_PRODUCTIVE_ROLE,
     RouteBError,
     apply_local,
     build_plan,
@@ -19,6 +20,7 @@ from scripts.kpione_route_b_v1 import (
     run_productive_apply,
     run_productive_rollback,
 )
+from scripts.provision_kpione_route_b_role import provision_route_b_role
 from tests.test_017_route_b_runner import HEADERS, row, write_book
 
 
@@ -204,12 +206,22 @@ class RouteBPostgresRehearsal(unittest.TestCase):
 
     def test_productive_core_apply_postcheck_and_logical_rollback_on_local_postgres(self) -> None:
         with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (PLANNED_PRODUCTIVE_ROLE,))
+            if cursor.fetchone():
+                cursor.execute("DROP OWNED BY stock_zero_kpione_route_b_load")
+                cursor.execute("DROP ROLE stock_zero_kpione_route_b_load")
             cursor.execute("CREATE SCHEMA IF NOT EXISTS cg_raw")
             cursor.execute(
                 "CREATE TABLE IF NOT EXISTS cg_raw.kpione2_raw (legacy_evidence_id bigint)"
             )
+            cursor.execute(
+                "INSERT INTO cg_raw.kpione2_raw(legacy_evidence_id) "
+                "SELECT 19 WHERE NOT EXISTS (SELECT 1 FROM cg_raw.kpione2_raw)"
+            )
             cursor.execute("SELECT current_user,current_database(),to_regclass('cg_raw.kpione2_raw')::text")
-            role, database, legacy_before = cursor.fetchone()
+            admin_role, database, legacy_before = cursor.fetchone()
+            cursor.execute("SELECT count(*) FROM cg_raw.kpione2_raw")
+            legacy_rows_before = cursor.fetchone()[0]
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             write_book(root / "photo-excel-admin_productive_fixture.xlsx", [row()])
@@ -221,12 +233,10 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             plan["remaining_blockers"] = []
             plan["readonly_precheck"] = {"status": "PASSED", "evidence_sha256": "c" * 64}
             plan["target"].update({
-                "expected_supabase_project_ref": "local-test",
-                "expected_hostname": "db.local-test.supabase.co",
                 "expected_database": database,
-                "planned_productive_role": role,
+                "planned_productive_role": PLANNED_PRODUCTIVE_ROLE,
                 "productive_role_status": "PROVISIONED_AND_VERIFIED",
-                "allowed_productive_roles": [role],
+                "allowed_productive_roles": [PLANNED_PRODUCTIVE_ROLE],
             })
             plan["activation_gate"].update({
                 "productive_role_registered": True,
@@ -262,17 +272,35 @@ class RouteBPostgresRehearsal(unittest.TestCase):
                 "_workbooks": [workbook],
                 "_classified_rows": classified,
             }
-            password = "synthetic-test-password"
+            admin_password = "synthetic-admin-password"
+            role_password = "synthetic-role-password"
+            expected_hostname = plan["target"]["expected_hostname"]
+            synthetic_admin_dsn = (
+                "postgresql://" + f"{admin_role}:{admin_password}@" +
+                f"{expected_hostname}/{database}?sslmode=require"
+            )
             synthetic_dsn = (
-                "postgresql://" + f"{role}:{password}@" +
-                f"db.local-test.supabase.co/{database}?sslmode=require"
+                "postgresql://" + f"{PLANNED_PRODUCTIVE_ROLE}:{role_password}@" +
+                f"{expected_hostname}/{database}?sslmode=require"
             )
             git_guard = {
                 "approved_git_sha": "a" * 40,
                 "plan_path": PRODUCTIVE_PLAN.relative_to(Path(__file__).resolve().parents[1]).as_posix(),
                 "plan_sha256": "b" * 64,
             }
-            connect_fn = lambda _dsn: psycopg.connect(DSN)
+            provision_report = provision_route_b_role(
+                plan, synthetic_admin_dsn, role_password, root / "provision.json",
+                root=Path(__file__).resolve().parents[1],
+                connect_fn=lambda _dsn: psycopg.connect(DSN),
+                expected_admin_username=admin_role,
+            )
+            reprovision_report = provision_route_b_role(
+                plan, synthetic_admin_dsn, role_password, root / "reprovision.json",
+                root=Path(__file__).resolve().parents[1],
+                connect_fn=lambda _dsn: psycopg.connect(DSN),
+                expected_admin_username=admin_role,
+            )
+            connect_fn = lambda _dsn: psycopg.connect(DSN, user=PLANNED_PRODUCTIVE_ROLE)
             apply_report = run_productive_apply(
                 plan, approved, synthetic_dsn, root / "apply.json",
                 git_guard=git_guard, root=Path(__file__).resolve().parents[1],
@@ -287,6 +315,36 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             staging_after = cursor.fetchone()[0]
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
             legacy_after = cursor.fetchone()[0]
+            cursor.execute("SELECT count(*) FROM cg_raw.kpione2_raw")
+            legacy_rows_after = cursor.fetchone()[0]
+            cursor.execute(
+                "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,"
+                "rolbypassrls,rolconnlimit FROM pg_roles WHERE rolname=%s",
+                (PLANNED_PRODUCTIVE_ROLE,),
+            )
+            role_attributes = cursor.fetchone()
+            cursor.execute(
+                "SELECT has_schema_privilege(%s,'cg_raw','CREATE'),"
+                "has_table_privilege(%s,'cg_raw.kpione2_raw','SELECT'),"
+                "has_table_privilege(%s,'cg_raw.kpione_raw_ingest_batch_v1','SELECT,INSERT,UPDATE'),"
+                "has_table_privilege(%s,'cg_raw.kpione_raw_ingest_batch_v1','DELETE')",
+                (PLANNED_PRODUCTIVE_ROLE,) * 4,
+            )
+            create_schema, legacy_select, route_b_dml, route_b_delete = cursor.fetchone()
+            cursor.execute(
+                "SELECT DISTINCT c.relowner::regrole::text FROM pg_class c "
+                "JOIN pg_namespace n ON n.oid=c.relnamespace "
+                "WHERE n.nspname||'.'||c.relname = ANY(%s)",
+                (plan["physical_contract"]["objects"],),
+            )
+            route_b_owners = {row[0] for row in cursor.fetchall()}
+        self.assertEqual(provision_report["verdict"], "PASS_ADMIN_PROVISIONING")
+        self.assertTrue(provision_report["role_created"])
+        self.assertEqual(reprovision_report["verdict"], "PASS_ADMIN_PROVISIONING")
+        self.assertFalse(reprovision_report["role_created"])
+        self.assertNotIn(synthetic_admin_dsn, json.dumps(provision_report))
+        self.assertNotIn(admin_password, json.dumps(provision_report))
+        self.assertNotIn(role_password, json.dumps(provision_report))
         self.assertEqual(apply_report["postcheck_verdict"], "PASS")
         self.assertEqual(rollback_report["postcheck_verdict"], "PASS")
         self.assertEqual(apply_report["postcheck"]["declared_failures"], [])
@@ -308,6 +366,13 @@ class RouteBPostgresRehearsal(unittest.TestCase):
         self.assertEqual(staging_after, 1)
         self.assertEqual(legacy_before, "cg_raw.kpione2_raw")
         self.assertEqual(legacy_after, legacy_before)
+        self.assertEqual(legacy_rows_after, legacy_rows_before)
+        self.assertEqual(role_attributes, (True, False, False, False, False, False, 5))
+        self.assertFalse(create_schema)
+        self.assertFalse(legacy_select)
+        self.assertTrue(route_b_dml)
+        self.assertFalse(route_b_delete)
+        self.assertEqual(route_b_owners, {admin_role})
 
 
 if __name__ == "__main__":
