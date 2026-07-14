@@ -314,10 +314,13 @@ def provision_route_b_role(
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
             legacy_before = cursor.fetchone()[0]
             cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (PLANNED_PRODUCTIVE_ROLE,))
-            if cursor.fetchone() is None:
-                writes_attempted = True
-                cursor.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(PLANNED_PRODUCTIVE_ROLE)))
-                role_created = True
+            if cursor.fetchone() is not None:
+                raise ProvisioningError(
+                    "productive_role_exists_password_rotation_not_authorized"
+                )
+            writes_attempted = True
+            cursor.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(PLANNED_PRODUCTIVE_ROLE)))
+            role_created = True
             writes_attempted = True
             cursor.execute(_role_statement(PLANNED_PRODUCTIVE_ROLE, role_password))
             cursor.execute(ddl)
@@ -451,7 +454,11 @@ def provision_route_b_role(
         "verdict": "PASS_ADMIN_PROVISIONING",
         "credential_class": target["credential_class"],
         "target_fingerprint": hashlib.sha256(
-            f"{target['hostname']}|{target['database']}|{target['username']}".encode("utf-8")
+            "|".join((
+                plan["target"]["expected_supabase_project_ref"],
+                target["hostname"],
+                target["database"],
+            )).encode("utf-8")
         ).hexdigest(),
         "planned_productive_role": PLANNED_PRODUCTIVE_ROLE,
         "approved_git_sha": git_guard["approved_git_sha"],
@@ -467,6 +474,7 @@ def provision_route_b_role(
             "connection_limit": PRODUCTIVE_CONNECTION_LIMIT,
         },
         "ddl_sha256": ddl_sha256,
+        "sql_sha256": ddl_sha256,
         "route_b_objects_validated": sorted(plan["physical_contract"]["objects"]),
         "route_b_sequence": sequence_name,
         "legacy_object_before": legacy_before,

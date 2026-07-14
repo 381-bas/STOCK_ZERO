@@ -6,6 +6,8 @@ param(
     [Parameter(Mandatory)]
     [ValidateSet(
         'readonly-precheck',
+        'readonly-postcheck',
+        'verify-route-b-role',
         'route-b-apply',
         'route-b-rollback',
         'admin-provision',
@@ -46,6 +48,16 @@ $operationMap = @{
     'readonly-precheck' = @{
         Script = 'scripts/precheck_kpione_route_b_018_read_only.py'
         Profile = 'readonly'
+        PrefixArguments = @('--check-stage', 'baseline')
+    }
+    'readonly-postcheck' = @{
+        Script = 'scripts/precheck_kpione_route_b_018_read_only.py'
+        Profile = 'readonly'
+        PrefixArguments = @('--check-stage', 'post-provision')
+    }
+    'verify-route-b-role' = @{
+        Script = 'scripts/verify_kpione_route_b_productive_role.py'
+        Profile = 'route-b-productive'
         PrefixArguments = @()
     }
     'route-b-apply' = @{

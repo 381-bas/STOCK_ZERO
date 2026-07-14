@@ -77,7 +77,7 @@ class FakeCursor:
     def execute(self, sql: str, _params=None) -> None:
         normalized = " ".join(sql.split()).lower()
         if "select current_user,session_user" in normalized:
-            self.rows = [("stock_zero_codex_ro", "stock_zero_codex_ro", "on", "16.4", "postgres", "10.0.0.1")]
+            self.rows = [("stock_zero_codex_ro", "stock_zero_codex_ro", "on", "16.4", "postgres")]
         elif "from information_schema.schemata" in normalized:
             self.rows = [("cg_core",), ("cg_raw",)]
         elif "from pg_available_extensions" in normalized:
@@ -92,7 +92,7 @@ class FakeCursor:
             self.rows = []
 
     def fetchone(self):
-        return self.rows[0]
+        return self.rows[0] if self.rows else None
 
     def fetchall(self):
         return list(self.rows)
@@ -425,8 +425,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             self.plan["future_productive_command"]["status"],
             "TECHNICAL_BOUNDARY_IMPLEMENTED_GATE_CLOSED",
         )
-        with self.assertRaisesRegex(precheck.PrecheckBlock, "productive_role_not_provisioned_or_verified"):
-            precheck.validate_plan_readiness(self.plan)
+        precheck.validate_plan_readiness(self.plan, "baseline")
 
     def test_preparation_rejects_passed_bundle_or_provisioned_role(self) -> None:
         self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
@@ -1308,7 +1307,10 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         ready["target"]["expected_supabase_project_ref"] = "project-ref"
         ready["target"]["expected_hostname"] = "db.project-ref.supabase.co"
         self.assertEqual(
-            precheck.validate_target("postgresql://u:p@db.project-ref.supabase.co/postgres", "DB_URL_CODEX_RO", ready, "project-ref"),
+            precheck.validate_target(
+                "postgresql://stock_zero_codex_ro:synthetic@db.project-ref.supabase.co/postgres?sslmode=require",
+                "DB_URL_CODEX_RO", ready, "project-ref",
+            ),
             "db.project-ref.supabase.co",
         )
 
@@ -1327,10 +1329,10 @@ class ProductiveReadiness018Tests(unittest.TestCase):
 
     def test_run_precheck_success_report_and_connection_lifecycle(self) -> None:
         ready = copy.deepcopy(self.plan)
-        ready["target"]["allowed_productive_roles"] = ["kpione_route_b_writer"]
         connection = FakeConnection()
         report = precheck.run_precheck(ready, "redacted", lambda _dsn: connection)
-        self.assertEqual(report["verdict"], "PASS_READ_ONLY_PRECHECK")
+        self.assertEqual(report["document_type"], "kpione_route_b_readonly_baseline_evidence_v1")
+        self.assertEqual(report["verdict"], "PASS_READONLY_BASELINE")
         self.assertEqual(report["current_user"], "stock_zero_codex_ro")
         self.assertEqual(report["transaction_read_only"], "on")
         self.assertEqual(report["approved_source_bytes"], 16571976)

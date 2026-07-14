@@ -285,7 +285,8 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
     def test_secret_wrapper_uses_typed_entrypoints_and_scrubbed_child_environment(self) -> None:
         source = SECRET_WRAPPER.read_text(encoding="utf-8")
         for operation in (
-            "readonly-precheck", "route-b-apply", "route-b-rollback", "admin-provision",
+            "readonly-precheck", "readonly-postcheck", "verify-route-b-role",
+            "route-b-apply", "route-b-rollback", "admin-provision",
             "diagnose-readonly", "diagnose-route-b", "diagnose-admin",
         ):
             self.assertIn(f"'{operation}'", source)
@@ -332,6 +333,8 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         )
         expected_by_operation = {
             "readonly-precheck": ["DB_URL_CODEX_RO"],
+            "readonly-postcheck": ["DB_URL_CODEX_RO"],
+            "verify-route-b-role": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "route-b-apply": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "route-b-rollback": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "admin-provision": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
@@ -356,6 +359,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             )
             for name in (
                 "precheck_kpione_route_b_018_read_only.py",
+                "verify_kpione_route_b_productive_role.py",
                 "run_kpione_route_b_ingestion_v1.py",
                 "provision_kpione_route_b_role.py",
                 "diagnose_stock_zero_db_credentials.py",

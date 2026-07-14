@@ -21,6 +21,7 @@
       "tests/test_017_route_b_runner.py",
       "tests/test_018_productive_readiness.py",
       "tests/test_019_database_credential_architecture.py",
+      "tests/test_020B_operational_evidence_tooling.py",
       "tests/test_ai_load_observation_contract.py",
       "tests/test_apply_cg005n_ddl.py",
       "tests/test_ci_quality_gates.py",
@@ -33,7 +34,8 @@
       "tests/test_sz_load_observation.py"
     ],
     "CI_POSTGRESQL": [
-      "tests/test_017_route_b_postgres_integration.py"
+      "tests/test_017_route_b_postgres_integration.py",
+      "tests/test_020B_operational_evidence_postgres.py"
     ],
     "LOCAL_SOURCE_INTEGRATION": [
       "tests/test_kpione2_photo_grain.py",
@@ -47,6 +49,7 @@
   },
   "reasons": {
     "tests/test_017_route_b_postgres_integration.py": "Requires an isolated PostgreSQL database and is safe only with DB_URL_CODEX_LOCAL pointing to loopback.",
+    "tests/test_020B_operational_evidence_postgres.py": "Requires isolated loopback PostgreSQL to prove the Gate 0 baseline, provisioning, role-verification rollback and postcheck evidence cycle.",
     "tests/test_kpione2_photo_grain.py": "Includes validation against ignored Route B source workbooks when they are present locally.",
     "tests/test_load_ruta_rutero_weekly_replace.py": "Includes hash-bound validation against an ignored authorized route workbook.",
     "tests/test_cg_route_weekly_local_lab.py": "Contains a machine-local CONTROL_GESTION PostgreSQL lab boundary and local loader integration mocks.",
