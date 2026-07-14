@@ -118,12 +118,15 @@ class Kpione016BIdentityIdempotencyContractTests(unittest.TestCase):
 
     def test_state_preserves_016b_authority_and_keeps_018_productive_gates_closed(self):
         self.assertEqual(self.state["executive_progress"]["operating_model"], "V2_1_ACTIVE")
-        self.assertEqual(self.state["current_work"]["unit"], "017")
-        self.assertEqual(self.state["current_work"]["status"], "RUNNER_AND_REHEARSAL_READY")
-        self.assertEqual(self.state["current_work"]["next_permitted_unit"], "018_PRODUCTIVE_APPLY")
-        self.assertEqual(self.state["current_work"]["next_unit_status"], "NOT_AUTHORIZED")
-        self.assertTrue(self.state["current_work"]["route_b_runner_implemented"])
-        self.assertTrue(self.state["current_work"]["local_postgresql_rehearsal_passed"])
+        self.assertEqual(self.state["current_work"]["unit"], "019")
+        self.assertEqual(
+            self.state["current_work"]["status"],
+            "CREDENTIAL_ARCHITECTURE_READY_PROVISIONING_PENDING",
+        )
+        self.assertEqual(self.state["current_work"]["next_operation_status"], "NOT_AUTHORIZED")
+        self.assertEqual(self.state["current_preparation"]["unit"], "018_PRODUCTIVE_APPLY")
+        self.assertFalse(self.state["current_preparation"]["activation_gate"]["gate_open"])
+        self.assertFalse(self.state["current_preparation"]["productive_apply_authorized"])
         self.assertTrue(self.state["authorization"]["016B_architecture_authorized"])
         self.assertTrue(self.state["authorization"]["017_authorized"])
         self.assertFalse(self.state["authorization"]["018_authorized"])

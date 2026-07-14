@@ -115,7 +115,8 @@ class FakeProductiveDatabase:
     def __init__(self, plan: dict[str, object]) -> None:
         self.plan = plan
         self.state: dict[str, object] = {
-            "objects_exist": False,
+            "objects_exist": True,
+            "signatures_match": True,
             "batches": {},
             "files": [],
             "staging": [],
@@ -237,6 +238,8 @@ class FakeProductiveDbCursor:
             if self.database.state["objects_exist"]:
                 expected = self.database.plan["physical_contract"]["object_signatures"]
                 self.rows = [(name, spec["relation_kind"]) for name, spec in sorted(expected.items())]
+                if not self.database.state["signatures_match"]:
+                    self.rows = self.rows[:-1]
         elif "from information_schema.columns" in normalized:
             expected = self.database.plan["physical_contract"]["object_signatures"]
             self.rows = [
@@ -596,6 +599,30 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         rendered = json.dumps(report)
         self.assertNotIn(dsn, rendered)
         self.assertNotIn("synthetic-test-password", rendered)
+        ddl_prefixes = ("create ", "alter ", "drop ", "grant ", "revoke ", "comment ")
+        self.assertFalse(any(command.startswith(ddl_prefixes) for command in database.commands))
+
+    def test_productive_apply_requires_preprovisioned_exact_objects(self) -> None:
+        for case in ("objects_missing", "signature_mismatch"):
+            with self.subTest(case=case):
+                plan, approved, dsn, git_guard = self.productive_unit_fixture()
+                database = FakeProductiveDatabase(plan)
+                if case == "objects_missing":
+                    database.state["objects_exist"] = False
+                else:
+                    database.state["signatures_match"] = False
+                with tempfile.TemporaryDirectory() as folder:
+                    with self.assertRaisesRegex(
+                        RouteBError, "route_b_object_set_or_kind_mismatch"
+                    ) as caught:
+                        run_productive_apply(
+                            plan, approved, dsn, Path(folder) / "evidence.json",
+                            git_guard=git_guard, root=ROOT, connect_fn=database.connect,
+                        )
+                self.assertTrue(caught.exception.connection_attempted)
+                self.assertFalse(caught.exception.writes_attempted)
+                self.assertFalse(caught.exception.committed)
+                self.assertEqual(database.state["batches"], {})
 
     def test_declared_boolean_and_legacy_postchecks_reject_failures(self) -> None:
         for case in ("event_view_false", "day_presence_false", "legacy_missing"):

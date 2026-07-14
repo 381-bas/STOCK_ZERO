@@ -6,11 +6,13 @@ import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 import psycopg
 
 from scripts.kpione_route_b_v1 import (
     ADVISORY_LOCK_KEY,
+    PLANNED_PRODUCTIVE_ROLE,
     RouteBError,
     apply_local,
     build_plan,
@@ -18,6 +20,11 @@ from scripts.kpione_route_b_v1 import (
     rollback_local,
     run_productive_apply,
     run_productive_rollback,
+)
+from scripts.provision_kpione_route_b_role import (
+    ProvisioningError,
+    _blocked_report,
+    provision_route_b_role,
 )
 from tests.test_017_route_b_runner import HEADERS, row, write_book
 
@@ -204,12 +211,30 @@ class RouteBPostgresRehearsal(unittest.TestCase):
 
     def test_productive_core_apply_postcheck_and_logical_rollback_on_local_postgres(self) -> None:
         with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (PLANNED_PRODUCTIVE_ROLE,))
+            if cursor.fetchone():
+                cursor.execute("DROP OWNED BY stock_zero_kpione_route_b_load")
+                cursor.execute("DROP ROLE stock_zero_kpione_route_b_load")
             cursor.execute("CREATE SCHEMA IF NOT EXISTS cg_raw")
+            cursor.execute("CREATE SCHEMA IF NOT EXISTS cg_core")
             cursor.execute(
                 "CREATE TABLE IF NOT EXISTS cg_raw.kpione2_raw (legacy_evidence_id bigint)"
             )
+            cursor.execute(
+                "INSERT INTO cg_raw.kpione2_raw(legacy_evidence_id) "
+                "SELECT 19 WHERE NOT EXISTS (SELECT 1 FROM cg_raw.kpione2_raw)"
+            )
             cursor.execute("SELECT current_user,current_database(),to_regclass('cg_raw.kpione2_raw')::text")
-            role, database, legacy_before = cursor.fetchone()
+            admin_role, database, legacy_before = cursor.fetchone()
+            cursor.execute("SELECT count(*) FROM cg_raw.kpione2_raw")
+            legacy_rows_before = cursor.fetchone()[0]
+            cursor.execute(
+                "SELECT n.nspname,COALESCE((SELECT string_agg(a.privilege_type,',' "
+                "ORDER BY a.privilege_type) FROM aclexplode(COALESCE(n.nspacl,"
+                "acldefault('n',n.nspowner))) a WHERE a.grantee=0),'') "
+                "FROM pg_namespace n WHERE n.nspname IN ('cg_raw','cg_core') ORDER BY n.nspname"
+            )
+            public_schema_privileges_before = cursor.fetchall()
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             write_book(root / "photo-excel-admin_productive_fixture.xlsx", [row()])
@@ -221,12 +246,10 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             plan["remaining_blockers"] = []
             plan["readonly_precheck"] = {"status": "PASSED", "evidence_sha256": "c" * 64}
             plan["target"].update({
-                "expected_supabase_project_ref": "local-test",
-                "expected_hostname": "db.local-test.supabase.co",
                 "expected_database": database,
-                "planned_productive_role": role,
+                "planned_productive_role": PLANNED_PRODUCTIVE_ROLE,
                 "productive_role_status": "PROVISIONED_AND_VERIFIED",
-                "allowed_productive_roles": [role],
+                "allowed_productive_roles": [PLANNED_PRODUCTIVE_ROLE],
             })
             plan["activation_gate"].update({
                 "productive_role_registered": True,
@@ -262,17 +285,53 @@ class RouteBPostgresRehearsal(unittest.TestCase):
                 "_workbooks": [workbook],
                 "_classified_rows": classified,
             }
-            password = "synthetic-test-password"
+            admin_password = "synthetic-admin-password"
+            role_password = "synthetic-role-password"
+            expected_hostname = plan["target"]["expected_hostname"]
+            synthetic_admin_dsn = (
+                "postgresql://" + f"{admin_role}:{admin_password}@" +
+                f"{expected_hostname}/{database}?sslmode=require"
+            )
             synthetic_dsn = (
-                "postgresql://" + f"{role}:{password}@" +
-                f"db.local-test.supabase.co/{database}?sslmode=require"
+                "postgresql://" + f"{PLANNED_PRODUCTIVE_ROLE}:{role_password}@" +
+                f"{expected_hostname}/{database}?sslmode=require"
             )
             git_guard = {
                 "approved_git_sha": "a" * 40,
                 "plan_path": PRODUCTIVE_PLAN.relative_to(Path(__file__).resolve().parents[1]).as_posix(),
                 "plan_sha256": "b" * 64,
+                "ddl_sha256": plan["physical_contract"]["sql_sha256"],
             }
-            connect_fn = lambda _dsn: psycopg.connect(DSN)
+            provision_report = provision_route_b_role(
+                plan, synthetic_admin_dsn, role_password, root / "provision.json",
+                root=Path(__file__).resolve().parents[1],
+                connect_fn=lambda _dsn: psycopg.connect(DSN),
+                expected_admin_username=admin_role,
+                git_guard=git_guard,
+            )
+            reprovision_report = provision_route_b_role(
+                plan, synthetic_admin_dsn, role_password, root / "reprovision.json",
+                root=Path(__file__).resolve().parents[1],
+                connect_fn=lambda _dsn: psycopg.connect(DSN),
+                expected_admin_username=admin_role,
+                git_guard=git_guard,
+            )
+            with patch(
+                "scripts.provision_kpione_route_b_role._write_provisioning_evidence",
+                side_effect=OSError("synthetic evidence failure"),
+            ), self.assertRaisesRegex(
+                ProvisioningError, "admin_provisioning_evidence_write_failed"
+            ) as evidence_context:
+                provision_route_b_role(
+                    plan, synthetic_admin_dsn, role_password, root / "failed-evidence.json",
+                    root=Path(__file__).resolve().parents[1],
+                    connect_fn=lambda _dsn: psycopg.connect(DSN),
+                    expected_admin_username=admin_role,
+                    git_guard=git_guard,
+                )
+            evidence_failure = evidence_context.exception
+            blocked_evidence_report = _blocked_report(evidence_failure)
+            connect_fn = lambda _dsn: psycopg.connect(DSN, user=PLANNED_PRODUCTIVE_ROLE)
             apply_report = run_productive_apply(
                 plan, approved, synthetic_dsn, root / "apply.json",
                 git_guard=git_guard, root=Path(__file__).resolve().parents[1],
@@ -282,11 +341,102 @@ class RouteBPostgresRehearsal(unittest.TestCase):
                 plan, approved, apply_report["batch_id"], synthetic_dsn,
                 root / "rollback.json", git_guard=git_guard, connect_fn=connect_fn,
             )
+
+            with psycopg.connect(DSN, user=PLANNED_PRODUCTIVE_ROLE) as role_connection:
+                with role_connection.cursor() as role_cursor:
+                    role_cursor.execute(
+                        "INSERT INTO cg_raw.kpione_raw_event_photo_staging_v1("
+                        "batch_id,source_file_sha256,source_sheet,source_row_number,"
+                        "source_row_identity,event_id,sp_item_id,source_payload,photo_row_hash,"
+                        "event_stable_hash,event_date,location_key,cliente_norm,"
+                        "duplicate_classification,conflict_classification) "
+                        "SELECT batch_id,source_file_sha256,source_sheet,source_row_number+100000,"
+                        "repeat('a',64),event_id||'-privilege-probe',sp_item_id,source_payload,"
+                        "repeat('b',64),repeat('c',64),event_date,location_key,cliente_norm,"
+                        "duplicate_classification,conflict_classification "
+                        "FROM cg_raw.kpione_raw_event_photo_staging_v1 LIMIT 1"
+                    )
+                    self.assertEqual(role_cursor.rowcount, 1)
+                role_connection.rollback()
+
+            denied_statements = (
+                "UPDATE cg_raw.kpione_raw_event_photo_staging_v1 SET cliente_norm=cliente_norm",
+                "DELETE FROM cg_raw.kpione_raw_event_photo_staging_v1",
+                "UPDATE cg_raw.kpione_raw_ingest_batch_file_v1 SET validation_status=validation_status",
+                "DELETE FROM cg_raw.kpione_raw_ingest_batch_file_v1",
+                "UPDATE cg_raw.kpione_raw_ingest_batch_v1 SET semantic_plan_hash=semantic_plan_hash",
+                "UPDATE cg_raw.kpione_raw_ingest_batch_v1 SET coverage_start=coverage_start",
+                "DELETE FROM cg_raw.kpione_raw_ingest_batch_v1",
+            )
+            for statement in denied_statements:
+                with self.subTest(statement=statement), psycopg.connect(
+                    DSN, user=PLANNED_PRODUCTIVE_ROLE
+                ) as denied_connection:
+                    with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                        denied_connection.execute(statement)
         with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
             cursor.execute("SELECT count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1")
             staging_after = cursor.fetchone()[0]
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
             legacy_after = cursor.fetchone()[0]
+            cursor.execute("SELECT count(*) FROM cg_raw.kpione2_raw")
+            legacy_rows_after = cursor.fetchone()[0]
+            cursor.execute(
+                "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,"
+                "rolbypassrls,rolconnlimit FROM pg_roles WHERE rolname=%s",
+                (PLANNED_PRODUCTIVE_ROLE,),
+            )
+            role_attributes = cursor.fetchone()
+            cursor.execute(
+                "SELECT has_schema_privilege(%s,'cg_raw','CREATE'),"
+                "has_table_privilege(%s,'cg_raw.kpione2_raw','SELECT'),"
+                "has_table_privilege(%s,'cg_raw.kpione_raw_ingest_batch_v1','SELECT,INSERT'),"
+                "has_column_privilege(%s,'cg_raw.kpione_raw_ingest_batch_v1','status','UPDATE'),"
+                "has_column_privilege(%s,'cg_raw.kpione_raw_ingest_batch_v1','semantic_plan_hash','UPDATE'),"
+                "has_table_privilege(%s,'cg_raw.kpione_raw_ingest_batch_v1','DELETE')",
+                (PLANNED_PRODUCTIVE_ROLE,) * 6,
+            )
+            (create_schema, legacy_select, route_b_select_insert, status_update,
+             hash_update, route_b_delete) = cursor.fetchone()
+            cursor.execute(
+                "SELECT n.nspname,COALESCE((SELECT string_agg(a.privilege_type,',' "
+                "ORDER BY a.privilege_type) FROM aclexplode(COALESCE(n.nspacl,"
+                "acldefault('n',n.nspowner))) a WHERE a.grantee=0),'') "
+                "FROM pg_namespace n WHERE n.nspname IN ('cg_raw','cg_core') ORDER BY n.nspname"
+            )
+            public_schema_privileges_after = cursor.fetchall()
+            cursor.execute(
+                "SELECT DISTINCT c.relowner::regrole::text FROM pg_class c "
+                "JOIN pg_namespace n ON n.oid=c.relnamespace "
+                "WHERE n.nspname||'.'||c.relname = ANY(%s)",
+                (plan["physical_contract"]["objects"],),
+            )
+            route_b_owners = {row[0] for row in cursor.fetchall()}
+        self.assertEqual(provision_report["verdict"], "PASS_ADMIN_PROVISIONING")
+        self.assertTrue(provision_report["role_created"])
+        self.assertEqual(reprovision_report["verdict"], "PASS_ADMIN_PROVISIONING")
+        self.assertFalse(reprovision_report["role_created"])
+        self.assertTrue(evidence_failure.committed)
+        self.assertTrue(evidence_failure.connection_attempted)
+        self.assertTrue(evidence_failure.writes_attempted)
+        self.assertEqual(evidence_failure.report["error"], "admin_provisioning_evidence_write_failed")
+        self.assertTrue(evidence_failure.report["rollback_or_reconciliation_required"])
+        for key in (
+            "approved_git_sha", "plan_sha256", "ddl_sha256", "target_fingerprint",
+            "planned_productive_role", "role_created", "legacy_object_unchanged",
+        ):
+            self.assertIn(key, evidence_failure.report)
+        rendered_failure = json.dumps(evidence_failure.report)
+        self.assertEqual(blocked_evidence_report["error"], "admin_provisioning_evidence_write_failed")
+        self.assertTrue(blocked_evidence_report["committed"])
+        self.assertTrue(blocked_evidence_report["rollback_or_reconciliation_required"])
+        self.assertEqual(blocked_evidence_report["approved_git_sha"], "a" * 40)
+        self.assertNotIn(synthetic_admin_dsn, rendered_failure)
+        self.assertNotIn(admin_password, rendered_failure)
+        self.assertNotIn(role_password, rendered_failure)
+        self.assertNotIn(synthetic_admin_dsn, json.dumps(provision_report))
+        self.assertNotIn(admin_password, json.dumps(provision_report))
+        self.assertNotIn(role_password, json.dumps(provision_report))
         self.assertEqual(apply_report["postcheck_verdict"], "PASS")
         self.assertEqual(rollback_report["postcheck_verdict"], "PASS")
         self.assertEqual(apply_report["postcheck"]["declared_failures"], [])
@@ -308,6 +458,16 @@ class RouteBPostgresRehearsal(unittest.TestCase):
         self.assertEqual(staging_after, 1)
         self.assertEqual(legacy_before, "cg_raw.kpione2_raw")
         self.assertEqual(legacy_after, legacy_before)
+        self.assertEqual(legacy_rows_after, legacy_rows_before)
+        self.assertEqual(role_attributes, (True, False, False, False, False, False, 5))
+        self.assertFalse(create_schema)
+        self.assertFalse(legacy_select)
+        self.assertTrue(route_b_select_insert)
+        self.assertTrue(status_update)
+        self.assertFalse(hash_update)
+        self.assertFalse(route_b_delete)
+        self.assertEqual(route_b_owners, {admin_role})
+        self.assertEqual(public_schema_privileges_after, public_schema_privileges_before)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,10 @@
       "worktree and index are clean",
       "approved plan is tracked at HEAD",
       "working-tree plan equals the plan blob at HEAD",
-      "plan SHA256 is recorded before connection"
+      "plan SHA256 is recorded before connection",
+      "Route B SQL is tracked at HEAD and its working-tree file equals the SQL blob at HEAD",
+      "LF-normalized SQL blob SHA256 equals physical_contract.sql_sha256",
+      "plan and SQL SHA256 values are recorded before secrets are read or a connection is attempted"
     ]
   },
   "runner_version": "017_ROUTE_B_V1",
@@ -102,6 +105,38 @@
       "cg_core.kpione_day_presence_v1": {"relation_kind":"v","columns":["fecha","location_key","cliente_norm","presence","event_count"]}
     }
   },
+  "admin_provisioning_contract": {
+    "status": "NOT_EXECUTED",
+    "tool": "scripts/provision_kpione_route_b_role.py",
+    "required_git_argument": "--expected-plan-git-ref <40-char-sha>",
+    "ddl_credential_env": "DB_URL_ADMIN",
+    "productive_role_password_env": "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD",
+    "confirmation": "STOCK_ZERO_019_PROVISION_ROUTE_B_ROLE",
+    "productive_runner_ddl_allowed": false,
+    "authority_precheck_before_secret_read": true,
+    "privilege_matrix": {
+      "cg_raw.kpione_raw_ingest_batch_v1": {
+        "table": ["SELECT", "INSERT"],
+        "column_update": ["status", "activated_at", "rolled_back_at"]
+      },
+      "cg_raw.kpione_raw_ingest_batch_file_v1": ["SELECT", "INSERT"],
+      "cg_raw.kpione_raw_event_photo_staging_v1": ["SELECT", "INSERT"],
+      "views": ["SELECT"],
+      "identity_sequence": ["USAGE"],
+      "schema": ["USAGE"],
+      "schema_create": false,
+      "public_privileges_modified": false
+    },
+    "secret_wrapper_operations": [
+      "readonly-precheck",
+      "route-b-apply",
+      "route-b-rollback",
+      "admin-provision",
+      "diagnose-readonly",
+      "diagnose-route-b",
+      "diagnose-admin"
+    ]
+  },
   "target": {
     "readonly_precheck_env": "DB_URL_CODEX_RO",
     "future_productive_env": "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
@@ -118,7 +153,7 @@
     "Validate approved plan Git reference, plan content, source hashes, schema and counts before connecting.",
     "Run the separately authorized read-only precheck and accept only an exact target and role match.",
     "Begin one read-write transaction and acquire the KPIONE_ROUTE_B_V1 transaction advisory lock.",
-    "Apply the committed SQL contract idempotently and verify object signatures.",
+    "Require the admin-provisioned Route B objects and verify exact signatures without executing DDL.",
     "Register batch and all selected files, stage immutable rows, and run conflict gates.",
     "Activate only after every planned hash and expected count matches.",
     "Commit once, then run read-only postchecks into the approved evidence path."
@@ -171,7 +206,7 @@
     "Estimated counts differ materially or rollback cannot be demonstrated."
   ],
   "evidence_fields": [
-    "document_type","operation","execution_uuid","timestamp_utc","approved_git_sha","plan_path","plan_sha256","sql_sha256","target_fingerprint","current_user","session_user","source_hashes","batch_id","expected_counts","observed_counts","transaction_outcome","committed","postcheck_verdict","rollback_readiness","downstream_use_allowed","connection_attempted","writes_attempted"
+    "document_type","operation","execution_uuid","timestamp_utc","approved_git_sha","plan_path","plan_sha256","sql_sha256","target_fingerprint","current_user","session_user","source_hashes","batch_id","expected_counts","observed_counts","transaction_outcome","committed","postcheck_verdict","rollback_readiness","rollback_or_reconciliation_required","downstream_use_allowed","connection_attempted","writes_attempted"
   ],
   "productive_rollback_authorized": false,
   "productive_apply_authorized": false

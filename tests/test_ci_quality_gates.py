@@ -20,8 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "repository-quality.yml"
 STATE = ROOT / "governance" / "kernel" / "current" / "02_project_state_stock_zero_v2026_06_30_011.json"
 PROTECTED = {
-    "01_project_kernel_stock_zero_v2026_06_16.json": "67fc0036733ebc6293552ce080c1903e051c7280e488518b326c745517157123",
-    "02_project_state_stock_zero_v2026_06_30_011.json": "bb3b14d20228b4d6edfb6922435f000bbbd3eb71192e193d0d8ab6ebce17c68f",
+    "01_project_kernel_stock_zero_v2026_06_16.json": "324741809e920b12ed8a34b35996014cae95af5968512c6042c362dbbfca5b92",
+    "02_project_state_stock_zero_v2026_06_30_011.json": "29b522bd15f8e1d86b51059edff80401bb8d01c8fcf1b6aee66631236702b903",
     "03_project_ledger_stock_zero_v2026_06_30_011.json": "c54b6d63d871ebcbb9d3a8c3131cabeb4cf15da5c063907ccee19669b1fd6bbc",
 }
 
@@ -82,7 +82,7 @@ class CIQualityGateTests(unittest.TestCase):
         self.assertEqual(sum(map(len, groups.values())), len(list((ROOT / "tests").glob("test_*.py"))))
         self.assertIn("tests/test_ci_quality_gates.py", groups["CI_CORE"])
         self.assertEqual({category: len(modules) for category, modules in groups.items()}, {
-            "CI_CORE": 21,
+            "CI_CORE": 22,
             "CI_POSTGRESQL": 1,
             "LOCAL_SOURCE_INTEGRATION": 2,
             "LOCAL_ENVIRONMENT": 2,
