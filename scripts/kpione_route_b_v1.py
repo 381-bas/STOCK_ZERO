@@ -180,14 +180,22 @@ def load_approved_productive_plan(path: Path) -> dict[str, Any]:
 
 
 def validate_productive_role_contract(plan: dict[str, Any]) -> str:
-    role = plan.get("target", {}).get("planned_productive_role")
+    target = plan.get("target", {})
+    activation = plan.get("activation_gate", {})
+    role = target.get("planned_productive_role")
     assert_postgresql_identifier(str(role or ""))
     if role != PLANNED_PRODUCTIVE_ROLE:
         raise RouteBError("planned_productive_role_mismatch")
-    if plan.get("target", {}).get("productive_role_status") != "PLANNED_NOT_PROVISIONED":
-        raise RouteBError("productive_role_status_mismatch")
-    if plan.get("target", {}).get("allowed_productive_roles") != []:
-        raise RouteBError("productive_role_must_not_be_allowed_before_precheck")
+    state = (
+        target.get("productive_role_status"),
+        target.get("allowed_productive_roles"),
+        activation.get("productive_role_registered"),
+        activation.get("gate_open"),
+    )
+    preparation_state = ("PLANNED_NOT_PROVISIONED", [], False, False)
+    execution_state = ("PROVISIONED_AND_VERIFIED", [PLANNED_PRODUCTIVE_ROLE], True, True)
+    if state != preparation_state and state != execution_state:
+        raise RouteBError("productive_role_gate_state_mismatch")
     return role
 
 

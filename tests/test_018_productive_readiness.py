@@ -18,6 +18,7 @@ from scripts.kpione_route_b_v1 import (
     classify_global_photo_duplicates,
     inspect_workbook,
     productive_blocked_report,
+    require_productive_gate_open,
     run_productive_apply,
     run_productive_rollback,
     semantic_content_hash,
@@ -343,6 +344,66 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertEqual(target["productive_role_status"], "PLANNED_NOT_PROVISIONED")
         self.assertEqual(target["allowed_productive_roles"], [])
         self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+
+    def test_productive_role_gate_state_machine_and_mode_authorization(self) -> None:
+        self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+        closed_report = productive_blocked_report(self.plan, "apply_productive")
+        self.assertFalse(closed_report["dsn_read"])
+        self.assertFalse(closed_report["connection_attempted"])
+
+        execution = copy.deepcopy(self.plan)
+        execution["target"]["productive_role_status"] = "PROVISIONED_AND_VERIFIED"
+        execution["target"]["allowed_productive_roles"] = [PLANNED_PRODUCTIVE_ROLE]
+        execution["activation_gate"]["productive_role_registered"] = True
+        execution["activation_gate"]["gate_open"] = True
+        execution["productive_apply_authorized"] = True
+        self.assertEqual(validate_productive_role_contract(execution), PLANNED_PRODUCTIVE_ROLE)
+        require_productive_gate_open(execution, "apply_productive")
+
+        execution["productive_apply_authorized"] = False
+        execution["productive_rollback_authorized"] = True
+        require_productive_gate_open(execution, "rollback_productive")
+
+        hybrids = []
+        for mutation in (
+            lambda plan: plan["target"].update({"allowed_productive_roles": [PLANNED_PRODUCTIVE_ROLE]}),
+            lambda plan: plan["target"].update({"productive_role_status": "PROVISIONED_AND_VERIFIED"}),
+            lambda plan: plan["activation_gate"].update({"gate_open": True}),
+            lambda plan: plan["activation_gate"].update({"productive_role_registered": True}),
+            lambda plan: plan["target"].update({
+                "productive_role_status": "PROVISIONED_AND_VERIFIED",
+                "allowed_productive_roles": [],
+            }),
+            lambda plan: plan["target"].update({
+                "productive_role_status": "PROVISIONED_AND_VERIFIED",
+                "allowed_productive_roles": [PLANNED_PRODUCTIVE_ROLE, "second_role"],
+            }),
+        ):
+            hybrid = copy.deepcopy(self.plan)
+            mutation(hybrid)
+            hybrids.append(hybrid)
+        for index, hybrid in enumerate(hybrids):
+            with self.subTest(hybrid=index), self.assertRaisesRegex(
+                RouteBError, "productive_role_gate_state_mismatch"
+            ):
+                validate_productive_role_contract(hybrid)
+
+        unauthorized = copy.deepcopy(execution)
+        unauthorized["productive_apply_authorized"] = False
+        unauthorized["productive_rollback_authorized"] = False
+        with self.assertRaisesRegex(RouteBError, "productive_apply_not_authorized"):
+            require_productive_gate_open(unauthorized, "apply_productive")
+        with self.assertRaisesRegex(RouteBError, "productive_rollback_not_authorized"):
+            require_productive_gate_open(unauthorized, "rollback_productive")
+
+        wrong_role = copy.deepcopy(execution)
+        wrong_role["target"]["planned_productive_role"] = "different_productive_role"
+        wrong_role["target"]["allowed_productive_roles"] = ["different_productive_role"]
+        with self.assertRaisesRegex(RouteBError, "planned_productive_role_mismatch") as caught:
+            validate_productive_role_contract(wrong_role)
+        rendered = str(caught.exception)
+        self.assertNotIn("postgresql://", rendered)
+        self.assertNotIn("synthetic-test-password", rendered)
 
     def test_registered_target_identity_is_exact(self) -> None:
         target = self.plan["target"]
