@@ -4,9 +4,11 @@ import argparse
 import hashlib
 import json
 import os
+import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 from urllib.parse import parse_qs, urlparse
 
 from psycopg import sql
@@ -53,11 +55,108 @@ ROUTE_B_OBJECTS = {
 
 class ProvisioningError(RuntimeError):
     def __init__(self, identifier: str, *, connection_attempted: bool = False,
-                 writes_attempted: bool = False, committed: bool = False) -> None:
+                 writes_attempted: bool = False, committed: bool = False,
+                 report: dict[str, Any] | None = None) -> None:
         super().__init__(identifier)
         self.connection_attempted = connection_attempted
         self.writes_attempted = writes_attempted
         self.committed = committed
+        self.report = report or {}
+
+
+def _run_git(root: Path, *args: str, text: bool = True) -> subprocess.CompletedProcess[Any]:
+    return subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, text=text, check=False,
+    )
+
+
+def _repository_relative(path: Path, root: Path, error: str) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve(strict=True)).as_posix()
+    except ValueError as exc:
+        raise ProvisioningError(error) from exc
+
+
+def _head_blob(root: Path, relative_path: str, *, label: str) -> bytes:
+    tracked = _run_git(root, "cat-file", "-e", f"HEAD:{relative_path}")
+    if tracked.returncode != 0:
+        raise ProvisioningError(f"{label}_not_tracked_at_head")
+    result = _run_git(root, "show", f"HEAD:{relative_path}", text=False)
+    if result.returncode != 0:
+        raise ProvisioningError(f"{label}_blob_unavailable")
+    return result.stdout
+
+
+def _sha256_lf_bytes(value: bytes) -> str:
+    return hashlib.sha256(value.replace(b"\r\n", b"\n")).hexdigest()
+
+
+def _lf_normalized_bytes(value: bytes) -> bytes:
+    return value.replace(b"\r\n", b"\n")
+
+
+def _validate_admin_plan_git_guard(
+    plan_path: Path,
+    expected_git_ref: str,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    if not expected_git_ref or not re.fullmatch(r"[0-9a-f]{40}", expected_git_ref):
+        raise ProvisioningError("expected_plan_git_ref_required")
+    head_result = _run_git(root, "rev-parse", "HEAD")
+    if head_result.returncode != 0:
+        raise ProvisioningError("repository_head_unavailable")
+    head = head_result.stdout.strip()
+    if head != expected_git_ref:
+        raise ProvisioningError("repository_head_mismatch")
+
+    unstaged = _run_git(root, "diff", "--quiet")
+    untracked = _run_git(root, "ls-files", "--others", "--exclude-standard")
+    if unstaged.returncode not in {0, 1} or untracked.returncode != 0:
+        raise ProvisioningError("repository_worktree_status_unavailable")
+    if unstaged.returncode == 1 or untracked.stdout.strip():
+        raise ProvisioningError("repository_worktree_not_clean")
+    staged = _run_git(root, "diff", "--cached", "--quiet")
+    if staged.returncode not in {0, 1}:
+        raise ProvisioningError("repository_index_status_unavailable")
+    if staged.returncode == 1:
+        raise ProvisioningError("repository_index_not_clean")
+
+    plan_path = plan_path if plan_path.is_absolute() else root / plan_path
+    plan_relative = _repository_relative(plan_path, root, "approved_plan_outside_repository")
+    plan_blob = _head_blob(root, plan_relative, label="approved_plan")
+    if (not plan_path.is_file()
+            or _lf_normalized_bytes(plan_path.read_bytes()) != _lf_normalized_bytes(plan_blob)):
+        raise ProvisioningError("approved_plan_worktree_blob_mismatch")
+    return {
+        "approved_git_sha": head,
+        "plan_path": plan_relative,
+        "plan_sha256": hashlib.sha256(plan_blob).hexdigest(),
+        "_plan_blob": plan_blob,
+    }
+
+
+def _validate_admin_sql_blob_guard(authority: dict[str, Any], root: Path) -> dict[str, Any]:
+    ddl_path = root / ROUTE_B_SQL_FILE
+    ddl_relative = _repository_relative(ddl_path, root, "ddl_path_outside_repository")
+    ddl_blob = _head_blob(root, ddl_relative, label="route_b_sql")
+    if (not ddl_path.is_file()
+            or _lf_normalized_bytes(ddl_path.read_bytes()) != _lf_normalized_bytes(ddl_blob)):
+        raise ProvisioningError("route_b_sql_worktree_blob_mismatch")
+    return {
+        **authority,
+        "ddl_path": ddl_relative,
+        "ddl_sha256": _sha256_lf_bytes(ddl_blob),
+        "_ddl_blob": ddl_blob,
+    }
+
+
+def validate_admin_git_guard(
+    plan_path: Path,
+    expected_git_ref: str,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    authority = _validate_admin_plan_git_guard(plan_path, expected_git_ref, root)
+    return _validate_admin_sql_blob_guard(authority, root)
 
 
 def validate_admin_dsn_target(
@@ -131,8 +230,8 @@ def _connect(dsn: str, connect_fn: Callable[[str], Any] | None) -> Any:
     return connect_fn(dsn)
 
 
-def _load_plan(path: Path) -> dict[str, Any]:
-    plan = json.loads(path.read_text(encoding="utf-8"))
+def _load_plan_blob(value: bytes) -> dict[str, Any]:
+    plan = json.loads(value.decode("utf-8"))
     if plan.get("document_type") != "kpione_route_b_productive_apply_plan":
         raise ProvisioningError("invalid_productive_plan_type")
     return plan
@@ -170,14 +269,23 @@ def provision_route_b_role(
     root: Path = ROOT,
     connect_fn: Callable[[str], Any] | None = None,
     expected_admin_username: str = EXPECTED_ADMIN_ROLE,
+    git_guard: Mapping[str, str],
+    ddl: str | None = None,
 ) -> dict[str, Any]:
     validate_provisioning_plan(plan)
+    if not git_guard.get("approved_git_sha") or not git_guard.get("plan_sha256"):
+        raise ProvisioningError("admin_git_guard_required")
     target = validate_admin_dsn_target(
         dsn, plan, expected_admin_username=expected_admin_username,
     )
     if not role_password or len(role_password) < 16:
         raise ProvisioningError("productive_role_password_invalid")
-    ddl, ddl_sha256 = _load_ddl(plan, root)
+    if ddl is None:
+        ddl, ddl_sha256 = _load_ddl(plan, root)
+    else:
+        ddl_sha256 = git_guard.get("ddl_sha256", "")
+        if ddl_sha256 != plan["physical_contract"]["sql_sha256"]:
+            raise ProvisioningError("sql_sha256_mismatch")
     connection: Any | None = None
     writes_attempted = False
     committed = False
@@ -248,7 +356,6 @@ def provision_route_b_role(
                 )
             )
 
-            cursor.execute("REVOKE CREATE ON SCHEMA cg_raw,cg_core FROM PUBLIC")
             cursor.execute(
                 sql.SQL("REVOKE CREATE ON SCHEMA cg_raw,cg_core FROM {}").format(
                     sql.Identifier(PLANNED_PRODUCTIVE_ROLE)
@@ -261,16 +368,30 @@ def provision_route_b_role(
             )
             for name in tables + views:
                 identifier = _qualified_identifier(name)
-                cursor.execute(sql.SQL("REVOKE ALL PRIVILEGES ON TABLE {} FROM PUBLIC").format(identifier))
                 cursor.execute(
                     sql.SQL("REVOKE ALL PRIVILEGES ON TABLE {} FROM {}").format(
                         identifier, sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
                     )
                 )
-            for name in tables:
+            role_identifier = sql.Identifier(PLANNED_PRODUCTIVE_ROLE)
+            batch_identifier = _qualified_identifier("cg_raw.kpione_raw_ingest_batch_v1")
+            cursor.execute(
+                sql.SQL("GRANT SELECT,INSERT ON TABLE {} TO {}").format(
+                    batch_identifier, role_identifier,
+                )
+            )
+            cursor.execute(
+                sql.SQL("GRANT UPDATE(status,activated_at,rolled_back_at) ON TABLE {} TO {}").format(
+                    batch_identifier, role_identifier,
+                )
+            )
+            for name in (
+                "cg_raw.kpione_raw_ingest_batch_file_v1",
+                "cg_raw.kpione_raw_event_photo_staging_v1",
+            ):
                 cursor.execute(
-                    sql.SQL("GRANT SELECT,INSERT,UPDATE ON TABLE {} TO {}").format(
-                        _qualified_identifier(name), sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
+                    sql.SQL("GRANT SELECT,INSERT ON TABLE {} TO {}").format(
+                        _qualified_identifier(name), role_identifier,
                     )
                 )
             for name in views:
@@ -280,14 +401,13 @@ def provision_route_b_role(
                     )
                 )
             sequence_identifier = _qualified_identifier(sequence_name)
-            cursor.execute(sql.SQL("REVOKE ALL PRIVILEGES ON SEQUENCE {} FROM PUBLIC").format(sequence_identifier))
             cursor.execute(
                 sql.SQL("REVOKE ALL PRIVILEGES ON SEQUENCE {} FROM {}").format(
                     sequence_identifier, sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
                 )
             )
             cursor.execute(
-                sql.SQL("GRANT USAGE,SELECT ON SEQUENCE {} TO {}").format(
+                sql.SQL("GRANT USAGE ON SEQUENCE {} TO {}").format(
                     sequence_identifier, sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
                 )
             )
@@ -334,6 +454,8 @@ def provision_route_b_role(
             f"{target['hostname']}|{target['database']}|{target['username']}".encode("utf-8")
         ).hexdigest(),
         "planned_productive_role": PLANNED_PRODUCTIVE_ROLE,
+        "approved_git_sha": git_guard["approved_git_sha"],
+        "plan_sha256": git_guard["plan_sha256"],
         "role_created": role_created,
         "role_attributes": {
             "login": True,
@@ -353,55 +475,126 @@ def provision_route_b_role(
         "connection_attempted": True,
         "writes_attempted": True,
         "committed": True,
+        "rollback_or_reconciliation_required": False,
     }
+    try:
+        _write_provisioning_evidence(evidence_json, report)
+    except OSError:
+        failure_report = dict(report)
+        failure_report.update({
+            "verdict": "BLOCKED",
+            "error": "admin_provisioning_evidence_write_failed",
+            "rollback_or_reconciliation_required": True,
+        })
+        raise ProvisioningError(
+            "admin_provisioning_evidence_write_failed",
+            connection_attempted=True,
+            writes_attempted=True,
+            committed=True,
+            report=failure_report,
+        ) from None
+    return report
+
+
+def _write_provisioning_evidence(evidence_json: Path, report: dict[str, Any]) -> None:
     evidence_json.write_text(
         json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    return report
 
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Provision the restricted KPIONE Route B role")
     result.add_argument("--plan", type=Path, default=DEFAULT_PLAN)
+    result.add_argument("--expected-plan-git-ref", required=True)
     result.add_argument("--db-url-env", required=True)
     result.add_argument("--expected-project-ref", required=True)
     result.add_argument("--confirm", required=True)
     result.add_argument("--evidence-json", type=Path, required=True)
+    result.add_argument("--authority-precheck-only", action="store_true")
     return result
+
+
+def _prepare_admin_operation(args: argparse.Namespace, root: Path = ROOT) -> tuple[dict[str, Any], str, dict[str, str]]:
+    if args.db_url_env != ADMIN_DB_ENV:
+        raise ProvisioningError("admin_db_url_env_required")
+    authority = _validate_admin_plan_git_guard(args.plan, args.expected_plan_git_ref, root)
+    plan = _load_plan_blob(authority["_plan_blob"])
+    validate_provisioning_plan(plan)
+    if args.expected_project_ref != EXPECTED_PRODUCTIVE_PROJECT_REF:
+        raise ProvisioningError("admin_expected_project_ref_mismatch")
+    authority = _validate_admin_sql_blob_guard(authority, root)
+    if authority["ddl_path"] != plan["physical_contract"]["sql_file"]:
+        raise ProvisioningError("route_b_sql_file_mismatch")
+    if authority["ddl_sha256"] != plan["physical_contract"]["sql_sha256"]:
+        raise ProvisioningError("sql_sha256_mismatch")
+    ddl = authority["_ddl_blob"].decode("utf-8")
+    if not args.evidence_json.parent.is_dir():
+        raise ProvisioningError("provisioning_evidence_parent_missing")
+    if args.confirm != PROVISION_CONFIRM_TOKEN:
+        raise ProvisioningError("admin_provision_confirmation_required")
+    public_guard = {
+        key: value for key, value in authority.items() if not key.startswith("_")
+    }
+    return plan, ddl, public_guard
+
+
+def execute_cli(
+    args: argparse.Namespace,
+    *,
+    environ: Mapping[str, str] = os.environ,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    plan, ddl, git_guard = _prepare_admin_operation(args, root)
+    if args.authority_precheck_only:
+        return {
+            "verdict": "PASS_ADMIN_AUTHORITY_PRECHECK",
+            "credential_class": "admin-provisioning",
+            **git_guard,
+            "connection_attempted": False,
+            "writes_attempted": False,
+            "committed": False,
+        }
+    dsn = environ.get(ADMIN_DB_ENV)
+    role_password = environ.get(PRODUCTIVE_ROLE_PASSWORD_ENV)
+    if not dsn:
+        raise ProvisioningError("admin_dsn_missing")
+    if not role_password:
+        raise ProvisioningError("productive_role_password_missing")
+    return provision_route_b_role(
+        plan, dsn, role_password, args.evidence_json,
+        root=root, git_guard=git_guard, ddl=ddl,
+    )
+
+
+def _blocked_report(exc: BaseException) -> dict[str, Any]:
+    report = {
+        "verdict": "BLOCKED",
+        "error": str(exc),
+        "credential_class": "admin-provisioning",
+        "connection_attempted": getattr(exc, "connection_attempted", False),
+        "writes_attempted": getattr(exc, "writes_attempted", False),
+        "committed": getattr(exc, "committed", False),
+    }
+    safe_fields = {
+        "approved_git_sha", "plan_sha256", "ddl_sha256", "target_fingerprint",
+        "planned_productive_role", "role_created", "committed",
+        "legacy_object_unchanged", "rollback_or_reconciliation_required",
+    }
+    report.update({
+        key: value for key, value in getattr(exc, "report", {}).items()
+        if key in safe_fields
+    })
+    return report
 
 
 def main() -> int:
     args = parser().parse_args()
     try:
-        if args.db_url_env != ADMIN_DB_ENV:
-            raise ProvisioningError("admin_db_url_env_required")
-        if args.expected_project_ref != EXPECTED_PRODUCTIVE_PROJECT_REF:
-            raise ProvisioningError("admin_expected_project_ref_mismatch")
-        if args.confirm != PROVISION_CONFIRM_TOKEN:
-            raise ProvisioningError("admin_provision_confirmation_required")
-        if not args.evidence_json.parent.is_dir():
-            raise ProvisioningError("provisioning_evidence_parent_missing")
-        dsn = os.environ.get(ADMIN_DB_ENV)
-        role_password = os.environ.get(PRODUCTIVE_ROLE_PASSWORD_ENV)
-        if not dsn:
-            raise ProvisioningError("admin_dsn_missing")
-        if not role_password:
-            raise ProvisioningError("productive_role_password_missing")
-        plan = _load_plan(args.plan)
-        report = provision_route_b_role(plan, dsn, role_password, args.evidence_json)
-        print(json.dumps(report, sort_keys=True))
+        print(json.dumps(execute_cli(args), sort_keys=True))
         return 0
     except (ProvisioningError, OSError, ValueError) as exc:
-        report = {
-            "verdict": "BLOCKED",
-            "error": str(exc),
-            "credential_class": "admin-provisioning",
-            "connection_attempted": getattr(exc, "connection_attempted", False),
-            "writes_attempted": getattr(exc, "writes_attempted", False),
-            "committed": getattr(exc, "committed", False),
-        }
-        print(json.dumps(report, sort_keys=True))
+        print(json.dumps(_blocked_report(exc), sort_keys=True))
         return 2
 
 

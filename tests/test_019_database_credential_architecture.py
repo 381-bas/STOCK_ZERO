@@ -1,20 +1,27 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import inspect
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from scripts.diagnose_stock_zero_db_credentials import diagnose
 from scripts.kpione_route_b_v1 import run_productive_apply
 from scripts.provision_kpione_route_b_role import (
     EXPECTED_ADMIN_ROLE,
     PLANNED_PRODUCTIVE_ROLE,
+    PROVISION_CONFIRM_TOKEN,
     ProvisioningError,
+    execute_cli,
+    validate_admin_git_guard,
     validate_admin_dsn_target,
     validate_provisioning_plan,
 )
@@ -28,6 +35,30 @@ PRODUCTIVE_RUNNER = ROOT / "scripts" / "run_kpione_route_b_ingestion_v1.py"
 PROVISIONER = ROOT / "scripts" / "provision_kpione_route_b_role.py"
 SECRET_WRAPPER = ROOT / "scripts" / "invoke_stock_zero_db_operation.ps1"
 DIAGNOSTIC = ROOT / "scripts" / "diagnose_stock_zero_db_credentials.py"
+
+
+def run_git(root: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, text=True, check=True,
+    )
+    return completed.stdout.strip()
+
+
+def make_authority_repository(root: Path) -> tuple[Path, Path, str]:
+    plan_path = root / "plans" / PLAN.name
+    sql_path = root / "sql" / "17_kpione_route_b_ingestion_v1.sql"
+    plan_path.parent.mkdir(parents=True)
+    sql_path.parent.mkdir(parents=True)
+    sql_path.write_bytes(b"SELECT 17;\n")
+    plan = {"physical_contract": {"sql_file": "sql/17_kpione_route_b_ingestion_v1.sql"}}
+    plan["physical_contract"]["sql_sha256"] = hashlib.sha256(sql_path.read_bytes()).hexdigest()
+    plan_path.write_bytes((json.dumps(plan, indent=2) + "\n").encode("utf-8"))
+    run_git(root, "init", "--quiet")
+    run_git(root, "config", "user.email", "stock-zero-tests@example.invalid")
+    run_git(root, "config", "user.name", "STOCK_ZERO Tests")
+    run_git(root, "add", "plans", "sql")
+    run_git(root, "commit", "--quiet", "-m", "authority fixture")
+    return plan_path, sql_path, run_git(root, "rev-parse", "HEAD")
 
 
 def synthetic_dsn(username: str, *, hostname: str = "db.xheyrgfagpoigpgakilu.supabase.co") -> tuple[str, str]:
@@ -134,18 +165,130 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             "NOREPLICATION", "NOBYPASSRLS", "CONNECTION LIMIT",
         ):
             self.assertIn(token, source)
-        self.assertIn("GRANT SELECT,INSERT,UPDATE ON TABLE", source)
-        self.assertIn("GRANT USAGE,SELECT ON SEQUENCE", source)
+        self.assertIn("GRANT SELECT,INSERT ON TABLE", source)
+        self.assertIn("GRANT UPDATE(status,activated_at,rolled_back_at) ON TABLE", source)
+        self.assertIn("GRANT USAGE ON SEQUENCE", source)
+        self.assertNotIn("GRANT USAGE,SELECT ON SEQUENCE", source)
+        self.assertNotIn("FROM PUBLIC", source)
         self.assertIn("REVOKE CREATE ON SCHEMA", source)
         self.assertNotIn("GRANT ALL", source.upper())
         legacy_lines = [line for line in source.splitlines() if "kpione2_raw" in line]
         self.assertTrue(legacy_lines)
         self.assertTrue(all("SELECT to_regclass" in line for line in legacy_lines))
 
-    def test_secret_wrapper_uses_child_environment_only_and_prints_no_values(self) -> None:
+    def test_admin_git_guard_accepts_only_exact_clean_head_plan_and_sql_blobs(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            plan_path, sql_path, head = make_authority_repository(root)
+            guard = validate_admin_git_guard(plan_path, head, root)
+            self.assertEqual(guard["approved_git_sha"], head)
+            self.assertEqual(guard["plan_path"], f"plans/{PLAN.name}")
+            self.assertEqual(guard["ddl_path"], "sql/17_kpione_route_b_ingestion_v1.sql")
+            self.assertEqual(guard["ddl_sha256"], hashlib.sha256(b"SELECT 17;\n").hexdigest())
+            with self.assertRaisesRegex(ProvisioningError, "repository_head_mismatch"):
+                validate_admin_git_guard(plan_path, "0" * 40, root)
+
+            marker = root / "tracked.txt"
+            marker.write_text("clean\n", encoding="utf-8")
+            run_git(root, "add", "tracked.txt")
+            run_git(root, "commit", "--quiet", "-m", "tracked marker")
+            head = run_git(root, "rev-parse", "HEAD")
+            marker.write_text("dirty\n", encoding="utf-8")
+            with self.assertRaisesRegex(ProvisioningError, "repository_worktree_not_clean"):
+                validate_admin_git_guard(plan_path, head, root)
+            marker.write_text("clean\n", encoding="utf-8")
+            marker.write_text("staged\n", encoding="utf-8")
+            run_git(root, "add", "tracked.txt")
+            with self.assertRaisesRegex(ProvisioningError, "repository_index_not_clean"):
+                validate_admin_git_guard(plan_path, head, root)
+
+    def test_admin_git_guard_rejects_untracked_or_blob_divergent_authority(self) -> None:
+        for case in ("plan_missing", "plan_local", "sql_local", "plan_and_sql"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                plan_path, sql_path, head = make_authority_repository(root)
+                if case == "plan_missing":
+                    plan_path.unlink()
+                    run_git(root, "add", "plans")
+                    run_git(root, "commit", "--quiet", "-m", "remove plan")
+                    head = run_git(root, "rev-parse", "HEAD")
+                    expected_error = "approved_plan_not_tracked_at_head"
+                else:
+                    changed = [plan_path] if case == "plan_local" else [sql_path]
+                    if case == "plan_and_sql":
+                        changed = [plan_path, sql_path]
+                    for path in changed:
+                        run_git(root, "update-index", "--assume-unchanged", path.relative_to(root).as_posix())
+                    if sql_path in changed:
+                        sql_path.write_text("SELECT 19;\n", encoding="utf-8")
+                    if plan_path in changed:
+                        altered = json.loads(plan_path.read_text(encoding="utf-8"))
+                        altered["physical_contract"]["sql_sha256"] = "f" * 64
+                        plan_path.write_text(json.dumps(altered, indent=2) + "\n", encoding="utf-8")
+                    expected_error = (
+                        "approved_plan_worktree_blob_mismatch"
+                        if plan_path in changed else "route_b_sql_worktree_blob_mismatch"
+                    )
+                with self.assertRaisesRegex(ProvisioningError, expected_error):
+                    validate_admin_git_guard(plan_path, head, root)
+
+    def test_invalid_git_authority_does_not_read_secret_environment(self) -> None:
+        class NoSecretReads(dict[str, str]):
+            def get(self, key: str, default: str | None = None) -> str | None:
+                raise AssertionError(f"secret read before authority completed: {key}")
+
+        args = SimpleNamespace(
+            plan=PLAN,
+            expected_plan_git_ref="0" * 40,
+            db_url_env="DB_URL_ADMIN",
+            expected_project_ref="xheyrgfagpoigpgakilu",
+            confirm=PROVISION_CONFIRM_TOKEN,
+            evidence_json=Path(tempfile.gettempdir()) / "never-written.json",
+            authority_precheck_only=False,
+        )
+        with self.assertRaisesRegex(ProvisioningError, "repository_head_mismatch"):
+            execute_cli(args, environ=NoSecretReads(), root=ROOT)
+
+    def test_complete_authority_precheck_reads_no_secret_environment(self) -> None:
+        class NoSecretReads(dict[str, str]):
+            def get(self, key: str, default: str | None = None) -> str | None:
+                raise AssertionError(f"authority-only precheck read a secret: {key}")
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            plan_path = root / "plans" / PLAN.name
+            sql_path = root / "sql" / "17_kpione_route_b_ingestion_v1.sql"
+            plan_path.parent.mkdir(parents=True)
+            sql_path.parent.mkdir(parents=True)
+            plan_path.write_bytes(PLAN.read_bytes())
+            sql_path.write_bytes((ROOT / "sql" / sql_path.name).read_bytes())
+            run_git(root, "init", "--quiet")
+            run_git(root, "config", "user.email", "stock-zero-tests@example.invalid")
+            run_git(root, "config", "user.name", "STOCK_ZERO Tests")
+            run_git(root, "add", "plans", "sql")
+            run_git(root, "commit", "--quiet", "-m", "full authority fixture")
+            head = run_git(root, "rev-parse", "HEAD")
+            args = SimpleNamespace(
+                plan=plan_path,
+                expected_plan_git_ref=head,
+                db_url_env="DB_URL_ADMIN",
+                expected_project_ref="xheyrgfagpoigpgakilu",
+                confirm=PROVISION_CONFIRM_TOKEN,
+                evidence_json=root / "evidence.json",
+                authority_precheck_only=True,
+            )
+            report = execute_cli(args, environ=NoSecretReads(), root=root)
+            self.assertEqual(report["verdict"], "PASS_ADMIN_AUTHORITY_PRECHECK")
+            self.assertEqual(report["approved_git_sha"], head)
+            self.assertFalse(report["connection_attempted"])
+
+    def test_secret_wrapper_uses_typed_entrypoints_and_scrubbed_child_environment(self) -> None:
         source = SECRET_WRAPPER.read_text(encoding="utf-8")
-        for profile in ("readonly", "route-b-productive", "admin-provisioning"):
-            self.assertIn(f"'{profile}'", source)
+        for operation in (
+            "readonly-precheck", "route-b-apply", "route-b-rollback", "admin-provision",
+            "diagnose-readonly", "diagnose-route-b", "diagnose-admin",
+        ):
+            self.assertIn(f"'{operation}'", source)
         for secret_name in (
             "STOCK_ZERO_DB_CODEX_RO", "STOCK_ZERO_DB_KPIONE_ROUTE_B_PRODUCTIVE",
             "STOCK_ZERO_DB_ADMIN", "STOCK_ZERO_DB_KPIONE_ROUTE_B_PASSWORD",
@@ -153,11 +296,124 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             self.assertIn(secret_name, source)
         self.assertIn("ProcessStartInfo", source)
         self.assertIn("$startInfo.Environment", source)
+        self.assertNotIn("[string]$FilePath", source)
+        self.assertIn("scripts/provision_kpione_route_b_role.py", source)
+        self.assertIn("AuthorityPrecheck = $true", source)
+        self.assertLess(source.index("AuthorityPrecheck"), source.index("Get-SecretVault"))
+        for name in (
+            "DB_URL_CODEX_RO", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE", "DB_URL_ADMIN",
+            "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD", "DB_URL_LOAD", "DB_URL_CODEX_LOCAL",
+        ):
+            self.assertIn(name, source)
+        self.assertIn("$startInfo.Environment.Remove($name)", source)
         self.assertNotIn("SetEnvironmentVariable", source)
         self.assertNotIn("[EnvironmentVariableTarget]::User", source)
         self.assertNotIn("[EnvironmentVariableTarget]::Machine", source)
         self.assertNotIn("Write-Host", source)
         self.assertNotIn("Write-Output", source)
+
+    def test_secret_wrapper_parses_with_windows_powershell_ast(self) -> None:
+        command = (
+            "$errors=$null; [System.Management.Automation.Language.Parser]::ParseFile("
+            f"'{SECRET_WRAPPER}', [ref]$null, [ref]$errors) | Out-Null; "
+            "if($errors.Count){$errors | ForEach-Object {$_.Message}; exit 1}"
+        )
+        completed = subprocess.run(
+            ["powershell", "-NoLogo", "-NoProfile", "-Command", command],
+            cwd=ROOT, capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell 7 is required for the child isolation probe")
+    def test_secret_wrapper_child_probe_receives_only_operation_secrets(self) -> None:
+        managed = (
+            "DB_URL_CODEX_RO", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE", "DB_URL_ADMIN",
+            "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD", "DB_URL_LOAD", "DB_URL_CODEX_LOCAL",
+        )
+        expected_by_operation = {
+            "readonly-precheck": ["DB_URL_CODEX_RO"],
+            "route-b-apply": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
+            "route-b-rollback": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
+            "admin-provision": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
+            "diagnose-readonly": ["DB_URL_CODEX_RO"],
+            "diagnose-route-b": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
+            "diagnose-admin": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
+        }
+        secret_values = (
+            "synthetic-vault-readonly", "synthetic-vault-route-b",
+            "synthetic-vault-admin", "synthetic-vault-role-password",
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            (scripts / SECRET_WRAPPER.name).write_bytes(SECRET_WRAPPER.read_bytes())
+            probe = (
+                "import json, os\n"
+                f"managed = {managed!r}\n"
+                "print(json.dumps({'entrypoint': os.path.basename(__file__), "
+                "'managed': sorted(name for name in managed if name in os.environ)}))\n"
+            )
+            for name in (
+                "precheck_kpione_route_b_018_read_only.py",
+                "run_kpione_route_b_ingestion_v1.py",
+                "provision_kpione_route_b_role.py",
+                "diagnose_stock_zero_db_credentials.py",
+            ):
+                (scripts / name).write_text(probe, encoding="utf-8")
+
+            modules = root / "modules"
+            secret_management = modules / "Microsoft.PowerShell.SecretManagement"
+            secret_store = modules / "Microsoft.PowerShell.SecretStore"
+            secret_management.mkdir(parents=True)
+            secret_store.mkdir(parents=True)
+            secret_management.joinpath("Microsoft.PowerShell.SecretManagement.psm1").write_text(
+                "function Get-SecretVault { [pscustomobject]@{Name='STOCK_ZERO'} }\n"
+                "function Get-Secret { param([string]$Vault,[string]$Name) switch($Name) {\n"
+                "'STOCK_ZERO_DB_CODEX_RO' {'synthetic-vault-readonly'}\n"
+                "'STOCK_ZERO_DB_KPIONE_ROUTE_B_PRODUCTIVE' {'synthetic-vault-route-b'}\n"
+                "'STOCK_ZERO_DB_ADMIN' {'synthetic-vault-admin'}\n"
+                "'STOCK_ZERO_DB_KPIONE_ROUTE_B_PASSWORD' {'synthetic-vault-role-password'}\n"
+                "default { throw 'unknown synthetic secret' } } }\n"
+                "Export-ModuleMember -Function Get-SecretVault,Get-Secret\n",
+                encoding="utf-8",
+            )
+            secret_store.joinpath("Microsoft.PowerShell.SecretStore.psm1").write_text(
+                "# Synthetic empty module for the wrapper contract probe.\n",
+                encoding="utf-8",
+            )
+            environment = os.environ.copy()
+            environment["PSModulePath"] = str(modules) + os.pathsep + environment.get("PSModulePath", "")
+            for name in managed:
+                environment[name] = f"synthetic-parent-{name.lower()}"
+
+            for operation, expected_names in expected_by_operation.items():
+                with self.subTest(operation=operation):
+                    completed = subprocess.run(
+                        [
+                            "pwsh", "-NoLogo", "-NoProfile", "-File",
+                            str(scripts / SECRET_WRAPPER.name), "-Operation", operation,
+                        ],
+                        cwd=root, env=environment, capture_output=True, text=True, check=False,
+                    )
+                    self.assertEqual(completed.returncode, 0, completed.stderr)
+                    reports = [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
+                    self.assertEqual(reports[-1]["managed"], sorted(expected_names))
+                    if operation == "admin-provision":
+                        self.assertEqual(reports[0]["managed"], [])
+                        self.assertEqual(reports[-1]["entrypoint"], "provision_kpione_route_b_role.py")
+                    for secret in secret_values:
+                        self.assertNotIn(secret, completed.stdout)
+                        self.assertNotIn(secret, completed.stderr)
+
+            arbitrary = subprocess.run(
+                [
+                    "pwsh", "-NoLogo", "-NoProfile", "-File",
+                    str(scripts / SECRET_WRAPPER.name), "-Operation", "arbitrary-entrypoint",
+                ],
+                cwd=root, env=environment, capture_output=True, text=True, check=False,
+            )
+            self.assertNotEqual(arbitrary.returncode, 0)
 
     def test_diagnostic_reports_booleans_without_dsn_or_password(self) -> None:
         dsn, password = synthetic_dsn("stock_zero_codex_ro")
