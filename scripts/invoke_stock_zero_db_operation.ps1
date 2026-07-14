@@ -11,6 +11,7 @@ param(
         'route-b-apply',
         'route-b-rollback',
         'admin-provision',
+        'admin-reconcile-provisioning-evidence',
         'diagnose-readonly',
         'diagnose-route-b',
         'diagnose-admin'
@@ -43,6 +44,9 @@ $profileMap = @{
         @{ SecretName = 'STOCK_ZERO_DB_ADMIN'; EnvironmentName = 'DB_URL_ADMIN' },
         @{ SecretName = 'STOCK_ZERO_DB_KPIONE_ROUTE_B_PASSWORD'; EnvironmentName = 'KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD' }
     )
+    'admin-reconciliation' = @(
+        @{ SecretName = 'STOCK_ZERO_DB_ADMIN'; EnvironmentName = 'DB_URL_ADMIN' }
+    )
 }
 $operationMap = @{
     'readonly-precheck' = @{
@@ -74,6 +78,12 @@ $operationMap = @{
         Script = 'scripts/provision_kpione_route_b_role.py'
         Profile = 'admin-provisioning'
         PrefixArguments = @()
+        AuthorityPrecheck = $true
+    }
+    'admin-reconcile-provisioning-evidence' = @{
+        Script = 'scripts/provision_kpione_route_b_role.py'
+        Profile = 'admin-reconciliation'
+        PrefixArguments = @('--reconcile-provisioning-evidence')
         AuthorityPrecheck = $true
     }
     'diagnose-readonly' = @{
@@ -137,6 +147,49 @@ function New-StockZeroStartInfo {
 
 $entrypoint = $operationMap[$Operation]
 $operationArguments = @($entrypoint.PrefixArguments) + @($ArgumentList)
+
+$evidenceFileByOperation = @{
+    'readonly-precheck' = '01_readonly_baseline.json'
+    'admin-provision' = '02_admin_provisioning.json'
+    'admin-reconcile-provisioning-evidence' = '02_admin_provisioning.json'
+    'verify-route-b-role' = '03_productive_role_verification.json'
+    'readonly-postcheck' = '04_readonly_postcheck.json'
+}
+if ($evidenceFileByOperation.ContainsKey($Operation)) {
+    $runIndex = [Array]::IndexOf($operationArguments, '--run-id')
+    if ($runIndex -lt 0 -or $runIndex + 1 -ge $operationArguments.Count) {
+        throw 'A canonical --run-id is required for evidence operations.'
+    }
+    $runId = $operationArguments[$runIndex + 1]
+    if ($runId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+        throw 'The evidence run id must be a canonical lowercase UUID v4.'
+    }
+    $runDirectory = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot (Join-Path 'evidence/runtime/020B' $runId))
+    )
+    [void](New-Item -ItemType Directory -Path $runDirectory -Force)
+    $outputSwitch = if ($Operation -in @('readonly-precheck', 'readonly-postcheck')) {
+        '--report-json'
+    } else {
+        '--evidence-json'
+    }
+    $outputIndex = [Array]::IndexOf($operationArguments, $outputSwitch)
+    if ($outputIndex -lt 0 -or $outputIndex + 1 -ge $operationArguments.Count) {
+        throw "The canonical $outputSwitch argument is required."
+    }
+    $actualOutput = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot $operationArguments[$outputIndex + 1])
+    )
+    $expectedOutput = [IO.Path]::GetFullPath(
+        (Join-Path $runDirectory $evidenceFileByOperation[$Operation])
+    )
+    if ($actualOutput -ne $expectedOutput) {
+        throw 'The evidence output path is not canonical for this operation.'
+    }
+    if (Test-Path -LiteralPath $expectedOutput) {
+        throw 'The evidence output already exists.'
+    }
+}
 
 # Admin authority is checked in a secret-free child before the vault is opened.
 if ($entrypoint.AuthorityPrecheck) {

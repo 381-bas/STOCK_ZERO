@@ -18,6 +18,7 @@ codex_ro.env
 data/
 exports/
 artifacts/
+evidence/runtime/
 Documentos/
 Supabase/
 app/v_i/

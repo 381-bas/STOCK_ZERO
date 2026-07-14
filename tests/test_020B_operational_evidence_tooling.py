@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import inspect
 import json
 import os
 import shutil
@@ -9,6 +10,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts import precheck_kpione_route_b_018_read_only as precheck
 from scripts.build_kpione_route_b_infrastructure_evidence import (
@@ -16,8 +18,19 @@ from scripts.build_kpione_route_b_infrastructure_evidence import (
     EvidenceBundleError,
     build_bundle,
 )
+from scripts.kpione_route_b_evidence_v1 import (
+    EVIDENCE_FILENAMES,
+    EvidenceContractError,
+    atomic_write_json,
+    canonical_evidence_path,
+    prepare_run_directory,
+    require_canonical_evidence_path,
+    validate_run_id,
+)
 from scripts.provision_kpione_route_b_role import (
     ProvisioningError,
+    _validate_prior_failure_mapping,
+    reconcile_provisioning_evidence,
     provision_route_b_role,
 )
 
@@ -26,6 +39,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PLAN_PATH = ROOT / "plans" / "018_kpione_route_b_productive_apply_plan.json"
 WRAPPER = ROOT / "scripts" / "invoke_stock_zero_db_operation.ps1"
 VAULT = ROOT / "scripts" / "manage_stock_zero_secret_vault.ps1"
+RUN_ID = "12345678-1234-4abc-8abc-1234567890ab"
 
 
 class ExistingRoleCursor:
@@ -47,6 +61,10 @@ class ExistingRoleCursor:
             self.rows = [("postgres", "postgres", "postgres", "off")]
         elif "to_regclass('cg_raw.kpione2_raw')" in normalized:
             self.rows = [("cg_raw.kpione2_raw",)]
+        elif "from pg_class c join pg_namespace n" in normalized and "kpione2_raw" in normalized:
+            self.rows = []
+        elif "from pg_namespace n" in normalized or "information_schema.table_privileges" in normalized:
+            self.rows = []
         elif "from pg_roles where rolname" in normalized:
             self.rows = [(1,)]
         else:
@@ -54,6 +72,9 @@ class ExistingRoleCursor:
 
     def fetchone(self):
         return self.rows[0] if self.rows else None
+
+    def fetchall(self):
+        return self.rows
 
 
 class ExistingRoleConnection:
@@ -112,11 +133,13 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
             )
 
     def _bundle_fixture(self, root: Path) -> tuple[dict[str, Path], str]:
+        run_directory = prepare_run_directory(root, RUN_ID)
         git_sha = "a" * 40
         plan_sha = hashlib.sha256(PLAN_PATH.read_bytes()).hexdigest()
         sql_sha = self.plan["physical_contract"]["sql_sha256"]
         fingerprint = "b" * 64
         common = {
+            "run_id": RUN_ID,
             "target_fingerprint": fingerprint,
             "approved_git_sha": git_sha,
             "plan_sha256": plan_sha,
@@ -125,35 +148,49 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
         baseline = {
             "document_type": COMPONENT_CONTRACT["readonly_baseline_precheck"][0],
             "verdict": COMPONENT_CONTRACT["readonly_baseline_precheck"][1],
+            "evidence_sequence_step": 1,
+            "timestamp_utc": "2026-07-14T10:00:00+00:00",
             **common,
-            "legacy": {"object_identity": "cg_raw.kpione2_raw", "oid": "19", "row_count": 1},
+            "legacy": {
+                "object_identity": "cg_raw.kpione2_raw", "oid": "19",
+                "relation_kind": "r", "owner": "postgres", "acl": "",
+                "column_signature_sha256": "c" * 64,
+                "row_count": 1, "relation_size_bytes": 8192,
+            },
             "public_acl": {"schemas": {"cg_raw": ["USAGE"]}, "relations": {}},
         }
-        baseline_path = root / "baseline.json"
+        baseline_path = run_directory / EVIDENCE_FILENAMES["readonly_baseline_precheck"]
         baseline_path.write_text(json.dumps(baseline, sort_keys=True) + "\n", encoding="utf-8")
         components: dict[str, dict[str, object]] = {
             "admin_provisioning": {
                 "document_type": COMPONENT_CONTRACT["admin_provisioning"][0],
                 "verdict": COMPONENT_CONTRACT["admin_provisioning"][1],
+                "evidence_sequence_step": 2,
+                "timestamp_utc": "2026-07-14T10:01:00+00:00",
+                "evidence_mode": "DIRECT_COMMITTED_EXECUTION",
                 **common,
             },
             "productive_role_verification": {
                 "document_type": COMPONENT_CONTRACT["productive_role_verification"][0],
                 "verdict": COMPONENT_CONTRACT["productive_role_verification"][1],
+                "evidence_sequence_step": 3,
+                "timestamp_utc": "2026-07-14T10:02:00+00:00",
                 **common,
             },
             "readonly_postcheck": {
                 "document_type": COMPONENT_CONTRACT["readonly_postcheck"][0],
                 "verdict": COMPONENT_CONTRACT["readonly_postcheck"][1],
+                "evidence_sequence_step": 4,
+                "timestamp_utc": "2026-07-14T10:03:00+00:00",
                 **common,
                 "baseline_evidence_sha256": hashlib.sha256(baseline_path.read_bytes()).hexdigest(),
-                "legacy": baseline["legacy"],
+                "legacy": {**baseline["legacy"], "row_count": 2, "relation_size_bytes": 16384},
                 "public_acl": baseline["public_acl"],
             },
         }
         paths = {"readonly_baseline_precheck": baseline_path}
         for name, evidence in components.items():
-            path = root / f"{name}.json"
+            path = run_directory / EVIDENCE_FILENAMES[name]
             path.write_text(json.dumps(evidence, sort_keys=True) + "\n", encoding="utf-8")
             paths[name] = path
         return paths, git_sha
@@ -161,11 +198,12 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
     def test_bundle_is_deterministic_and_has_exact_four_components(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             paths, git_sha = self._bundle_fixture(Path(folder))
-            first = build_bundle(paths, PLAN_PATH, git_sha)
-            second = build_bundle(paths, PLAN_PATH, git_sha)
+            first = build_bundle(paths, PLAN_PATH, git_sha, RUN_ID, root=Path(folder))
+            second = build_bundle(paths, PLAN_PATH, git_sha, RUN_ID, root=Path(folder))
         self.assertEqual(first, second)
         self.assertEqual(first["document_type"], "kpione_route_b_infrastructure_evidence_bundle_v1")
         self.assertEqual(first["status"], "PASSED")
+        self.assertEqual(first["run_id"], RUN_ID)
         self.assertEqual(set(first["components"]), set(COMPONENT_CONTRACT))
         self.assertRegex(first["bundle_sha256"], r"^[0-9a-f]{64}$")
 
@@ -178,27 +216,145 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
                 ({**paths, "extra": root / "extra.json"}, "component_name_set_mismatch"),
             ):
                 with self.subTest(error=error), self.assertRaisesRegex(EvidenceBundleError, error):
-                    build_bundle(changed, PLAN_PATH, git_sha)
+                    build_bundle(changed, PLAN_PATH, git_sha, RUN_ID, root=root)
 
             post = json.loads(paths["readonly_postcheck"].read_text(encoding="utf-8"))
             post["baseline_evidence_sha256"] = "0" * 64
             paths["readonly_postcheck"].write_text(json.dumps(post) + "\n", encoding="utf-8")
             with self.assertRaisesRegex(EvidenceBundleError, "postcheck_baseline_reference_mismatch"):
-                build_bundle(paths, PLAN_PATH, git_sha)
+                build_bundle(paths, PLAN_PATH, git_sha, RUN_ID, root=root)
 
             paths, git_sha = self._bundle_fixture(root)
             admin = json.loads(paths["admin_provisioning"].read_text(encoding="utf-8"))
             admin["target_fingerprint"] = "c" * 64
             paths["admin_provisioning"].write_text(json.dumps(admin) + "\n", encoding="utf-8")
             with self.assertRaisesRegex(EvidenceBundleError, "target_fingerprint_mismatch"):
-                build_bundle(paths, PLAN_PATH, git_sha)
+                build_bundle(paths, PLAN_PATH, git_sha, RUN_ID, root=root)
 
             paths, git_sha = self._bundle_fixture(root)
             verify = json.loads(paths["productive_role_verification"].read_text(encoding="utf-8"))
             verify["diagnostic"] = "postgresql://synthetic.invalid/postgres"
             paths["productive_role_verification"].write_text(json.dumps(verify) + "\n", encoding="utf-8")
             with self.assertRaisesRegex(EvidenceBundleError, "suspicious_evidence_value"):
-                build_bundle(paths, PLAN_PATH, git_sha)
+                build_bundle(paths, PLAN_PATH, git_sha, RUN_ID, root=root)
+
+    def test_run_identity_rejects_invalid_mismatch_sequence_and_time_regression(self) -> None:
+        self.assertEqual(validate_run_id(RUN_ID), RUN_ID)
+        for invalid in (
+            RUN_ID.upper(), "12345678-1234-1abc-8abc-1234567890ab", "not-a-uuid",
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(EvidenceContractError):
+                validate_run_id(invalid)
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            paths, git_sha = self._bundle_fixture(root)
+            for component, field, value, error in (
+                ("admin_provisioning", "run_id", "87654321-4321-4cba-8abc-0987654321ab", "component_run_id_mismatch"),
+                ("admin_provisioning", "evidence_sequence_step", 1, "component_sequence_step_mismatch"),
+                ("productive_role_verification", "evidence_sequence_step", 2, "component_sequence_step_mismatch"),
+                ("productive_role_verification", "timestamp_utc", "2026-07-14T09:59:00+00:00", "evidence_timestamps_not_nondecreasing"),
+            ):
+                paths, git_sha = self._bundle_fixture(root)
+                payload = json.loads(paths[component].read_text(encoding="utf-8"))
+                payload[field] = value
+                paths[component].write_text(json.dumps(payload) + "\n", encoding="utf-8")
+                with self.subTest(component=component, field=field), self.assertRaisesRegex(
+                    EvidenceBundleError, error,
+                ):
+                    build_bundle(paths, PLAN_PATH, git_sha, RUN_ID, root=root)
+
+    def test_canonical_paths_atomic_non_overwrite_and_git_ignore(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            directory = prepare_run_directory(root, RUN_ID)
+            expected = canonical_evidence_path(root, RUN_ID, "readonly_baseline_precheck")
+            self.assertEqual(
+                require_canonical_evidence_path(expected, root, RUN_ID, "readonly_baseline_precheck"),
+                expected,
+            )
+            with self.assertRaisesRegex(EvidenceContractError, "evidence_path_not_canonical"):
+                require_canonical_evidence_path(
+                    directory / "wrong.json", root, RUN_ID, "readonly_baseline_precheck",
+                )
+            atomic_write_json(expected, {"value": "first"})
+            original = expected.read_bytes()
+            with self.assertRaisesRegex(EvidenceContractError, "evidence_file_already_exists"):
+                atomic_write_json(expected, {"value": "second"})
+            self.assertEqual(expected.read_bytes(), original)
+            self.assertEqual(list(directory.glob(".*.tmp")), [])
+
+            failed = canonical_evidence_path(root, RUN_ID, "admin_provisioning")
+            with mock.patch("scripts.kpione_route_b_evidence_v1.os.replace", side_effect=OSError("synthetic")):
+                with self.assertRaises(OSError):
+                    atomic_write_json(failed, {"value": "not-committed"})
+            self.assertFalse(failed.exists())
+            self.assertEqual(list(directory.glob(".*.tmp")), [])
+
+        ignored = subprocess.run(
+            ["git", "check-ignore", "evidence/runtime/020B/" + RUN_ID + "/01_readonly_baseline.json"],
+            cwd=ROOT, capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(ignored.returncode, 0, ignored.stderr)
+
+    def test_legacy_structure_blocks_drift_but_activity_deltas_are_informative(self) -> None:
+        baseline = {
+            "object_identity": "cg_raw.kpione2_raw", "oid": "19",
+            "relation_kind": "r", "owner": "postgres", "acl": "",
+            "column_signature_sha256": "a" * 64,
+            "row_count": 1, "relation_size_bytes": 8192,
+        }
+        current = {**baseline, "row_count": 3, "relation_size_bytes": 24576}
+        precheck.assert_legacy_structural_invariance(baseline, current)
+        self.assertEqual(precheck.legacy_activity_delta(baseline, current), {
+            "row_count": {"before": 1, "after": 3, "delta": 2},
+            "relation_size_bytes": {"before": 8192, "after": 24576, "delta": 16384},
+        })
+        for field, value in (
+            ("oid", "20"), ("relation_kind", "v"),
+            ("column_signature_sha256", "b" * 64),
+        ):
+            with self.subTest(field=field), self.assertRaisesRegex(
+                precheck.PrecheckBlock, f"legacy_structural_drift:{field}",
+            ):
+                precheck.assert_legacy_structural_invariance(baseline, {**current, field: value})
+
+    def test_reconciliation_prior_authority_is_fail_closed_and_source_has_no_mutations(self) -> None:
+        guard = {
+            "approved_git_sha": "a" * 40,
+            "plan_sha256": hashlib.sha256(PLAN_PATH.read_bytes()).hexdigest(),
+        }
+        prior = {
+            "verdict": "BLOCKED",
+            "error": "admin_provisioning_evidence_write_failed",
+            "run_id": RUN_ID,
+            "evidence_sequence_step": 2,
+            "committed": True,
+            "rollback_or_reconciliation_required": True,
+            "approved_git_sha": guard["approved_git_sha"],
+            "plan_sha256": guard["plan_sha256"],
+            "sql_sha256": self.plan["physical_contract"]["sql_sha256"],
+            "target_fingerprint": precheck.target_fingerprint(self.plan),
+            "legacy_structure_before": {"object_identity": "cg_raw.kpione2_raw"},
+            "public_acl_before": {"schemas": {}, "relations": {}},
+        }
+        self.assertEqual(
+            _validate_prior_failure_mapping(prior, RUN_ID, guard, self.plan), prior,
+        )
+        for field, value in (
+            ("committed", False), ("approved_git_sha", "b" * 40),
+            ("plan_sha256", "b" * 64), ("sql_sha256", "b" * 64),
+            ("target_fingerprint", "b" * 64),
+        ):
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ProvisioningError, f"prior_failure_report_mismatch:{field}",
+            ):
+                _validate_prior_failure_mapping({**prior, field: value}, RUN_ID, guard, self.plan)
+
+        source = inspect.getsource(reconcile_provisioning_evidence).upper()
+        self.assertIn("BEGIN READ ONLY", source)
+        for mutation in ("CREATE ROLE", "ALTER ROLE", "GRANT ", "REVOKE "):
+            self.assertNotIn(mutation, source)
 
     def test_existing_role_blocks_before_password_rotation_or_other_write(self) -> None:
         connection = ExistingRoleConnection()
@@ -232,7 +388,10 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
 
     def test_wrapper_and_vault_have_only_typed_operations_and_safe_storage(self) -> None:
         wrapper = WRAPPER.read_text(encoding="utf-8")
-        for operation in ("readonly-postcheck", "verify-route-b-role"):
+        for operation in (
+            "readonly-postcheck", "verify-route-b-role",
+            "admin-reconcile-provisioning-evidence",
+        ):
             self.assertIn(f"'{operation}'", wrapper)
         self.assertIn("@('--check-stage', 'post-provision')", wrapper)
         self.assertIn("scripts/verify_kpione_route_b_productive_role.py", wrapper)
@@ -253,11 +412,19 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
         self.assertIn("[Security.Cryptography.RandomNumberGenerator]::Fill", vault)
         self.assertNotIn("[EnvironmentVariableTarget]::User", vault)
         self.assertNotIn("[EnvironmentVariableTarget]::Machine", vault)
+        self.assertIn("[string]$EvidenceDirectory", vault)
+        self.assertIn("[string]$RunId", vault)
+        self.assertNotIn("ProductiveRoleVerificationEvidence", vault)
+        self.assertNotIn("ReadonlyPostcheckEvidence", vault)
 
     @unittest.skipUnless(shutil.which("pwsh"), "PowerShell 7 is required for the vault runtime probe")
     def test_vault_runtime_uses_secure_types_and_evidence_gated_removal(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            vault_copy = scripts / VAULT.name
+            vault_copy.write_bytes(VAULT.read_bytes())
             log = root / "mock-log.jsonl"
             modules = root / "modules"
             management = modules / "Microsoft.PowerShell.SecretManagement" / "1.1.2"
@@ -277,6 +444,7 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
                 "function Register-SecretVault { [CmdletBinding()]param([string]$Name,[string]$ModuleName,[switch]$DefaultVault) "
                 "Add-MockEvent @{action='register';name=$Name;module=$ModuleName} }\n"
                 "function Get-SecretInfo { [CmdletBinding()]param([string]$Vault,[string]$Name) "
+                "if($Name -eq 'STOCK_ZERO_DB_KPIONE_ROUTE_B_PRODUCTIVE' -and $env:SZ_MOCK_PRODUCTIVE_PRESENT -ne '1'){return $null};"
                 "[pscustomobject]@{Name=$Name;Type='SecureString'} }\n"
                 "function Get-Secret { [CmdletBinding()]param([string]$Vault,[string]$Name) "
                 "ConvertTo-SecureString 'synthetic-vault-secret' -AsPlainText -Force }\n"
@@ -305,38 +473,56 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
                 "Export-ModuleMember -Function *\n",
                 encoding="utf-8",
             )
-            verify_path = root / "verify.json"
-            post_path = root / "post.json"
-            verify_path.write_text(json.dumps({
-                "document_type": "kpione_route_b_productive_role_verification_evidence_v1",
-                "verdict": "PASS_PRODUCTIVE_ROLE_VERIFICATION",
-            }), encoding="utf-8")
-            post_path.write_text(json.dumps({
-                "document_type": "kpione_route_b_readonly_postcheck_evidence_v1",
-                "verdict": "PASS_READONLY_POSTCHECK",
-            }), encoding="utf-8")
+            paths, git_sha = self._bundle_fixture(root)
+            run_directory = paths["readonly_baseline_precheck"].parent
+            bundle = build_bundle(paths, PLAN_PATH, git_sha, RUN_ID, root=root)
+            bundle_path = run_directory / EVIDENCE_FILENAMES["infrastructure_bundle"]
+            bundle_path.write_text(json.dumps(bundle, sort_keys=True) + "\n", encoding="utf-8")
             environment = os.environ.copy()
             environment["PSModulePath"] = str(modules) + os.pathsep + environment.get("PSModulePath", "")
             environment["SZ_MOCK_LOG"] = str(log)
+            environment["SZ_MOCK_PRODUCTIVE_PRESENT"] = "1"
 
-            def invoke(operation: str, *, prelude: str = "", arguments: list[str] | None = None):
+            def invoke(
+                operation: str, *, prelude: str = "", arguments: list[str] | None = None,
+                expected_success: bool = True, operation_environment: dict[str, str] | None = None,
+            ):
                 args = " ".join(
                     value if value.startswith("-") else f"'{value}'"
                     for value in (arguments or [])
                 )
-                command = f"{prelude}\n& '{VAULT}' -Operation '{operation}' {args}"
+                command = f"{prelude}\n& '{vault_copy}' -Operation '{operation}' {args}"
                 completed = subprocess.run(
                     ["pwsh", "-NoLogo", "-NoProfile", "-Command", command],
-                    cwd=ROOT,
-                    env=environment,
+                    cwd=root,
+                    env=operation_environment or environment,
                     capture_output=True,
                     text=True,
                     check=False,
                 )
-                self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+                if expected_success:
+                    self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+                else:
+                    self.assertNotEqual(completed.returncode, 0, completed.stdout + completed.stderr)
                 self.assertNotIn("synthetic-vault-secret", completed.stdout)
                 self.assertNotIn("synthetic-vault-secret", completed.stderr)
                 return completed
+
+            def removed_count() -> int:
+                if not log.exists():
+                    return 0
+                return sum(
+                    json.loads(line).get("action") == "remove"
+                    for line in log.read_text(encoding="utf-8").splitlines()
+                )
+
+            def remove(arguments: list[str], *, env: dict[str, str] | None = None, success: bool) -> None:
+                before = removed_count()
+                invoke(
+                    "remove-temporary", arguments=arguments,
+                    expected_success=success, operation_environment=env,
+                )
+                self.assertEqual(removed_count() - before, 2 if success else 0)
 
             bootstrap_prelude = (
                 "function global:Install-Module { param($Name,$RequiredVersion,$Scope,$Repository,"
@@ -354,26 +540,32 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
             invoke("build-and-store-route-b-dsn")
             inventory = invoke("inventory")
             self.assertIn("STOCK_ZERO_DB_CODEX_RO", inventory.stdout)
-            blocked_remove = subprocess.run(
-                [
-                    "pwsh", "-NoLogo", "-NoProfile", "-File", str(VAULT),
-                    "-Operation", "remove-temporary",
-                ],
-                cwd=ROOT,
-                env=environment,
-                capture_output=True,
-                text=True,
-                check=False,
+            canonical_arguments = [
+                "-EvidenceDirectory", str(run_directory), "-RunId", RUN_ID,
+            ]
+            remove([], success=False)
+
+            wrong_run = "87654321-4321-4cba-8abc-0987654321ab"
+            remove(["-EvidenceDirectory", str(run_directory), "-RunId", wrong_run], success=False)
+
+            original_verify = paths["productive_role_verification"].read_bytes()
+            paths["productive_role_verification"].write_text(
+                json.dumps({**json.loads(original_verify), "tampered": True}, sort_keys=True) + "\n",
+                encoding="utf-8",
             )
-            self.assertNotEqual(blocked_remove.returncode, 0)
-            self.assertNotIn("synthetic-vault-secret", blocked_remove.stdout + blocked_remove.stderr)
-            invoke(
-                "remove-temporary",
-                arguments=[
-                    "-ProductiveRoleVerificationEvidence", str(verify_path),
-                    "-ReadonlyPostcheckEvidence", str(post_path),
-                ],
-            )
+            remove(canonical_arguments, success=False)
+            paths["productive_role_verification"].write_bytes(original_verify)
+
+            missing_path = paths["readonly_postcheck"]
+            missing_raw = missing_path.read_bytes()
+            missing_path.unlink()
+            remove(canonical_arguments, success=False)
+            missing_path.write_bytes(missing_raw)
+
+            no_dsn_environment = environment.copy()
+            no_dsn_environment["SZ_MOCK_PRODUCTIVE_PRESENT"] = "0"
+            remove(canonical_arguments, env=no_dsn_environment, success=False)
+            remove(canonical_arguments, success=True)
             events = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
             installs = {event["name"]: event for event in events if event["action"] == "install"}
             self.assertEqual(installs["Microsoft.PowerShell.SecretManagement"]["version"], "1.1.2")

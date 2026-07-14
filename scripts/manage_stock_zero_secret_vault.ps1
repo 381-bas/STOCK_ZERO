@@ -14,8 +14,8 @@ param(
     )]
     [string]$Operation,
 
-    [string]$ProductiveRoleVerificationEvidence,
-    [string]$ReadonlyPostcheckEvidence
+    [string]$EvidenceDirectory,
+    [string]$RunId
 )
 
 $ErrorActionPreference = 'Stop'
@@ -65,20 +65,85 @@ function ConvertFrom-StockZeroSecureString {
     }
 }
 
-function Assert-ApprovedEvidence {
-    param(
-        [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][string]$DocumentType,
-        [Parameter(Mandatory)][string]$Verdict
+function Get-StockZeroGovernedEvidence {
+    if ($RunId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+        throw 'The evidence run id must be a canonical lowercase UUID v4.'
+    }
+    if ([string]::IsNullOrWhiteSpace($EvidenceDirectory)) {
+        throw 'The canonical evidence directory is required.'
+    }
+
+    $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+    $expectedDirectory = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot (Join-Path 'evidence/runtime/020B' $RunId))
     )
-    if ([string]::IsNullOrWhiteSpace($Path)) {
-        throw "Required evidence path is missing for $DocumentType."
+    $candidateDirectory = if ([IO.Path]::IsPathRooted($EvidenceDirectory)) {
+        [IO.Path]::GetFullPath($EvidenceDirectory)
+    } else {
+        [IO.Path]::GetFullPath((Join-Path $repositoryRoot $EvidenceDirectory))
     }
-    $resolved = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).Path
-    $evidence = Get-Content -LiteralPath $resolved -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($evidence.document_type -ne $DocumentType -or $evidence.verdict -ne $Verdict) {
-        throw "Evidence is not approved: $DocumentType."
+    $resolvedDirectory = (Resolve-Path -LiteralPath $candidateDirectory -ErrorAction Stop).Path
+    if ($resolvedDirectory -ne $expectedDirectory) {
+        throw 'The evidence directory is not canonical for the supplied run id.'
     }
+
+    $contract = [ordered]@{
+        readonly_baseline_precheck = @{
+            File = '01_readonly_baseline.json'
+            Type = 'kpione_route_b_readonly_baseline_evidence_v1'
+            Verdict = 'PASS_READONLY_BASELINE'
+            Step = 1
+        }
+        admin_provisioning = @{
+            File = '02_admin_provisioning.json'
+            Type = 'kpione_route_b_role_provisioning_evidence_v1'
+            Verdict = 'PASS_ADMIN_PROVISIONING'
+            Step = 2
+        }
+        productive_role_verification = @{
+            File = '03_productive_role_verification.json'
+            Type = 'kpione_route_b_productive_role_verification_evidence_v1'
+            Verdict = 'PASS_PRODUCTIVE_ROLE_VERIFICATION'
+            Step = 3
+        }
+        readonly_postcheck = @{
+            File = '04_readonly_postcheck.json'
+            Type = 'kpione_route_b_readonly_postcheck_evidence_v1'
+            Verdict = 'PASS_READONLY_POSTCHECK'
+            Step = 4
+        }
+    }
+    $bundleName = '05_infrastructure_bundle.json'
+    $expectedNames = @($contract.Values.File) + @($bundleName)
+    $actualNames = @(Get-ChildItem -LiteralPath $resolvedDirectory -File | ForEach-Object { $_.Name })
+    if (@(Compare-Object -ReferenceObject $expectedNames -DifferenceObject $actualNames).Count -ne 0) {
+        throw 'The evidence directory must contain exactly the five canonical files.'
+    }
+
+    $bundlePath = Join-Path $resolvedDirectory $bundleName
+    $bundle = Get-Content -LiteralPath $bundlePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($bundle.document_type -ne 'kpione_route_b_infrastructure_evidence_bundle_v1' -or
+        $bundle.status -ne 'PASSED' -or $bundle.run_id -cne $RunId) {
+        throw 'The infrastructure bundle is not approved for this run.'
+    }
+
+    foreach ($componentName in $contract.Keys) {
+        $item = $contract[$componentName]
+        $path = Join-Path $resolvedDirectory $item.File
+        $evidence = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($evidence.document_type -ne $item.Type -or
+            $evidence.verdict -ne $item.Verdict -or
+            $evidence.evidence_sequence_step -ne $item.Step -or
+            $evidence.run_id -cne $RunId) {
+            throw "Evidence component is not approved: $componentName."
+        }
+        $expectedHash = $bundle.components.PSObject.Properties[$componentName].Value
+        $actualHash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($expectedHash -cne $actualHash) {
+            throw "Evidence component hash mismatch: $componentName."
+        }
+    }
+    return $bundle
 }
 
 if ($Operation -eq 'bootstrap') {
@@ -153,16 +218,11 @@ switch ($Operation) {
         }
     }
     'remove-temporary' {
+        [void](Get-StockZeroGovernedEvidence)
         $productiveDsn = Get-SecretInfo -Vault $vaultName -Name $secretNames.ProductiveDsn -ErrorAction SilentlyContinue
         if ($null -eq $productiveDsn) {
             throw 'productive_dsn_evidence_dependency_missing'
         }
-        Assert-ApprovedEvidence -Path $ProductiveRoleVerificationEvidence `
-            -DocumentType 'kpione_route_b_productive_role_verification_evidence_v1' `
-            -Verdict 'PASS_PRODUCTIVE_ROLE_VERIFICATION'
-        Assert-ApprovedEvidence -Path $ReadonlyPostcheckEvidence `
-            -DocumentType 'kpione_route_b_readonly_postcheck_evidence_v1' `
-            -Verdict 'PASS_READONLY_POSTCHECK'
         Remove-Secret -Vault $vaultName -Name $secretNames.Admin -ErrorAction SilentlyContinue
         Remove-Secret -Vault $vaultName -Name $secretNames.ProductivePassword -ErrorAction SilentlyContinue
     }

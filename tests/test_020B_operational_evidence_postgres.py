@@ -7,16 +7,23 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import psycopg
 
 from scripts.build_kpione_route_b_infrastructure_evidence import build_bundle
+from scripts.kpione_route_b_evidence_v1 import EVIDENCE_FILENAMES, prepare_run_directory
 from scripts.kpione_route_b_v1 import PLANNED_PRODUCTIVE_ROLE
 from scripts.precheck_kpione_route_b_018_read_only import (
     PrecheckBlock,
     run_precheck,
 )
-from scripts.provision_kpione_route_b_role import provision_route_b_role
+from scripts import provision_kpione_route_b_role as provisioning
+from scripts.provision_kpione_route_b_role import (
+    ProvisioningError,
+    provision_route_b_role,
+    reconcile_provisioning_evidence,
+)
 from scripts.verify_kpione_route_b_productive_role import verify_productive_role
 
 
@@ -25,6 +32,7 @@ DSN = os.environ.get("DB_URL_CODEX_LOCAL")
 PLAN_PATH = ROOT / "plans" / "018_kpione_route_b_productive_apply_plan.json"
 DDL_PATH = ROOT / "sql" / "17_kpione_route_b_ingestion_v1.sql"
 READONLY_ROLE = "stock_zero_codex_ro"
+RUN_ID = "12345678-1234-4abc-8abc-1234567890ab"
 
 
 @unittest.skipUnless(DSN, "DB_URL_CODEX_LOCAL is required for the 020B PostgreSQL evidence rehearsal")
@@ -82,6 +90,7 @@ class OperationalEvidencePostgres020BTests(unittest.TestCase):
             readonly_connect,
             check_stage="baseline",
             authority=authority,
+            run_id=RUN_ID,
         )
         self.assertEqual(baseline["verdict"], "PASS_READONLY_BASELINE")
         self.assertEqual(baseline["active_batch_count"], 0)
@@ -89,8 +98,9 @@ class OperationalEvidencePostgres020BTests(unittest.TestCase):
         self.assertEqual(baseline["route_b_signatures"], [])
 
         with tempfile.TemporaryDirectory() as folder:
-            evidence_root = Path(folder)
-            baseline_path = evidence_root / "baseline.json"
+            root = Path(folder)
+            evidence_root = prepare_run_directory(root, RUN_ID)
+            baseline_path = evidence_root / EVIDENCE_FILENAMES["readonly_baseline_precheck"]
             self._write(baseline_path, baseline)
             baseline_sha = hashlib.sha256(baseline_path.read_bytes()).hexdigest()
             with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
@@ -100,18 +110,85 @@ class OperationalEvidencePostgres020BTests(unittest.TestCase):
                 f"postgresql://{admin_role}:synthetic-admin@"
                 f"{plan['target']['expected_hostname']}/{database}?sslmode=require"
             )
-            admin_path = evidence_root / "admin.json"
-            admin = provision_route_b_role(
+            admin_path = evidence_root / EVIDENCE_FILENAMES["admin_provisioning"]
+            with mock.patch.object(
+                provisioning, "_write_provisioning_evidence", side_effect=OSError("synthetic"),
+            ):
+                with self.assertRaisesRegex(
+                    ProvisioningError, "admin_provisioning_evidence_write_failed",
+                ) as failed_provisioning:
+                    provision_route_b_role(
+                        plan,
+                        admin_dsn,
+                        "synthetic-productive-password",
+                        admin_path,
+                        root=ROOT,
+                        connect_fn=lambda _dsn: psycopg.connect(DSN),
+                        expected_admin_username=admin_role,
+                        git_guard=authority,
+                        run_id=RUN_ID,
+                    )
+            prior_failure = failed_provisioning.exception.report
+            self.assertTrue(prior_failure["committed"])
+            self.assertTrue(prior_failure["rollback_or_reconciliation_required"])
+            self.assertFalse(admin_path.exists())
+
+            with self.assertRaisesRegex(
+                ProvisioningError, "productive_role_exists_password_rotation_not_authorized",
+            ):
+                provision_route_b_role(
+                    plan,
+                    admin_dsn,
+                    "different-synthetic-password",
+                    admin_path,
+                    root=ROOT,
+                    connect_fn=lambda _dsn: psycopg.connect(DSN),
+                    expected_admin_username=admin_role,
+                    git_guard=authority,
+                    run_id=RUN_ID,
+                )
+
+            with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    f'ALTER ROLE "{PLANNED_PRODUCTIVE_ROLE}" CONNECTION LIMIT '
+                    f'{provisioning.PRODUCTIVE_CONNECTION_LIMIT + 1}'
+                )
+            with self.assertRaisesRegex(ProvisioningError, "reconciliation_role_attributes_mismatch"):
+                reconcile_provisioning_evidence(
+                    plan, admin_dsn, RUN_ID, prior_failure, admin_path,
+                    git_guard=authority,
+                    connect_fn=lambda _dsn: psycopg.connect(DSN),
+                    expected_admin_username=admin_role,
+                )
+            with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    f'ALTER ROLE "{PLANNED_PRODUCTIVE_ROLE}" CONNECTION LIMIT '
+                    f'{provisioning.PRODUCTIVE_CONNECTION_LIMIT}'
+                )
+                cursor.execute(f'REVOKE USAGE ON SCHEMA cg_core FROM "{PLANNED_PRODUCTIVE_ROLE}"')
+            with self.assertRaisesRegex(ProvisioningError, "reconciliation_grant_matrix_mismatch"):
+                reconcile_provisioning_evidence(
+                    plan, admin_dsn, RUN_ID, prior_failure, admin_path,
+                    git_guard=authority,
+                    connect_fn=lambda _dsn: psycopg.connect(DSN),
+                    expected_admin_username=admin_role,
+                )
+            with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
+                cursor.execute(f'GRANT USAGE ON SCHEMA cg_core TO "{PLANNED_PRODUCTIVE_ROLE}"')
+
+            admin = reconcile_provisioning_evidence(
                 plan,
                 admin_dsn,
-                "synthetic-productive-password",
+                RUN_ID,
+                prior_failure,
                 admin_path,
-                root=ROOT,
+                git_guard=authority,
                 connect_fn=lambda _dsn: psycopg.connect(DSN),
                 expected_admin_username=admin_role,
-                git_guard=authority,
             )
             self.assertEqual(admin["verdict"], "PASS_ADMIN_PROVISIONING")
+            self.assertEqual(admin["evidence_mode"], "RECONCILED_COMMITTED_STATE")
+            self.assertFalse(admin["writes_attempted"])
 
             with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
                 cursor.execute(f'GRANT SELECT ON ALL TABLES IN SCHEMA cg_raw,cg_core TO "{READONLY_ROLE}"')
@@ -124,13 +201,17 @@ class OperationalEvidencePostgres020BTests(unittest.TestCase):
                 productive_dsn,
                 authority=authority,
                 connect_fn=lambda _dsn: psycopg.connect(DSN, user=PLANNED_PRODUCTIVE_ROLE),
+                run_id=RUN_ID,
             )
             self.assertEqual(verification["verdict"], "PASS_PRODUCTIVE_ROLE_VERIFICATION")
             self.assertEqual(verification["transaction_outcome"], "ROLLED_BACK")
             self.assertEqual(verification["persistent_rows_written"], 0)
             self.assertTrue(all(item["sqlstate"] == "42501" for item in verification["negative_probes"]))
-            verification_path = evidence_root / "verification.json"
+            verification_path = evidence_root / EVIDENCE_FILENAMES["productive_role_verification"]
             self._write(verification_path, verification)
+
+            with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
+                cursor.execute("INSERT INTO cg_raw.kpione2_raw VALUES (20)")
 
             postcheck = run_precheck(
                 plan,
@@ -140,25 +221,29 @@ class OperationalEvidencePostgres020BTests(unittest.TestCase):
                 baseline=baseline,
                 baseline_sha256=baseline_sha,
                 authority=authority,
+                run_id=RUN_ID,
             )
             self.assertEqual(postcheck["verdict"], "PASS_READONLY_POSTCHECK")
             self.assertEqual(len(postcheck["route_b_signatures"]), 5)
             self.assertEqual(postcheck["active_batch_count"], 0)
-            postcheck_path = evidence_root / "postcheck.json"
+            self.assertEqual(postcheck["legacy_activity_delta"]["row_count"]["delta"], 1)
+            postcheck_path = evidence_root / EVIDENCE_FILENAMES["readonly_postcheck"]
             self._write(postcheck_path, postcheck)
 
-            drifted_legacy = copy.deepcopy(baseline)
-            drifted_legacy["legacy"]["row_count"] = 2
-            with self.assertRaisesRegex(PrecheckBlock, "legacy_evidence_drift"):
-                run_precheck(
-                    plan,
-                    "synthetic-readonly-dsn",
-                    readonly_connect,
-                    check_stage="post-provision",
-                    baseline=drifted_legacy,
-                    baseline_sha256=baseline_sha,
-                    authority=authority,
-                )
+            activity_changed = copy.deepcopy(baseline)
+            activity_changed["legacy"]["row_count"] = 0
+            activity_changed["legacy"]["relation_size_bytes"] = 0
+            activity_report = run_precheck(
+                plan,
+                "synthetic-readonly-dsn",
+                readonly_connect,
+                check_stage="post-provision",
+                baseline=activity_changed,
+                baseline_sha256=baseline_sha,
+                authority=authority,
+                run_id=RUN_ID,
+            )
+            self.assertGreater(activity_report["legacy_activity_delta"]["row_count"]["delta"], 0)
             drifted_public = copy.deepcopy(baseline)
             drifted_public["public_acl"]["schemas"]["cg_raw"] = ["CREATE"]
             with self.assertRaisesRegex(PrecheckBlock, "public_acl_drift"):
@@ -170,6 +255,7 @@ class OperationalEvidencePostgres020BTests(unittest.TestCase):
                     baseline=drifted_public,
                     baseline_sha256=baseline_sha,
                     authority=authority,
+                    run_id=RUN_ID,
                 )
 
             bundle = build_bundle({
@@ -177,8 +263,9 @@ class OperationalEvidencePostgres020BTests(unittest.TestCase):
                 "admin_provisioning": admin_path,
                 "productive_role_verification": verification_path,
                 "readonly_postcheck": postcheck_path,
-            }, PLAN_PATH, authority["approved_git_sha"])
+            }, PLAN_PATH, authority["approved_git_sha"], RUN_ID, root=root)
             self.assertEqual(bundle["status"], "PASSED")
+            self.assertEqual(bundle["run_id"], RUN_ID)
             self.assertEqual(set(bundle["components"]), {
                 "readonly_baseline_precheck",
                 "admin_provisioning",
@@ -188,7 +275,7 @@ class OperationalEvidencePostgres020BTests(unittest.TestCase):
 
         with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
             cursor.execute("SELECT count(*) FROM cg_raw.kpione2_raw")
-            self.assertEqual(cursor.fetchone()[0], 1)
+            self.assertEqual(cursor.fetchone()[0], 2)
             cursor.execute("SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1")
             self.assertEqual(cursor.fetchone()[0], 0)
             cursor.execute("SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_file_v1")

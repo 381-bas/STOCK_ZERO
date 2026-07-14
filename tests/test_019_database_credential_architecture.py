@@ -174,7 +174,12 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         self.assertNotIn("GRANT ALL", source.upper())
         legacy_lines = [line for line in source.splitlines() if "kpione2_raw" in line]
         self.assertTrue(legacy_lines)
-        self.assertTrue(all("SELECT to_regclass" in line for line in legacy_lines))
+        for mutation in (
+            "ALTER TABLE cg_raw.kpione2_raw", "DROP TABLE cg_raw.kpione2_raw",
+            "TRUNCATE cg_raw.kpione2_raw", "INSERT INTO cg_raw.kpione2_raw",
+            "UPDATE cg_raw.kpione2_raw", "DELETE FROM cg_raw.kpione2_raw",
+        ):
+            self.assertNotIn(mutation, source)
 
     def test_admin_git_guard_accepts_only_exact_clean_head_plan_and_sql_blobs(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -239,11 +244,14 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
 
         args = SimpleNamespace(
             plan=PLAN,
+            run_id="12345678-1234-4abc-8abc-1234567890ab",
             expected_plan_git_ref="0" * 40,
             db_url_env="DB_URL_ADMIN",
             expected_project_ref="xheyrgfagpoigpgakilu",
             confirm=PROVISION_CONFIRM_TOKEN,
-            evidence_json=Path(tempfile.gettempdir()) / "never-written.json",
+            evidence_json=ROOT / "evidence/runtime/020B/12345678-1234-4abc-8abc-1234567890ab/02_admin_provisioning.json",
+            reconcile_provisioning_evidence=False,
+            prior_failure_report=None,
             authority_precheck_only=False,
         )
         with self.assertRaisesRegex(ProvisioningError, "repository_head_mismatch"):
@@ -270,11 +278,14 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             head = run_git(root, "rev-parse", "HEAD")
             args = SimpleNamespace(
                 plan=plan_path,
+                run_id="12345678-1234-4abc-8abc-1234567890ab",
                 expected_plan_git_ref=head,
                 db_url_env="DB_URL_ADMIN",
                 expected_project_ref="xheyrgfagpoigpgakilu",
                 confirm=PROVISION_CONFIRM_TOKEN,
-                evidence_json=root / "evidence.json",
+                evidence_json=root / "evidence/runtime/020B/12345678-1234-4abc-8abc-1234567890ab/02_admin_provisioning.json",
+                reconcile_provisioning_evidence=False,
+                prior_failure_report=None,
                 authority_precheck_only=True,
             )
             report = execute_cli(args, environ=NoSecretReads(), root=root)
@@ -287,6 +298,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         for operation in (
             "readonly-precheck", "readonly-postcheck", "verify-route-b-role",
             "route-b-apply", "route-b-rollback", "admin-provision",
+            "admin-reconcile-provisioning-evidence",
             "diagnose-readonly", "diagnose-route-b", "diagnose-admin",
         ):
             self.assertIn(f"'{operation}'", source)
@@ -338,6 +350,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             "route-b-apply": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "route-b-rollback": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "admin-provision": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
+            "admin-reconcile-provisioning-evidence": ["DB_URL_ADMIN"],
             "diagnose-readonly": ["DB_URL_CODEX_RO"],
             "diagnose-route-b": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "diagnose-admin": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
@@ -391,19 +404,36 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             for name in managed:
                 environment[name] = f"synthetic-parent-{name.lower()}"
 
+            run_id = "12345678-1234-4abc-8abc-1234567890ab"
+            evidence_base = f"evidence/runtime/020B/{run_id}"
+            operation_arguments = {
+                "readonly-precheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/01_readonly_baseline.json"],
+                "admin-provision": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
+                "admin-reconcile-provisioning-evidence": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
+                "verify-route-b-role": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/03_productive_role_verification.json"],
+                "readonly-postcheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/04_readonly_postcheck.json"],
+            }
+
             for operation, expected_names in expected_by_operation.items():
                 with self.subTest(operation=operation):
+                    arguments = operation_arguments.get(operation, [])
+                    rendered_arguments = ",".join(
+                        "'" + value.replace("'", "''") + "'" for value in arguments
+                    )
+                    command = (
+                        f"& '{scripts / SECRET_WRAPPER.name}' -Operation '{operation}'"
+                        + (f" -ArgumentList @({rendered_arguments})" if arguments else "")
+                    )
                     completed = subprocess.run(
                         [
-                            "pwsh", "-NoLogo", "-NoProfile", "-File",
-                            str(scripts / SECRET_WRAPPER.name), "-Operation", operation,
+                            "pwsh", "-NoLogo", "-NoProfile", "-Command", command,
                         ],
                         cwd=root, env=environment, capture_output=True, text=True, check=False,
                     )
                     self.assertEqual(completed.returncode, 0, completed.stderr)
                     reports = [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
                     self.assertEqual(reports[-1]["managed"], sorted(expected_names))
-                    if operation == "admin-provision":
+                    if operation in ("admin-provision", "admin-reconcile-provisioning-evidence"):
                         self.assertEqual(reports[0]["managed"], [])
                         self.assertEqual(reports[-1]["entrypoint"], "provision_kpione_route_b_role.py")
                     for secret in secret_values:

@@ -7,24 +7,50 @@ import re
 from pathlib import Path
 from typing import Any, Mapping
 
+try:
+    from scripts.kpione_route_b_evidence_v1 import (
+        EvidenceContractError,
+        atomic_write_json,
+        parse_utc_timestamp,
+        prepare_run_directory,
+        require_canonical_evidence_path,
+        validate_run_id,
+    )
+    from scripts.precheck_kpione_route_b_018_read_only import legacy_structural_identity
+except ModuleNotFoundError:  # Direct execution from scripts/.
+    from kpione_route_b_evidence_v1 import (
+        EvidenceContractError,
+        atomic_write_json,
+        parse_utc_timestamp,
+        prepare_run_directory,
+        require_canonical_evidence_path,
+        validate_run_id,
+    )
+    from precheck_kpione_route_b_018_read_only import legacy_structural_identity
+
 
 DOCUMENT_TYPE = "kpione_route_b_infrastructure_evidence_bundle_v1"
+ROOT = Path(__file__).resolve().parents[1]
 COMPONENT_CONTRACT = {
     "readonly_baseline_precheck": (
         "kpione_route_b_readonly_baseline_evidence_v1",
         "PASS_READONLY_BASELINE",
+        1,
     ),
     "admin_provisioning": (
         "kpione_route_b_role_provisioning_evidence_v1",
         "PASS_ADMIN_PROVISIONING",
+        2,
     ),
     "productive_role_verification": (
         "kpione_route_b_productive_role_verification_evidence_v1",
         "PASS_PRODUCTIVE_ROLE_VERIFICATION",
+        3,
     ),
     "readonly_postcheck": (
         "kpione_route_b_readonly_postcheck_evidence_v1",
         "PASS_READONLY_POSTCHECK",
+        4,
     ),
 }
 SUSPICIOUS_KEY = re.compile(r"(^|_)(dsn|password|secret|environment|credential_value)($|_)", re.I)
@@ -63,11 +89,13 @@ def _load_component(path: Path, name: str) -> tuple[dict[str, Any], str]:
         evidence = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise EvidenceBundleError(f"component_unreadable:{name}") from exc
-    expected_type, expected_verdict = COMPONENT_CONTRACT[name]
+    expected_type, expected_verdict, expected_step = COMPONENT_CONTRACT[name]
     if evidence.get("document_type") != expected_type:
         raise EvidenceBundleError(f"component_document_type_mismatch:{name}")
     if evidence.get("verdict") != expected_verdict:
         raise EvidenceBundleError(f"component_verdict_mismatch:{name}")
+    if evidence.get("evidence_sequence_step") != expected_step:
+        raise EvidenceBundleError(f"component_sequence_step_mismatch:{name}")
     _reject_sensitive_content(evidence)
     return evidence, hashlib.sha256(raw).hexdigest()
 
@@ -83,7 +111,14 @@ def build_bundle(
     component_paths: Mapping[str, Path],
     plan_path: Path,
     expected_git_sha: str,
+    run_id: str,
+    *,
+    root: Path = ROOT,
 ) -> dict[str, Any]:
+    try:
+        validate_run_id(run_id)
+    except EvidenceContractError as exc:
+        raise EvidenceBundleError(str(exc)) from None
     if set(component_paths) != set(COMPONENT_CONTRACT):
         raise EvidenceBundleError("component_name_set_mismatch")
     if re.fullmatch(r"[0-9a-f]{40}", expected_git_sha) is None:
@@ -101,7 +136,24 @@ def build_bundle(
     evidence: dict[str, dict[str, Any]] = {}
     component_hashes: dict[str, str] = {}
     for name in COMPONENT_CONTRACT:
-        evidence[name], component_hashes[name] = _load_component(component_paths[name], name)
+        try:
+            path = require_canonical_evidence_path(
+                component_paths[name], root, run_id, name,
+            )
+        except EvidenceContractError as exc:
+            raise EvidenceBundleError(str(exc)) from None
+        evidence[name], component_hashes[name] = _load_component(path, name)
+
+    if {item.get("run_id") for item in evidence.values()} != {run_id}:
+        raise EvidenceBundleError("component_run_id_mismatch")
+    timestamps = []
+    for name, item in evidence.items():
+        try:
+            timestamps.append(parse_utc_timestamp(item.get("timestamp_utc")))
+        except EvidenceContractError as exc:
+            raise EvidenceBundleError(f"{name}:{exc}") from None
+    if timestamps != sorted(timestamps):
+        raise EvidenceBundleError("evidence_timestamps_not_nondecreasing")
 
     fingerprints = {item.get("target_fingerprint") for item in evidence.values()}
     if len(fingerprints) != 1 or None in fingerprints:
@@ -115,15 +167,24 @@ def build_bundle(
             raise EvidenceBundleError(f"sql_sha256_mismatch:{name}")
 
     baseline = evidence["readonly_baseline_precheck"]
+    admin = evidence["admin_provisioning"]
     postcheck = evidence["readonly_postcheck"]
+    if admin.get("evidence_mode") not in {
+        "DIRECT_COMMITTED_EXECUTION", "RECONCILED_COMMITTED_STATE",
+    }:
+        raise EvidenceBundleError("admin_evidence_mode_invalid")
     if postcheck.get("baseline_evidence_sha256") != component_hashes["readonly_baseline_precheck"]:
         raise EvidenceBundleError("postcheck_baseline_reference_mismatch")
-    for field in ("legacy", "public_acl"):
-        if postcheck.get(field) != baseline.get(field):
-            raise EvidenceBundleError(f"baseline_postcheck_{field}_mismatch")
+    if legacy_structural_identity(postcheck.get("legacy", {})) != legacy_structural_identity(
+        baseline.get("legacy", {})
+    ):
+        raise EvidenceBundleError("baseline_postcheck_legacy_structure_mismatch")
+    if postcheck.get("public_acl") != baseline.get("public_acl"):
+        raise EvidenceBundleError("baseline_postcheck_public_acl_mismatch")
 
     canonical = {
         "document_type": DOCUMENT_TYPE,
+        "run_id": run_id,
         "status": "PASSED",
         "components": component_hashes,
     }
@@ -140,6 +201,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--productive-role-verification-evidence", type=Path, required=True)
     result.add_argument("--readonly-postcheck-evidence", type=Path, required=True)
     result.add_argument("--plan", type=Path, required=True)
+    result.add_argument("--run-id", required=True)
     result.add_argument("--expected-git-sha", required=True)
     result.add_argument("--output", type=Path, required=True)
     return result
@@ -148,17 +210,24 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
+        validate_run_id(args.run_id)
+        prepare_run_directory(ROOT, args.run_id)
+        output = require_canonical_evidence_path(
+            args.output, ROOT, args.run_id, "infrastructure_bundle",
+        )
+        if output.exists():
+            raise EvidenceBundleError("evidence_file_already_exists")
         bundle = build_bundle({
             "readonly_baseline_precheck": args.baseline_evidence,
             "admin_provisioning": args.admin_provisioning_evidence,
             "productive_role_verification": args.productive_role_verification_evidence,
             "readonly_postcheck": args.readonly_postcheck_evidence,
-        }, args.plan, args.expected_git_sha)
+        }, args.plan, args.expected_git_sha, args.run_id)
         rendered = json.dumps(bundle, ensure_ascii=False, indent=2, sort_keys=True)
-        args.output.write_text(rendered + "\n", encoding="utf-8")
+        atomic_write_json(output, bundle)
         print(rendered)
         return 0
-    except (OSError, ValueError, EvidenceBundleError) as exc:
+    except (OSError, ValueError, EvidenceContractError, EvidenceBundleError) as exc:
         print(json.dumps({"status": "BLOCKED", "error": str(exc)}, sort_keys=True))
         return 2
 

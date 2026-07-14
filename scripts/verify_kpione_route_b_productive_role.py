@@ -13,6 +13,13 @@ from urllib.parse import urlparse
 from psycopg import sql
 
 try:
+    from scripts.kpione_route_b_evidence_v1 import (
+        EvidenceContractError,
+        atomic_write_json,
+        prepare_run_directory,
+        require_canonical_evidence_path,
+        validate_run_id,
+    )
     from scripts.kpione_route_b_v1 import (
         PLANNED_PRODUCTIVE_ROLE,
         RouteBError,
@@ -23,6 +30,13 @@ try:
     from scripts.precheck_kpione_route_b_018_read_only import load_plan, target_fingerprint
     from scripts.provision_kpione_route_b_role import validate_provisioning_plan
 except ModuleNotFoundError:  # Direct execution from scripts/.
+    from kpione_route_b_evidence_v1 import (
+        EvidenceContractError,
+        atomic_write_json,
+        prepare_run_directory,
+        require_canonical_evidence_path,
+        validate_run_id,
+    )
     from kpione_route_b_v1 import (
         PLANNED_PRODUCTIVE_ROLE,
         RouteBError,
@@ -84,7 +98,9 @@ def verify_productive_role(
     *,
     authority: Mapping[str, str],
     connect_fn: Callable[[str], Any] | None = None,
+    run_id: str = "00000000-0000-4000-8000-000000000000",
 ) -> dict[str, Any]:
+    validate_run_id(run_id)
     validate_provisioning_plan(plan)
     validate_registered_productive_target(plan)
     try:
@@ -241,6 +257,8 @@ def verify_productive_role(
 
     return {
         "document_type": DOCUMENT_TYPE,
+        "run_id": run_id,
+        "evidence_sequence_step": 3,
         "verdict": "PASS_PRODUCTIVE_ROLE_VERIFICATION",
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "target_fingerprint": target_fingerprint(plan),
@@ -264,6 +282,7 @@ def verify_productive_role(
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Verify the effective KPIONE Route B productive role")
     result.add_argument("--plan", type=Path, required=True)
+    result.add_argument("--run-id", required=True)
     result.add_argument("--expected-plan-git-ref", required=True)
     result.add_argument("--db-url-env", default=PRODUCTIVE_DB_ENV)
     result.add_argument("--expected-project-ref", required=True)
@@ -274,6 +293,13 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
+        validate_run_id(args.run_id)
+        prepare_run_directory(ROOT, args.run_id)
+        evidence_path = require_canonical_evidence_path(
+            args.evidence_json, ROOT, args.run_id, "productive_role_verification",
+        )
+        if evidence_path.exists():
+            raise ProductiveRoleVerificationError("evidence_file_already_exists")
         if args.db_url_env != PRODUCTIVE_DB_ENV:
             raise ProductiveRoleVerificationError("productive_db_url_env_required")
         plan = load_plan(args.plan)
@@ -286,12 +312,14 @@ def main() -> int:
         dsn = os.environ.get(PRODUCTIVE_DB_ENV)
         if not dsn:
             raise ProductiveRoleVerificationError("productive_dsn_missing")
-        report = verify_productive_role(plan, dsn, authority=authority)
+        report = verify_productive_role(
+            plan, dsn, authority=authority, run_id=args.run_id,
+        )
         rendered = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
-        args.evidence_json.write_text(rendered + "\n", encoding="utf-8")
+        atomic_write_json(evidence_path, report)
         print(rendered)
         return 0
-    except (OSError, ValueError, ProductiveRoleVerificationError) as exc:
+    except (OSError, ValueError, EvidenceContractError, ProductiveRoleVerificationError) as exc:
         print(json.dumps({
             "verdict": "BLOCKED",
             "error": str(exc),

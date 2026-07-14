@@ -14,6 +14,13 @@ from urllib.parse import parse_qs, urlparse
 from psycopg import sql
 
 try:
+    from .kpione_route_b_evidence_v1 import (
+        EvidenceContractError,
+        atomic_write_json,
+        prepare_run_directory,
+        require_canonical_evidence_path,
+        validate_run_id,
+    )
     from .kpione_route_b_v1 import (
         ADVISORY_LOCK_KEY,
         EXPECTED_PRODUCTIVE_DATABASE,
@@ -23,7 +30,20 @@ try:
         _assert_route_b_object_signatures,
         sha256_lf_normalized,
     )
+    from .precheck_kpione_route_b_018_read_only import (
+        _legacy_snapshot,
+        _public_acl_snapshot,
+        legacy_structural_identity,
+        target_fingerprint,
+    )
 except ImportError:
+    from kpione_route_b_evidence_v1 import (
+        EvidenceContractError,
+        atomic_write_json,
+        prepare_run_directory,
+        require_canonical_evidence_path,
+        validate_run_id,
+    )
     from kpione_route_b_v1 import (
         ADVISORY_LOCK_KEY,
         EXPECTED_PRODUCTIVE_DATABASE,
@@ -33,11 +53,18 @@ except ImportError:
         _assert_route_b_object_signatures,
         sha256_lf_normalized,
     )
+    from precheck_kpione_route_b_018_read_only import (
+        _legacy_snapshot,
+        _public_acl_snapshot,
+        legacy_structural_identity,
+        target_fingerprint,
+    )
 
 
 ADMIN_DB_ENV = "DB_URL_ADMIN"
 PRODUCTIVE_ROLE_PASSWORD_ENV = "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"
 PROVISION_CONFIRM_TOKEN = "STOCK_ZERO_019_PROVISION_ROUTE_B_ROLE"
+RECONCILE_CONFIRM_TOKEN = "STOCK_ZERO_020B_RECONCILE_PROVISIONING_EVIDENCE"
 EXPECTED_ADMIN_ROLE = "postgres"
 PRODUCTIVE_CONNECTION_LIMIT = 5
 PROVISION_LOCK_KEY = ADVISORY_LOCK_KEY + 19
@@ -271,7 +298,9 @@ def provision_route_b_role(
     expected_admin_username: str = EXPECTED_ADMIN_ROLE,
     git_guard: Mapping[str, str],
     ddl: str | None = None,
+    run_id: str = "00000000-0000-4000-8000-000000000000",
 ) -> dict[str, Any]:
+    validate_run_id(run_id)
     validate_provisioning_plan(plan)
     if not git_guard.get("approved_git_sha") or not git_guard.get("plan_sha256"):
         raise ProvisioningError("admin_git_guard_required")
@@ -292,6 +321,10 @@ def provision_route_b_role(
     role_created = False
     legacy_before: str | None = None
     legacy_after: str | None = None
+    legacy_snapshot_before: dict[str, Any] = {}
+    legacy_snapshot_after: dict[str, Any] = {}
+    public_acl_before: dict[str, Any] = {}
+    public_acl_after: dict[str, Any] = {}
     sequence_name: str | None = None
     try:
         connection = _connect(dsn, connect_fn)
@@ -313,6 +346,11 @@ def provision_route_b_role(
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", (PROVISION_LOCK_KEY,))
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
             legacy_before = cursor.fetchone()[0]
+            legacy_snapshot_before = _legacy_snapshot(cursor)
+            acl_relations = list(plan["physical_contract"]["object_signatures"]) + [
+                "cg_raw.kpione2_raw"
+            ]
+            public_acl_before = _public_acl_snapshot(cursor, acl_relations)
             cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (PLANNED_PRODUCTIVE_ROLE,))
             if cursor.fetchone() is not None:
                 raise ProvisioningError(
@@ -424,8 +462,14 @@ def provision_route_b_role(
                 raise ProvisioningError("productive_role_attributes_mismatch")
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
             legacy_after = cursor.fetchone()[0]
-            if legacy_after != legacy_before:
-                raise ProvisioningError("legacy_object_changed")
+            legacy_snapshot_after = _legacy_snapshot(cursor)
+            public_acl_after = _public_acl_snapshot(cursor, acl_relations)
+            if legacy_structural_identity(legacy_snapshot_after) != legacy_structural_identity(
+                legacy_snapshot_before
+            ):
+                raise ProvisioningError("legacy_structural_state_changed")
+            if public_acl_after != public_acl_before:
+                raise ProvisioningError("public_acl_changed")
         connection.commit()
         committed = True
     except ProvisioningError as exc:
@@ -450,16 +494,13 @@ def provision_route_b_role(
 
     report = {
         "document_type": "kpione_route_b_role_provisioning_evidence_v1",
+        "run_id": run_id,
+        "evidence_sequence_step": 2,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "verdict": "PASS_ADMIN_PROVISIONING",
+        "evidence_mode": "DIRECT_COMMITTED_EXECUTION",
         "credential_class": target["credential_class"],
-        "target_fingerprint": hashlib.sha256(
-            "|".join((
-                plan["target"]["expected_supabase_project_ref"],
-                target["hostname"],
-                target["database"],
-            )).encode("utf-8")
-        ).hexdigest(),
+        "target_fingerprint": target_fingerprint(plan),
         "planned_productive_role": PLANNED_PRODUCTIVE_ROLE,
         "approved_git_sha": git_guard["approved_git_sha"],
         "plan_sha256": git_guard["plan_sha256"],
@@ -480,6 +521,18 @@ def provision_route_b_role(
         "legacy_object_before": legacy_before,
         "legacy_object_after": legacy_after,
         "legacy_object_unchanged": legacy_before == legacy_after,
+        "legacy_structure_before": legacy_structural_identity(legacy_snapshot_before),
+        "legacy_structure_after": legacy_structural_identity(legacy_snapshot_after),
+        "legacy_activity_before": {
+            "row_count": legacy_snapshot_before.get("row_count", "unavailable"),
+            "relation_size_bytes": legacy_snapshot_before.get("relation_size_bytes", "unavailable"),
+        },
+        "legacy_activity_after": {
+            "row_count": legacy_snapshot_after.get("row_count", "unavailable"),
+            "relation_size_bytes": legacy_snapshot_after.get("relation_size_bytes", "unavailable"),
+        },
+        "public_acl_before": public_acl_before,
+        "public_acl_after": public_acl_after,
         "connection_attempted": True,
         "writes_attempted": True,
         "committed": True,
@@ -505,25 +558,259 @@ def provision_route_b_role(
 
 
 def _write_provisioning_evidence(evidence_json: Path, report: dict[str, Any]) -> None:
-    evidence_json.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    atomic_write_json(evidence_json, report)
+
+
+def _validate_prior_failure_mapping(
+    report: Mapping[str, Any],
+    run_id: str,
+    git_guard: Mapping[str, str],
+    plan: Mapping[str, Any],
+) -> dict[str, Any]:
+    required = {
+        "verdict": "BLOCKED",
+        "error": "admin_provisioning_evidence_write_failed",
+        "run_id": run_id,
+        "evidence_sequence_step": 2,
+        "committed": True,
+        "rollback_or_reconciliation_required": True,
+        "approved_git_sha": git_guard["approved_git_sha"],
+        "plan_sha256": git_guard["plan_sha256"],
+        "sql_sha256": plan["physical_contract"]["sql_sha256"],
+        "target_fingerprint": target_fingerprint(plan),
+    }
+    for key, expected in required.items():
+        if report.get(key) != expected:
+            raise ProvisioningError(f"prior_failure_report_mismatch:{key}")
+    if not isinstance(report.get("legacy_structure_before"), dict):
+        raise ProvisioningError("prior_failure_legacy_structure_missing")
+    if not isinstance(report.get("public_acl_before"), dict):
+        raise ProvisioningError("prior_failure_public_acl_missing")
+    return dict(report)
+
+
+def _validate_prior_failure_report(
+    path: Path,
+    run_id: str,
+    git_guard: Mapping[str, str],
+    plan: Mapping[str, Any],
+) -> dict[str, Any]:
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProvisioningError("prior_failure_report_unreadable") from exc
+    return _validate_prior_failure_mapping(report, run_id, git_guard, plan)
+
+
+def _observe_reconciled_state(
+    cursor: Any,
+    plan: dict[str, Any],
+    expected_admin_username: str,
+) -> dict[str, Any]:
+    cursor.execute(
+        "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,"
+        "rolbypassrls,rolconnlimit FROM pg_roles WHERE rolname=%s",
+        (PLANNED_PRODUCTIVE_ROLE,),
     )
+    role_attributes = cursor.fetchone()
+    expected_attributes = (
+        True, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT,
+    )
+    if role_attributes != expected_attributes:
+        raise ProvisioningError("reconciliation_role_attributes_mismatch")
+    _assert_route_b_object_signatures(cursor, plan, allow_empty=False)
+    cursor.execute(
+        "SELECT DISTINCT c.relowner::regrole::text FROM pg_class c "
+        "JOIN pg_namespace n ON n.oid=c.relnamespace "
+        "WHERE n.nspname||'.'||c.relname=ANY(%s)",
+        (plan["physical_contract"]["objects"],),
+    )
+    owners = sorted({row[0] for row in cursor.fetchall()})
+    if owners != [expected_admin_username]:
+        raise ProvisioningError("reconciliation_route_b_owner_mismatch")
+    cursor.execute(
+        "SELECT pg_get_serial_sequence(%s,%s)",
+        ("cg_raw.kpione_raw_event_photo_staging_v1", "staging_id"),
+    )
+    sequence_name = cursor.fetchone()[0]
+    if not sequence_name:
+        raise ProvisioningError("reconciliation_sequence_missing")
+    cursor.execute("SELECT %s::regclass::oid", (sequence_name,))
+    sequence_oid = cursor.fetchone()[0]
+    cursor.execute("SELECT relowner::regrole::text FROM pg_class WHERE oid=%s", (sequence_oid,))
+    if cursor.fetchone()[0] != expected_admin_username:
+        raise ProvisioningError("reconciliation_sequence_owner_mismatch")
+
+    role = PLANNED_PRODUCTIVE_ROLE
+    batch = "cg_raw.kpione_raw_ingest_batch_v1"
+    batch_file = "cg_raw.kpione_raw_ingest_batch_file_v1"
+    staging = "cg_raw.kpione_raw_event_photo_staging_v1"
+    cursor.execute(
+        "SELECT "
+        "has_schema_privilege(%s,'cg_raw','USAGE'),has_schema_privilege(%s,'cg_core','USAGE'),"
+        "has_schema_privilege(%s,'cg_raw','CREATE'),has_schema_privilege(%s,'cg_core','CREATE'),"
+        "has_table_privilege(%s,%s,'SELECT'),has_table_privilege(%s,%s,'INSERT'),"
+        "has_table_privilege(%s,%s,'UPDATE'),has_table_privilege(%s,%s,'DELETE'),"
+        "has_column_privilege(%s,%s,'status','UPDATE'),"
+        "has_column_privilege(%s,%s,'activated_at','UPDATE'),"
+        "has_column_privilege(%s,%s,'rolled_back_at','UPDATE'),"
+        "has_column_privilege(%s,%s,'semantic_plan_hash','UPDATE'),"
+        "has_table_privilege(%s,%s,'SELECT'),has_table_privilege(%s,%s,'INSERT'),"
+        "has_table_privilege(%s,%s,'UPDATE'),has_table_privilege(%s,%s,'DELETE'),"
+        "has_table_privilege(%s,%s,'SELECT'),has_table_privilege(%s,%s,'INSERT'),"
+        "has_table_privilege(%s,%s,'UPDATE'),has_table_privilege(%s,%s,'DELETE'),"
+        "has_table_privilege(%s,'cg_core.kpione_event_normalized_v1','SELECT'),"
+        "has_table_privilege(%s,'cg_core.kpione_day_presence_v1','SELECT'),"
+        "has_sequence_privilege(%s,%s,'USAGE'),has_sequence_privilege(%s,%s,'SELECT'),"
+        "has_table_privilege(%s,'cg_raw.kpione2_raw','INSERT'),"
+        "has_table_privilege(%s,'cg_raw.kpione2_raw','UPDATE'),"
+        "has_table_privilege(%s,'cg_raw.kpione2_raw','DELETE')",
+        (
+            role, role, role, role,
+            role, batch, role, batch, role, batch, role, batch,
+            role, batch, role, batch, role, batch, role, batch,
+            role, batch_file, role, batch_file, role, batch_file, role, batch_file,
+            role, staging, role, staging, role, staging, role, staging,
+            role, role, role, sequence_name, role, sequence_name,
+            role, role, role,
+        ),
+    )
+    privileges = tuple(cursor.fetchone())
+    expected_privileges = (
+        True, True, False, False,
+        True, True, False, False,
+        True, True, True, False,
+        True, True, False, False,
+        True, True, False, False,
+        True, True, True, False,
+        False, False, False,
+    )
+    if privileges != expected_privileges:
+        raise ProvisioningError("reconciliation_grant_matrix_mismatch")
+    relations = list(plan["physical_contract"]["object_signatures"]) + ["cg_raw.kpione2_raw"]
+    return {
+        "role_attributes": {
+            "login": role_attributes[0], "superuser": role_attributes[1],
+            "createdb": role_attributes[2], "createrole": role_attributes[3],
+            "replication": role_attributes[4], "bypassrls": role_attributes[5],
+            "connection_limit": role_attributes[6],
+        },
+        "route_b_owners": owners,
+        "route_b_sequence": sequence_name,
+        "grant_matrix_verified": True,
+        "legacy": _legacy_snapshot(cursor),
+        "public_acl": _public_acl_snapshot(cursor, relations),
+    }
+
+
+def reconcile_provisioning_evidence(
+    plan: dict[str, Any],
+    dsn: str,
+    run_id: str,
+    prior_failure: Mapping[str, Any],
+    evidence_json: Path,
+    *,
+    git_guard: Mapping[str, str],
+    connect_fn: Callable[[str], Any] | None = None,
+    expected_admin_username: str = EXPECTED_ADMIN_ROLE,
+) -> dict[str, Any]:
+    validate_run_id(run_id)
+    validate_provisioning_plan(plan)
+    prior_failure = _validate_prior_failure_mapping(
+        prior_failure, run_id, git_guard, plan,
+    )
+    target = validate_admin_dsn_target(
+        dsn, plan, expected_admin_username=expected_admin_username,
+    )
+    connection: Any | None = None
+    try:
+        connection = _connect(dsn, connect_fn)
+        connection.autocommit = False
+        with connection.cursor() as cursor:
+            cursor.execute("BEGIN READ ONLY")
+            cursor.execute("SET LOCAL statement_timeout = '30s'")
+            cursor.execute("SET LOCAL lock_timeout = '5s'")
+            cursor.execute(
+                "SELECT current_user,session_user,current_database(),"
+                "current_setting('transaction_read_only')"
+            )
+            current_user, session_user, database, readonly = cursor.fetchone()
+            if current_user != expected_admin_username or session_user != expected_admin_username:
+                raise ProvisioningError("reconciliation_admin_session_role_mismatch")
+            if database != plan["target"]["expected_database"] or readonly != "on":
+                raise ProvisioningError("reconciliation_readonly_session_mismatch")
+            observed = _observe_reconciled_state(cursor, plan, expected_admin_username)
+            if legacy_structural_identity(observed["legacy"]) != prior_failure["legacy_structure_before"]:
+                raise ProvisioningError("reconciliation_legacy_structural_drift")
+            if observed["public_acl"] != prior_failure["public_acl_before"]:
+                raise ProvisioningError("reconciliation_public_acl_drift")
+        connection.rollback()
+    except ProvisioningError:
+        if connection is not None:
+            connection.rollback()
+        raise
+    except Exception:
+        if connection is not None:
+            connection.rollback()
+        raise ProvisioningError("admin_provisioning_reconciliation_failed") from None
+    finally:
+        if connection is not None:
+            connection.close()
+    report = {
+        "document_type": "kpione_route_b_role_provisioning_evidence_v1",
+        "run_id": run_id,
+        "evidence_sequence_step": 2,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "verdict": "PASS_ADMIN_PROVISIONING",
+        "evidence_mode": "RECONCILED_COMMITTED_STATE",
+        "credential_class": target["credential_class"],
+        "target_fingerprint": target_fingerprint(plan),
+        "approved_git_sha": git_guard["approved_git_sha"],
+        "plan_sha256": git_guard["plan_sha256"],
+        "ddl_sha256": plan["physical_contract"]["sql_sha256"],
+        "sql_sha256": plan["physical_contract"]["sql_sha256"],
+        "planned_productive_role": PLANNED_PRODUCTIVE_ROLE,
+        "role_attributes": observed["role_attributes"],
+        "route_b_objects_validated": sorted(plan["physical_contract"]["objects"]),
+        "route_b_owners": observed["route_b_owners"],
+        "route_b_sequence": observed["route_b_sequence"],
+        "grant_matrix_verified": True,
+        "legacy_structure_before": prior_failure["legacy_structure_before"],
+        "legacy_structure_after": legacy_structural_identity(observed["legacy"]),
+        "public_acl_before": prior_failure["public_acl_before"],
+        "public_acl_after": observed["public_acl"],
+        "connection_attempted": True,
+        "writes_attempted": False,
+        "committed": True,
+        "transaction_outcome": "ROLLED_BACK_READ_ONLY",
+        "rollback_or_reconciliation_required": False,
+    }
+    _write_provisioning_evidence(evidence_json, report)
+    return report
 
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Provision the restricted KPIONE Route B role")
     result.add_argument("--plan", type=Path, default=DEFAULT_PLAN)
+    result.add_argument("--run-id", required=True)
     result.add_argument("--expected-plan-git-ref", required=True)
     result.add_argument("--db-url-env", required=True)
     result.add_argument("--expected-project-ref", required=True)
     result.add_argument("--confirm", required=True)
     result.add_argument("--evidence-json", type=Path, required=True)
+    result.add_argument("--reconcile-provisioning-evidence", action="store_true")
+    result.add_argument("--prior-failure-report", type=Path)
     result.add_argument("--authority-precheck-only", action="store_true")
     return result
 
 
 def _prepare_admin_operation(args: argparse.Namespace, root: Path = ROOT) -> tuple[dict[str, Any], str, dict[str, str]]:
+    validate_run_id(args.run_id)
+    args.evidence_json = require_canonical_evidence_path(
+        args.evidence_json, root, args.run_id, "admin_provisioning",
+    )
+    if args.evidence_json.exists():
+        raise ProvisioningError("evidence_file_already_exists")
     if args.db_url_env != ADMIN_DB_ENV:
         raise ProvisioningError("admin_db_url_env_required")
     authority = _validate_admin_plan_git_guard(args.plan, args.expected_plan_git_ref, root)
@@ -537,10 +824,22 @@ def _prepare_admin_operation(args: argparse.Namespace, root: Path = ROOT) -> tup
     if authority["ddl_sha256"] != plan["physical_contract"]["sql_sha256"]:
         raise ProvisioningError("sql_sha256_mismatch")
     ddl = authority["_ddl_blob"].decode("utf-8")
+    prepare_run_directory(root, args.run_id)
     if not args.evidence_json.parent.is_dir():
         raise ProvisioningError("provisioning_evidence_parent_missing")
-    if args.confirm != PROVISION_CONFIRM_TOKEN:
-        raise ProvisioningError("admin_provision_confirmation_required")
+    if args.reconcile_provisioning_evidence:
+        if args.confirm != RECONCILE_CONFIRM_TOKEN:
+            raise ProvisioningError("admin_reconciliation_confirmation_required")
+        if args.prior_failure_report is None:
+            raise ProvisioningError("prior_failure_report_required")
+        args._prior_failure = _validate_prior_failure_report(
+            args.prior_failure_report, args.run_id, authority, plan,
+        )
+    else:
+        if args.prior_failure_report is not None:
+            raise ProvisioningError("prior_failure_report_not_allowed_for_initial_provisioning")
+        if args.confirm != PROVISION_CONFIRM_TOKEN:
+            raise ProvisioningError("admin_provision_confirmation_required")
     public_guard = {
         key: value for key, value in authority.items() if not key.startswith("_")
     }
@@ -564,14 +863,19 @@ def execute_cli(
             "committed": False,
         }
     dsn = environ.get(ADMIN_DB_ENV)
-    role_password = environ.get(PRODUCTIVE_ROLE_PASSWORD_ENV)
     if not dsn:
         raise ProvisioningError("admin_dsn_missing")
+    if args.reconcile_provisioning_evidence:
+        return reconcile_provisioning_evidence(
+            plan, dsn, args.run_id, args._prior_failure, args.evidence_json,
+            git_guard=git_guard,
+        )
+    role_password = environ.get(PRODUCTIVE_ROLE_PASSWORD_ENV)
     if not role_password:
         raise ProvisioningError("productive_role_password_missing")
     return provision_route_b_role(
         plan, dsn, role_password, args.evidence_json,
-        root=root, git_guard=git_guard, ddl=ddl,
+        root=root, git_guard=git_guard, ddl=ddl, run_id=args.run_id,
     )
 
 
@@ -586,7 +890,9 @@ def _blocked_report(exc: BaseException) -> dict[str, Any]:
     }
     safe_fields = {
         "approved_git_sha", "plan_sha256", "ddl_sha256", "target_fingerprint",
-        "planned_productive_role", "role_created", "committed",
+        "run_id", "evidence_sequence_step", "sql_sha256", "planned_productive_role",
+        "role_created", "committed", "legacy_structure_before", "legacy_structure_after",
+        "legacy_activity_before", "legacy_activity_after", "public_acl_before", "public_acl_after",
         "legacy_object_unchanged", "rollback_or_reconciliation_required",
     }
     report.update({
@@ -601,7 +907,7 @@ def main() -> int:
     try:
         print(json.dumps(execute_cli(args), sort_keys=True))
         return 0
-    except (ProvisioningError, OSError, ValueError) as exc:
+    except (ProvisioningError, EvidenceContractError, OSError, ValueError) as exc:
         print(json.dumps(_blocked_report(exc), sort_keys=True))
         return 2
 

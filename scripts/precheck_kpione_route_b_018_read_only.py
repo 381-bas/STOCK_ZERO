@@ -10,6 +10,13 @@ from typing import Any, Callable, Mapping
 from urllib.parse import parse_qs, urlparse
 
 try:
+    from scripts.kpione_route_b_evidence_v1 import (
+        EvidenceContractError,
+        atomic_write_json,
+        prepare_run_directory,
+        require_canonical_evidence_path,
+        validate_run_id,
+    )
     from scripts.kpione_route_b_v1 import (
         PLANNED_PRODUCTIVE_ROLE,
         RouteBError,
@@ -17,6 +24,13 @@ try:
         validate_productive_local_artifacts,
     )
 except ModuleNotFoundError:  # Direct execution from scripts/.
+    from kpione_route_b_evidence_v1 import (
+        EvidenceContractError,
+        atomic_write_json,
+        prepare_run_directory,
+        require_canonical_evidence_path,
+        validate_run_id,
+    )
     from kpione_route_b_v1 import (
         PLANNED_PRODUCTIVE_ROLE,
         RouteBError,
@@ -159,7 +173,8 @@ def _public_acl_snapshot(cursor: Any, relations: list[str]) -> dict[str, Any]:
 
 def _legacy_snapshot(cursor: Any) -> dict[str, Any]:
     cursor.execute(
-        "SELECT c.oid::text,n.nspname||'.'||c.relname,c.relkind "
+        "SELECT c.oid::text,n.nspname||'.'||c.relname,c.relkind,"
+        "c.relowner::regrole::text,COALESCE(c.relacl::text,'') "
         "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
         "WHERE n.nspname='cg_raw' AND c.relname='kpione2_raw'"
     )
@@ -169,11 +184,25 @@ def _legacy_snapshot(cursor: Any) -> dict[str, Any]:
             "object_identity": None,
             "oid": None,
             "relation_kind": None,
+            "owner": None,
+            "acl": None,
+            "column_signature_sha256": None,
             "row_count": "unavailable",
             "relation_size_bytes": "unavailable",
             "select_available": False,
         }
-    oid, identity, relation_kind = row
+    oid, identity, relation_kind, owner, acl = row
+    cursor.execute(
+        "SELECT a.attname,pg_catalog.format_type(a.atttypid,a.atttypmod),"
+        "a.attnotnull,a.attidentity,a.attgenerated FROM pg_attribute a "
+        "WHERE a.attrelid=%s::regclass AND a.attnum>0 AND NOT a.attisdropped "
+        "ORDER BY a.attnum",
+        (identity,),
+    )
+    columns = [list(value) for value in cursor.fetchall()]
+    column_signature_sha256 = hashlib.sha256(
+        json.dumps(columns, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     cursor.execute("SELECT has_table_privilege(current_user,%s,'SELECT')", (identity,))
     can_select = bool(cursor.fetchone()[0])
     row_count: int | str = "unavailable"
@@ -187,9 +216,51 @@ def _legacy_snapshot(cursor: Any) -> dict[str, Any]:
         "object_identity": identity,
         "oid": oid,
         "relation_kind": relation_kind,
+        "owner": owner,
+        "acl": acl,
+        "column_signature_sha256": column_signature_sha256,
         "row_count": row_count,
         "relation_size_bytes": relation_size,
         "select_available": can_select,
+    }
+
+
+def legacy_structural_identity(legacy: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        key: legacy.get(key)
+        for key in (
+            "object_identity", "oid", "relation_kind", "owner",
+            "column_signature_sha256", "acl",
+        )
+    }
+
+
+def assert_legacy_structural_invariance(
+    baseline: Mapping[str, Any],
+    current: Mapping[str, Any],
+) -> None:
+    expected = legacy_structural_identity(baseline)
+    observed = legacy_structural_identity(current)
+    if observed.get("object_identity") is None:
+        raise PrecheckBlock("legacy_object_missing")
+    for field in expected:
+        if observed[field] != expected[field]:
+            raise PrecheckBlock(f"legacy_structural_drift:{field}")
+
+
+def legacy_activity_delta(
+    baseline: Mapping[str, Any],
+    current: Mapping[str, Any],
+) -> dict[str, Any]:
+    def metric(name: str) -> dict[str, Any]:
+        before = baseline.get(name, "unavailable")
+        after = current.get(name, "unavailable")
+        delta = after - before if isinstance(before, int) and isinstance(after, int) else "unavailable"
+        return {"before": before, "after": after, "delta": delta}
+
+    return {
+        "row_count": metric("row_count"),
+        "relation_size_bytes": metric("relation_size_bytes"),
     }
 
 
@@ -264,8 +335,9 @@ def _assert_post_provision(
     if baseline.get("target_fingerprint") != target_fingerprint(plan):
         raise PrecheckBlock("baseline_target_fingerprint_mismatch")
     baseline_legacy = baseline.get("legacy")
-    if not isinstance(baseline_legacy, dict) or legacy != baseline_legacy:
-        raise PrecheckBlock("legacy_evidence_drift")
+    if not isinstance(baseline_legacy, dict):
+        raise PrecheckBlock("legacy_structural_baseline_missing")
+    assert_legacy_structural_invariance(baseline_legacy, legacy)
     if public_acl != baseline.get("public_acl"):
         raise PrecheckBlock("public_acl_drift")
 
@@ -279,7 +351,9 @@ def run_precheck(
     baseline: Mapping[str, Any] | None = None,
     baseline_sha256: str | None = None,
     authority: Mapping[str, str] | None = None,
+    run_id: str = "00000000-0000-4000-8000-000000000000",
 ) -> dict[str, Any]:
+    validate_run_id(run_id)
     validate_plan_readiness(plan, check_stage)
     if check_stage == "post-provision" and baseline is None:
         raise PrecheckBlock("baseline_evidence_required")
@@ -332,6 +406,8 @@ def run_precheck(
         verdict = "PASS_READONLY_BASELINE" if check_stage == "baseline" else "PASS_READONLY_POSTCHECK"
         report = {
             "document_type": document_type,
+            "run_id": run_id,
+            "evidence_sequence_step": 1 if check_stage == "baseline" else 4,
             "verdict": verdict,
             "check_stage": check_stage,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
@@ -356,6 +432,9 @@ def run_precheck(
         }
         if check_stage == "post-provision":
             report["baseline_evidence_sha256"] = baseline_sha256
+            report["legacy_activity_delta"] = legacy_activity_delta(
+                baseline.get("legacy", {}), legacy,
+            )
         return report
     finally:
         connection.rollback()
@@ -375,6 +454,7 @@ def _load_baseline(path: Path) -> tuple[dict[str, Any], str]:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="KPIONE Route B staged read-only evidence precheck")
     result.add_argument("--plan", type=Path, required=True)
+    result.add_argument("--run-id", required=True)
     result.add_argument("--check-stage", choices=("baseline", "post-provision"), default="baseline")
     result.add_argument("--baseline-evidence", type=Path)
     result.add_argument("--expected-plan-git-ref", required=True)
@@ -387,6 +467,14 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
+        validate_run_id(args.run_id)
+        prepare_run_directory(ROOT, args.run_id)
+        component = "readonly_baseline_precheck" if args.check_stage == "baseline" else "readonly_postcheck"
+        report_path = require_canonical_evidence_path(
+            args.report_json, ROOT, args.run_id, component,
+        )
+        if report_path.exists():
+            raise PrecheckBlock("evidence_file_already_exists")
         plan = load_plan(args.plan)
         validate_plan_readiness(plan, args.check_stage)
         validate_local_artifacts(plan)
@@ -399,7 +487,12 @@ def main() -> int:
         if args.check_stage == "post-provision":
             if args.baseline_evidence is None:
                 raise PrecheckBlock("baseline_evidence_required")
-            baseline, baseline_sha256 = _load_baseline(args.baseline_evidence)
+            baseline_path = require_canonical_evidence_path(
+                args.baseline_evidence, ROOT, args.run_id, "readonly_baseline_precheck",
+            )
+            baseline, baseline_sha256 = _load_baseline(baseline_path)
+            if baseline.get("run_id") != args.run_id or baseline.get("evidence_sequence_step") != 1:
+                raise PrecheckBlock("baseline_run_or_sequence_mismatch")
         elif args.baseline_evidence is not None:
             raise PrecheckBlock("baseline_evidence_not_allowed_for_baseline")
         dsn = os.environ.get(args.db_url_env)
@@ -413,12 +506,13 @@ def main() -> int:
             baseline=baseline,
             baseline_sha256=baseline_sha256,
             authority=authority,
+            run_id=args.run_id,
         )
         rendered = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
-        args.report_json.write_text(rendered + "\n", encoding="utf-8")
+        atomic_write_json(report_path, report)
         print(rendered)
         return 0
-    except (OSError, ValueError, json.JSONDecodeError, PrecheckBlock) as exc:
+    except (OSError, ValueError, json.JSONDecodeError, EvidenceContractError, PrecheckBlock) as exc:
         print(json.dumps({"verdict": "BLOCKED", "error": str(exc), "writes_attempted": False}, sort_keys=True))
         return 2
 
