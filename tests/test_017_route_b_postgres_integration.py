@@ -204,6 +204,10 @@ class RouteBPostgresRehearsal(unittest.TestCase):
 
     def test_productive_core_apply_postcheck_and_logical_rollback_on_local_postgres(self) -> None:
         with psycopg.connect(DSN) as connection, connection.cursor() as cursor:
+            cursor.execute("CREATE SCHEMA IF NOT EXISTS cg_raw")
+            cursor.execute(
+                "CREATE TABLE IF NOT EXISTS cg_raw.kpione2_raw (legacy_evidence_id bigint)"
+            )
             cursor.execute("SELECT current_user,current_database(),to_regclass('cg_raw.kpione2_raw')::text")
             role, database, legacy_before = cursor.fetchone()
         with tempfile.TemporaryDirectory() as folder:
@@ -213,6 +217,9 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             workbook = local_plan["_workbooks"][0]
             classified = classify_global_photo_duplicates([workbook])
             plan = json.loads(PRODUCTIVE_PLAN.read_text(encoding="utf-8"))
+            plan["status"] = "READY_FOR_PRODUCTIVE_EXECUTION"
+            plan["remaining_blockers"] = []
+            plan["readonly_precheck"] = {"status": "PASSED", "evidence_sha256": "c" * 64}
             plan["target"].update({
                 "expected_supabase_project_ref": "local-test",
                 "expected_hostname": "db.local-test.supabase.co",
@@ -244,6 +251,12 @@ class RouteBPostgresRehearsal(unittest.TestCase):
                     "missing_dates": [],
                 },
             })
+            plan["postcheck_queries"] = [
+                query.replace("count(*)=10089", "count(*)=0")
+                .replace("THEN 35287", "THEN 1")
+                .replace("THEN 34996", "THEN 1")
+                for query in plan["postcheck_queries"]
+            ]
             approved = {
                 "files": [{"source_file_sha256": workbook.source_file_sha256}],
                 "_workbooks": [workbook],
@@ -276,7 +289,24 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             legacy_after = cursor.fetchone()[0]
         self.assertEqual(apply_report["postcheck_verdict"], "PASS")
         self.assertEqual(rollback_report["postcheck_verdict"], "PASS")
+        self.assertEqual(apply_report["postcheck"]["declared_failures"], [])
+        self.assertEqual(rollback_report["postcheck"]["declared_failures"], [])
+        apply_booleans = {
+            item["index"]: item["boolean_result"]
+            for item in apply_report["postcheck"]["declared_postchecks"]
+            if item.get("result_type") == "boolean"
+        }
+        rollback_booleans = {
+            item["index"]: item["boolean_result"]
+            for item in rollback_report["postcheck"]["declared_postchecks"]
+            if item.get("result_type") == "boolean"
+        }
+        self.assertEqual(apply_booleans, {7: True, 10: True, 11: True})
+        self.assertEqual(rollback_booleans, {7: True, 10: True, 11: True})
+        self.assertEqual(apply_report["postcheck"]["legacy_object"], "cg_raw.kpione2_raw")
+        self.assertEqual(rollback_report["postcheck"]["legacy_object"], "cg_raw.kpione2_raw")
         self.assertEqual(staging_after, 1)
+        self.assertEqual(legacy_before, "cg_raw.kpione2_raw")
         self.assertEqual(legacy_after, legacy_before)
 
 

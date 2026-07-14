@@ -8,6 +8,10 @@
     "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
     "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED"
   ],
+  "readonly_precheck": {
+    "status": "NOT_AUTHORIZED_OR_EXECUTED",
+    "evidence_sha256": null
+  },
   "git_reference_contract": {
     "mode": "CLI_EXACT_APPROVED_HEAD",
     "required_argument": "--expected-plan-git-ref",
@@ -144,8 +148,8 @@
     "SELECT count(*)=10089 AS approved_duplicate_total_matches FROM cg_raw.kpione_raw_event_photo_staging_v1 WHERE duplicate_classification IN ('EXACT_DUPLICATE','CROSS_FILE_DUPLICATE');",
     "SELECT count(*) AS identities_without_exactly_one_unique FROM (SELECT event_id,photo_row_hash,count(*) FILTER (WHERE duplicate_classification='UNIQUE') AS unique_count FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY event_id,photo_row_hash HAVING count(*) FILTER (WHERE duplicate_classification='UNIQUE')<>1) q;",
     "SELECT conflict_classification,count(*) FROM cg_raw.kpione_raw_event_photo_staging_v1 GROUP BY conflict_classification;",
-    "SELECT count(*)=35287 AS approved_event_count_matches FROM cg_core.kpione_event_normalized_v1;",
-    "SELECT count(*)=34996 AS approved_day_presence_count_matches FROM cg_core.kpione_day_presence_v1 WHERE presence=1;",
+    "SELECT count(*)=CASE WHEN EXISTS(SELECT 1 FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE') THEN 35287 ELSE 0 END AS approved_event_count_matches FROM cg_core.kpione_event_normalized_v1;",
+    "SELECT count(*)=CASE WHEN EXISTS(SELECT 1 FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE') THEN 34996 ELSE 0 END AS approved_day_presence_count_matches FROM cg_core.kpione_day_presence_v1 WHERE presence=1;",
     "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 WHERE status='ACTIVE';",
     "SELECT count(*) FROM cg_raw.kpione_raw_ingest_batch_v1 a JOIN cg_raw.kpione_raw_ingest_batch_v1 b ON a.batch_id<b.batch_id AND a.status='ACTIVE' AND b.status='ACTIVE' AND daterange(a.coverage_start,a.coverage_end,'[]') && daterange(b.coverage_start,b.coverage_end,'[]');",
     "SELECT to_regclass('cg_raw.kpione2_raw') AS legacy_object_unchanged;"

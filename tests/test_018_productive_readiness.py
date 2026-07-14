@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import io
 import json
 import os
 import subprocess
@@ -9,8 +10,11 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import redirect_stdout
+from unittest import mock
 
 from scripts import precheck_kpione_route_b_018_read_only as precheck
+from scripts import run_kpione_route_b_ingestion_v1 as productive_runner
 from scripts.kpione_route_b_v1 import (
     PLANNED_PRODUCTIVE_ROLE,
     RouteBError,
@@ -122,6 +126,8 @@ class FakeProductiveDatabase:
         self.write_session_readonly = False
         self.reject_postcheck = False
         self.rollback_staging_mismatch = False
+        self.declared_boolean_failures: set[int] = set()
+        self.legacy_object: str | None = "cg_raw.kpione2_raw"
 
     def connect(self, _dsn: str):
         self.connection_count += 1
@@ -177,12 +183,49 @@ class FakeProductiveDbCursor:
             values = (values[0], values[1] + 1, *values[2:])
         return values
 
+    def _declared_postcheck_rows(self, index: int) -> list[tuple[object, ...]]:
+        batches = self.database.state["batches"]
+        staging = self.database.state["staging"]
+        files = self.database.state["files"]
+        active_count = sum(item["status"] == "ACTIVE" for item in batches.values())
+        if index == 0:
+            return [(name,) for name in self.database.plan["physical_contract"]["objects"]]
+        if index == 1:
+            return [(batch_id, item["status"]) for batch_id, item in batches.items()]
+        if index == 2:
+            return [(row[0], row[1]) for row in files]
+        if index == 3:
+            return [(batch_id, sum(row[0] == batch_id for row in staging)) for batch_id in batches]
+        if index == 4:
+            return [(sum(row[13] == "EXACT_DUPLICATE" for row in staging),)]
+        if index == 5:
+            return [(sum(row[13] == "CROSS_FILE_DUPLICATE" for row in staging),)]
+        if index == 6:
+            return [(sum(row[13] != "UNIQUE" for row in staging),)]
+        if index in {7, 10, 11}:
+            return [(index not in self.database.declared_boolean_failures,)]
+        if index == 8:
+            return [(0,)]
+        if index == 9:
+            return [("NONE", len(staging))]
+        if index == 12:
+            return [(active_count,)]
+        if index == 13:
+            return [(0,)]
+        if index == 14:
+            return [(self.database.legacy_object,)]
+        raise AssertionError(f"unsupported_declared_postcheck_index:{index}")
+
     def execute(self, sql: str, params=None) -> None:
         normalized = " ".join(sql.split()).lower()
         self.database.commands.append(normalized)
         self.rows = []
         self.rowcount = -1
         batches = self.database.state["batches"]
+        declared_queries = {
+            " ".join(query.split()).lower(): index
+            for index, query in enumerate(self.database.plan["postcheck_queries"])
+        }
         if normalized == "begin read only":
             self.connection.readonly = True
         elif normalized.startswith("select current_user,session_user,current_database()"):
@@ -209,6 +252,8 @@ class FakeProductiveDbCursor:
             self.rowcount = 1
         elif normalized.startswith("select batch_id::text from cg_raw.kpione_raw_ingest_batch_v1"):
             self.rows = [(batch_id,) for batch_id, item in batches.items() if item["status"] == "ACTIVE"]
+        elif normalized in declared_queries:
+            self.rows = self._declared_postcheck_rows(declared_queries[normalized])
         elif normalized.startswith("select count(*),count(*) filter"):
             self.rows = [self._batch_counts(params[0])]
         elif normalized.startswith("select count(*) from (select event_id,photo_row_hash"):
@@ -246,9 +291,10 @@ class FakeProductiveDbCursor:
         elif "join cg_raw.kpione_raw_ingest_batch_v1 b" in normalized:
             self.rows = [(0,)]
         elif "to_regclass('cg_raw.kpione2_raw')" in normalized:
-            self.rows = [("cg_raw.kpione2_raw",)]
+            self.rows = [(self.database.legacy_object,)]
         else:
-            self.rows = [(True,)] if normalized.startswith("select") else []
+            if normalized.startswith("select"):
+                raise AssertionError(f"unsupported_fake_productive_sql:{normalized}")
 
     def executemany(self, sql: str, rows) -> None:
         normalized = " ".join(sql.split()).lower()
@@ -274,6 +320,9 @@ class ProductiveReadiness018Tests(unittest.TestCase):
 
     def productive_unit_fixture(self) -> tuple[dict[str, object], dict[str, object], str, dict[str, str]]:
         plan = copy.deepcopy(self.plan)
+        plan["status"] = "READY_FOR_PRODUCTIVE_EXECUTION"
+        plan["remaining_blockers"] = []
+        plan["readonly_precheck"] = {"status": "PASSED", "evidence_sha256": "c" * 64}
         plan["target"]["productive_role_status"] = "PROVISIONED_AND_VERIFIED"
         plan["target"]["allowed_productive_roles"] = [PLANNED_PRODUCTIVE_ROLE]
         plan["activation_gate"]["productive_role_registered"] = True
@@ -331,6 +380,10 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertFalse(self.plan["productive_apply_authorized"])
         self.assertFalse(self.plan["productive_rollback_authorized"])
         self.assertFalse(self.plan["activation_gate"]["gate_open"])
+        self.assertEqual(self.plan["readonly_precheck"], {
+            "status": "NOT_AUTHORIZED_OR_EXECUTED",
+            "evidence_sha256": None,
+        })
         self.assertEqual(
             self.plan["future_productive_command"]["status"],
             "TECHNICAL_BOUNDARY_IMPLEMENTED_GATE_CLOSED",
@@ -352,6 +405,9 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertFalse(closed_report["connection_attempted"])
 
         execution = copy.deepcopy(self.plan)
+        execution["status"] = "READY_FOR_PRODUCTIVE_EXECUTION"
+        execution["remaining_blockers"] = []
+        execution["readonly_precheck"] = {"status": "PASSED", "evidence_sha256": "c" * 64}
         execution["target"]["productive_role_status"] = "PROVISIONED_AND_VERIFIED"
         execution["target"]["allowed_productive_roles"] = [PLANNED_PRODUCTIVE_ROLE]
         execution["activation_gate"]["productive_role_registered"] = True
@@ -364,27 +420,28 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         execution["productive_rollback_authorized"] = True
         require_productive_gate_open(execution, "rollback_productive")
 
-        hybrids = []
+        invalid_execution_states = []
         for mutation in (
-            lambda plan: plan["target"].update({"allowed_productive_roles": [PLANNED_PRODUCTIVE_ROLE]}),
-            lambda plan: plan["target"].update({"productive_role_status": "PROVISIONED_AND_VERIFIED"}),
-            lambda plan: plan["activation_gate"].update({"gate_open": True}),
-            lambda plan: plan["activation_gate"].update({"productive_role_registered": True}),
+            lambda plan: plan.update({"remaining_blockers": ["READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED"]}),
+            lambda plan: plan.update({"status": "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING"}),
+            lambda plan: plan.update({"readonly_precheck": {
+                "status": "NOT_AUTHORIZED_OR_EXECUTED", "evidence_sha256": None,
+            }}),
+            lambda plan: plan.update({"readonly_precheck": {"status": "PASSED", "evidence_sha256": None}}),
+            lambda plan: plan.update({"readonly_precheck": {"status": "PASSED", "evidence_sha256": "A" * 64}}),
+            lambda plan: plan["target"].update({"allowed_productive_roles": []}),
             lambda plan: plan["target"].update({
-                "productive_role_status": "PROVISIONED_AND_VERIFIED",
-                "allowed_productive_roles": [],
-            }),
-            lambda plan: plan["target"].update({
-                "productive_role_status": "PROVISIONED_AND_VERIFIED",
                 "allowed_productive_roles": [PLANNED_PRODUCTIVE_ROLE, "second_role"],
             }),
+            lambda plan: plan["activation_gate"].update({"gate_open": False}),
+            lambda plan: plan["activation_gate"].update({"productive_role_registered": False}),
         ):
-            hybrid = copy.deepcopy(self.plan)
+            hybrid = copy.deepcopy(execution)
             mutation(hybrid)
-            hybrids.append(hybrid)
-        for index, hybrid in enumerate(hybrids):
+            invalid_execution_states.append(hybrid)
+        for index, hybrid in enumerate(invalid_execution_states):
             with self.subTest(hybrid=index), self.assertRaisesRegex(
-                RouteBError, "productive_role_gate_state_mismatch"
+                RouteBError, "productive_execution_state_contract_mismatch"
             ):
                 validate_productive_role_contract(hybrid)
 
@@ -518,6 +575,15 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertTrue(report["committed"])
         self.assertTrue(report["downstream_use_allowed"])
         self.assertEqual(report, persisted)
+        self.assertEqual(report["postcheck"]["declared_failures"], [])
+        boolean_checks = {
+            item["index"]: item["boolean_result"]
+            for item in report["postcheck"]["declared_postchecks"]
+            if item.get("result_type") == "boolean"
+        }
+        self.assertEqual(boolean_checks, {7: True, 10: True, 11: True})
+        self.assertNotIn("boolean_result", report["postcheck"]["declared_postchecks"][4])
+        self.assertEqual(report["postcheck"]["legacy_object"], "cg_raw.kpione2_raw")
         self.assertEqual(database.connection_count, 2)
         self.assertEqual(len(database.state["files"]), 2)
         self.assertEqual(len(database.state["staging"]), 2)
@@ -527,6 +593,63 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         activation_index = next(i for i, sql in enumerate(database.commands)
                                 if sql.startswith("update cg_raw.kpione_raw_ingest_batch_v1 set status='active'"))
         self.assertLess(staging_index, activation_index)
+        rendered = json.dumps(report)
+        self.assertNotIn(dsn, rendered)
+        self.assertNotIn("synthetic-test-password", rendered)
+
+    def test_declared_boolean_and_legacy_postchecks_reject_failures(self) -> None:
+        for case in ("event_view_false", "day_presence_false", "legacy_missing"):
+            with self.subTest(case=case):
+                plan, approved, dsn, git_guard = self.productive_unit_fixture()
+                database = FakeProductiveDatabase(plan)
+                if case == "event_view_false":
+                    database.declared_boolean_failures.add(10)
+                elif case == "day_presence_false":
+                    database.declared_boolean_failures.add(11)
+                else:
+                    database.legacy_object = None
+                with tempfile.TemporaryDirectory() as folder:
+                    evidence_path = Path(folder) / "rejected.json"
+                    with self.assertRaisesRegex(
+                        RouteBError, "POSTCHECK_REJECTED_REQUIRES_EXPLICIT_ROLLBACK_AUTHORIZATION"
+                    ):
+                        run_productive_apply(
+                            plan, approved, dsn, evidence_path,
+                            git_guard=git_guard, root=ROOT, connect_fn=database.connect,
+                        )
+                    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+                self.assertEqual(evidence["postcheck_verdict"], "REJECTED")
+                self.assertFalse(evidence["downstream_use_allowed"])
+                if case == "legacy_missing":
+                    self.assertIsNone(evidence["postcheck"]["legacy_object"])
+                    self.assertEqual(evidence["postcheck"]["declared_failures"], [])
+                else:
+                    expected_index = 10 if case == "event_view_false" else 11
+                    self.assertEqual(evidence["postcheck"]["declared_failures"], [expected_index])
+
+    def test_postcommit_evidence_write_failure_preserves_structured_report(self) -> None:
+        plan, approved, dsn, git_guard = self.productive_unit_fixture()
+        database = FakeProductiveDatabase(plan)
+        with tempfile.TemporaryDirectory() as folder, mock.patch.object(
+            Path, "write_text", side_effect=OSError("synthetic write failure")
+        ):
+            with self.assertRaisesRegex(
+                RouteBError, "productive_evidence_write_failed"
+            ) as caught:
+                run_productive_apply(
+                    plan, approved, dsn, Path(folder) / "evidence.json",
+                    git_guard=git_guard, root=ROOT, connect_fn=database.connect,
+                )
+        self.assertTrue(caught.exception.committed)
+        report = productive_runner._blocked_error_report(caught.exception, False)
+        for field in (
+            "batch_id", "operation", "approved_git_sha", "plan_sha256", "committed",
+            "postcheck_verdict", "downstream_use_allowed", "rollback_readiness",
+        ):
+            self.assertIn(field, report)
+        self.assertEqual(report["error"], "productive_evidence_write_failed")
+        self.assertEqual(report["outcome"], "COMMITTED_EVIDENCE_PERSISTENCE_FAILED")
+        self.assertTrue(report["committed"])
         rendered = json.dumps(report)
         self.assertNotIn(dsn, rendered)
         self.assertNotIn("synthetic-test-password", rendered)
@@ -722,6 +845,47 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertFalse(report["connection_attempted"])
         self.assertFalse(report["writes_attempted"])
         self.assertFalse(report["committed"])
+
+    def test_runner_returns_exit_3_for_deliberately_blocked_productive_gate(self) -> None:
+        git_guard = {
+            "approved_git_sha": "a" * 40,
+            "plan_path": "plans/018_kpione_route_b_productive_apply_plan.json",
+            "plan_sha256": "b" * 64,
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            environment_get = os.environ.get
+
+            def guarded_environment_get(key: str, default=None):
+                if key == "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE":
+                    raise AssertionError("productive_dsn_read")
+                return environment_get(key, default)
+
+            argv = [
+                "run_kpione_route_b_ingestion_v1.py",
+                "--apply-productive",
+                "--approved-plan", str(PLAN_PATH),
+                "--expected-plan-git-ref", "a" * 40,
+                "--expected-project-ref", "xheyrgfagpoigpgakilu",
+                "--db-url-env", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
+                "--confirm-productive", "KPIONE_ROUTE_B_018_APPLY",
+                "--postcheck-report-json", str(Path(folder) / "evidence.json"),
+            ]
+            output = io.StringIO()
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(productive_runner, "validate_productive_git_guard", return_value=git_guard),
+                mock.patch.object(productive_runner, "load_approved_productive_plan", return_value=copy.deepcopy(self.plan)),
+                mock.patch.object(productive_runner, "build_approved_plan_from_manifest", return_value={}),
+                mock.patch.object(productive_runner.os.environ, "get", side_effect=guarded_environment_get),
+                redirect_stdout(output),
+            ):
+                returncode = productive_runner.main()
+        report = json.loads(output.getvalue())
+        self.assertEqual(returncode, 3)
+        self.assertEqual(report["verdict"], "BLOCKED")
+        self.assertFalse(report["dsn_read"])
+        self.assertFalse(report["connection_attempted"])
+        self.assertFalse(report["writes_attempted"])
 
     def test_apply_productive_rejects_wrong_project_ref_before_dsn_env_read(self) -> None:
         altered = copy.deepcopy(self.plan)

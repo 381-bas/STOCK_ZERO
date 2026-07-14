@@ -5,14 +5,24 @@ import json
 import os
 from pathlib import Path
 
-from kpione_route_b_v1 import (
-    LOCAL_DB_ENV, PRODUCTIVE_CONFIRM_TOKEN, PRODUCTIVE_DB_ENV,
-    PRODUCTIVE_ROLLBACK_CONFIRM_TOKEN, RouteBError, apply_local, assert_local_target,
-    build_approved_plan_from_manifest, build_plan, load_approved_productive_plan,
-    productive_blocked_report, public_plan, require_productive_gate_open, rollback_local,
-    run_productive_apply, run_productive_rollback, validate_productive_git_guard,
-    validate_productive_role_contract, validate_registered_productive_target,
-)
+try:
+    from .kpione_route_b_v1 import (
+        LOCAL_DB_ENV, PRODUCTIVE_CONFIRM_TOKEN, PRODUCTIVE_DB_ENV,
+        PRODUCTIVE_ROLLBACK_CONFIRM_TOKEN, RouteBError, apply_local, assert_local_target,
+        build_approved_plan_from_manifest, build_plan, load_approved_productive_plan,
+        productive_blocked_report, public_plan, require_productive_gate_open, rollback_local,
+        run_productive_apply, run_productive_rollback, validate_productive_git_guard,
+        validate_productive_role_contract, validate_registered_productive_target,
+    )
+except ImportError:
+    from kpione_route_b_v1 import (
+        LOCAL_DB_ENV, PRODUCTIVE_CONFIRM_TOKEN, PRODUCTIVE_DB_ENV,
+        PRODUCTIVE_ROLLBACK_CONFIRM_TOKEN, RouteBError, apply_local, assert_local_target,
+        build_approved_plan_from_manifest, build_plan, load_approved_productive_plan,
+        productive_blocked_report, public_plan, require_productive_gate_open, rollback_local,
+        run_productive_apply, run_productive_rollback, validate_productive_git_guard,
+        validate_productive_role_contract, validate_registered_productive_target,
+    )
 
 
 def parser() -> argparse.ArgumentParser:
@@ -63,6 +73,32 @@ def _require_productive_arguments(args: argparse.Namespace) -> None:
             raise RouteBError("apply_confirmation_not_allowed_for_rollback")
         if not args.rollback_batch_id:
             raise RouteBError("rollback_batch_id_required")
+
+
+def _blocked_error_report(exc: Exception, dsn_read: bool) -> dict[str, object]:
+    report = dict(getattr(exc, "report", None) or {})
+    committed = getattr(exc, "committed", False)
+    evidence_write_failed = str(exc) == "productive_evidence_write_failed"
+    report.update({
+        "verdict": "BLOCKED",
+        "outcome": (
+            "COMMITTED_EVIDENCE_PERSISTENCE_FAILED" if evidence_write_failed else
+            "POSTCHECK_REJECTED_REQUIRES_EXPLICIT_ROLLBACK_AUTHORIZATION"
+            if committed else "QUARANTINED_OR_FAILED_INACTIVE"
+        ),
+        "lifecycle_status": (
+            "COMMITTED_EVIDENCE_PERSISTENCE_FAILED" if evidence_write_failed else
+            "COMMITTED_POSTCHECK_REJECTED" if committed
+            else "FAILED_BEFORE_REGISTRATION"
+        ),
+        "error": str(exc),
+        "apply_authorized": False,
+        "connection_attempted": getattr(exc, "connection_attempted", False),
+        "writes_attempted": getattr(exc, "writes_attempted", False),
+        "committed": committed,
+        "dsn_read": dsn_read,
+    })
+    return report
 
 
 def main() -> int:
@@ -132,27 +168,11 @@ def main() -> int:
         print(rendered)
         if args.report_json:
             args.report_json.write_text(rendered + "\n", encoding="utf-8")
+        if (args.apply_productive or args.rollback_productive) and report.get("verdict") == "BLOCKED":
+            return 3
         return 0
     except (RouteBError, OSError, ValueError) as exc:
-        report = getattr(exc, "report", None) or {}
-        committed = getattr(exc, "committed", False)
-        report.update({
-            "verdict": "BLOCKED",
-            "outcome": (
-                "POSTCHECK_REJECTED_REQUIRES_EXPLICIT_ROLLBACK_AUTHORIZATION"
-                if committed else "QUARANTINED_OR_FAILED_INACTIVE"
-            ),
-            "lifecycle_status": (
-                "COMMITTED_POSTCHECK_REJECTED" if committed
-                else "FAILED_BEFORE_REGISTRATION"
-            ),
-            "error": str(exc),
-            "apply_authorized": False,
-            "connection_attempted": getattr(exc, "connection_attempted", False),
-            "writes_attempted": getattr(exc, "writes_attempted", False),
-            "committed": committed,
-            "dsn_read": dsn_read,
-        })
+        report = _blocked_error_report(exc, dsn_read)
         print(json.dumps(report, sort_keys=True))
         return 2
 

@@ -26,6 +26,12 @@ PLANNED_PRODUCTIVE_ROLE = "stock_zero_kpione_route_b_load"
 EXPECTED_PRODUCTIVE_DATABASE = "postgres"
 EXPECTED_PRODUCTIVE_PROJECT_REF = "xheyrgfagpoigpgakilu"
 EXPECTED_PRODUCTIVE_HOSTNAME = "db.xheyrgfagpoigpgakilu.supabase.co"
+PRODUCTIVE_PREPARATION_STATUS = "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING"
+PRODUCTIVE_EXECUTION_STATUS = "READY_FOR_PRODUCTIVE_EXECUTION"
+PRODUCTIVE_PREPARATION_BLOCKERS = [
+    "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
+    "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
+]
 BANNED_PRODUCTIVE_ROLES = {
     "postgres", "stock_zero_codex_ro", "anon", "authenticated", "service_role",
 }
@@ -174,8 +180,6 @@ def load_approved_productive_plan(path: Path) -> dict[str, Any]:
         raise RouteBError("productive_apply_authorization_flag_required")
     if not isinstance(plan.get("productive_rollback_authorized"), bool):
         raise RouteBError("productive_rollback_authorization_flag_required")
-    if plan.get("status") != "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING":
-        raise RouteBError("productive_plan_status_not_boundary_ready")
     return plan
 
 
@@ -186,16 +190,43 @@ def validate_productive_role_contract(plan: dict[str, Any]) -> str:
     assert_postgresql_identifier(str(role or ""))
     if role != PLANNED_PRODUCTIVE_ROLE:
         raise RouteBError("planned_productive_role_mismatch")
-    state = (
+    role_gate_state = (
         target.get("productive_role_status"),
         target.get("allowed_productive_roles"),
         activation.get("productive_role_registered"),
         activation.get("gate_open"),
     )
-    preparation_state = ("PLANNED_NOT_PROVISIONED", [], False, False)
-    execution_state = ("PROVISIONED_AND_VERIFIED", [PLANNED_PRODUCTIVE_ROLE], True, True)
-    if state != preparation_state and state != execution_state:
-        raise RouteBError("productive_role_gate_state_mismatch")
+    readonly_precheck = plan.get("readonly_precheck")
+    preparation_state = (
+        plan.get("status") == PRODUCTIVE_PREPARATION_STATUS
+        and plan.get("remaining_blockers") == PRODUCTIVE_PREPARATION_BLOCKERS
+        and readonly_precheck == {
+            "status": "NOT_AUTHORIZED_OR_EXECUTED",
+            "evidence_sha256": None,
+        }
+        and role_gate_state == ("PLANNED_NOT_PROVISIONED", [], False, False)
+        and plan.get("productive_apply_authorized") is False
+        and plan.get("productive_rollback_authorized") is False
+    )
+    evidence_sha256 = (
+        readonly_precheck.get("evidence_sha256")
+        if isinstance(readonly_precheck, dict) else None
+    )
+    execution_state = (
+        plan.get("status") == PRODUCTIVE_EXECUTION_STATUS
+        and plan.get("remaining_blockers") == []
+        and isinstance(readonly_precheck, dict)
+        and readonly_precheck.get("status") == "PASSED"
+        and isinstance(evidence_sha256, str)
+        and re.fullmatch(r"[0-9a-f]{64}", evidence_sha256) is not None
+        and role_gate_state == (
+            "PROVISIONED_AND_VERIFIED", [PLANNED_PRODUCTIVE_ROLE], True, True,
+        )
+        and isinstance(plan.get("productive_apply_authorized"), bool)
+        and isinstance(plan.get("productive_rollback_authorized"), bool)
+    )
+    if not preparation_state and not execution_state:
+        raise RouteBError("productive_execution_state_contract_mismatch")
     return role
 
 
@@ -528,12 +559,8 @@ def productive_blocked_report(plan: dict[str, Any], mode: str) -> dict[str, Any]
 def require_productive_gate_open(plan: dict[str, Any], mode: str) -> None:
     validate_productive_role_contract(plan)
     validate_registered_productive_target(plan)
-    if plan.get("activation_gate", {}).get("gate_open") is not True:
+    if plan.get("status") != PRODUCTIVE_EXECUTION_STATUS:
         raise RouteBError(f"{mode}_gate_closed")
-    if plan.get("target", {}).get("productive_role_status") != "PROVISIONED_AND_VERIFIED":
-        raise RouteBError("productive_role_not_provisioned_or_verified")
-    if plan.get("target", {}).get("allowed_productive_roles") != [PLANNED_PRODUCTIVE_ROLE]:
-        raise RouteBError("productive_role_not_allowed_by_verified_precheck")
     if mode == "apply_productive" and plan.get("productive_apply_authorized") is not True:
         raise RouteBError("productive_apply_not_authorized")
     if mode == "rollback_productive" and plan.get("productive_rollback_authorized") is not True:
@@ -678,6 +705,7 @@ def _write_productive_evidence(path: Path, report: dict[str, Any]) -> None:
             connection_attempted=True,
             writes_attempted=True,
             committed=True,
+            report=report,
         ) from None
 
 
@@ -700,10 +728,25 @@ def _run_productive_postcheck(plan: dict[str, Any], dsn: str, batch_id: str,
             cursor.execute("SET LOCAL statement_timeout = '5min'")
             cursor.execute("SET LOCAL lock_timeout = '5s'")
             session = _validate_productive_session(cursor, plan, require_readonly=True)
-            declared: list[dict[str, int]] = []
+            declared: list[dict[str, Any]] = []
+            declared_failures: list[int] = []
             for index, query in enumerate(plan["postcheck_queries"]):
                 cursor.execute(query)
-                declared.append({"index": index, "row_count": len(cursor.fetchall())})
+                rows = cursor.fetchall()
+                result: dict[str, Any] = {"index": index, "row_count": len(rows)}
+                if (
+                    len(rows) == 1
+                    and len(rows[0]) == 1
+                    and isinstance(rows[0][0], bool)
+                ):
+                    boolean_result = rows[0][0]
+                    result.update({
+                        "result_type": "boolean",
+                        "boolean_result": boolean_result,
+                    })
+                    if not boolean_result:
+                        declared_failures.append(index)
+                declared.append(result)
             cursor.execute(
                 "SELECT status,supersedes_batch_id::text FROM "
                 "cg_raw.kpione_raw_ingest_batch_v1 WHERE batch_id=%s",
@@ -735,6 +778,8 @@ def _run_productive_postcheck(plan: dict[str, Any], dsn: str, batch_id: str,
                     and observed == expected
                     and active_batches == 1
                     and overlapping_active_batches == 0
+                    and declared_failures == []
+                    and legacy_object == "cg_raw.kpione2_raw"
                 )
             else:
                 predecessor_restored = True
@@ -752,9 +797,12 @@ def _run_productive_postcheck(plan: dict[str, Any], dsn: str, batch_id: str,
                     and predecessor_restored
                     and active_batches <= 1
                     and overlapping_active_batches == 0
+                    and declared_failures == []
+                    and legacy_object == "cg_raw.kpione2_raw"
                 )
             details = {
                 "declared_postchecks": declared,
+                "declared_failures": declared_failures,
                 "batch_status": status,
                 "active_batch_count": active_batches,
                 "overlapping_active_batch_count": overlapping_active_batches,
