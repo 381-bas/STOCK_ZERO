@@ -27,11 +27,23 @@ EXPECTED_PRODUCTIVE_DATABASE = "postgres"
 EXPECTED_PRODUCTIVE_PROJECT_REF = "xheyrgfagpoigpgakilu"
 EXPECTED_PRODUCTIVE_HOSTNAME = "db.xheyrgfagpoigpgakilu.supabase.co"
 PRODUCTIVE_PREPARATION_STATUS = "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING"
+PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS = (
+    "PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED"
+)
 PRODUCTIVE_EXECUTION_STATUS = "READY_FOR_PRODUCTIVE_EXECUTION"
 PRODUCTIVE_PREPARATION_BLOCKERS = [
     "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
     "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
 ]
+PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS = [
+    "PRODUCTIVE_EXECUTION_NOT_AUTHORIZED",
+]
+PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS = (
+    "readonly_baseline_precheck",
+    "admin_provisioning",
+    "productive_role_verification",
+    "readonly_postcheck",
+)
 BANNED_PRODUCTIVE_ROLES = {
     "postgres", "stock_zero_codex_ro", "anon", "authenticated", "service_role",
 }
@@ -205,6 +217,7 @@ def validate_productive_role_contract(plan: dict[str, Any]) -> str:
             "evidence_sha256": None,
         }
         and role_gate_state == ("PLANNED_NOT_PROVISIONED", [], False, False)
+        and plan.get("infrastructure_evidence") is None
         and plan.get("productive_apply_authorized") is False
         and plan.get("productive_rollback_authorized") is False
     )
@@ -212,20 +225,67 @@ def validate_productive_role_contract(plan: dict[str, Any]) -> str:
         readonly_precheck.get("evidence_sha256")
         if isinstance(readonly_precheck, dict) else None
     )
-    execution_state = (
-        plan.get("status") == PRODUCTIVE_EXECUTION_STATUS
-        and plan.get("remaining_blockers") == []
-        and isinstance(readonly_precheck, dict)
+    passed_readonly_precheck = (
+        isinstance(readonly_precheck, dict)
         and readonly_precheck.get("status") == "PASSED"
         and isinstance(evidence_sha256, str)
         and re.fullmatch(r"[0-9a-f]{64}", evidence_sha256) is not None
+    )
+    infrastructure_evidence = plan.get("infrastructure_evidence")
+    infrastructure_components = (
+        infrastructure_evidence.get("components")
+        if isinstance(infrastructure_evidence, dict) else None
+    )
+    passed_infrastructure_evidence = (
+        isinstance(infrastructure_evidence, dict)
+        and set(infrastructure_evidence) == {"status", "bundle_sha256", "components"}
+        and infrastructure_evidence.get("status") == "PASSED"
+        and isinstance(infrastructure_evidence.get("bundle_sha256"), str)
+        and re.fullmatch(
+            r"[0-9a-f]{64}", infrastructure_evidence["bundle_sha256"]
+        ) is not None
+        and isinstance(infrastructure_components, dict)
+        and set(infrastructure_components) == set(
+            PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS
+        )
+        and all(
+            isinstance(infrastructure_components.get(component), str)
+            and re.fullmatch(
+                r"[0-9a-f]{64}", infrastructure_components[component]
+            ) is not None
+            for component in PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS
+        )
+        and infrastructure_components.get("readonly_baseline_precheck")
+        == evidence_sha256
+    )
+    infrastructure_ready_gate_closed_state = (
+        plan.get("status") == PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS
+        and plan.get("remaining_blockers")
+        == PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS
+        and passed_readonly_precheck
+        and passed_infrastructure_evidence
+        and role_gate_state == (
+            "PROVISIONED_AND_VERIFIED", [PLANNED_PRODUCTIVE_ROLE], True, False,
+        )
+        and plan.get("productive_apply_authorized") is False
+        and plan.get("productive_rollback_authorized") is False
+    )
+    execution_state = (
+        plan.get("status") == PRODUCTIVE_EXECUTION_STATUS
+        and plan.get("remaining_blockers") == []
+        and passed_readonly_precheck
+        and passed_infrastructure_evidence
         and role_gate_state == (
             "PROVISIONED_AND_VERIFIED", [PLANNED_PRODUCTIVE_ROLE], True, True,
         )
         and isinstance(plan.get("productive_apply_authorized"), bool)
         and isinstance(plan.get("productive_rollback_authorized"), bool)
     )
-    if not preparation_state and not execution_state:
+    if not (
+        preparation_state
+        or infrastructure_ready_gate_closed_state
+        or execution_state
+    ):
         raise RouteBError("productive_execution_state_contract_mismatch")
     return role
 
@@ -545,6 +605,7 @@ def productive_blocked_report(plan: dict[str, Any], mode: str) -> dict[str, Any]
         "mode": mode,
         "status": plan.get("status"),
         "productive_apply_authorized": False,
+        "productive_rollback_authorized": False,
         "planned_productive_role": plan.get("target", {}).get("planned_productive_role"),
         "productive_role_status": plan.get("target", {}).get("productive_role_status"),
         "allowed_productive_roles": plan.get("target", {}).get("allowed_productive_roles", []),

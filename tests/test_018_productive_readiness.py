@@ -17,6 +17,9 @@ from scripts import precheck_kpione_route_b_018_read_only as precheck
 from scripts import run_kpione_route_b_ingestion_v1 as productive_runner
 from scripts.kpione_route_b_v1 import (
     PLANNED_PRODUCTIVE_ROLE,
+    PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS,
+    PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS,
+    PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS,
     RouteBError,
     WorkbookPlan,
     classify_global_photo_duplicates,
@@ -321,11 +324,25 @@ class ProductiveReadiness018Tests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.plan = precheck.load_plan(PLAN_PATH)
 
+    @staticmethod
+    def infrastructure_evidence_fixture() -> dict[str, object]:
+        return {
+            "status": "PASSED",
+            "bundle_sha256": "d" * 64,
+            "components": {
+                "readonly_baseline_precheck": "c" * 64,
+                "admin_provisioning": "e" * 64,
+                "productive_role_verification": "f" * 64,
+                "readonly_postcheck": "1" * 64,
+            },
+        }
+
     def productive_unit_fixture(self) -> tuple[dict[str, object], dict[str, object], str, dict[str, str]]:
         plan = copy.deepcopy(self.plan)
         plan["status"] = "READY_FOR_PRODUCTIVE_EXECUTION"
         plan["remaining_blockers"] = []
         plan["readonly_precheck"] = {"status": "PASSED", "evidence_sha256": "c" * 64}
+        plan["infrastructure_evidence"] = self.infrastructure_evidence_fixture()
         plan["target"]["productive_role_status"] = "PROVISIONED_AND_VERIFIED"
         plan["target"]["allowed_productive_roles"] = [PLANNED_PRODUCTIVE_ROLE]
         plan["activation_gate"]["productive_role_registered"] = True
@@ -364,6 +381,22 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         }
         return plan, approved, dsn, git_guard
 
+    def provisioned_gate_closed_fixture(self) -> dict[str, object]:
+        plan = copy.deepcopy(self.plan)
+        plan["status"] = PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS
+        plan["remaining_blockers"] = copy.deepcopy(
+            PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS
+        )
+        plan["readonly_precheck"] = {"status": "PASSED", "evidence_sha256": "c" * 64}
+        plan["infrastructure_evidence"] = self.infrastructure_evidence_fixture()
+        plan["target"]["productive_role_status"] = "PROVISIONED_AND_VERIFIED"
+        plan["target"]["allowed_productive_roles"] = [PLANNED_PRODUCTIVE_ROLE]
+        plan["activation_gate"]["productive_role_registered"] = True
+        plan["activation_gate"]["gate_open"] = False
+        plan["productive_apply_authorized"] = False
+        plan["productive_rollback_authorized"] = False
+        return plan
+
     def init_git_fixture(self, folder: str) -> tuple[Path, Path, str]:
         root = Path(folder)
         plan_path = root / "plan.json"
@@ -383,6 +416,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertFalse(self.plan["productive_apply_authorized"])
         self.assertFalse(self.plan["productive_rollback_authorized"])
         self.assertFalse(self.plan["activation_gate"]["gate_open"])
+        self.assertIsNone(self.plan.get("infrastructure_evidence"))
         self.assertEqual(self.plan["readonly_precheck"], {
             "status": "NOT_AUTHORIZED_OR_EXECUTED",
             "evidence_sha256": None,
@@ -393,6 +427,21 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         )
         with self.assertRaisesRegex(precheck.PrecheckBlock, "productive_role_not_provisioned_or_verified"):
             precheck.validate_plan_readiness(self.plan)
+
+    def test_preparation_rejects_passed_bundle_or_provisioned_role(self) -> None:
+        self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+
+        with_bundle = copy.deepcopy(self.plan)
+        with_bundle["infrastructure_evidence"] = self.infrastructure_evidence_fixture()
+        with self.assertRaisesRegex(RouteBError, "productive_execution_state_contract_mismatch"):
+            validate_productive_role_contract(with_bundle)
+
+        with_role = copy.deepcopy(self.plan)
+        with_role["target"]["productive_role_status"] = "PROVISIONED_AND_VERIFIED"
+        with_role["target"]["allowed_productive_roles"] = [PLANNED_PRODUCTIVE_ROLE]
+        with_role["activation_gate"]["productive_role_registered"] = True
+        with self.assertRaisesRegex(RouteBError, "productive_execution_state_contract_mismatch"):
+            validate_productive_role_contract(with_role)
 
     def test_planned_productive_role_registered_but_not_allowed(self) -> None:
         target = self.plan["target"]
@@ -411,6 +460,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         execution["status"] = "READY_FOR_PRODUCTIVE_EXECUTION"
         execution["remaining_blockers"] = []
         execution["readonly_precheck"] = {"status": "PASSED", "evidence_sha256": "c" * 64}
+        execution["infrastructure_evidence"] = self.infrastructure_evidence_fixture()
         execution["target"]["productive_role_status"] = "PROVISIONED_AND_VERIFIED"
         execution["target"]["allowed_productive_roles"] = [PLANNED_PRODUCTIVE_ROLE]
         execution["activation_gate"]["productive_role_registered"] = True
@@ -425,6 +475,10 @@ class ProductiveReadiness018Tests(unittest.TestCase):
 
         invalid_execution_states = []
         for mutation in (
+            lambda plan: plan.pop("infrastructure_evidence"),
+            lambda plan: plan["infrastructure_evidence"]["components"].pop(
+                "productive_role_verification"
+            ),
             lambda plan: plan.update({"remaining_blockers": ["READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED"]}),
             lambda plan: plan.update({"status": "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING"}),
             lambda plan: plan.update({"readonly_precheck": {
@@ -464,6 +518,110 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         rendered = str(caught.exception)
         self.assertNotIn("postgresql://", rendered)
         self.assertNotIn("synthetic-test-password", rendered)
+
+    def test_provisioned_gate_closed_state_contract_and_hybrids(self) -> None:
+        self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+
+        provisioned_closed = self.provisioned_gate_closed_fixture()
+        self.assertEqual(
+            provisioned_closed["status"],
+            "PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED",
+        )
+        self.assertEqual(
+            provisioned_closed["remaining_blockers"],
+            ["PRODUCTIVE_EXECUTION_NOT_AUTHORIZED"],
+        )
+        self.assertEqual(
+            validate_productive_role_contract(provisioned_closed),
+            PLANNED_PRODUCTIVE_ROLE,
+        )
+
+        execution, _, _, _ = self.productive_unit_fixture()
+        self.assertEqual(validate_productive_role_contract(execution), PLANNED_PRODUCTIVE_ROLE)
+
+        invalid_mutations = {
+            "bundle_missing": lambda plan: plan.pop("infrastructure_evidence"),
+            "bundle_status": lambda plan: plan["infrastructure_evidence"].update({
+                "status": "PENDING",
+            }),
+            "bundle_hash_missing": lambda plan: plan["infrastructure_evidence"].pop(
+                "bundle_sha256"
+            ),
+            "bundle_hash_invalid": lambda plan: plan["infrastructure_evidence"].update({
+                "bundle_sha256": "D" * 64,
+            }),
+            "components_missing": lambda plan: plan["infrastructure_evidence"].pop(
+                "components"
+            ),
+            "component_missing": lambda plan: plan["infrastructure_evidence"][
+                "components"
+            ].pop("readonly_postcheck"),
+            "component_extra": lambda plan: plan["infrastructure_evidence"][
+                "components"
+            ].update({"unapproved_component": "2" * 64}),
+            "component_hash_invalid": lambda plan: plan["infrastructure_evidence"][
+                "components"
+            ].update({"admin_provisioning": "invalid"}),
+            "baseline_component_mismatch": lambda plan: plan["infrastructure_evidence"][
+                "components"
+            ].update({"readonly_baseline_precheck": "2" * 64}),
+            "gate_open": lambda plan: plan["activation_gate"].update({"gate_open": True}),
+            "apply_authorized": lambda plan: plan.update({"productive_apply_authorized": True}),
+            "rollback_authorized": lambda plan: plan.update({"productive_rollback_authorized": True}),
+            "wrong_blocker": lambda plan: plan.update({"remaining_blockers": ["WRONG_BLOCKER"]}),
+            "precheck_pending": lambda plan: plan.update({"readonly_precheck": {
+                "status": "NOT_AUTHORIZED_OR_EXECUTED", "evidence_sha256": None,
+            }}),
+            "missing_hash": lambda plan: plan["readonly_precheck"].pop("evidence_sha256"),
+            "invalid_hash": lambda plan: plan["readonly_precheck"].update({
+                "evidence_sha256": "A" * 64,
+            }),
+            "role_not_registered": lambda plan: plan["activation_gate"].update({
+                "productive_role_registered": False,
+            }),
+            "role_not_provisioned": lambda plan: plan["target"].update({
+                "productive_role_status": "PLANNED_NOT_PROVISIONED",
+            }),
+            "wrong_role_list": lambda plan: plan["target"].update({
+                "allowed_productive_roles": [],
+            }),
+        }
+        for case, mutation in invalid_mutations.items():
+            hybrid = copy.deepcopy(provisioned_closed)
+            mutation(hybrid)
+            with self.subTest(case=case), self.assertRaisesRegex(
+                RouteBError, "productive_execution_state_contract_mismatch"
+            ):
+                validate_productive_role_contract(hybrid)
+
+        for mode in ("apply_productive", "rollback_productive"):
+            with self.subTest(mode=mode), self.assertRaisesRegex(
+                RouteBError, f"{mode}_gate_closed"
+            ):
+                require_productive_gate_open(provisioned_closed, mode)
+
+        report = productive_blocked_report(provisioned_closed, "apply_productive")
+        self.assertEqual(report["verdict"], "BLOCKED")
+        self.assertEqual(report["status"], PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS)
+        self.assertEqual(
+            report["remaining_blockers"],
+            PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS,
+        )
+        self.assertFalse(report["productive_apply_authorized"])
+        self.assertFalse(report["productive_rollback_authorized"])
+        self.assertFalse(report["dsn_read"])
+        self.assertFalse(report["connection_attempted"])
+        self.assertFalse(report["writes_attempted"])
+        self.assertEqual(set(report), {
+            "verdict", "mode", "status", "productive_apply_authorized",
+            "productive_rollback_authorized", "planned_productive_role",
+            "productive_role_status", "allowed_productive_roles",
+            "remaining_blockers", "connection_attempted", "writes_attempted",
+            "committed", "dsn_read",
+        })
+        self.assertFalse(any("sha" in key or "evidence" in key for key in report))
+        self.assertNotIn("postgresql://", json.dumps(report))
+        self.assertNotIn("password", json.dumps(report).lower())
 
     def test_registered_target_identity_is_exact(self) -> None:
         target = self.plan["target"]
@@ -913,6 +1071,95 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertFalse(report["dsn_read"])
         self.assertFalse(report["connection_attempted"])
         self.assertFalse(report["writes_attempted"])
+
+    def test_provisioned_closed_runner_blocks_apply_and_rollback_before_dsn_read(self) -> None:
+        plan = self.provisioned_gate_closed_fixture()
+        git_guard = {
+            "approved_git_sha": "a" * 40,
+            "plan_path": "plans/018_kpione_route_b_productive_apply_plan.json",
+            "plan_sha256": "b" * 64,
+        }
+        environment_get = os.environ.get
+
+        def guarded_environment_get(key: str, default=None):
+            if key == "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE":
+                raise AssertionError("productive_dsn_read")
+            return environment_get(key, default)
+
+        cases = {
+            "apply_productive": [
+                "--apply-productive",
+                "--confirm-productive", "KPIONE_ROUTE_B_018_APPLY",
+            ],
+            "rollback_productive": [
+                "--rollback-productive",
+                "--confirm-rollback", "KPIONE_ROUTE_B_018_ROLLBACK",
+                "--rollback-batch-id", "00000000-0000-0000-0000-000000000020",
+            ],
+        }
+        for mode, mode_arguments in cases.items():
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as folder:
+                argv = [
+                    "run_kpione_route_b_ingestion_v1.py",
+                    *mode_arguments,
+                    "--approved-plan", str(PLAN_PATH),
+                    "--expected-plan-git-ref", "a" * 40,
+                    "--expected-project-ref", "xheyrgfagpoigpgakilu",
+                    "--db-url-env", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE",
+                    "--postcheck-report-json", str(Path(folder) / "evidence.json"),
+                ]
+                output = io.StringIO()
+                with (
+                    mock.patch.object(sys, "argv", argv),
+                    mock.patch.object(
+                        productive_runner,
+                        "validate_productive_git_guard",
+                        return_value=git_guard,
+                    ),
+                    mock.patch.object(
+                        productive_runner,
+                        "load_approved_productive_plan",
+                        return_value=copy.deepcopy(plan),
+                    ),
+                    mock.patch.object(
+                        productive_runner,
+                        "build_approved_plan_from_manifest",
+                        return_value={},
+                    ),
+                    mock.patch.object(
+                        productive_runner.os.environ,
+                        "get",
+                        side_effect=guarded_environment_get,
+                    ),
+                    redirect_stdout(output),
+                ):
+                    returncode = productive_runner.main()
+                report = json.loads(output.getvalue())
+                self.assertEqual(returncode, 3)
+                self.assertEqual(report["verdict"], "BLOCKED")
+                self.assertEqual(report["mode"], mode)
+                self.assertEqual(
+                    report["status"],
+                    PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS,
+                )
+                self.assertEqual(
+                    report["remaining_blockers"],
+                    PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS,
+                )
+                self.assertFalse(report["productive_apply_authorized"])
+                self.assertFalse(report["productive_rollback_authorized"])
+                self.assertFalse(report["dsn_read"])
+                self.assertFalse(report["connection_attempted"])
+                self.assertFalse(report["writes_attempted"])
+                rendered = json.dumps(report)
+                self.assertNotIn("infrastructure_evidence", rendered)
+                self.assertNotIn("readonly_precheck", rendered)
+                for component in PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS:
+                    self.assertNotIn(component, rendered)
+                for evidence_hash in ("c" * 64, "d" * 64, "e" * 64, "f" * 64, "1" * 64):
+                    self.assertNotIn(evidence_hash, rendered)
+                self.assertNotIn("postgresql://", rendered)
+                self.assertNotIn("password", rendered.lower())
 
     def test_apply_productive_rejects_wrong_project_ref_before_dsn_env_read(self) -> None:
         altered = copy.deepcopy(self.plan)
