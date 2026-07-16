@@ -351,7 +351,7 @@ def run_precheck(
     baseline: Mapping[str, Any] | None = None,
     baseline_sha256: str | None = None,
     authority: Mapping[str, str] | None = None,
-    run_id: str = "00000000-0000-4000-8000-000000000000",
+    run_id: str,
 ) -> dict[str, Any]:
     validate_run_id(run_id)
     validate_plan_readiness(plan, check_stage)

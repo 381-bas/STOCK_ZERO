@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -242,14 +243,15 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             def get(self, key: str, default: str | None = None) -> str | None:
                 raise AssertionError(f"secret read before authority completed: {key}")
 
+        run_id = str(uuid.uuid4())
         args = SimpleNamespace(
             plan=PLAN,
-            run_id="12345678-1234-4abc-8abc-1234567890ab",
+            run_id=run_id,
             expected_plan_git_ref="0" * 40,
             db_url_env="DB_URL_ADMIN",
             expected_project_ref="xheyrgfagpoigpgakilu",
             confirm=PROVISION_CONFIRM_TOKEN,
-            evidence_json=ROOT / "evidence/runtime/020B/12345678-1234-4abc-8abc-1234567890ab/02_admin_provisioning.json",
+            evidence_json=ROOT / "evidence" / "runtime" / "020B" / run_id / "02_admin_provisioning.json",
             reconcile_provisioning_evidence=False,
             prior_failure_report=None,
             authority_precheck_only=False,
@@ -276,14 +278,15 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             run_git(root, "add", "plans", "sql")
             run_git(root, "commit", "--quiet", "-m", "full authority fixture")
             head = run_git(root, "rev-parse", "HEAD")
+            run_id = str(uuid.uuid4())
             args = SimpleNamespace(
                 plan=plan_path,
-                run_id="12345678-1234-4abc-8abc-1234567890ab",
+                run_id=run_id,
                 expected_plan_git_ref=head,
                 db_url_env="DB_URL_ADMIN",
                 expected_project_ref="xheyrgfagpoigpgakilu",
                 confirm=PROVISION_CONFIRM_TOKEN,
-                evidence_json=root / "evidence/runtime/020B/12345678-1234-4abc-8abc-1234567890ab/02_admin_provisioning.json",
+                evidence_json=root / "evidence" / "runtime" / "020B" / run_id / "02_admin_provisioning.json",
                 reconcile_provisioning_evidence=False,
                 prior_failure_report=None,
                 authority_precheck_only=True,
@@ -404,7 +407,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             for name in managed:
                 environment[name] = f"synthetic-parent-{name.lower()}"
 
-            run_id = "12345678-1234-4abc-8abc-1234567890ab"
+            run_id = str(uuid.uuid4())
             evidence_base = f"evidence/runtime/020B/{run_id}"
             operation_arguments = {
                 "readonly-precheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/01_readonly_baseline.json"],

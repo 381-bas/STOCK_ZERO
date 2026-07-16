@@ -98,7 +98,7 @@ def verify_productive_role(
     *,
     authority: Mapping[str, str],
     connect_fn: Callable[[str], Any] | None = None,
-    run_id: str = "00000000-0000-4000-8000-000000000000",
+    run_id: str,
 ) -> dict[str, Any]:
     validate_run_id(run_id)
     validate_provisioning_plan(plan)

@@ -32,7 +32,11 @@ def validate_run_id(run_id: str) -> str:
         parsed = uuid.UUID(run_id)
     except ValueError as exc:
         raise EvidenceContractError("run_id_must_be_canonical_lowercase_uuid4") from exc
-    if parsed.version != 4 or str(parsed) != run_id:
+    if (
+        parsed.version != 4
+        or str(parsed) != run_id
+        or parsed == uuid.UUID(int=0, version=4)
+    ):
         raise EvidenceContractError("run_id_must_be_canonical_lowercase_uuid4")
     return run_id
 

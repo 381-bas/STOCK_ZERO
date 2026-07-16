@@ -16,7 +16,10 @@ try:
         require_canonical_evidence_path,
         validate_run_id,
     )
-    from scripts.precheck_kpione_route_b_018_read_only import legacy_structural_identity
+    from scripts.precheck_kpione_route_b_018_read_only import (
+        legacy_structural_identity,
+        target_fingerprint,
+    )
 except ModuleNotFoundError:  # Direct execution from scripts/.
     from kpione_route_b_evidence_v1 import (
         EvidenceContractError,
@@ -26,7 +29,10 @@ except ModuleNotFoundError:  # Direct execution from scripts/.
         require_canonical_evidence_path,
         validate_run_id,
     )
-    from precheck_kpione_route_b_018_read_only import legacy_structural_identity
+    from precheck_kpione_route_b_018_read_only import (
+        legacy_structural_identity,
+        target_fingerprint,
+    )
 
 
 DOCUMENT_TYPE = "kpione_route_b_infrastructure_evidence_bundle_v1"
@@ -158,6 +164,8 @@ def build_bundle(
     fingerprints = {item.get("target_fingerprint") for item in evidence.values()}
     if len(fingerprints) != 1 or None in fingerprints:
         raise EvidenceBundleError("target_fingerprint_mismatch")
+    if fingerprints != {target_fingerprint(plan)}:
+        raise EvidenceBundleError("target_fingerprint_not_registered_plan_target")
     for name, item in evidence.items():
         if item.get("approved_git_sha") != expected_git_sha:
             raise EvidenceBundleError(f"approved_git_sha_mismatch:{name}")
@@ -194,16 +202,70 @@ def build_bundle(
     }
 
 
+def canonical_component_paths(root: Path, run_id: str) -> dict[str, Path]:
+    return {
+        name: require_canonical_evidence_path(
+            root / "evidence" / "runtime" / "020B" / run_id / filename,
+            root,
+            run_id,
+            name,
+        )
+        for name, filename in (
+            ("readonly_baseline_precheck", "01_readonly_baseline.json"),
+            ("admin_provisioning", "02_admin_provisioning.json"),
+            ("productive_role_verification", "03_productive_role_verification.json"),
+            ("readonly_postcheck", "04_readonly_postcheck.json"),
+        )
+    }
+
+
+def validate_existing_bundle(
+    plan_path: Path,
+    expected_git_sha: str,
+    run_id: str,
+    output: Path,
+    *,
+    root: Path = ROOT,
+) -> dict[str, str]:
+    try:
+        validate_run_id(run_id)
+        bundle_path = require_canonical_evidence_path(
+            output, root, run_id, "infrastructure_bundle",
+        )
+    except EvidenceContractError as exc:
+        raise EvidenceBundleError(str(exc)) from None
+    try:
+        raw = bundle_path.read_bytes()
+        stored = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise EvidenceBundleError("existing_bundle_unreadable") from exc
+    recalculated = build_bundle(
+        canonical_component_paths(root, run_id),
+        plan_path,
+        expected_git_sha,
+        run_id,
+        root=root,
+    )
+    if stored != recalculated:
+        raise EvidenceBundleError("existing_bundle_exact_mismatch")
+    return {
+        "verdict": "PASS_EXISTING_INFRASTRUCTURE_BUNDLE_VALIDATION",
+        "run_id": run_id,
+        "bundle_sha256": recalculated["bundle_sha256"],
+    }
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Build the KPIONE Route B infrastructure evidence bundle")
-    result.add_argument("--baseline-evidence", type=Path, required=True)
-    result.add_argument("--admin-provisioning-evidence", type=Path, required=True)
-    result.add_argument("--productive-role-verification-evidence", type=Path, required=True)
-    result.add_argument("--readonly-postcheck-evidence", type=Path, required=True)
+    result.add_argument("--baseline-evidence", type=Path)
+    result.add_argument("--admin-provisioning-evidence", type=Path)
+    result.add_argument("--productive-role-verification-evidence", type=Path)
+    result.add_argument("--readonly-postcheck-evidence", type=Path)
     result.add_argument("--plan", type=Path, required=True)
     result.add_argument("--run-id", required=True)
     result.add_argument("--expected-git-sha", required=True)
     result.add_argument("--output", type=Path, required=True)
+    result.add_argument("--validate-existing", action="store_true")
     return result
 
 
@@ -211,10 +273,29 @@ def main() -> int:
     args = parser().parse_args()
     try:
         validate_run_id(args.run_id)
-        prepare_run_directory(ROOT, args.run_id)
         output = require_canonical_evidence_path(
             args.output, ROOT, args.run_id, "infrastructure_bundle",
         )
+        if args.validate_existing:
+            if any((
+                args.baseline_evidence,
+                args.admin_provisioning_evidence,
+                args.productive_role_verification_evidence,
+                args.readonly_postcheck_evidence,
+            )):
+                raise EvidenceBundleError("component_arguments_not_allowed_for_existing_validation")
+            print(json.dumps(validate_existing_bundle(
+                args.plan, args.expected_git_sha, args.run_id, output,
+            ), sort_keys=True))
+            return 0
+        if not all((
+            args.baseline_evidence,
+            args.admin_provisioning_evidence,
+            args.productive_role_verification_evidence,
+            args.readonly_postcheck_evidence,
+        )):
+            raise EvidenceBundleError("all_component_arguments_required_for_bundle_creation")
+        prepare_run_directory(ROOT, args.run_id)
         if output.exists():
             raise EvidenceBundleError("evidence_file_already_exists")
         bundle = build_bundle({

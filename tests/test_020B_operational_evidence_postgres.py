@@ -6,6 +6,7 @@ import json
 import os
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from unittest import mock
 
@@ -32,7 +33,7 @@ DSN = os.environ.get("DB_URL_CODEX_LOCAL")
 PLAN_PATH = ROOT / "plans" / "018_kpione_route_b_productive_apply_plan.json"
 DDL_PATH = ROOT / "sql" / "17_kpione_route_b_ingestion_v1.sql"
 READONLY_ROLE = "stock_zero_codex_ro"
-RUN_ID = "12345678-1234-4abc-8abc-1234567890ab"
+RUN_ID = str(uuid.uuid4())
 
 
 @unittest.skipUnless(DSN, "DB_URL_CODEX_LOCAL is required for the 020B PostgreSQL evidence rehearsal")

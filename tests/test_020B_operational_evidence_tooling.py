@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from unittest import mock
 
@@ -17,6 +18,7 @@ from scripts.build_kpione_route_b_infrastructure_evidence import (
     COMPONENT_CONTRACT,
     EvidenceBundleError,
     build_bundle,
+    validate_existing_bundle,
 )
 from scripts.kpione_route_b_evidence_v1 import (
     EVIDENCE_FILENAMES,
@@ -33,13 +35,15 @@ from scripts.provision_kpione_route_b_role import (
     reconcile_provisioning_evidence,
     provision_route_b_role,
 )
+from scripts.verify_kpione_route_b_productive_role import verify_productive_role
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PLAN_PATH = ROOT / "plans" / "018_kpione_route_b_productive_apply_plan.json"
 WRAPPER = ROOT / "scripts" / "invoke_stock_zero_db_operation.ps1"
 VAULT = ROOT / "scripts" / "manage_stock_zero_secret_vault.ps1"
-RUN_ID = "12345678-1234-4abc-8abc-1234567890ab"
+BUILDER = ROOT / "scripts" / "build_kpione_route_b_infrastructure_evidence.py"
+RUN_ID = str(uuid.uuid4())
 
 
 class ExistingRoleCursor:
@@ -130,6 +134,7 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
                 "synthetic",
                 forbidden_connect,
                 check_stage="post-provision",
+                run_id=str(uuid.uuid4()),
             )
 
     def _bundle_fixture(self, root: Path) -> tuple[dict[str, Path], str]:
@@ -137,7 +142,7 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
         git_sha = "a" * 40
         plan_sha = hashlib.sha256(PLAN_PATH.read_bytes()).hexdigest()
         sql_sha = self.plan["physical_contract"]["sql_sha256"]
-        fingerprint = "b" * 64
+        fingerprint = precheck.target_fingerprint(self.plan)
         common = {
             "run_id": RUN_ID,
             "target_fingerprint": fingerprint,
@@ -195,6 +200,15 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
             paths[name] = path
         return paths, git_sha
 
+    def _stored_bundle_fixture(
+        self, root: Path,
+    ) -> tuple[dict[str, Path], str, Path, dict[str, object]]:
+        paths, git_sha = self._bundle_fixture(root)
+        bundle = build_bundle(paths, PLAN_PATH, git_sha, RUN_ID, root=root)
+        bundle_path = canonical_evidence_path(root, RUN_ID, "infrastructure_bundle")
+        bundle_path.write_text(json.dumps(bundle, sort_keys=True) + "\n", encoding="utf-8")
+        return paths, git_sha, bundle_path, bundle
+
     def test_bundle_is_deterministic_and_has_exact_four_components(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             paths, git_sha = self._bundle_fixture(Path(folder))
@@ -238,19 +252,100 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
             with self.assertRaisesRegex(EvidenceBundleError, "suspicious_evidence_value"):
                 build_bundle(paths, PLAN_PATH, git_sha, RUN_ID, root=root)
 
+    def test_existing_bundle_validation_passes_exactly_and_modifies_no_file(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            paths, git_sha, bundle_path, bundle = self._stored_bundle_fixture(root)
+            all_paths = [*paths.values(), bundle_path]
+            before = {path: path.read_bytes() for path in all_paths}
+            report = validate_existing_bundle(
+                PLAN_PATH, git_sha, RUN_ID, bundle_path, root=root,
+            )
+            after = {path: path.read_bytes() for path in all_paths}
+        self.assertEqual(report, {
+            "verdict": "PASS_EXISTING_INFRASTRUCTURE_BUNDLE_VALIDATION",
+            "run_id": RUN_ID,
+            "bundle_sha256": bundle["bundle_sha256"],
+        })
+        self.assertEqual(before, after)
+
+    def test_existing_bundle_validation_rejects_bundle_hash_and_semantic_drift(self) -> None:
+        def update_component_hash(
+            bundle_path: Path, component: str, component_path: Path,
+        ) -> None:
+            stored = json.loads(bundle_path.read_text(encoding="utf-8"))
+            stored["components"][component] = hashlib.sha256(component_path.read_bytes()).hexdigest()
+            bundle_path.write_text(json.dumps(stored, sort_keys=True) + "\n", encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            paths, git_sha, bundle_path, _bundle = self._stored_bundle_fixture(root)
+            altered = json.loads(bundle_path.read_text(encoding="utf-8"))
+            altered["bundle_sha256"] = "0" * 64
+            bundle_path.write_text(json.dumps(altered, sort_keys=True) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(EvidenceBundleError, "existing_bundle_exact_mismatch"):
+                validate_existing_bundle(PLAN_PATH, git_sha, RUN_ID, bundle_path, root=root)
+
+            paths, git_sha, bundle_path, _bundle = self._stored_bundle_fixture(root)
+            stored = json.loads(bundle_path.read_text(encoding="utf-8"))
+            for component, component_path in paths.items():
+                item = json.loads(component_path.read_text(encoding="utf-8"))
+                item["target_fingerprint"] = "d" * 64
+                component_path.write_text(json.dumps(item, sort_keys=True) + "\n", encoding="utf-8")
+                stored["components"][component] = hashlib.sha256(
+                    component_path.read_bytes()
+                ).hexdigest()
+            bundle_path.write_text(json.dumps(stored, sort_keys=True) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                EvidenceBundleError, "target_fingerprint_not_registered_plan_target",
+            ):
+                validate_existing_bundle(PLAN_PATH, git_sha, RUN_ID, bundle_path, root=root)
+
+            cases = (
+                ("admin_provisioning", lambda item: item.update({"approved_git_sha": "d" * 40}), "approved_git_sha_mismatch"),
+                ("admin_provisioning", lambda item: item.update({"plan_sha256": "d" * 64}), "plan_sha256_mismatch"),
+                ("admin_provisioning", lambda item: item.update({"sql_sha256": "d" * 64}), "sql_sha256_mismatch"),
+                ("productive_role_verification", lambda item: item.update({"timestamp_utc": "2026-07-14T09:00:00+00:00"}), "evidence_timestamps_not_nondecreasing"),
+                ("readonly_postcheck", lambda item: item.update({"baseline_evidence_sha256": "d" * 64}), "postcheck_baseline_reference_mismatch"),
+                ("readonly_postcheck", lambda item: item["legacy"].update({"oid": "20"}), "baseline_postcheck_legacy_structure_mismatch"),
+                ("readonly_postcheck", lambda item: item["public_acl"]["schemas"].update({"cg_raw": ["CREATE"]}), "baseline_postcheck_public_acl_mismatch"),
+                ("admin_provisioning", lambda item: item.update({"evidence_mode": "UNAPPROVED"}), "admin_evidence_mode_invalid"),
+                ("productive_role_verification", lambda item: item.update({"diagnostic": "postgresql://synthetic.invalid/postgres"}), "suspicious_evidence_value"),
+            )
+            for component, mutate, error in cases:
+                with self.subTest(error=error):
+                    paths, git_sha, bundle_path, _bundle = self._stored_bundle_fixture(root)
+                    component_path = paths[component]
+                    item = json.loads(component_path.read_text(encoding="utf-8"))
+                    mutate(item)
+                    component_path.write_text(json.dumps(item, sort_keys=True) + "\n", encoding="utf-8")
+                    update_component_hash(bundle_path, component, component_path)
+                    with self.assertRaisesRegex(EvidenceBundleError, error):
+                        validate_existing_bundle(
+                            PLAN_PATH, git_sha, RUN_ID, bundle_path, root=root,
+                        )
+
     def test_run_identity_rejects_invalid_mismatch_sequence_and_time_regression(self) -> None:
-        self.assertEqual(validate_run_id(RUN_ID), RUN_ID)
+        real_run_id = str(uuid.uuid4())
+        self.assertEqual(validate_run_id(real_run_id), real_run_id)
         for invalid in (
-            RUN_ID.upper(), "12345678-1234-1abc-8abc-1234567890ab", "not-a-uuid",
+            real_run_id.upper(), str(uuid.uuid1()),
+            str(uuid.UUID(int=0, version=4)), "not-a-uuid", "", None,
         ):
             with self.subTest(invalid=invalid), self.assertRaises(EvidenceContractError):
                 validate_run_id(invalid)
+
+        for producer in (precheck.run_precheck, provision_route_b_role, verify_productive_role):
+            parameter = inspect.signature(producer).parameters["run_id"]
+            self.assertIs(parameter.default, inspect.Parameter.empty)
+        with self.assertRaises(TypeError):
+            precheck.run_precheck(self.plan, "synthetic", lambda _dsn: None)
 
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             paths, git_sha = self._bundle_fixture(root)
             for component, field, value, error in (
-                ("admin_provisioning", "run_id", "87654321-4321-4cba-8abc-0987654321ab", "component_run_id_mismatch"),
+                ("admin_provisioning", "run_id", str(uuid.uuid4()), "component_run_id_mismatch"),
                 ("admin_provisioning", "evidence_sequence_step", 1, "component_sequence_step_mismatch"),
                 ("productive_role_verification", "evidence_sequence_step", 2, "component_sequence_step_mismatch"),
                 ("productive_role_verification", "timestamp_utc", "2026-07-14T09:59:00+00:00", "evidence_timestamps_not_nondecreasing"),
@@ -378,6 +473,7 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
                 connect_fn=lambda _dsn: connection,
                 git_guard=guard,
                 ddl="SELECT 1",
+                run_id=str(uuid.uuid4()),
             )
         self.assertFalse(context.exception.writes_attempted)
         self.assertTrue(connection.rollback_called)
@@ -414,6 +510,8 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
         self.assertNotIn("[EnvironmentVariableTarget]::Machine", vault)
         self.assertIn("[string]$EvidenceDirectory", vault)
         self.assertIn("[string]$RunId", vault)
+        self.assertIn("[string]$ExpectedGitSha", vault)
+        self.assertIn("--validate-existing", vault)
         self.assertNotIn("ProductiveRoleVerificationEvidence", vault)
         self.assertNotIn("ReadonlyPostcheckEvidence", vault)
 
@@ -425,6 +523,16 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
             scripts.mkdir()
             vault_copy = scripts / VAULT.name
             vault_copy.write_bytes(VAULT.read_bytes())
+            for source in (
+                BUILDER,
+                ROOT / "scripts" / "kpione_route_b_evidence_v1.py",
+                ROOT / "scripts" / "precheck_kpione_route_b_018_read_only.py",
+                ROOT / "scripts" / "kpione_route_b_v1.py",
+            ):
+                (scripts / source.name).write_bytes(source.read_bytes())
+            plans = root / "plans"
+            plans.mkdir()
+            (plans / PLAN_PATH.name).write_bytes(PLAN_PATH.read_bytes())
             log = root / "mock-log.jsonl"
             modules = root / "modules"
             management = modules / "Microsoft.PowerShell.SecretManagement" / "1.1.2"
@@ -542,11 +650,19 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
             self.assertIn("STOCK_ZERO_DB_CODEX_RO", inventory.stdout)
             canonical_arguments = [
                 "-EvidenceDirectory", str(run_directory), "-RunId", RUN_ID,
+                "-ExpectedGitSha", git_sha,
             ]
             remove([], success=False)
 
-            wrong_run = "87654321-4321-4cba-8abc-0987654321ab"
-            remove(["-EvidenceDirectory", str(run_directory), "-RunId", wrong_run], success=False)
+            wrong_run = str(uuid.uuid4())
+            remove([
+                "-EvidenceDirectory", str(run_directory), "-RunId", wrong_run,
+                "-ExpectedGitSha", git_sha,
+            ], success=False)
+            remove([
+                "-EvidenceDirectory", str(run_directory), "-RunId", RUN_ID,
+                "-ExpectedGitSha", "not-a-git-sha",
+            ], success=False)
 
             original_verify = paths["productive_role_verification"].read_bytes()
             paths["productive_role_verification"].write_text(
@@ -561,6 +677,45 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
             missing_path.unlink()
             remove(canonical_arguments, success=False)
             missing_path.write_bytes(missing_raw)
+
+            original_bundle = bundle_path.read_bytes()
+            altered_bundle = json.loads(original_bundle)
+            altered_bundle["bundle_sha256"] = "0" * 64
+            bundle_path.write_text(json.dumps(altered_bundle, sort_keys=True) + "\n", encoding="utf-8")
+            remove(canonical_arguments, success=False)
+            bundle_path.write_bytes(original_bundle)
+
+            original_components = {name: path.read_bytes() for name, path in paths.items()}
+            for name, path in paths.items():
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                payload["target_fingerprint"] = "d" * 64
+                path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+            post = json.loads(paths["readonly_postcheck"].read_text(encoding="utf-8"))
+            post["baseline_evidence_sha256"] = hashlib.sha256(
+                paths["readonly_baseline_precheck"].read_bytes()
+            ).hexdigest()
+            paths["readonly_postcheck"].write_text(
+                json.dumps(post, sort_keys=True) + "\n", encoding="utf-8",
+            )
+            semantic_bundle = json.loads(original_bundle)
+            semantic_bundle["status"] = "PASSED"
+            semantic_bundle["components"] = {
+                name: hashlib.sha256(path.read_bytes()).hexdigest()
+                for name, path in paths.items()
+            }
+            bundle_path.write_text(
+                json.dumps(semantic_bundle, sort_keys=True) + "\n", encoding="utf-8",
+            )
+            remove(canonical_arguments, success=False)
+            for name, raw in original_components.items():
+                paths[name].write_bytes(raw)
+            bundle_path.write_bytes(original_bundle)
+
+            validator_path = scripts / BUILDER.name
+            validator_raw = validator_path.read_bytes()
+            validator_path.write_text("raise SystemExit(9)\n", encoding="utf-8")
+            remove(canonical_arguments, success=False)
+            validator_path.write_bytes(validator_raw)
 
             no_dsn_environment = environment.copy()
             no_dsn_environment["SZ_MOCK_PRODUCTIVE_PRESENT"] = "0"

@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import unittest
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
@@ -312,6 +313,7 @@ class RouteBPostgresRehearsal(unittest.TestCase):
                 "plan_sha256": "b" * 64,
                 "ddl_sha256": plan["physical_contract"]["sql_sha256"],
             }
+            evidence_run_id = str(uuid.uuid4())
             with patch(
                 "scripts.provision_kpione_route_b_role._write_provisioning_evidence",
                 side_effect=OSError("synthetic evidence failure"),
@@ -320,6 +322,7 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             ) as evidence_context:
                 provision_route_b_role(
                     plan, synthetic_admin_dsn, role_password, root / "failed-evidence.json",
+                    run_id=evidence_run_id,
                     root=Path(__file__).resolve().parents[1],
                     connect_fn=lambda _dsn: psycopg.connect(DSN),
                     expected_admin_username=admin_role,
@@ -333,6 +336,7 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             ) as reprovision_context:
                 provision_route_b_role(
                     plan, synthetic_admin_dsn, role_password, root / "reprovision.json",
+                    run_id=evidence_run_id,
                     root=Path(__file__).resolve().parents[1],
                     connect_fn=lambda _dsn: psycopg.connect(DSN),
                     expected_admin_username=admin_role,

@@ -298,7 +298,7 @@ def provision_route_b_role(
     expected_admin_username: str = EXPECTED_ADMIN_ROLE,
     git_guard: Mapping[str, str],
     ddl: str | None = None,
-    run_id: str = "00000000-0000-4000-8000-000000000000",
+    run_id: str,
 ) -> dict[str, Any]:
     validate_run_id(run_id)
     validate_provisioning_plan(plan)

@@ -15,7 +15,8 @@ param(
     [string]$Operation,
 
     [string]$EvidenceDirectory,
-    [string]$RunId
+    [string]$RunId,
+    [string]$ExpectedGitSha
 )
 
 $ErrorActionPreference = 'Stop'
@@ -71,6 +72,9 @@ function Get-StockZeroGovernedEvidence {
     }
     if ([string]::IsNullOrWhiteSpace($EvidenceDirectory)) {
         throw 'The canonical evidence directory is required.'
+    }
+    if ($ExpectedGitSha -cnotmatch '^[0-9a-f]{40}$') {
+        throw 'The expected Git SHA must contain exactly 40 lowercase hexadecimal characters.'
     }
 
     $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -146,6 +150,67 @@ function Get-StockZeroGovernedEvidence {
     return $bundle
 }
 
+function Assert-ExistingBundleSemanticValidation {
+    param([Parameter(Mandatory)]$StoredBundle)
+
+    $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+    $validatorPath = (Resolve-Path (
+        Join-Path $repositoryRoot 'scripts/build_kpione_route_b_infrastructure_evidence.py'
+    ) -ErrorAction Stop).Path
+    $planPath = (Resolve-Path (
+        Join-Path $repositoryRoot 'plans/018_kpione_route_b_productive_apply_plan.json'
+    ) -ErrorAction Stop).Path
+    $bundlePath = Join-Path $repositoryRoot (
+        Join-Path (Join-Path 'evidence/runtime/020B' $RunId) '05_infrastructure_bundle.json'
+    )
+    $python = (Get-Command python -ErrorAction Stop).Source
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $python
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    foreach ($argument in @(
+        $validatorPath,
+        '--validate-existing',
+        '--run-id', $RunId,
+        '--plan', $planPath,
+        '--expected-git-sha', $ExpectedGitSha,
+        '--output', $bundlePath
+    )) {
+        [void]$startInfo.ArgumentList.Add($argument)
+    }
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            throw 'Existing bundle validator failed to start.'
+        }
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) {
+            throw 'Existing infrastructure bundle semantic validation failed.'
+        }
+        try {
+            $result = $stdout | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            throw 'Existing bundle validator returned invalid JSON.'
+        }
+        if ($result.verdict -ne 'PASS_EXISTING_INFRASTRUCTURE_BUNDLE_VALIDATION' -or
+            $result.run_id -cne $RunId -or
+            $result.bundle_sha256 -cne $StoredBundle.bundle_sha256) {
+            throw 'Existing bundle validator result did not match the governed evidence.'
+        }
+    }
+    finally {
+        $stdout = [string]::Empty
+        $stderr = [string]::Empty
+        $process.Dispose()
+    }
+}
+
 if ($Operation -eq 'bootstrap') {
     Install-Module Microsoft.PowerShell.SecretManagement -RequiredVersion $secretManagementVersion `
         -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
@@ -218,7 +283,8 @@ switch ($Operation) {
         }
     }
     'remove-temporary' {
-        [void](Get-StockZeroGovernedEvidence)
+        $storedBundle = Get-StockZeroGovernedEvidence
+        Assert-ExistingBundleSemanticValidation -StoredBundle $storedBundle
         $productiveDsn = Get-SecretInfo -Vault $vaultName -Name $secretNames.ProductiveDsn -ErrorAction SilentlyContinue
         if ($null -eq $productiveDsn) {
             throw 'productive_dsn_evidence_dependency_missing'

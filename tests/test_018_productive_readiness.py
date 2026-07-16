@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from contextlib import redirect_stdout
 from unittest import mock
@@ -1330,7 +1331,9 @@ class ProductiveReadiness018Tests(unittest.TestCase):
     def test_run_precheck_success_report_and_connection_lifecycle(self) -> None:
         ready = copy.deepcopy(self.plan)
         connection = FakeConnection()
-        report = precheck.run_precheck(ready, "redacted", lambda _dsn: connection)
+        report = precheck.run_precheck(
+            ready, "redacted", lambda _dsn: connection, run_id=str(uuid.uuid4()),
+        )
         self.assertEqual(report["document_type"], "kpione_route_b_readonly_baseline_evidence_v1")
         self.assertEqual(report["verdict"], "PASS_READONLY_BASELINE")
         self.assertEqual(report["current_user"], "stock_zero_codex_ro")
