@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -174,7 +175,12 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         self.assertNotIn("GRANT ALL", source.upper())
         legacy_lines = [line for line in source.splitlines() if "kpione2_raw" in line]
         self.assertTrue(legacy_lines)
-        self.assertTrue(all("SELECT to_regclass" in line for line in legacy_lines))
+        for mutation in (
+            "ALTER TABLE cg_raw.kpione2_raw", "DROP TABLE cg_raw.kpione2_raw",
+            "TRUNCATE cg_raw.kpione2_raw", "INSERT INTO cg_raw.kpione2_raw",
+            "UPDATE cg_raw.kpione2_raw", "DELETE FROM cg_raw.kpione2_raw",
+        ):
+            self.assertNotIn(mutation, source)
 
     def test_admin_git_guard_accepts_only_exact_clean_head_plan_and_sql_blobs(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -237,13 +243,17 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             def get(self, key: str, default: str | None = None) -> str | None:
                 raise AssertionError(f"secret read before authority completed: {key}")
 
+        run_id = str(uuid.uuid4())
         args = SimpleNamespace(
             plan=PLAN,
+            run_id=run_id,
             expected_plan_git_ref="0" * 40,
             db_url_env="DB_URL_ADMIN",
             expected_project_ref="xheyrgfagpoigpgakilu",
             confirm=PROVISION_CONFIRM_TOKEN,
-            evidence_json=Path(tempfile.gettempdir()) / "never-written.json",
+            evidence_json=ROOT / "evidence" / "runtime" / "020B" / run_id / "02_admin_provisioning.json",
+            reconcile_provisioning_evidence=False,
+            prior_failure_report=None,
             authority_precheck_only=False,
         )
         with self.assertRaisesRegex(ProvisioningError, "repository_head_mismatch"):
@@ -268,13 +278,17 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             run_git(root, "add", "plans", "sql")
             run_git(root, "commit", "--quiet", "-m", "full authority fixture")
             head = run_git(root, "rev-parse", "HEAD")
+            run_id = str(uuid.uuid4())
             args = SimpleNamespace(
                 plan=plan_path,
+                run_id=run_id,
                 expected_plan_git_ref=head,
                 db_url_env="DB_URL_ADMIN",
                 expected_project_ref="xheyrgfagpoigpgakilu",
                 confirm=PROVISION_CONFIRM_TOKEN,
-                evidence_json=root / "evidence.json",
+                evidence_json=root / "evidence" / "runtime" / "020B" / run_id / "02_admin_provisioning.json",
+                reconcile_provisioning_evidence=False,
+                prior_failure_report=None,
                 authority_precheck_only=True,
             )
             report = execute_cli(args, environ=NoSecretReads(), root=root)
@@ -285,7 +299,9 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
     def test_secret_wrapper_uses_typed_entrypoints_and_scrubbed_child_environment(self) -> None:
         source = SECRET_WRAPPER.read_text(encoding="utf-8")
         for operation in (
-            "readonly-precheck", "route-b-apply", "route-b-rollback", "admin-provision",
+            "readonly-precheck", "readonly-postcheck", "verify-route-b-role",
+            "route-b-apply", "route-b-rollback", "admin-provision",
+            "admin-reconcile-provisioning-evidence",
             "diagnose-readonly", "diagnose-route-b", "diagnose-admin",
         ):
             self.assertIn(f"'{operation}'", source)
@@ -332,9 +348,12 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         )
         expected_by_operation = {
             "readonly-precheck": ["DB_URL_CODEX_RO"],
+            "readonly-postcheck": ["DB_URL_CODEX_RO"],
+            "verify-route-b-role": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "route-b-apply": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "route-b-rollback": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "admin-provision": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
+            "admin-reconcile-provisioning-evidence": ["DB_URL_ADMIN"],
             "diagnose-readonly": ["DB_URL_CODEX_RO"],
             "diagnose-route-b": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "diagnose-admin": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
@@ -356,6 +375,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             )
             for name in (
                 "precheck_kpione_route_b_018_read_only.py",
+                "verify_kpione_route_b_productive_role.py",
                 "run_kpione_route_b_ingestion_v1.py",
                 "provision_kpione_route_b_role.py",
                 "diagnose_stock_zero_db_credentials.py",
@@ -387,19 +407,36 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             for name in managed:
                 environment[name] = f"synthetic-parent-{name.lower()}"
 
+            run_id = str(uuid.uuid4())
+            evidence_base = f"evidence/runtime/020B/{run_id}"
+            operation_arguments = {
+                "readonly-precheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/01_readonly_baseline.json"],
+                "admin-provision": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
+                "admin-reconcile-provisioning-evidence": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
+                "verify-route-b-role": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/03_productive_role_verification.json"],
+                "readonly-postcheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/04_readonly_postcheck.json"],
+            }
+
             for operation, expected_names in expected_by_operation.items():
                 with self.subTest(operation=operation):
+                    arguments = operation_arguments.get(operation, [])
+                    rendered_arguments = ",".join(
+                        "'" + value.replace("'", "''") + "'" for value in arguments
+                    )
+                    command = (
+                        f"& '{scripts / SECRET_WRAPPER.name}' -Operation '{operation}'"
+                        + (f" -ArgumentList @({rendered_arguments})" if arguments else "")
+                    )
                     completed = subprocess.run(
                         [
-                            "pwsh", "-NoLogo", "-NoProfile", "-File",
-                            str(scripts / SECRET_WRAPPER.name), "-Operation", operation,
+                            "pwsh", "-NoLogo", "-NoProfile", "-Command", command,
                         ],
                         cwd=root, env=environment, capture_output=True, text=True, check=False,
                     )
                     self.assertEqual(completed.returncode, 0, completed.stderr)
                     reports = [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
                     self.assertEqual(reports[-1]["managed"], sorted(expected_names))
-                    if operation == "admin-provision":
+                    if operation in ("admin-provision", "admin-reconcile-provisioning-evidence"):
                         self.assertEqual(reports[0]["managed"], [])
                         self.assertEqual(reports[-1]["entrypoint"], "provision_kpione_route_b_role.py")
                     for secret in secret_values:

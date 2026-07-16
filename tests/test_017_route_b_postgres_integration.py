@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import unittest
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
@@ -245,6 +246,16 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             plan["status"] = "READY_FOR_PRODUCTIVE_EXECUTION"
             plan["remaining_blockers"] = []
             plan["readonly_precheck"] = {"status": "PASSED", "evidence_sha256": "c" * 64}
+            plan["infrastructure_evidence"] = {
+                "status": "PASSED",
+                "bundle_sha256": "d" * 64,
+                "components": {
+                    "readonly_baseline_precheck": "c" * 64,
+                    "admin_provisioning": "e" * 64,
+                    "productive_role_verification": "f" * 64,
+                    "readonly_postcheck": "1" * 64,
+                },
+            }
             plan["target"].update({
                 "expected_database": database,
                 "planned_productive_role": PLANNED_PRODUCTIVE_ROLE,
@@ -302,20 +313,7 @@ class RouteBPostgresRehearsal(unittest.TestCase):
                 "plan_sha256": "b" * 64,
                 "ddl_sha256": plan["physical_contract"]["sql_sha256"],
             }
-            provision_report = provision_route_b_role(
-                plan, synthetic_admin_dsn, role_password, root / "provision.json",
-                root=Path(__file__).resolve().parents[1],
-                connect_fn=lambda _dsn: psycopg.connect(DSN),
-                expected_admin_username=admin_role,
-                git_guard=git_guard,
-            )
-            reprovision_report = provision_route_b_role(
-                plan, synthetic_admin_dsn, role_password, root / "reprovision.json",
-                root=Path(__file__).resolve().parents[1],
-                connect_fn=lambda _dsn: psycopg.connect(DSN),
-                expected_admin_username=admin_role,
-                git_guard=git_guard,
-            )
+            evidence_run_id = str(uuid.uuid4())
             with patch(
                 "scripts.provision_kpione_route_b_role._write_provisioning_evidence",
                 side_effect=OSError("synthetic evidence failure"),
@@ -324,13 +322,26 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             ) as evidence_context:
                 provision_route_b_role(
                     plan, synthetic_admin_dsn, role_password, root / "failed-evidence.json",
+                    run_id=evidence_run_id,
                     root=Path(__file__).resolve().parents[1],
                     connect_fn=lambda _dsn: psycopg.connect(DSN),
                     expected_admin_username=admin_role,
                     git_guard=git_guard,
                 )
             evidence_failure = evidence_context.exception
+            provision_report = evidence_failure.report
             blocked_evidence_report = _blocked_report(evidence_failure)
+            with self.assertRaisesRegex(
+                ProvisioningError, "productive_role_exists_password_rotation_not_authorized"
+            ) as reprovision_context:
+                provision_route_b_role(
+                    plan, synthetic_admin_dsn, role_password, root / "reprovision.json",
+                    run_id=evidence_run_id,
+                    root=Path(__file__).resolve().parents[1],
+                    connect_fn=lambda _dsn: psycopg.connect(DSN),
+                    expected_admin_username=admin_role,
+                    git_guard=git_guard,
+                )
             connect_fn = lambda _dsn: psycopg.connect(DSN, user=PLANNED_PRODUCTIVE_ROLE)
             apply_report = run_productive_apply(
                 plan, approved, synthetic_dsn, root / "apply.json",
@@ -412,10 +423,10 @@ class RouteBPostgresRehearsal(unittest.TestCase):
                 (plan["physical_contract"]["objects"],),
             )
             route_b_owners = {row[0] for row in cursor.fetchall()}
-        self.assertEqual(provision_report["verdict"], "PASS_ADMIN_PROVISIONING")
+        self.assertEqual(provision_report["verdict"], "BLOCKED")
         self.assertTrue(provision_report["role_created"])
-        self.assertEqual(reprovision_report["verdict"], "PASS_ADMIN_PROVISIONING")
-        self.assertFalse(reprovision_report["role_created"])
+        self.assertFalse(reprovision_context.exception.writes_attempted)
+        self.assertFalse(reprovision_context.exception.committed)
         self.assertTrue(evidence_failure.committed)
         self.assertTrue(evidence_failure.connection_attempted)
         self.assertTrue(evidence_failure.writes_attempted)
