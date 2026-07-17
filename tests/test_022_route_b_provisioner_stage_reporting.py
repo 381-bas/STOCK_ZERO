@@ -52,7 +52,9 @@ class StageFailingCursor:
         if "pg_get_serial_sequence" in self.last_query:
             return ("cg_raw.kpione_raw_event_photo_staging_v1_staging_id_seq",)
         if "rolcanlogin" in self.last_query:
-            return (True, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT)
+            return (
+                True, False, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT,
+            )
         if "to_regclass" in self.last_query:
             return ("cg_raw.kpione2_raw",)
         return (None,)

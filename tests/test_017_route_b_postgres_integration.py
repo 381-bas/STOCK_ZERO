@@ -394,7 +394,7 @@ class RouteBPostgresRehearsal(unittest.TestCase):
             legacy_rows_after = cursor.fetchone()[0]
             cursor.execute(
                 "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,"
-                "rolbypassrls,rolconnlimit FROM pg_roles WHERE rolname=%s",
+                "rolbypassrls,rolinherit,rolconnlimit FROM pg_roles WHERE rolname=%s",
                 (PLANNED_PRODUCTIVE_ROLE,),
             )
             role_attributes = cursor.fetchone()
@@ -470,7 +470,7 @@ class RouteBPostgresRehearsal(unittest.TestCase):
         self.assertEqual(legacy_before, "cg_raw.kpione2_raw")
         self.assertEqual(legacy_after, legacy_before)
         self.assertEqual(legacy_rows_after, legacy_rows_before)
-        self.assertEqual(role_attributes, (True, False, False, False, False, False, 5))
+        self.assertEqual(role_attributes, (True, False, False, False, False, False, False, 5))
         self.assertFalse(create_schema)
         self.assertFalse(legacy_select)
         self.assertTrue(route_b_select_insert)

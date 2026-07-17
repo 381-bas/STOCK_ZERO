@@ -312,8 +312,7 @@ def _load_ddl(plan: dict[str, Any], root: Path) -> tuple[str, str]:
 
 def _role_statement(role: str, password: str) -> sql.Composed:
     return sql.SQL(
-        "ALTER ROLE {} WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE "
-        "NOREPLICATION NOBYPASSRLS NOINHERIT CONNECTION LIMIT {} PASSWORD {}"
+        "ALTER ROLE {} WITH LOGIN NOINHERIT CONNECTION LIMIT {} PASSWORD {}"
     ).format(
         sql.Identifier(role),
         sql.Literal(PRODUCTIVE_CONNECTION_LIMIT),
@@ -509,11 +508,13 @@ def provision_route_b_role(
             current_stage = "role_attribute_validation"
             cursor.execute(
                 "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,"
-                "rolbypassrls,rolconnlimit FROM pg_roles WHERE rolname=%s",
+                "rolbypassrls,rolinherit,rolconnlimit FROM pg_roles WHERE rolname=%s",
                 (PLANNED_PRODUCTIVE_ROLE,),
             )
             role_attributes = cursor.fetchone()
-            if role_attributes != (True, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT):
+            if role_attributes != (
+                True, False, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT,
+            ):
                 raise ProvisioningError("productive_role_attributes_mismatch")
             current_stage = "legacy_validation"
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
@@ -583,6 +584,7 @@ def provision_route_b_role(
             "createrole": False,
             "replication": False,
             "bypassrls": False,
+            "inherit": False,
             "connection_limit": PRODUCTIVE_CONNECTION_LIMIT,
         },
         "ddl_sha256": ddl_sha256,
@@ -689,12 +691,12 @@ def _observe_reconciled_state(
 ) -> dict[str, Any]:
     cursor.execute(
         "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,"
-        "rolbypassrls,rolconnlimit FROM pg_roles WHERE rolname=%s",
+        "rolbypassrls,rolinherit,rolconnlimit FROM pg_roles WHERE rolname=%s",
         (PLANNED_PRODUCTIVE_ROLE,),
     )
     role_attributes = cursor.fetchone()
     expected_attributes = (
-        True, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT,
+        True, False, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT,
     )
     if role_attributes != expected_attributes:
         raise ProvisioningError("reconciliation_role_attributes_mismatch")
@@ -773,7 +775,8 @@ def _observe_reconciled_state(
             "login": role_attributes[0], "superuser": role_attributes[1],
             "createdb": role_attributes[2], "createrole": role_attributes[3],
             "replication": role_attributes[4], "bypassrls": role_attributes[5],
-            "connection_limit": role_attributes[6],
+            "inherit": role_attributes[6],
+            "connection_limit": role_attributes[7],
         },
         "route_b_owners": owners,
         "route_b_sequence": sequence_name,

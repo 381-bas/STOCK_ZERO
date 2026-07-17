@@ -19,8 +19,10 @@ from scripts.kpione_route_b_v1 import run_productive_apply
 from scripts.provision_kpione_route_b_role import (
     EXPECTED_ADMIN_ROLE,
     PLANNED_PRODUCTIVE_ROLE,
+    PRODUCTIVE_CONNECTION_LIMIT,
     PROVISION_CONFIRM_TOKEN,
     ProvisioningError,
+    _role_statement,
     execute_cli,
     validate_admin_git_guard,
     validate_admin_dsn_target,
@@ -161,11 +163,28 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
 
     def test_provisioner_declares_restrictive_role_and_only_route_b_grants(self) -> None:
         source = PROVISIONER.read_text(encoding="utf-8")
-        for token in (
-            "LOGIN", "NOSUPERUSER", "NOCREATEDB", "NOCREATEROLE",
-            "NOREPLICATION", "NOBYPASSRLS", "CONNECTION LIMIT",
-        ):
+        for token in ("LOGIN", "NOINHERIT", "CONNECTION LIMIT", "PASSWORD"):
             self.assertIn(token, source)
+        self.assertNotIn("NOSUPERUSER", source)
+        self.assertNotIn("NOCREATEDB", source)
+        self.assertNotIn("NOCREATEROLE", source)
+        self.assertNotIn("NOREPLICATION", source)
+        self.assertNotIn("NOBYPASSRLS", source)
+        self.assertIn("sql.Literal(password)", source)
+        self.assertIn("sql.Literal(PRODUCTIVE_CONNECTION_LIMIT)", source)
+        self.assertIn("rolinherit", source)
+        self.assertIn(
+            "True, False, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT",
+            source,
+        )
+        self.assertIn('"inherit": False', source)
+        self.assertEqual(PRODUCTIVE_CONNECTION_LIMIT, 5)
+        rendered_role_statement = str(_role_statement("synthetic_role", "synthetic_password"))
+        for token in ("LOGIN", "NOINHERIT", "CONNECTION LIMIT", "PASSWORD"):
+            self.assertIn(token, rendered_role_statement)
+        for token in ("SUPERUSER", "CREATEDB", "CREATEROLE", "REPLICATION", "BYPASSRLS"):
+            self.assertNotIn(token, rendered_role_statement)
+        self.assertIn("Literal('synthetic_password')", rendered_role_statement)
         self.assertIn("GRANT SELECT,INSERT ON TABLE", source)
         self.assertIn("GRANT UPDATE(status,activated_at,rolled_back_at) ON TABLE", source)
         self.assertIn("GRANT USAGE ON SEQUENCE", source)
