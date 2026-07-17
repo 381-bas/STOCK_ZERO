@@ -27,6 +27,7 @@
       "tests/test_ci_quality_gates.py",
       "tests/test_cg_canonical_build_local.py",
       "tests/test_cg_readonly_extract.py",
+      "tests/test_control_gestion_risk_digest.py",
       "tests/test_control_gestion_operational_calendar.py",
       "tests/test_kernel04_retirement.py",
       "tests/test_route_b_denominator_dry_run.py",
