@@ -65,6 +65,7 @@ ADMIN_DB_ENV = "DB_URL_ADMIN"
 PRODUCTIVE_ROLE_PASSWORD_ENV = "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"
 PROVISION_CONFIRM_TOKEN = "STOCK_ZERO_019_PROVISION_ROUTE_B_ROLE"
 RECONCILE_CONFIRM_TOKEN = "STOCK_ZERO_020B_RECONCILE_PROVISIONING_EVIDENCE"
+RECONCILE_EXISTING_CONFIRM_TOKEN = "STOCK_ZERO_020B_RECONCILE_EXISTING_PROVISIONED_STATE"
 EXPECTED_ADMIN_ROLE = "postgres"
 PRODUCTIVE_CONNECTION_LIMIT = 5
 PROVISION_LOCK_KEY = ADVISORY_LOCK_KEY + 19
@@ -684,6 +685,57 @@ def _validate_prior_failure_report(
     return _validate_prior_failure_mapping(report, run_id, git_guard, plan)
 
 
+def _validate_committed_provisioning_source_mapping(
+    report: Mapping[str, Any],
+    git_guard: Mapping[str, str],
+    plan: Mapping[str, Any],
+) -> dict[str, Any]:
+    required = {
+        "verdict": "PASS_ADMIN_PROVISIONING",
+        "evidence_sequence_step": 2,
+        "committed": True,
+        "role_created": True,
+        "rollback_or_reconciliation_required": False,
+        "plan_sha256": git_guard["plan_sha256"],
+        "sql_sha256": plan["physical_contract"]["sql_sha256"],
+        "target_fingerprint": target_fingerprint(plan),
+    }
+    for key, expected in required.items():
+        if report.get(key) != expected:
+            raise ProvisioningError(f"source_admin_provisioning_mismatch:{key}")
+    if not isinstance(report.get("run_id"), str):
+        raise ProvisioningError("source_admin_provisioning_run_id_missing")
+    if not isinstance(report.get("approved_git_sha"), str):
+        raise ProvisioningError("source_admin_provisioning_git_sha_missing")
+    if not isinstance(report.get("role_attributes"), dict):
+        raise ProvisioningError("source_admin_provisioning_role_attributes_missing")
+    if not isinstance(report.get("legacy_structure_after"), dict):
+        raise ProvisioningError("source_admin_provisioning_legacy_structure_missing")
+    if not isinstance(report.get("public_acl_after"), dict):
+        raise ProvisioningError("source_admin_provisioning_public_acl_missing")
+    if report.get("route_b_sequence") in (None, ""):
+        raise ProvisioningError("source_admin_provisioning_sequence_missing")
+    if set(report.get("route_b_objects_validated", [])) != set(plan["physical_contract"]["objects"]):
+        raise ProvisioningError("source_admin_provisioning_object_scope_mismatch")
+    return dict(report)
+
+
+def _validate_committed_provisioning_source_report(
+    path: Path,
+    git_guard: Mapping[str, str],
+    plan: Mapping[str, Any],
+) -> tuple[dict[str, Any], str]:
+    try:
+        raw = path.read_bytes()
+        report = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProvisioningError("source_admin_provisioning_unreadable") from exc
+    return (
+        _validate_committed_provisioning_source_mapping(report, git_guard, plan),
+        hashlib.sha256(raw).hexdigest(),
+    )
+
+
 def _observe_reconciled_state(
     cursor: Any,
     plan: dict[str, Any],
@@ -872,6 +924,121 @@ def reconcile_provisioning_evidence(
     return report
 
 
+def reconcile_existing_provisioned_state(
+    plan: dict[str, Any],
+    dsn: str,
+    run_id: str,
+    source_admin_provisioning: Mapping[str, Any],
+    source_admin_provisioning_sha256: str,
+    evidence_json: Path,
+    *,
+    git_guard: Mapping[str, str],
+    connect_fn: Callable[[str], Any] | None = None,
+    expected_admin_username: str = EXPECTED_ADMIN_ROLE,
+) -> dict[str, Any]:
+    validate_run_id(run_id)
+    validate_provisioning_plan(plan)
+    source_admin_provisioning = _validate_committed_provisioning_source_mapping(
+        source_admin_provisioning, git_guard, plan,
+    )
+    target = validate_admin_dsn_target(
+        dsn, plan, expected_admin_username=expected_admin_username,
+    )
+    connection: Any | None = None
+    try:
+        connection = _connect(dsn, connect_fn)
+        connection.autocommit = False
+        with connection.cursor() as cursor:
+            cursor.execute("BEGIN READ ONLY")
+            cursor.execute("SET LOCAL statement_timeout = '30s'")
+            cursor.execute("SET LOCAL lock_timeout = '5s'")
+            cursor.execute(
+                "SELECT current_user,session_user,current_database(),"
+                "current_setting('transaction_read_only')"
+            )
+            current_user, session_user, database, readonly = cursor.fetchone()
+            if current_user != expected_admin_username or session_user != expected_admin_username:
+                raise ProvisioningError("existing_state_admin_session_role_mismatch")
+            if database != plan["target"]["expected_database"] or readonly != "on":
+                raise ProvisioningError("existing_state_readonly_session_mismatch")
+            observed = _observe_reconciled_state(cursor, plan, expected_admin_username)
+            source_attributes = source_admin_provisioning["role_attributes"]
+            expected_attributes = {
+                "login": True,
+                "superuser": False,
+                "createdb": False,
+                "createrole": False,
+                "replication": False,
+                "bypassrls": False,
+                "inherit": False,
+                "connection_limit": PRODUCTIVE_CONNECTION_LIMIT,
+            }
+            if source_attributes != expected_attributes:
+                raise ProvisioningError("source_admin_provisioning_role_attributes_mismatch")
+            if observed["role_attributes"] != expected_attributes:
+                raise ProvisioningError("existing_state_role_attributes_mismatch")
+            if observed["route_b_sequence"] != source_admin_provisioning["route_b_sequence"]:
+                raise ProvisioningError("existing_state_sequence_mismatch")
+            if legacy_structural_identity(observed["legacy"]) != source_admin_provisioning["legacy_structure_after"]:
+                raise ProvisioningError("existing_state_legacy_structural_drift")
+            if observed["public_acl"] != source_admin_provisioning["public_acl_after"]:
+                raise ProvisioningError("existing_state_public_acl_drift")
+        connection.rollback()
+    except ProvisioningError:
+        if connection is not None:
+            connection.rollback()
+        raise
+    except Exception:
+        if connection is not None:
+            connection.rollback()
+        raise ProvisioningError("existing_state_reconciliation_failed") from None
+    finally:
+        if connection is not None:
+            connection.close()
+    report = {
+        "document_type": "kpione_route_b_role_provisioning_evidence_v1",
+        "run_id": run_id,
+        "evidence_sequence_step": 2,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "verdict": "PASS_ADMIN_PROVISIONING",
+        "evidence_mode": "RECONCILED_COMMITTED_STATE",
+        "credential_class": target["credential_class"],
+        "target_fingerprint": target_fingerprint(plan),
+        "approved_git_sha": git_guard["approved_git_sha"],
+        "plan_sha256": git_guard["plan_sha256"],
+        "ddl_sha256": plan["physical_contract"]["sql_sha256"],
+        "sql_sha256": plan["physical_contract"]["sql_sha256"],
+        "planned_productive_role": PLANNED_PRODUCTIVE_ROLE,
+        "role_created": True,
+        "role_attributes": observed["role_attributes"],
+        "route_b_objects_validated": sorted(plan["physical_contract"]["objects"]),
+        "route_b_owners": observed["route_b_owners"],
+        "route_b_sequence": observed["route_b_sequence"],
+        "grant_matrix_verified": True,
+        "legacy_structure_before": source_admin_provisioning["legacy_structure_after"],
+        "legacy_structure_after": legacy_structural_identity(observed["legacy"]),
+        "legacy_activity_before": source_admin_provisioning.get("legacy_activity_after", {}),
+        "legacy_activity_after": {
+            "row_count": observed["legacy"].get("row_count", "unavailable"),
+            "relation_size_bytes": observed["legacy"].get("relation_size_bytes", "unavailable"),
+        },
+        "public_acl_before": source_admin_provisioning["public_acl_after"],
+        "public_acl_after": observed["public_acl"],
+        "source_admin_provisioning": {
+            "run_id": source_admin_provisioning["run_id"],
+            "approved_git_sha": source_admin_provisioning["approved_git_sha"],
+            "sha256": source_admin_provisioning_sha256,
+        },
+        "connection_attempted": True,
+        "writes_attempted": False,
+        "committed": True,
+        "transaction_outcome": "ROLLED_BACK_READ_ONLY",
+        "rollback_or_reconciliation_required": False,
+    }
+    _write_provisioning_evidence(evidence_json, report)
+    return report
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Provision the restricted KPIONE Route B role")
     result.add_argument("--plan", type=Path, default=DEFAULT_PLAN)
@@ -882,7 +1049,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--confirm", required=True)
     result.add_argument("--evidence-json", type=Path, required=True)
     result.add_argument("--reconcile-provisioning-evidence", action="store_true")
+    result.add_argument("--reconcile-existing-provisioned-state", action="store_true")
     result.add_argument("--prior-failure-report", type=Path)
+    result.add_argument("--source-admin-provisioning-evidence", type=Path)
     result.add_argument("--authority-precheck-only", action="store_true")
     return result
 
@@ -910,17 +1079,40 @@ def _prepare_admin_operation(args: argparse.Namespace, root: Path = ROOT) -> tup
     prepare_run_directory(root, args.run_id)
     if not args.evidence_json.parent.is_dir():
         raise ProvisioningError("provisioning_evidence_parent_missing")
-    if args.reconcile_provisioning_evidence:
+    reconcile_prior_failure = getattr(args, "reconcile_provisioning_evidence", False)
+    reconcile_existing_state = getattr(args, "reconcile_existing_provisioned_state", False)
+    source_admin_evidence = getattr(args, "source_admin_provisioning_evidence", None)
+    prior_failure_report = getattr(args, "prior_failure_report", None)
+    if reconcile_prior_failure and reconcile_existing_state:
+        raise ProvisioningError("single_reconciliation_mode_required")
+    if reconcile_prior_failure:
         if args.confirm != RECONCILE_CONFIRM_TOKEN:
             raise ProvisioningError("admin_reconciliation_confirmation_required")
-        if args.prior_failure_report is None:
+        if prior_failure_report is None:
             raise ProvisioningError("prior_failure_report_required")
+        if source_admin_evidence is not None:
+            raise ProvisioningError("source_admin_provisioning_not_allowed_for_prior_failure")
         args._prior_failure = _validate_prior_failure_report(
-            args.prior_failure_report, args.run_id, authority, plan,
+            prior_failure_report, args.run_id, authority, plan,
+        )
+    elif reconcile_existing_state:
+        if args.confirm != RECONCILE_EXISTING_CONFIRM_TOKEN:
+            raise ProvisioningError("existing_state_reconciliation_confirmation_required")
+        if prior_failure_report is not None:
+            raise ProvisioningError("prior_failure_report_not_allowed_for_existing_state")
+        if source_admin_evidence is None:
+            raise ProvisioningError("source_admin_provisioning_evidence_required")
+        (
+            args._source_admin_provisioning,
+            args._source_admin_provisioning_sha256,
+        ) = _validate_committed_provisioning_source_report(
+            source_admin_evidence, authority, plan,
         )
     else:
-        if args.prior_failure_report is not None:
+        if prior_failure_report is not None:
             raise ProvisioningError("prior_failure_report_not_allowed_for_initial_provisioning")
+        if source_admin_evidence is not None:
+            raise ProvisioningError("source_admin_provisioning_not_allowed_for_initial_provisioning")
         if args.confirm != PROVISION_CONFIRM_TOKEN:
             raise ProvisioningError("admin_provision_confirmation_required")
     public_guard = {
@@ -948,9 +1140,15 @@ def execute_cli(
     dsn = environ.get(ADMIN_DB_ENV)
     if not dsn:
         raise ProvisioningError("admin_dsn_missing")
-    if args.reconcile_provisioning_evidence:
+    if getattr(args, "reconcile_provisioning_evidence", False):
         return reconcile_provisioning_evidence(
             plan, dsn, args.run_id, args._prior_failure, args.evidence_json,
+            git_guard=git_guard,
+        )
+    if getattr(args, "reconcile_existing_provisioned_state", False):
+        return reconcile_existing_provisioned_state(
+            plan, dsn, args.run_id, args._source_admin_provisioning,
+            args._source_admin_provisioning_sha256, args.evidence_json,
             git_guard=git_guard,
         )
     role_password = environ.get(PRODUCTIVE_ROLE_PASSWORD_ENV)

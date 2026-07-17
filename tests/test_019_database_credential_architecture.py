@@ -321,6 +321,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             "readonly-precheck", "readonly-postcheck", "verify-route-b-role",
             "route-b-apply", "route-b-rollback", "admin-provision",
             "admin-reconcile-provisioning-evidence",
+            "admin-reconcile-existing-provisioned-state",
             "diagnose-readonly", "diagnose-route-b", "diagnose-admin",
         ):
             self.assertIn(f"'{operation}'", source)
@@ -373,6 +374,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             "route-b-rollback": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "admin-provision": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
             "admin-reconcile-provisioning-evidence": ["DB_URL_ADMIN"],
+            "admin-reconcile-existing-provisioned-state": ["DB_URL_ADMIN"],
             "diagnose-readonly": ["DB_URL_CODEX_RO"],
             "diagnose-route-b": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "diagnose-admin": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
@@ -432,6 +434,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                 "readonly-precheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/01_readonly_baseline.json"],
                 "admin-provision": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
                 "admin-reconcile-provisioning-evidence": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
+                "admin-reconcile-existing-provisioned-state": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
                 "verify-route-b-role": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/03_productive_role_verification.json"],
                 "readonly-postcheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/04_readonly_postcheck.json"],
             }
@@ -455,7 +458,11 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                     self.assertEqual(completed.returncode, 0, completed.stderr)
                     reports = [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
                     self.assertEqual(reports[-1]["managed"], sorted(expected_names))
-                    if operation in ("admin-provision", "admin-reconcile-provisioning-evidence"):
+                    if operation in (
+                        "admin-provision",
+                        "admin-reconcile-provisioning-evidence",
+                        "admin-reconcile-existing-provisioned-state",
+                    ):
                         self.assertEqual(reports[0]["managed"], [])
                         self.assertEqual(reports[-1]["entrypoint"], "provision_kpione_route_b_role.py")
                     for secret in secret_values:

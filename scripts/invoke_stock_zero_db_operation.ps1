@@ -12,6 +12,7 @@ param(
         'route-b-rollback',
         'admin-provision',
         'admin-reconcile-provisioning-evidence',
+        'admin-reconcile-existing-provisioned-state',
         'apply-route-b-app-bridge',
         'diagnose-readonly',
         'diagnose-route-b',
@@ -90,6 +91,12 @@ $operationMap = @{
         PrefixArguments = @('--reconcile-provisioning-evidence')
         AuthorityPrecheck = $true
     }
+    'admin-reconcile-existing-provisioned-state' = @{
+        Script = 'scripts/provision_kpione_route_b_role.py'
+        Profile = 'admin-reconciliation'
+        PrefixArguments = @('--reconcile-existing-provisioned-state')
+        AuthorityPrecheck = $true
+    }
     'apply-route-b-app-bridge' = @{
         Script = 'scripts/apply_control_gestion_route_b_bridge.py'
         Profile = 'admin-ddl'
@@ -161,6 +168,7 @@ $evidenceFileByOperation = @{
     'readonly-precheck' = '01_readonly_baseline.json'
     'admin-provision' = '02_admin_provisioning.json'
     'admin-reconcile-provisioning-evidence' = '02_admin_provisioning.json'
+    'admin-reconcile-existing-provisioned-state' = '02_admin_provisioning.json'
     'verify-route-b-role' = '03_productive_role_verification.json'
     'readonly-postcheck' = '04_readonly_postcheck.json'
 }
