@@ -17,7 +17,7 @@ REAL_APPLY_ENABLED = False
 ROOT = Path(__file__).resolve().parents[1]
 CODEX_RO_SECRET_FILE = ROOT / ".local_secrets" / "codex_ro.env"
 
-DAILY_SOURCE = "cg_core.v_cg_visita_dia_precedencia_v2"
+DAILY_SOURCE = "cg_core.v_cg_visita_dia_precedencia_route_b_v1"
 DAILY_FACT = "cg_mart.fact_cg_visita_dia_resuelta_v2"
 WEEKLY_FREQ = "cg_core.v_rr_frecuencia_base_resuelta_v2"
 WEEKLY_FACT = "cg_mart.fact_cg_out_weekly_v2"

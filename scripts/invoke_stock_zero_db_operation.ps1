@@ -12,6 +12,7 @@ param(
         'route-b-rollback',
         'admin-provision',
         'admin-reconcile-provisioning-evidence',
+        'apply-route-b-app-bridge',
         'diagnose-readonly',
         'diagnose-route-b',
         'diagnose-admin'
@@ -45,6 +46,9 @@ $profileMap = @{
         @{ SecretName = 'STOCK_ZERO_DB_KPIONE_ROUTE_B_PASSWORD'; EnvironmentName = 'KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD' }
     )
     'admin-reconciliation' = @(
+        @{ SecretName = 'STOCK_ZERO_DB_ADMIN'; EnvironmentName = 'DB_URL_ADMIN' }
+    )
+    'admin-ddl' = @(
         @{ SecretName = 'STOCK_ZERO_DB_ADMIN'; EnvironmentName = 'DB_URL_ADMIN' }
     )
 }
@@ -85,6 +89,11 @@ $operationMap = @{
         Profile = 'admin-reconciliation'
         PrefixArguments = @('--reconcile-provisioning-evidence')
         AuthorityPrecheck = $true
+    }
+    'apply-route-b-app-bridge' = @{
+        Script = 'scripts/apply_control_gestion_route_b_bridge.py'
+        Profile = 'admin-ddl'
+        PrefixArguments = @()
     }
     'diagnose-readonly' = @{
         Script = 'scripts/diagnose_stock_zero_db_credentials.py'
