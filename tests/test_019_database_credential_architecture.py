@@ -40,6 +40,16 @@ SECRET_WRAPPER = ROOT / "scripts" / "invoke_stock_zero_db_operation.ps1"
 DIAGNOSTIC = ROOT / "scripts" / "diagnose_stock_zero_db_credentials.py"
 
 
+def find_pwsh() -> str | None:
+    discovered = shutil.which("pwsh")
+    if discovered:
+        return discovered
+    bundled = Path("C:/Program Files/PowerShell/7/pwsh.exe")
+    if bundled.exists():
+        return str(bundled)
+    return None
+
+
 def run_git(root: Path, *args: str) -> str:
     completed = subprocess.run(
         ["git", *args], cwd=root, capture_output=True, text=True, check=True,
@@ -356,6 +366,40 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         )
         completed = subprocess.run(
             ["powershell", "-NoLogo", "-NoProfile", "-Command", command],
+            cwd=ROOT, capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_secret_wrapper_all_operations_run_under_strictmode_with_synthetic_children(self) -> None:
+        pwsh = find_pwsh()
+        if not pwsh:
+            self.skipTest("PowerShell 7 is required for the strict wrapper probe")
+        operations = (
+            "readonly-precheck", "readonly-postcheck", "verify-route-b-role",
+            "route-b-apply", "route-b-rollback", "admin-provision",
+            "admin-reconcile-provisioning-evidence",
+            "admin-reconcile-existing-provisioned-state",
+            "apply-route-b-app-bridge", "diagnose-readonly", "diagnose-route-b",
+            "diagnose-admin",
+        )
+        source = SECRET_WRAPPER.read_text(encoding="utf-8")
+        for operation in operations:
+            self.assertIn(f"'{operation}'", source)
+        self.assertIn("$entrypoint.ContainsKey('AuthorityPrecheck')", source)
+        self.assertIn("[bool]$entrypoint['AuthorityPrecheck']", source)
+        self.assertNotIn("if ($entrypoint.AuthorityPrecheck)", source)
+        command = (
+            "Set-StrictMode -Version Latest; "
+            "$without=@{Script='x';Profile='readonly';PrefixArguments=@()}; "
+            "$with=@{Script='x';Profile='admin';PrefixArguments=@();AuthorityPrecheck=$true}; "
+            "function Test-Enabled($entrypoint) { "
+            "($entrypoint.ContainsKey('AuthorityPrecheck') -and [bool]$entrypoint['AuthorityPrecheck']) "
+            "}; "
+            "if (Test-Enabled $without) { exit 1 }; "
+            "if (-not (Test-Enabled $with)) { exit 2 }"
+        )
+        completed = subprocess.run(
+            [pwsh, "-NoLogo", "-NoProfile", "-Command", command],
             cwd=ROOT, capture_output=True, text=True, check=False,
         )
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)

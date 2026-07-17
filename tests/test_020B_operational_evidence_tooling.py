@@ -32,6 +32,7 @@ from scripts.kpione_route_b_evidence_v1 import (
 from scripts.provision_kpione_route_b_role import (
     ProvisioningError,
     _validate_committed_provisioning_source_mapping,
+    _validate_committed_provisioning_source_report,
     _validate_prior_failure_mapping,
     reconcile_existing_provisioned_state,
     reconcile_provisioning_evidence,
@@ -511,6 +512,88 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
         self.assertIn("ROLLBACK", reconciler_source)
         for mutation in ("CREATE ROLE", "ALTER ROLE", "GRANT ", "REVOKE "):
             self.assertNotIn(mutation, reconciler_source)
+
+    def test_existing_provisioned_state_source_path_is_repo_root_relative_and_canonical(self) -> None:
+        guard = {
+            "approved_git_sha": "c" * 40,
+            "plan_sha256": hashlib.sha256(PLAN_PATH.read_bytes()).hexdigest(),
+        }
+        source = {
+            "document_type": "kpione_route_b_role_provisioning_evidence_v1",
+            "run_id": RUN_ID,
+            "evidence_sequence_step": 2,
+            "verdict": "PASS_ADMIN_PROVISIONING",
+            "evidence_mode": "DIRECT_COMMITTED_EXECUTION",
+            "approved_git_sha": "b" * 40,
+            "plan_sha256": guard["plan_sha256"],
+            "sql_sha256": self.plan["physical_contract"]["sql_sha256"],
+            "target_fingerprint": precheck.target_fingerprint(self.plan),
+            "committed": True,
+            "role_created": True,
+            "rollback_or_reconciliation_required": False,
+            "role_attributes": {
+                "login": True,
+                "superuser": False,
+                "createdb": False,
+                "createrole": False,
+                "replication": False,
+                "bypassrls": False,
+                "inherit": False,
+                "connection_limit": 5,
+            },
+            "route_b_objects_validated": sorted(self.plan["physical_contract"]["objects"]),
+            "route_b_sequence": "cg_raw.kpione_raw_event_photo_staging_v1_staging_id_seq",
+            "legacy_structure_after": {"object_identity": "cg_raw.kpione2_raw"},
+            "public_acl_after": {"schemas": {}, "relations": {}},
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source_run = str(uuid.uuid4())
+            target_run = str(uuid.uuid4())
+            source_dir = root / "evidence" / "runtime" / "020B" / source_run
+            source_dir.mkdir(parents=True)
+            source_path = source_dir / "02_admin_provisioning.json"
+            source_path.write_text(json.dumps({**source, "run_id": source_run}) + "\n", encoding="utf-8")
+
+            relative = Path("evidence") / "runtime" / "020B" / source_run / "02_admin_provisioning.json"
+            relative_report, relative_sha = _validate_committed_provisioning_source_report(
+                relative, guard, self.plan, root,
+            )
+            absolute_report, absolute_sha = _validate_committed_provisioning_source_report(
+                source_path.resolve(), guard, self.plan, root,
+            )
+            self.assertEqual(relative_report["run_id"], source_run)
+            self.assertEqual(absolute_report["run_id"], source_run)
+            self.assertEqual(relative_sha, absolute_sha)
+
+            same_run_dir = root / "evidence" / "runtime" / "020B" / target_run
+            same_run_dir.mkdir(parents=True)
+            same_run_path = same_run_dir / "02_admin_provisioning.json"
+            same_run_path.write_text(json.dumps({**source, "run_id": target_run}) + "\n", encoding="utf-8")
+            same_report, _same_sha = _validate_committed_provisioning_source_report(
+                same_run_path, guard, self.plan, root,
+            )
+            self.assertEqual(same_report["run_id"], target_run)
+
+            with self.assertRaisesRegex(ProvisioningError, "source_admin_provisioning_path_invalid"):
+                _validate_committed_provisioning_source_report(
+                    Path("evidence/runtime/020B") / str(uuid.uuid4()) / "02_admin_provisioning.json",
+                    guard,
+                    self.plan,
+                    root,
+                )
+            wrong_name = source_dir / "not_02_admin_provisioning.json"
+            wrong_name.write_text(json.dumps(source) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ProvisioningError, "source_admin_provisioning_filename_invalid"):
+                _validate_committed_provisioning_source_report(wrong_name, guard, self.plan, root)
+            outside = root / "outside.json"
+            outside.write_text(json.dumps(source) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ProvisioningError, "source_admin_provisioning_path_invalid"):
+                _validate_committed_provisioning_source_report(outside, guard, self.plan, root)
+            invalid_json = source_dir / "02_admin_provisioning.json"
+            invalid_json.write_text("{not-json", encoding="utf-8")
+            with self.assertRaisesRegex(ProvisioningError, "source_admin_provisioning_unreadable"):
+                _validate_committed_provisioning_source_report(invalid_json, guard, self.plan, root)
 
     def test_existing_role_blocks_before_password_rotation_or_other_write(self) -> None:
         connection = ExistingRoleConnection()

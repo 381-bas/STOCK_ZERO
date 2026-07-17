@@ -209,7 +209,11 @@ if ($evidenceFileByOperation.ContainsKey($Operation)) {
 }
 
 # Admin authority is checked in a secret-free child before the vault is opened.
-if ($entrypoint.AuthorityPrecheck) {
+$authorityPrecheckEnabled = (
+    $entrypoint.ContainsKey('AuthorityPrecheck') -and
+    [bool]$entrypoint['AuthorityPrecheck']
+)
+if ($authorityPrecheckEnabled) {
     $precheckInfo = New-StockZeroStartInfo `
         -Script $entrypoint.Script `
         -Arguments ($operationArguments + @('--authority-precheck-only'))

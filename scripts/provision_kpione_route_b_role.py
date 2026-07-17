@@ -691,6 +691,7 @@ def _validate_committed_provisioning_source_mapping(
     plan: Mapping[str, Any],
 ) -> dict[str, Any]:
     required = {
+        "document_type": "kpione_route_b_role_provisioning_evidence_v1",
         "verdict": "PASS_ADMIN_PROVISIONING",
         "evidence_sequence_step": 2,
         "committed": True,
@@ -703,6 +704,10 @@ def _validate_committed_provisioning_source_mapping(
     for key, expected in required.items():
         if report.get(key) != expected:
             raise ProvisioningError(f"source_admin_provisioning_mismatch:{key}")
+    if report.get("evidence_mode") not in {
+        "DIRECT_COMMITTED_EXECUTION", "RECONCILED_COMMITTED_STATE",
+    }:
+        raise ProvisioningError("source_admin_provisioning_mismatch:evidence_mode")
     if not isinstance(report.get("run_id"), str):
         raise ProvisioningError("source_admin_provisioning_run_id_missing")
     if not isinstance(report.get("approved_git_sha"), str):
@@ -720,13 +725,35 @@ def _validate_committed_provisioning_source_mapping(
     return dict(report)
 
 
+def _resolve_source_admin_provisioning_path(path: Path, root: Path) -> Path:
+    candidate = path if path.is_absolute() else root / path
+    try:
+        resolved = candidate.resolve(strict=True)
+        evidence_root = (root / "evidence" / "runtime" / "020B").resolve(strict=True)
+        relative = resolved.relative_to(evidence_root)
+    except (OSError, ValueError) as exc:
+        raise ProvisioningError("source_admin_provisioning_path_invalid") from exc
+    if len(relative.parts) != 2:
+        raise ProvisioningError("source_admin_provisioning_path_invalid")
+    source_run_id, filename = relative.parts
+    try:
+        validate_run_id(source_run_id)
+    except EvidenceContractError as exc:
+        raise ProvisioningError("source_admin_provisioning_run_id_invalid") from exc
+    if filename != "02_admin_provisioning.json":
+        raise ProvisioningError("source_admin_provisioning_filename_invalid")
+    return resolved
+
+
 def _validate_committed_provisioning_source_report(
     path: Path,
     git_guard: Mapping[str, str],
     plan: Mapping[str, Any],
+    root: Path = ROOT,
 ) -> tuple[dict[str, Any], str]:
+    resolved = _resolve_source_admin_provisioning_path(path, root)
     try:
-        raw = path.read_bytes()
+        raw = resolved.read_bytes()
         report = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ProvisioningError("source_admin_provisioning_unreadable") from exc
@@ -1106,7 +1133,7 @@ def _prepare_admin_operation(args: argparse.Namespace, root: Path = ROOT) -> tup
             args._source_admin_provisioning,
             args._source_admin_provisioning_sha256,
         ) = _validate_committed_provisioning_source_report(
-            source_admin_evidence, authority, plan,
+            source_admin_evidence, authority, plan, root,
         )
     else:
         if prior_failure_report is not None:
