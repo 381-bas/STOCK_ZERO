@@ -83,12 +83,46 @@ ROUTE_B_OBJECTS = {
 class ProvisioningError(RuntimeError):
     def __init__(self, identifier: str, *, connection_attempted: bool = False,
                  writes_attempted: bool = False, committed: bool = False,
-                 report: dict[str, Any] | None = None) -> None:
+                 report: dict[str, Any] | None = None,
+                 failed_stage: str | None = None,
+                 exception_type: str | None = None,
+                 sqlstate: str | None = None,
+                 fixed_error_category: str | None = None) -> None:
         super().__init__(identifier)
         self.connection_attempted = connection_attempted
         self.writes_attempted = writes_attempted
         self.committed = committed
         self.report = report or {}
+        self.failed_stage = failed_stage
+        self.exception_type = exception_type
+        self.sqlstate = sqlstate
+        self.fixed_error_category = fixed_error_category
+
+
+def _sqlstate(exc: BaseException) -> str | None:
+    value = getattr(exc, "sqlstate", None)
+    return value if isinstance(value, str) and value else None
+
+
+def _fixed_error_category(exc: BaseException) -> str:
+    sqlstate = _sqlstate(exc)
+    if sqlstate == "42501":
+        return "INSUFFICIENT_PRIVILEGE"
+    if sqlstate == "42710":
+        return "OBJECT_ALREADY_EXISTS"
+    if sqlstate == "42P07":
+        return "RELATION_ALREADY_EXISTS"
+    if sqlstate == "42704":
+        return "OBJECT_NOT_FOUND"
+    if sqlstate == "0A000":
+        return "FEATURE_NOT_SUPPORTED"
+    if sqlstate == "23505":
+        return "UNIQUE_VIOLATION"
+    if sqlstate == "23P01":
+        return "EXCLUSION_VIOLATION"
+    if sqlstate:
+        return "DATABASE_ERROR"
+    return "UNCLASSIFIED_RUNTIME_ERROR"
 
 
 def _run_git(root: Path, *args: str, text: bool = True) -> subprocess.CompletedProcess[Any]:
@@ -326,10 +360,13 @@ def provision_route_b_role(
     public_acl_before: dict[str, Any] = {}
     public_acl_after: dict[str, Any] = {}
     sequence_name: str | None = None
+    current_stage = "bootstrap"
     try:
+        current_stage = "admin_connect"
         connection = _connect(dsn, connect_fn)
         connection.autocommit = False
         with connection.cursor() as cursor:
+            current_stage = "session_identity"
             cursor.execute(
                 "SELECT current_user,session_user,current_database(),"
                 "current_setting('transaction_read_only')"
@@ -343,25 +380,33 @@ def provision_route_b_role(
                 raise ProvisioningError("admin_session_read_write_required")
             cursor.execute("SET LOCAL statement_timeout = '15min'")
             cursor.execute("SET LOCAL lock_timeout = '10s'")
+            current_stage = "advisory_lock"
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", (PROVISION_LOCK_KEY,))
+            current_stage = "legacy_snapshot"
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
             legacy_before = cursor.fetchone()[0]
             legacy_snapshot_before = _legacy_snapshot(cursor)
             acl_relations = list(plan["physical_contract"]["object_signatures"]) + [
                 "cg_raw.kpione2_raw"
             ]
+            current_stage = "public_acl_snapshot"
             public_acl_before = _public_acl_snapshot(cursor, acl_relations)
+            current_stage = "role_existence_check"
             cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (PLANNED_PRODUCTIVE_ROLE,))
             if cursor.fetchone() is not None:
                 raise ProvisioningError(
                     "productive_role_exists_password_rotation_not_authorized"
                 )
             writes_attempted = True
+            current_stage = "create_role"
             cursor.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(PLANNED_PRODUCTIVE_ROLE)))
             role_created = True
             writes_attempted = True
+            current_stage = "alter_role_attributes"
             cursor.execute(_role_statement(PLANNED_PRODUCTIVE_ROLE, role_password))
+            current_stage = "ddl_apply"
             cursor.execute(ddl)
+            current_stage = "object_signature_validation"
             _assert_route_b_object_signatures(cursor, plan, allow_empty=False)
 
             tables = [
@@ -372,18 +417,21 @@ def provision_route_b_role(
                 name for name, spec in plan["physical_contract"]["object_signatures"].items()
                 if spec["relation_kind"] == "v"
             ]
+            current_stage = "ownership_tables"
             for name in tables:
                 cursor.execute(
                     sql.SQL("ALTER TABLE {} OWNER TO {}").format(
                         _qualified_identifier(name), sql.Identifier(expected_admin_username),
                     )
                 )
+            current_stage = "ownership_views"
             for name in views:
                 cursor.execute(
                     sql.SQL("ALTER VIEW {} OWNER TO {}").format(
                         _qualified_identifier(name), sql.Identifier(expected_admin_username),
                     )
                 )
+            current_stage = "sequence_resolution"
             cursor.execute(
                 "SELECT pg_get_serial_sequence(%s,%s)",
                 ("cg_raw.kpione_raw_event_photo_staging_v1", "staging_id"),
@@ -391,12 +439,14 @@ def provision_route_b_role(
             sequence_name = cursor.fetchone()[0]
             if not sequence_name:
                 raise ProvisioningError("route_b_identity_sequence_missing")
+            current_stage = "sequence_ownership"
             cursor.execute(
                 sql.SQL("ALTER SEQUENCE {} OWNER TO {}").format(
                     _qualified_identifier(sequence_name), sql.Identifier(expected_admin_username),
                 )
             )
 
+            current_stage = "schema_privileges"
             cursor.execute(
                 sql.SQL("REVOKE CREATE ON SCHEMA cg_raw,cg_core FROM {}").format(
                     sql.Identifier(PLANNED_PRODUCTIVE_ROLE)
@@ -407,6 +457,7 @@ def provision_route_b_role(
                     sql.Identifier(PLANNED_PRODUCTIVE_ROLE)
                 )
             )
+            current_stage = "table_privileges"
             for name in tables + views:
                 identifier = _qualified_identifier(name)
                 cursor.execute(
@@ -416,6 +467,7 @@ def provision_route_b_role(
                 )
             role_identifier = sql.Identifier(PLANNED_PRODUCTIVE_ROLE)
             batch_identifier = _qualified_identifier("cg_raw.kpione_raw_ingest_batch_v1")
+            current_stage = "table_privileges"
             cursor.execute(
                 sql.SQL("GRANT SELECT,INSERT ON TABLE {} TO {}").format(
                     batch_identifier, role_identifier,
@@ -436,12 +488,14 @@ def provision_route_b_role(
                     )
                 )
             for name in views:
+                current_stage = "view_privileges"
                 cursor.execute(
                     sql.SQL("GRANT SELECT ON TABLE {} TO {}").format(
                         _qualified_identifier(name), sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
                     )
                 )
             sequence_identifier = _qualified_identifier(sequence_name)
+            current_stage = "sequence_privileges"
             cursor.execute(
                 sql.SQL("REVOKE ALL PRIVILEGES ON SEQUENCE {} FROM {}").format(
                     sequence_identifier, sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
@@ -452,6 +506,7 @@ def provision_route_b_role(
                     sequence_identifier, sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
                 )
             )
+            current_stage = "role_attribute_validation"
             cursor.execute(
                 "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,"
                 "rolbypassrls,rolconnlimit FROM pg_roles WHERE rolname=%s",
@@ -460,16 +515,21 @@ def provision_route_b_role(
             role_attributes = cursor.fetchone()
             if role_attributes != (True, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT):
                 raise ProvisioningError("productive_role_attributes_mismatch")
+            current_stage = "legacy_validation"
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
             legacy_after = cursor.fetchone()[0]
             legacy_snapshot_after = _legacy_snapshot(cursor)
+            current_stage = "public_acl_validation"
             public_acl_after = _public_acl_snapshot(cursor, acl_relations)
+            current_stage = "legacy_validation"
             if legacy_structural_identity(legacy_snapshot_after) != legacy_structural_identity(
                 legacy_snapshot_before
             ):
                 raise ProvisioningError("legacy_structural_state_changed")
+            current_stage = "public_acl_validation"
             if public_acl_after != public_acl_before:
                 raise ProvisioningError("public_acl_changed")
+        current_stage = "commit"
         connection.commit()
         committed = True
     except ProvisioningError as exc:
@@ -478,8 +538,15 @@ def provision_route_b_role(
         raise ProvisioningError(
             str(exc), connection_attempted=connection is not None,
             writes_attempted=writes_attempted, committed=committed,
+            failed_stage=getattr(exc, "failed_stage", None) or current_stage,
+            exception_type=getattr(exc, "exception_type", None) or type(exc).__name__,
+            sqlstate=getattr(exc, "sqlstate", None) or _sqlstate(exc),
+            fixed_error_category=(
+                getattr(exc, "fixed_error_category", None)
+                or _fixed_error_category(exc)
+            ),
         ) from None
-    except Exception:
+    except Exception as exc:
         if connection is not None and not committed:
             connection.rollback()
         raise ProvisioningError(
@@ -487,6 +554,10 @@ def provision_route_b_role(
             connection_attempted=connection is not None,
             writes_attempted=writes_attempted,
             committed=committed,
+            failed_stage=current_stage,
+            exception_type=type(exc).__name__,
+            sqlstate=_sqlstate(exc),
+            fixed_error_category=_fixed_error_category(exc),
         ) from None
     finally:
         if connection is not None:
@@ -539,12 +610,17 @@ def provision_route_b_role(
         "rollback_or_reconciliation_required": False,
     }
     try:
+        current_stage = "evidence_write"
         _write_provisioning_evidence(evidence_json, report)
     except OSError:
         failure_report = dict(report)
         failure_report.update({
             "verdict": "BLOCKED",
             "error": "admin_provisioning_evidence_write_failed",
+            "failed_stage": "evidence_write",
+            "exception_type": "OSError",
+            "sqlstate": None,
+            "fixed_error_category": "UNCLASSIFIED_RUNTIME_ERROR",
             "rollback_or_reconciliation_required": True,
         })
         raise ProvisioningError(
@@ -553,6 +629,10 @@ def provision_route_b_role(
             writes_attempted=True,
             committed=True,
             report=failure_report,
+            failed_stage="evidence_write",
+            exception_type="OSError",
+            sqlstate=None,
+            fixed_error_category="UNCLASSIFIED_RUNTIME_ERROR",
         ) from None
     return report
 
@@ -888,12 +968,17 @@ def _blocked_report(exc: BaseException) -> dict[str, Any]:
         "writes_attempted": getattr(exc, "writes_attempted", False),
         "committed": getattr(exc, "committed", False),
     }
+    for key in ("failed_stage", "exception_type", "sqlstate", "fixed_error_category"):
+        value = getattr(exc, key, None)
+        if key == "sqlstate" or value is not None:
+            report[key] = value
     safe_fields = {
         "approved_git_sha", "plan_sha256", "ddl_sha256", "target_fingerprint",
         "run_id", "evidence_sequence_step", "sql_sha256", "planned_productive_role",
         "role_created", "committed", "legacy_structure_before", "legacy_structure_after",
         "legacy_activity_before", "legacy_activity_after", "public_acl_before", "public_acl_after",
         "legacy_object_unchanged", "rollback_or_reconciliation_required",
+        "failed_stage", "exception_type", "sqlstate", "fixed_error_category",
     }
     report.update({
         key: value for key, value in getattr(exc, "report", {}).items()
