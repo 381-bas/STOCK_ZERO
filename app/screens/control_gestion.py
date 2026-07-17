@@ -134,6 +134,161 @@ def _cg_v2_metric_cards(
     st.caption(f"Visitas reportadas: {visita_realizada_raw}")
 
 
+def build_control_gestion_risk_digest(
+    *,
+    scope_metrics: dict[str, object] | pd.Series | None,
+    competitive_summary: pd.DataFrame | None,
+    active_filters: dict[str, object] | None,
+    top_n: int = 5,
+) -> dict[str, object]:
+    def _number(value: object) -> float:
+        parsed = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+        if pd.isna(parsed):
+            return 0.0
+        return float(parsed)
+
+    def _metric(*keys: str) -> float:
+        if scope_metrics is None or not hasattr(scope_metrics, "get"):
+            return 0.0
+        for key in keys:
+            value = scope_metrics.get(key)
+            if value is not None:
+                return _number(value)
+        return 0.0
+
+    def _clean_text(value: object, fallback: str = "Sin dato") -> str:
+        if value is None or pd.isna(value):
+            return fallback
+        text = str(value).strip()
+        return text if text else fallback
+
+    def _pct(realizadas: float, exigidas: float) -> float:
+        return round((realizadas / exigidas) * 100, 1) if exigidas > 0 else 0.0
+
+    try:
+        limit = max(0, int(top_n))
+    except (TypeError, ValueError):
+        limit = 5
+
+    exigidas = _metric("visita_plan", "Visitas exigidas", "exigidas")
+    realizadas = _metric("visita_realizada_cap", "Visitas validas", "Visitas válidas", "realizadas")
+    pendientes = _metric("visitas_pendientes", "Visitas pendientes", "pendientes")
+    alertas = _metric("incumple_rows", "Rutas incumplen", "alertas")
+
+    filters = dict(active_filters or {})
+    normalized_filters = {
+        "semana": _clean_text(filters.get("semana"), "Sin semana"),
+        "gestor": _clean_text(filters.get("gestor"), "Todos"),
+        "vista": _clean_text(filters.get("vista"), "Sin vista"),
+        "foco": _clean_text(filters.get("foco"), "Scope"),
+        "alerta": _clean_text(filters.get("alerta"), "Todas"),
+    }
+
+    focus_columns = [
+        "alertas",
+        "pendientes",
+        "exigidas",
+        "cumplimiento_pct",
+        "entidad",
+    ]
+    focus_df = pd.DataFrame(columns=focus_columns)
+    missing_columns: list[str] = []
+    if competitive_summary is None or competitive_summary.empty or limit == 0:
+        missing_columns = ["ranking_rows"] if competitive_summary is None or competitive_summary.empty else []
+    else:
+        work = competitive_summary.copy(deep=True)
+        entity_candidates = ["DIMENSION", "GESTOR", "RUTERO", "CLIENTE", "LOCAL", "Entidad"]
+        entity_col = next((col for col in entity_candidates if col in work.columns), None)
+        column_map = {
+            "alertas": "Rutas incumplen",
+            "pendientes": "Visitas pendientes",
+            "exigidas": "Visitas exigidas",
+            "cumplimiento_pct": "% cumplimiento",
+        }
+        required = [source for source in column_map.values() if source not in work.columns]
+        if entity_col is None:
+            required.insert(0, "entity_column")
+        missing_columns = required
+        if not missing_columns:
+            normalized = pd.DataFrame({
+                "entidad": work[entity_col].map(_clean_text),
+                "alertas": pd.to_numeric(work[column_map["alertas"]], errors="coerce").fillna(0),
+                "pendientes": pd.to_numeric(work[column_map["pendientes"]], errors="coerce").fillna(0),
+                "exigidas": pd.to_numeric(work[column_map["exigidas"]], errors="coerce").fillna(0),
+                "cumplimiento_pct": pd.to_numeric(
+                    work[column_map["cumplimiento_pct"]].astype("string").str.replace("%", "", regex=False).str.replace(",", ".", regex=False),
+                    errors="coerce",
+                ).fillna(0),
+            })
+            focus_df = (
+                normalized.sort_values(
+                    by=["alertas", "pendientes", "exigidas", "entidad"],
+                    ascending=[False, False, False, True],
+                    kind="mergesort",
+                )
+                .head(limit)
+                .reset_index(drop=True)
+            )
+
+    return {
+        "context": normalized_filters,
+        "metrics": {
+            "exigidas": int(exigidas) if exigidas.is_integer() else exigidas,
+            "realizadas": int(realizadas) if realizadas.is_integer() else realizadas,
+            "pendientes": int(pendientes) if pendientes.is_integer() else pendientes,
+            "alertas": int(alertas) if alertas.is_integer() else alertas,
+            "cumplimiento_pct": _pct(realizadas, exigidas),
+        },
+        "focus": focus_df,
+        "missing_columns": missing_columns,
+        "respects_current_selection": True,
+    }
+
+
+def _cg_v2_render_risk_digest(digest: dict[str, object]) -> None:
+    st.markdown("#### Resumen de riesgo operacional")
+    context = digest.get("context") if isinstance(digest.get("context"), dict) else {}
+    metrics = digest.get("metrics") if isinstance(digest.get("metrics"), dict) else {}
+    focus_df = digest.get("focus")
+    if not isinstance(focus_df, pd.DataFrame):
+        focus_df = pd.DataFrame()
+
+    st.caption(
+        "Respeta la selección actual: "
+        f"semana {context.get('semana', 'Sin semana')} · "
+        f"gestor {context.get('gestor', 'Todos')} · "
+        f"vista {context.get('vista', 'Sin vista')} · "
+        f"foco {context.get('foco', 'Scope')} · "
+        f"alerta {context.get('alerta', 'Todas')}"
+    )
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Exigidas", metrics.get("exigidas", 0))
+    c2.metric("Realizadas", metrics.get("realizadas", 0))
+    c3.metric("Pendientes", metrics.get("pendientes", 0))
+    c4.metric("Alertas", metrics.get("alertas", 0))
+    c5.metric("% cumplimiento", f"{float(metrics.get('cumplimiento_pct') or 0):.1f}%")
+
+    if focus_df.empty:
+        st.info("Sin focos prioritarios para la selección actual.")
+        return
+
+    focus_view = focus_df.rename(columns={
+        "entidad": "Entidad",
+        "alertas": "Alertas",
+        "pendientes": "Pendientes",
+        "exigidas": "Exigidas",
+        "cumplimiento_pct": "% cumplimiento",
+    }).copy()
+    focus_view["% cumplimiento"] = pd.to_numeric(
+        focus_view["% cumplimiento"],
+        errors="coerce",
+    ).fillna(0).map(lambda value: f"{value:.1f}%")
+    for col in ["Alertas", "Pendientes", "Exigidas"]:
+        focus_view[col] = pd.to_numeric(focus_view[col], errors="coerce").fillna(0).astype(int)
+    st.dataframe(focus_view, width="stretch", hide_index=True)
+
+
 def _cg_v2_audit_cards(audit_metrics: dict[str, int | float]) -> None:
     st.markdown("#### Auditorias y contexto V2")
     a1, a2, a3, a4 = st.columns(4)
@@ -604,6 +759,42 @@ def render_control_gestion(
                     st.markdown("#### KPIs del gestor")
                 _cg_v2_metric_cards(kpi_row)
 
+                competitive_error = False
+                competitive_df = pd.DataFrame()
+                if vista_sel in {"RUTERO", "CLIENTE"}:
+                    try:
+                        competitive_df = db.get_cg_v2_competitive_summary(
+                            semana_inicio=semana_inicio,
+                            vista=vista_sel,
+                            gestor=gestor_sel,
+                            alerta=alerta_sel,
+                            limit=50,
+                        )
+                    except Exception as competitive_exc:
+                        competitive_error = True
+                        _dbg(
+                            "cg_v2_competitive_summary_error",
+                            err=repr(competitive_exc),
+                            semana_inicio=semana_inicio,
+                            gestor=gestor_sel,
+                            vista=vista_sel,
+                        )
+                        competitive_df = pd.DataFrame()
+
+                risk_digest = build_control_gestion_risk_digest(
+                    scope_metrics=kpi_row,
+                    competitive_summary=competitive_df,
+                    active_filters={
+                        "semana": semana_inicio,
+                        "gestor": gestor_sel or "Todos",
+                        "vista": vista_label,
+                        "foco": focus_value if focus_value != "Pendiente" else "Scope",
+                        "alerta": alerta_sel or "Todas",
+                    },
+                    top_n=5,
+                )
+                _cg_v2_render_risk_digest(risk_digest)
+
                 if vista_sel in {"RUTERO", "CLIENTE"}:
                     if vista_sel == "RUTERO" and gestor_sel is None:
                         summary_title = "Resumen por gestor"
@@ -626,29 +817,11 @@ def render_control_gestion(
                         "gestion compartida y evidencia duplicada quedan como auditoria, no como cumplimiento extra."
                     )
                     st.markdown(f"##### {summary_title}")
-                    competitive_error = False
-                    try:
-                        competitive_df = db.get_cg_v2_competitive_summary(
-                            semana_inicio=semana_inicio,
-                            vista=vista_sel,
-                            gestor=gestor_sel,
-                            alerta=alerta_sel,
-                            limit=50,
-                        )
-                    except Exception as competitive_exc:
-                        competitive_error = True
-                        _dbg(
-                            "cg_v2_competitive_summary_error",
-                            err=repr(competitive_exc),
-                            semana_inicio=semana_inicio,
-                            gestor=gestor_sel,
-                            vista=vista_sel,
-                        )
-                        competitive_df = pd.DataFrame()
+                    if competitive_error:
                         st.caption("No pude cargar el resumen competitivo para estos filtros.")
-                    if not competitive_error and (competitive_df is None or competitive_df.empty):
+                    elif competitive_df is None or competitive_df.empty:
                         st.caption("Sin datos para el resumen competitivo con estos filtros.")
-                    elif not competitive_error:
+                    else:
                         competitive_view = competitive_df.copy()
                         if "% cumplimiento" in competitive_view.columns:
                             pct_values = pd.to_numeric(competitive_view["% cumplimiento"], errors="coerce").fillna(0)
