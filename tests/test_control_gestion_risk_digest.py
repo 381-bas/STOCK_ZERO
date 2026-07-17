@@ -96,6 +96,51 @@ class ControlGestionRiskDigestTests(unittest.TestCase):
 
         self.assertEqual(digest["focus"]["entidad"].tolist(), ["Ruta B", "Ruta A", "Ruta C"])
 
+    def test_selected_rutero_filters_focus_table_exactly(self):
+        digest = cg.build_control_gestion_risk_digest(
+            scope_metrics={},
+            competitive_summary=_competitive_rows([
+                ["Ruta A", 70.0, 10, 7, 3, 1, 2, 0, 0, 7],
+                ["Ruta B", 80.0, 20, 16, 4, 1, 1, 0, 0, 16],
+            ]),
+            active_filters={"foco": "Ruta B", "specific_focus": True},
+        )
+
+        self.assertEqual(digest["focus"]["entidad"].tolist(), ["Ruta B"])
+        self.assertTrue(digest["respects_current_selection"])
+        self.assertEqual(digest["context"]["foco"], "Ruta B")
+
+    def test_selected_cliente_filters_focus_table_exactly(self):
+        competitive = pd.DataFrame({
+            "CLIENTE": ["Cliente Uno", "Cliente Dos"],
+            "% cumplimiento": [50.0, 90.0],
+            "Visitas exigidas": [10, 20],
+            "Visitas pendientes": [5, 2],
+            "Rutas incumplen": [3, 1],
+        })
+
+        digest = cg.build_control_gestion_risk_digest(
+            scope_metrics={},
+            competitive_summary=competitive,
+            active_filters={"foco": "Cliente Dos", "specific_focus": True},
+        )
+
+        self.assertEqual(digest["focus"]["entidad"].tolist(), ["Cliente Dos"])
+        self.assertTrue(digest["respects_current_selection"])
+
+    def test_missing_selected_focus_does_not_show_other_entities(self):
+        digest = cg.build_control_gestion_risk_digest(
+            scope_metrics={},
+            competitive_summary=_competitive_rows([
+                ["Ruta A", 70.0, 10, 7, 3, 1, 2, 0, 0, 7],
+            ]),
+            active_filters={"foco": "Ruta X", "specific_focus": True},
+        )
+
+        self.assertTrue(digest["focus"].empty)
+        self.assertEqual(digest["status"], "selected_focus_not_in_ranking")
+        self.assertTrue(digest["respects_current_selection"])
+
     def test_tie_breaks_by_alert_pending_required_and_name(self):
         digest = cg.build_control_gestion_risk_digest(
             scope_metrics={},
@@ -172,6 +217,7 @@ class ControlGestionRiskDigestTests(unittest.TestCase):
 
         self.assertEqual(len(digest["focus"]), 5)
         self.assertEqual(digest["focus"].iloc[0]["entidad"], "Ruta 7")
+        self.assertEqual(digest["context"]["foco"], "Todos")
 
     def test_input_dataframe_is_not_mutated(self):
         source = _competitive_rows([
@@ -187,6 +233,38 @@ class ControlGestionRiskDigestTests(unittest.TestCase):
 
         pd.testing.assert_frame_equal(source, before)
 
+    def test_input_dataframe_is_not_mutated_when_filtering_focus(self):
+        source = _competitive_rows([
+            ["Ruta A", "75,5%", "20", "15", "5", "1", "2", "0", "0", "15"],
+            ["Ruta B", "50,0%", "10", "5", "5", "0", "1", "0", "0", "5"],
+        ])
+        before = source.copy(deep=True)
+
+        cg.build_control_gestion_risk_digest(
+            scope_metrics={},
+            competitive_summary=source,
+            active_filters={"foco": "Ruta B", "specific_focus": True},
+        )
+
+        pd.testing.assert_frame_equal(source, before)
+
+    def test_local_view_without_ranking_has_explicit_status(self):
+        digest = cg.build_control_gestion_risk_digest(
+            scope_metrics={"visita_plan": 10, "visita_realizada_cap": 8},
+            competitive_summary=pd.DataFrame(),
+            active_filters={
+                "vista": "Por local",
+                "foco": "Local 123",
+                "specific_focus": True,
+                "ranking_available": False,
+            },
+        )
+
+        self.assertEqual(digest["status"], "local_ranking_unavailable")
+        self.assertTrue(digest["focus"].empty)
+        self.assertEqual(digest["context"]["foco"], "Local 123")
+        self.assertTrue(digest["respects_current_selection"])
+
     def test_render_integration_uses_streamlit_without_db(self):
         digest = cg.build_control_gestion_risk_digest(
             scope_metrics={"visita_plan": 10, "visita_realizada_cap": 8},
@@ -201,9 +279,33 @@ class ControlGestionRiskDigestTests(unittest.TestCase):
             cg._cg_v2_render_risk_digest(digest)
 
         self.assertIn("#### Resumen de riesgo operacional", st_stub.markdowns)
-        self.assertEqual(len(st_stub.metrics), 5)
+        self.assertEqual(len(st_stub.metrics), 0)
+        self.assertTrue(any("Cumplimiento 80,0%" in caption for caption in st_stub.captions))
         self.assertEqual(len(st_stub.dataframes), 1)
         self.assertEqual(st_stub.dataframes[0].iloc[0]["Entidad"], "Ruta A")
+
+    def test_render_local_view_without_ranking_uses_specific_info(self):
+        digest = cg.build_control_gestion_risk_digest(
+            scope_metrics={"visita_plan": 10, "visita_realizada_cap": 8},
+            competitive_summary=pd.DataFrame(),
+            active_filters={
+                "vista": "Por local",
+                "foco": "Local 123",
+                "specific_focus": True,
+                "ranking_available": False,
+            },
+        )
+        st_stub = _StreamlitStub()
+
+        with mock.patch.object(cg, "st", st_stub):
+            cg._cg_v2_render_risk_digest(digest)
+
+        self.assertEqual(len(st_stub.metrics), 0)
+        self.assertFalse(st_stub.dataframes)
+        self.assertIn(
+            "La vista por local no dispone de ranking competitivo; el resumen se limita al foco seleccionado.",
+            st_stub.infos,
+        )
 
 
 if __name__ == "__main__":

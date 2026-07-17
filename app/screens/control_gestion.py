@@ -162,6 +162,9 @@ def build_control_gestion_risk_digest(
         text = str(value).strip()
         return text if text else fallback
 
+    def _match_key(value: object) -> str:
+        return " ".join(_clean_text(value, "").casefold().split())
+
     def _pct(realizadas: float, exigidas: float) -> float:
         return round((realizadas / exigidas) * 100, 1) if exigidas > 0 else 0.0
 
@@ -176,11 +179,14 @@ def build_control_gestion_risk_digest(
     alertas = _metric("incumple_rows", "Rutas incumplen", "alertas")
 
     filters = dict(active_filters or {})
+    specific_focus = bool(filters.get("specific_focus"))
+    ranking_available = bool(filters.get("ranking_available", True))
+    focus_text = _clean_text(filters.get("foco"), "Todos") if specific_focus else "Todos"
     normalized_filters = {
         "semana": _clean_text(filters.get("semana"), "Sin semana"),
         "gestor": _clean_text(filters.get("gestor"), "Todos"),
         "vista": _clean_text(filters.get("vista"), "Sin vista"),
-        "foco": _clean_text(filters.get("foco"), "Scope"),
+        "foco": focus_text,
         "alerta": _clean_text(filters.get("alerta"), "Todas"),
     }
 
@@ -193,7 +199,12 @@ def build_control_gestion_risk_digest(
     ]
     focus_df = pd.DataFrame(columns=focus_columns)
     missing_columns: list[str] = []
-    if competitive_summary is None or competitive_summary.empty or limit == 0:
+    status = "ok"
+    if not ranking_available:
+        status = "local_ranking_unavailable"
+        missing_columns = ["ranking_unavailable"]
+    elif competitive_summary is None or competitive_summary.empty or limit == 0:
+        status = "empty_ranking"
         missing_columns = ["ranking_rows"] if competitive_summary is None or competitive_summary.empty else []
     else:
         work = competitive_summary.copy(deep=True)
@@ -210,6 +221,13 @@ def build_control_gestion_risk_digest(
             required.insert(0, "entity_column")
         missing_columns = required
         if not missing_columns:
+            if specific_focus:
+                selected_key = _match_key(focus_text)
+                entity_keys = work[entity_col].map(_match_key)
+                work = work.loc[entity_keys == selected_key].copy()
+                if work.empty:
+                    status = "selected_focus_not_in_ranking"
+
             normalized = pd.DataFrame({
                 "entidad": work[entity_col].map(_clean_text),
                 "alertas": pd.to_numeric(work[column_map["alertas"]], errors="coerce").fillna(0),
@@ -229,6 +247,8 @@ def build_control_gestion_risk_digest(
                 .head(limit)
                 .reset_index(drop=True)
             )
+        else:
+            status = "missing_columns"
 
     return {
         "context": normalized_filters,
@@ -241,7 +261,16 @@ def build_control_gestion_risk_digest(
         },
         "focus": focus_df,
         "missing_columns": missing_columns,
-        "respects_current_selection": True,
+        "status": status,
+        "respects_current_selection": (
+            (not specific_focus and status in {"ok", "empty_ranking"})
+            or (
+                specific_focus
+                and not focus_df.empty
+                and set(focus_df["entidad"].map(_match_key)) == {_match_key(focus_text)}
+            )
+            or status in {"local_ranking_unavailable", "selected_focus_not_in_ranking"}
+        ),
     }
 
 
@@ -258,18 +287,36 @@ def _cg_v2_render_risk_digest(digest: dict[str, object]) -> None:
         f"semana {context.get('semana', 'Sin semana')} · "
         f"gestor {context.get('gestor', 'Todos')} · "
         f"vista {context.get('vista', 'Sin vista')} · "
-        f"foco {context.get('foco', 'Scope')} · "
+        f"foco {context.get('foco', 'Todos')} · "
         f"alerta {context.get('alerta', 'Todas')}"
     )
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Exigidas", metrics.get("exigidas", 0))
-    c2.metric("Realizadas", metrics.get("realizadas", 0))
-    c3.metric("Pendientes", metrics.get("pendientes", 0))
-    c4.metric("Alertas", metrics.get("alertas", 0))
-    c5.metric("% cumplimiento", f"{float(metrics.get('cumplimiento_pct') or 0):.1f}%")
+    status = str(digest.get("status") or "ok")
+    exigidas = float(metrics.get("exigidas") or 0)
+    realizadas = float(metrics.get("realizadas") or 0)
+    pendientes = float(metrics.get("pendientes") or 0)
+    alertas = float(metrics.get("alertas") or 0)
+    cumplimiento = float(metrics.get("cumplimiento_pct") or 0)
+
+    def _num_text(value: float) -> str:
+        return str(int(value)) if float(value).is_integer() else f"{value:.1f}"
+
+    cumplimiento_text = f"{cumplimiento:.1f}".replace(".", ",")
+    st.caption(
+        f"Cumplimiento {cumplimiento_text}% | "
+        f"{_num_text(realizadas)} de {_num_text(exigidas)} visitas realizadas | "
+        f"{_num_text(pendientes)} pendientes | "
+        f"{_num_text(alertas)} rutas con alerta."
+    )
+
+    if status == "local_ranking_unavailable":
+        st.info("La vista por local no dispone de ranking competitivo; el resumen se limita al foco seleccionado.")
+        return
 
     if focus_df.empty:
+        if status == "selected_focus_not_in_ranking":
+            st.info("El foco seleccionado no aparece en el ranking competitivo disponible.")
+            return
         st.info("Sin focos prioritarios para la selección actual.")
         return
 
@@ -781,6 +828,12 @@ def render_control_gestion(
                         )
                         competitive_df = pd.DataFrame()
 
+                specific_focus = (
+                    (vista_sel == "RUTERO" and rutero_sel is not None)
+                    or (vista_sel == "CLIENTE" and cliente_sel is not None)
+                    or (vista_sel == "LOCAL" and local_sel is not None)
+                )
+                risk_focus = focus_value if specific_focus else "Todos"
                 risk_digest = build_control_gestion_risk_digest(
                     scope_metrics=kpi_row,
                     competitive_summary=competitive_df,
@@ -788,8 +841,10 @@ def render_control_gestion(
                         "semana": semana_inicio,
                         "gestor": gestor_sel or "Todos",
                         "vista": vista_label,
-                        "foco": focus_value if focus_value != "Pendiente" else "Scope",
+                        "foco": risk_focus,
                         "alerta": alerta_sel or "Todas",
+                        "specific_focus": specific_focus,
+                        "ranking_available": vista_sel in {"RUTERO", "CLIENTE"} and not competitive_error,
                     },
                     top_n=5,
                 )
