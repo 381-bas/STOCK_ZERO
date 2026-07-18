@@ -1,0 +1,100 @@
+{
+  "approved_git_sha": "75ba94fbb3bba9a0d90565c93a951a66892487db",
+  "committed": true,
+  "connection_attempted": true,
+  "credential_class": "admin-provisioning",
+  "ddl_sha256": "94b6049454435bf03b2a348a8c93653528a011a94339ac3c13b071c8e0e2da0e",
+  "document_type": "kpione_route_b_role_provisioning_evidence_v1",
+  "evidence_mode": "RECONCILED_COMMITTED_STATE",
+  "evidence_sequence_step": 2,
+  "grant_matrix_verified": true,
+  "legacy_activity_after": {
+    "relation_size_bytes": 44875776,
+    "row_count": 45736
+  },
+  "legacy_activity_before": {
+    "relation_size_bytes": 44875776,
+    "row_count": 45736
+  },
+  "legacy_structure_after": {
+    "acl": "{postgres=arwdDxtm/postgres,stock_zero_codex_ro=r/postgres}",
+    "column_signature_sha256": "db6af58a38fa04d39be82806f7eda4e440e0a6670d42618a9e9ea6e9383c2d3d",
+    "object_identity": "cg_raw.kpione2_raw",
+    "oid": "23127",
+    "owner": "postgres",
+    "relation_kind": "r"
+  },
+  "legacy_structure_before": {
+    "acl": "{postgres=arwdDxtm/postgres,stock_zero_codex_ro=r/postgres}",
+    "column_signature_sha256": "db6af58a38fa04d39be82806f7eda4e440e0a6670d42618a9e9ea6e9383c2d3d",
+    "object_identity": "cg_raw.kpione2_raw",
+    "oid": "23127",
+    "owner": "postgres",
+    "relation_kind": "r"
+  },
+  "plan_sha256": "fa91d43c8c3ce229210e5bb293734a6423cfbc3341445b76a6d61d7f17160ef9",
+  "planned_productive_role": "stock_zero_kpione_route_b_load",
+  "public_acl_after": {
+    "relations": {
+      "cg_core.kpione_day_presence_v1": [],
+      "cg_core.kpione_event_normalized_v1": [],
+      "cg_raw.kpione2_raw": [],
+      "cg_raw.kpione_raw_event_photo_staging_v1": [],
+      "cg_raw.kpione_raw_ingest_batch_file_v1": [],
+      "cg_raw.kpione_raw_ingest_batch_v1": []
+    },
+    "schemas": {
+      "cg_core": [],
+      "cg_raw": []
+    }
+  },
+  "public_acl_before": {
+    "relations": {
+      "cg_core.kpione_day_presence_v1": [],
+      "cg_core.kpione_event_normalized_v1": [],
+      "cg_raw.kpione2_raw": [],
+      "cg_raw.kpione_raw_event_photo_staging_v1": [],
+      "cg_raw.kpione_raw_ingest_batch_file_v1": [],
+      "cg_raw.kpione_raw_ingest_batch_v1": []
+    },
+    "schemas": {
+      "cg_core": [],
+      "cg_raw": []
+    }
+  },
+  "role_attributes": {
+    "bypassrls": false,
+    "connection_limit": 5,
+    "createdb": false,
+    "createrole": false,
+    "inherit": false,
+    "login": true,
+    "replication": false,
+    "superuser": false
+  },
+  "role_created": true,
+  "rollback_or_reconciliation_required": false,
+  "route_b_objects_validated": [
+    "cg_core.kpione_day_presence_v1",
+    "cg_core.kpione_event_normalized_v1",
+    "cg_raw.kpione_raw_event_photo_staging_v1",
+    "cg_raw.kpione_raw_ingest_batch_file_v1",
+    "cg_raw.kpione_raw_ingest_batch_v1"
+  ],
+  "route_b_owners": [
+    "postgres"
+  ],
+  "route_b_sequence": "cg_raw.kpione_raw_event_photo_staging_v1_staging_id_seq",
+  "run_id": "a554f464-8213-442c-bf0b-d06b7acc26ca",
+  "source_admin_provisioning": {
+    "approved_git_sha": "ceb719bf75a99cc7808262028e70aa55f140228e",
+    "run_id": "27dd51bc-fec8-4ce2-9fb6-5f863ac57d26",
+    "sha256": "c56ca247afbd57b56e98d7d6572e438dd64388bac1672e0ac3e6128294f212ae"
+  },
+  "sql_sha256": "94b6049454435bf03b2a348a8c93653528a011a94339ac3c13b071c8e0e2da0e",
+  "target_fingerprint": "747804afb6f4dc071b098c10b557f115f425e0cfebb43f4152405a510277678c",
+  "timestamp_utc": "2026-07-18T16:00:03.558407+00:00",
+  "transaction_outcome": "ROLLED_BACK_READ_ONLY",
+  "verdict": "PASS_ADMIN_PROVISIONING",
+  "writes_attempted": false
+}

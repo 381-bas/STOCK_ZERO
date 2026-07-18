@@ -1,0 +1,12 @@
+{
+  "bundle_sha256": "0cf15c1e39db58e550aed6758748591ce2589bd568ffcaed02435c7840c2c272",
+  "components": {
+    "admin_provisioning": "6aa268ac7404d142264369139fef339221ef1b2eb430441ac1b37977c56bccc6",
+    "productive_role_verification": "c1a90eeed228b2f9532d18527f41f93ed19c623cc34e4325451201a3f5f34502",
+    "readonly_baseline_precheck": "162f9cbf28628eaf58e68bc7f2ac2412a82ece4d1a48a7774c08039d16d06dc3",
+    "readonly_postcheck": "8ff5b7e1bf22acf352067f37493d7e5cdeb1dc5b1c26d79a0689dbf433c84827"
+  },
+  "document_type": "kpione_route_b_infrastructure_evidence_bundle_v1",
+  "run_id": "a554f464-8213-442c-bf0b-d06b7acc26ca",
+  "status": "PASSED"
+}

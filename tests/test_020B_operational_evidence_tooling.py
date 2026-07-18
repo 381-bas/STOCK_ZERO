@@ -116,10 +116,29 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
 
+    def preparation_fixture(self) -> dict[str, object]:
+        plan = copy.deepcopy(self.plan)
+        plan["status"] = "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING"
+        plan["remaining_blockers"] = [
+            "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
+            "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
+        ]
+        plan["readonly_precheck"] = {
+            "status": "NOT_AUTHORIZED_OR_EXECUTED",
+            "evidence_sha256": None,
+        }
+        plan.pop("infrastructure_evidence", None)
+        plan["target"]["productive_role_status"] = "PLANNED_NOT_PROVISIONED"
+        plan["target"]["allowed_productive_roles"] = []
+        plan["activation_gate"]["productive_role_registered"] = False
+        plan["activation_gate"]["gate_open"] = False
+        return plan
+
     def test_baseline_accepts_empty_productive_allowlist_and_rejects_open_gate(self) -> None:
-        self.assertEqual(self.plan["target"]["allowed_productive_roles"], [])
-        precheck.validate_plan_readiness(self.plan, "baseline")
-        altered = copy.deepcopy(self.plan)
+        preparation = self.preparation_fixture()
+        self.assertEqual(preparation["target"]["allowed_productive_roles"], [])
+        precheck.validate_plan_readiness(preparation, "baseline")
+        altered = copy.deepcopy(preparation)
         altered["activation_gate"]["gate_open"] = True
         with self.assertRaisesRegex(precheck.PrecheckBlock, "productive_gate_must_be_closed"):
             precheck.validate_plan_readiness(altered, "baseline")
@@ -143,7 +162,7 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
 
         with self.assertRaisesRegex(precheck.PrecheckBlock, "baseline_evidence_required"):
             precheck.run_precheck(
-                self.plan,
+                self.preparation_fixture(),
                 "synthetic",
                 forbidden_connect,
                 check_stage="post-provision",

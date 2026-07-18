@@ -3,14 +3,23 @@
   "plan_version": "018_V1",
   "phase": "018_PRODUCTIVE_APPLY",
   "risk_class": "R3_PRODUCTIVE",
-  "status": "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING",
+  "status": "PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED",
   "remaining_blockers": [
-    "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
-    "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED"
+    "PRODUCTIVE_EXECUTION_NOT_AUTHORIZED"
   ],
   "readonly_precheck": {
-    "status": "NOT_AUTHORIZED_OR_EXECUTED",
-    "evidence_sha256": null
+    "status": "PASSED",
+    "evidence_sha256": "162f9cbf28628eaf58e68bc7f2ac2412a82ece4d1a48a7774c08039d16d06dc3"
+  },
+  "infrastructure_evidence": {
+    "status": "PASSED",
+    "bundle_sha256": "0cf15c1e39db58e550aed6758748591ce2589bd568ffcaed02435c7840c2c272",
+    "components": {
+      "readonly_baseline_precheck": "162f9cbf28628eaf58e68bc7f2ac2412a82ece4d1a48a7774c08039d16d06dc3",
+      "admin_provisioning": "6aa268ac7404d142264369139fef339221ef1b2eb430441ac1b37977c56bccc6",
+      "productive_role_verification": "c1a90eeed228b2f9532d18527f41f93ed19c623cc34e4325451201a3f5f34502",
+      "readonly_postcheck": "8ff5b7e1bf22acf352067f37493d7e5cdeb1dc5b1c26d79a0689dbf433c84827"
+    }
   },
   "git_reference_contract": {
     "mode": "CLI_EXACT_APPROVED_HEAD",
@@ -106,7 +115,7 @@
     }
   },
   "admin_provisioning_contract": {
-    "status": "NOT_EXECUTED",
+    "status": "PROVISIONED_AND_VERIFIED",
     "tool": "scripts/provision_kpione_route_b_role.py",
     "required_git_argument": "--expected-plan-git-ref <40-char-sha>",
     "ddl_credential_env": "DB_URL_ADMIN",
@@ -144,10 +153,10 @@
     "expected_hostname": "db.xheyrgfagpoigpgakilu.supabase.co",
     "allowed_readonly_roles": ["stock_zero_codex_ro"],
     "planned_productive_role": "stock_zero_kpione_route_b_load",
-    "productive_role_status": "PLANNED_NOT_PROVISIONED",
-    "allowed_productive_roles": [],
+    "productive_role_status": "PROVISIONED_AND_VERIFIED",
+    "allowed_productive_roles": ["stock_zero_kpione_route_b_load"],
     "expected_database": "postgres",
-    "productive_role_contract": "The eventual productive DSN username must equal stock_zero_kpione_route_b_load, but this role is not yet provisioned or verified."
+    "productive_role_contract": "The productive DSN username must equal the provisioned and verified role stock_zero_kpione_route_b_load."
   },
   "transaction_sequence": [
     "Validate approved plan Git reference, plan content, source hashes, schema and counts before connecting.",
@@ -162,14 +171,14 @@
     "all_source_files_valid": true,
     "source_hashes_match": true,
     "target_identity_registered": true,
-    "productive_role_registered": false,
+    "productive_role_registered": true,
     "rollback_route_demonstrated": true,
     "gate_open": false
   },
   "readonly_precheck_command": "python scripts/precheck_kpione_route_b_018_read_only.py --plan plans/018_kpione_route_b_productive_apply_plan.json --db-url-env DB_URL_CODEX_RO --expected-project-ref <REGISTERED_PROJECT_REF> --report-json <TEMP_OR_SEPARATELY_AUTHORIZED_PATH>",
   "future_productive_command": {
     "status": "TECHNICAL_BOUNDARY_IMPLEMENTED_GATE_CLOSED",
-    "minimum_runner_change_required": "No repository implementation gap remains; execution stays fail-closed until the productive role, read-only precheck, approved Git head, clean tree, explicit authorization and gate-open contract are all satisfied.",
+    "minimum_runner_change_required": "No repository implementation gap remains; execution stays fail-closed until an approved Git head, clean tree, explicit productive authorization and gate-open contract are all satisfied. Productive apply and app validation remain pending.",
     "command": "python scripts/run_kpione_route_b_ingestion_v1.py --apply-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --expected-plan-git-ref <APPROVED_COMMIT> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-productive KPIONE_ROUTE_B_018_APPLY --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
   },
   "postcheck_queries": [
