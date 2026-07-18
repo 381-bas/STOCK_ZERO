@@ -238,19 +238,19 @@ class FakeProductiveDbCursor:
             self.rows = [(self.database.role, self.database.role, "postgres", readonly)]
         elif normalized.startswith("set local") or "pg_advisory_xact_lock" in normalized:
             pass
-        elif "from pg_class c join pg_namespace" in normalized:
-            if self.database.state["objects_exist"]:
-                expected = self.database.plan["physical_contract"]["object_signatures"]
-                self.rows = [(name, spec["relation_kind"]) for name, spec in sorted(expected.items())]
-                if not self.database.state["signatures_match"]:
-                    self.rows = self.rows[:-1]
-        elif "from information_schema.columns" in normalized:
+        elif "join pg_attribute" in normalized and "not a.attisdropped" in normalized:
             expected = self.database.plan["physical_contract"]["object_signatures"]
             self.rows = [
                 (name, column)
                 for name, spec in sorted(expected.items())
                 for column in spec["columns"]
             ]
+        elif "from pg_class c join pg_namespace" in normalized:
+            if self.database.state["objects_exist"]:
+                expected = self.database.plan["physical_contract"]["object_signatures"]
+                self.rows = [(name, spec["relation_kind"]) for name, spec in sorted(expected.items())]
+                if not self.database.state["signatures_match"]:
+                    self.rows = self.rows[:-1]
         elif normalized.startswith("create schema if not exists cg_raw"):
             self.database.state["objects_exist"] = True
         elif normalized.startswith("insert into cg_raw.kpione_raw_ingest_batch_v1"):

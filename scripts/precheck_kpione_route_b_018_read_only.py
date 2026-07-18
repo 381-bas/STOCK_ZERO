@@ -49,7 +49,9 @@ POSTCHECK_DOCUMENT_TYPE = "kpione_route_b_readonly_postcheck_evidence_v1"
 
 
 class PrecheckBlock(RuntimeError):
-    pass
+    def __init__(self, identifier: str, *, details: dict[str, Any] | None = None) -> None:
+        super().__init__(identifier)
+        self.details = details or {}
 
 
 def load_plan(path: Path) -> dict[str, Any]:
@@ -280,9 +282,12 @@ def _route_b_snapshot(cursor: Any, plan: dict[str, Any]) -> tuple[list[dict[str,
     signatures: list[dict[str, str]] = []
     if objects:
         cursor.execute(
-            "SELECT table_schema||'.'||table_name,column_name FROM information_schema.columns "
-            "WHERE table_schema||'.'||table_name=ANY(%s) "
-            "ORDER BY table_schema,table_name,ordinal_position",
+            "SELECT n.nspname||'.'||c.relname,a.attname FROM pg_class c "
+            "JOIN pg_namespace n ON n.oid=c.relnamespace "
+            "JOIN pg_attribute a ON a.attrelid=c.oid "
+            "WHERE n.nspname||'.'||c.relname=ANY(%s) "
+            "AND a.attnum>0 AND NOT a.attisdropped "
+            "ORDER BY n.nspname,c.relname,a.attnum",
             (list(expected),),
         )
         actual_columns: dict[str, list[str]] = {}
@@ -290,7 +295,19 @@ def _route_b_snapshot(cursor: Any, plan: dict[str, Any]) -> tuple[list[dict[str,
             actual_columns.setdefault(relation, []).append(column)
         expected_columns = {name: spec["columns"] for name, spec in expected.items()}
         if actual_columns != expected_columns:
-            raise PrecheckBlock("route_b_object_column_signature_mismatch")
+            mismatched = [
+                {
+                    "object": name,
+                    "expected_columns": expected_columns.get(name, []),
+                    "actual_columns": actual_columns.get(name, []),
+                }
+                for name in sorted(expected_columns)
+                if actual_columns.get(name, []) != expected_columns.get(name, [])
+            ]
+            raise PrecheckBlock(
+                "route_b_object_column_signature_mismatch",
+                details={"mismatched_objects": mismatched},
+            )
         signatures = [
             {"object": name, "relation_kind": kind, "columns_sha256": hashlib.sha256(
                 "\n".join(expected[name]["columns"]).encode("utf-8")
@@ -322,6 +339,13 @@ def _assert_post_provision(
         raise PrecheckBlock("postcheck_route_b_objects_missing_or_extra")
     if active_batches != 0:
         raise PrecheckBlock("unexpected_active_route_b_batch")
+    cursor.execute(
+        "SELECT bool_and(has_table_privilege(current_user, name, 'SELECT')) "
+        "FROM unnest(%s::text[]) AS name",
+        (sorted(expected_names),),
+    )
+    if cursor.fetchone()[0] is not True:
+        raise PrecheckBlock("readonly_observer_select_privilege_missing")
     cursor.execute("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=%s)", (PLANNED_PRODUCTIVE_ROLE,))
     if cursor.fetchone()[0] is not True:
         raise PrecheckBlock("productive_role_not_found")
@@ -513,7 +537,10 @@ def main() -> int:
         print(rendered)
         return 0
     except (OSError, ValueError, json.JSONDecodeError, EvidenceContractError, PrecheckBlock) as exc:
-        print(json.dumps({"verdict": "BLOCKED", "error": str(exc), "writes_attempted": False}, sort_keys=True))
+        blocked = {"verdict": "BLOCKED", "error": str(exc), "writes_attempted": False}
+        if isinstance(exc, PrecheckBlock):
+            blocked.update(exc.details)
+        print(json.dumps(blocked, sort_keys=True))
         return 2
 
 

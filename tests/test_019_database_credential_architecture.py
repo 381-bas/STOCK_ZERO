@@ -332,6 +332,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             "route-b-apply", "route-b-rollback", "admin-provision",
             "admin-reconcile-provisioning-evidence",
             "admin-reconcile-existing-provisioned-state",
+            "admin-reconcile-route-b-readonly-observer",
             "diagnose-readonly", "diagnose-route-b", "diagnose-admin",
         ):
             self.assertIn(f"'{operation}'", source)
@@ -379,6 +380,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             "route-b-apply", "route-b-rollback", "admin-provision",
             "admin-reconcile-provisioning-evidence",
             "admin-reconcile-existing-provisioned-state",
+            "admin-reconcile-route-b-readonly-observer",
             "apply-route-b-app-bridge", "diagnose-readonly", "diagnose-route-b",
             "diagnose-admin",
         )
@@ -404,8 +406,12 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
 
-    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell 7 is required for the child isolation probe")
     def test_secret_wrapper_child_probe_receives_only_operation_secrets(self) -> None:
+        if os.environ.get("STOCK_ZERO_ENABLE_POWERSHELL_SECRETSTORE_RUNTIME_TESTS") != "1":
+            self.skipTest("PowerShell SecretStore runtime probes are opt-in to avoid interactive vault prompts")
+        pwsh = find_pwsh()
+        if not pwsh:
+            self.skipTest("PowerShell 7 is required for the child isolation probe")
         managed = (
             "DB_URL_CODEX_RO", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE", "DB_URL_ADMIN",
             "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD", "DB_URL_LOAD", "DB_URL_CODEX_LOCAL",
@@ -419,6 +425,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
             "admin-provision": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
             "admin-reconcile-provisioning-evidence": ["DB_URL_ADMIN"],
             "admin-reconcile-existing-provisioned-state": ["DB_URL_ADMIN"],
+            "admin-reconcile-route-b-readonly-observer": ["DB_URL_ADMIN"],
             "diagnose-readonly": ["DB_URL_CODEX_RO"],
             "diagnose-route-b": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "diagnose-admin": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
@@ -443,6 +450,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                 "verify_kpione_route_b_productive_role.py",
                 "run_kpione_route_b_ingestion_v1.py",
                 "provision_kpione_route_b_role.py",
+                "reconcile_route_b_readonly_observer.py",
                 "diagnose_stock_zero_db_credentials.py",
             ):
                 (scripts / name).write_text(probe, encoding="utf-8")
@@ -473,12 +481,18 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                 environment[name] = f"synthetic-parent-{name.lower()}"
 
             run_id = str(uuid.uuid4())
+            maintenance_run_id = str(uuid.uuid4())
             evidence_base = f"evidence/runtime/020B/{run_id}"
+            maintenance_base = f"evidence/runtime/022/{maintenance_run_id}"
             operation_arguments = {
                 "readonly-precheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/01_readonly_baseline.json"],
                 "admin-provision": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
                 "admin-reconcile-provisioning-evidence": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
                 "admin-reconcile-existing-provisioned-state": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
+                "admin-reconcile-route-b-readonly-observer": [
+                    "--maintenance-run-id", maintenance_run_id,
+                    "--evidence-json", f"{maintenance_base}/01_route_b_readonly_observer_grants.json",
+                ],
                 "verify-route-b-role": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/03_productive_role_verification.json"],
                 "readonly-postcheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/04_readonly_postcheck.json"],
             }
@@ -495,9 +509,10 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                     )
                     completed = subprocess.run(
                         [
-                            "pwsh", "-NoLogo", "-NoProfile", "-Command", command,
+                            pwsh, "-NoLogo", "-NoProfile", "-Command", command,
                         ],
                         cwd=root, env=environment, capture_output=True, text=True, check=False,
+                        timeout=30,
                     )
                     self.assertEqual(completed.returncode, 0, completed.stderr)
                     reports = [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
@@ -506,19 +521,26 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                         "admin-provision",
                         "admin-reconcile-provisioning-evidence",
                         "admin-reconcile-existing-provisioned-state",
+                        "admin-reconcile-route-b-readonly-observer",
                     ):
                         self.assertEqual(reports[0]["managed"], [])
-                        self.assertEqual(reports[-1]["entrypoint"], "provision_kpione_route_b_role.py")
+                        expected_entrypoint = (
+                            "reconcile_route_b_readonly_observer.py"
+                            if operation == "admin-reconcile-route-b-readonly-observer"
+                            else "provision_kpione_route_b_role.py"
+                        )
+                        self.assertEqual(reports[-1]["entrypoint"], expected_entrypoint)
                     for secret in secret_values:
                         self.assertNotIn(secret, completed.stdout)
                         self.assertNotIn(secret, completed.stderr)
 
             arbitrary = subprocess.run(
                 [
-                    "pwsh", "-NoLogo", "-NoProfile", "-File",
+                    pwsh, "-NoLogo", "-NoProfile", "-File",
                     str(scripts / SECRET_WRAPPER.name), "-Operation", "arbitrary-entrypoint",
                 ],
                 cwd=root, env=environment, capture_output=True, text=True, check=False,
+                timeout=30,
             )
             self.assertNotEqual(arbitrary.returncode, 0)
 

@@ -13,6 +13,7 @@ param(
         'admin-provision',
         'admin-reconcile-provisioning-evidence',
         'admin-reconcile-existing-provisioned-state',
+        'admin-reconcile-route-b-readonly-observer',
         'apply-route-b-app-bridge',
         'diagnose-readonly',
         'diagnose-route-b',
@@ -95,6 +96,12 @@ $operationMap = @{
         Script = 'scripts/provision_kpione_route_b_role.py'
         Profile = 'admin-reconciliation'
         PrefixArguments = @('--reconcile-existing-provisioned-state')
+        AuthorityPrecheck = $true
+    }
+    'admin-reconcile-route-b-readonly-observer' = @{
+        Script = 'scripts/reconcile_route_b_readonly_observer.py'
+        Profile = 'admin-reconciliation'
+        PrefixArguments = @()
         AuthorityPrecheck = $true
     }
     'apply-route-b-app-bridge' = @{
@@ -205,6 +212,37 @@ if ($evidenceFileByOperation.ContainsKey($Operation)) {
     }
     if (Test-Path -LiteralPath $expectedOutput) {
         throw 'The evidence output already exists.'
+    }
+}
+
+if ($Operation -eq 'admin-reconcile-route-b-readonly-observer') {
+    $maintenanceRunIndex = [Array]::IndexOf($operationArguments, '--maintenance-run-id')
+    if ($maintenanceRunIndex -lt 0 -or $maintenanceRunIndex + 1 -ge $operationArguments.Count) {
+        throw 'A canonical --maintenance-run-id is required for maintenance evidence operations.'
+    }
+    $maintenanceRunId = $operationArguments[$maintenanceRunIndex + 1]
+    if ($maintenanceRunId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+        throw 'The maintenance run id must be a canonical lowercase UUID v4.'
+    }
+    $maintenanceDirectory = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot (Join-Path 'evidence/runtime/022' $maintenanceRunId))
+    )
+    [void](New-Item -ItemType Directory -Path $maintenanceDirectory -Force)
+    $outputIndex = [Array]::IndexOf($operationArguments, '--evidence-json')
+    if ($outputIndex -lt 0 -or $outputIndex + 1 -ge $operationArguments.Count) {
+        throw 'The canonical --evidence-json argument is required.'
+    }
+    $actualOutput = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot $operationArguments[$outputIndex + 1])
+    )
+    $expectedOutput = [IO.Path]::GetFullPath(
+        (Join-Path $maintenanceDirectory '01_route_b_readonly_observer_grants.json')
+    )
+    if ($actualOutput -ne $expectedOutput) {
+        throw 'The maintenance evidence output path is not canonical for this operation.'
+    }
+    if (Test-Path -LiteralPath $expectedOutput) {
+        throw 'The maintenance evidence output already exists.'
     }
 }
 

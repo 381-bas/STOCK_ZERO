@@ -49,6 +49,16 @@ BUILDER = ROOT / "scripts" / "build_kpione_route_b_infrastructure_evidence.py"
 RUN_ID = str(uuid.uuid4())
 
 
+def find_pwsh() -> str | None:
+    discovered = shutil.which("pwsh")
+    if discovered:
+        return discovered
+    bundled = Path("C:/Program Files/PowerShell/7/pwsh.exe")
+    if bundled.exists():
+        return str(bundled)
+    return None
+
+
 class ExistingRoleCursor:
     def __init__(self) -> None:
         self.rows: list[tuple[object, ...]] = []
@@ -632,6 +642,7 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
             "readonly-postcheck", "verify-route-b-role",
             "admin-reconcile-provisioning-evidence",
             "admin-reconcile-existing-provisioned-state",
+            "admin-reconcile-route-b-readonly-observer",
         ):
             self.assertIn(f"'{operation}'", wrapper)
         self.assertIn("@('--check-stage', 'post-provision')", wrapper)
@@ -660,8 +671,12 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
         self.assertNotIn("ProductiveRoleVerificationEvidence", vault)
         self.assertNotIn("ReadonlyPostcheckEvidence", vault)
 
-    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell 7 is required for the vault runtime probe")
     def test_vault_runtime_uses_secure_types_and_evidence_gated_removal(self) -> None:
+        if os.environ.get("STOCK_ZERO_ENABLE_POWERSHELL_SECRETSTORE_RUNTIME_TESTS") != "1":
+            self.skipTest("PowerShell SecretStore runtime probes are opt-in to avoid interactive vault prompts")
+        pwsh = find_pwsh()
+        if not pwsh:
+            self.skipTest("PowerShell 7 is required for the vault runtime probe")
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             scripts = root / "scripts"
@@ -746,12 +761,13 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
                 )
                 command = f"{prelude}\n& '{vault_copy}' -Operation '{operation}' {args}"
                 completed = subprocess.run(
-                    ["pwsh", "-NoLogo", "-NoProfile", "-Command", command],
+                    [pwsh, "-NoLogo", "-NoProfile", "-Command", command],
                     cwd=root,
                     env=operation_environment or environment,
                     capture_output=True,
                     text=True,
                     check=False,
+                    timeout=30,
                 )
                 if expected_success:
                     self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)

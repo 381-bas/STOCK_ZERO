@@ -677,9 +677,12 @@ def _assert_route_b_object_signatures(cursor: Any, plan: dict[str, Any],
     if actual_kinds != {name: spec["relation_kind"] for name, spec in expected.items()}:
         raise RouteBError("route_b_object_set_or_kind_mismatch")
     cursor.execute(
-        "SELECT table_schema||'.'||table_name,column_name FROM information_schema.columns "
-        "WHERE table_schema||'.'||table_name = ANY(%s) "
-        "ORDER BY table_schema,table_name,ordinal_position",
+        "SELECT n.nspname||'.'||c.relname,a.attname FROM pg_class c "
+        "JOIN pg_namespace n ON n.oid=c.relnamespace "
+        "JOIN pg_attribute a ON a.attrelid=c.oid "
+        "WHERE n.nspname||'.'||c.relname = ANY(%s) "
+        "AND a.attnum > 0 AND NOT a.attisdropped "
+        "ORDER BY n.nspname,c.relname,a.attnum",
         (names,),
     )
     actual_columns: dict[str, list[str]] = {}
