@@ -1,11 +1,11 @@
 # STOCK_ZERO — Registro correctivo multiagente Fase 022
 
-**Estado del documento:** DRAFT_PRE_020B_EXECUTION  
-**Fase:** `022_CONTROL_GESTION_ROUTE_B_PRODUCTIVE_APPLY_AND_APP_VALIDATION`  
-**Rama:** `codex/022-cg-route-b-june-apply`  
-**HEAD técnico vigente:** `75ba94fbb3bba9a0d90565c93a951a66892487db`  
-**Gate productivo:** `CLOSED`  
-**Apply productivo:** `NOT_STARTED`  
+**Estado del documento:** DRAFT_PRE_020B_EXECUTION
+**Fase:** `022_CONTROL_GESTION_ROUTE_B_PRODUCTIVE_APPLY_AND_APP_VALIDATION`
+**Rama:** `codex/022-cg-route-b-june-apply`
+**HEAD técnico vigente:** `75ba94fbb3bba9a0d90565c93a951a66892487db`
+**Gate productivo:** `CLOSED`
+**Apply productivo:** `NOT_STARTED`
 **Merge:** `NOT_AUTHORIZED`
 
 > Este registro consolida la auditoría de Claude, la adjudicación de ChatGPT y la implementación verificada por Codex. No reemplaza Git, el plan 018, la evidencia máquina ni el estado real de base de datos.

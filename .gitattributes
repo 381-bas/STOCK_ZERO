@@ -1,1 +1,2 @@
 research/014E_KPIONE_RAW_DRY_RUN_LOADER_NO_APPLY/014E_dry_run_loader_manifest.json text eol=lf
+evidence/runtime/**/*.json -text -whitespace
