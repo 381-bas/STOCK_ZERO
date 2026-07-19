@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import parse_qs, urlparse
 
 from openpyxl import load_workbook
@@ -37,6 +37,16 @@ PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS = (
 PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS = (
     "PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED"
 )
+PRODUCTIVE_APPLY_CLOSURE_BUNDLE_FILENAME = (
+    "05_route_b_productive_apply_closure_bundle.json"
+)
+PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE = (
+    "stock_zero_route_b_productive_apply_closure_bundle_v1"
+)
+PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT = (
+    "PASS_ROUTE_B_PRODUCTIVE_APPLY_CLOSURE_BUNDLE"
+)
+PRODUCTIVE_APPLY_CLOSURE_BUNDLE_HASH_METHOD = "SHA256_OF_RAW_FILE_BYTES"
 PRODUCTIVE_PREPARATION_BLOCKERS = [
     "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
     "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
@@ -237,6 +247,243 @@ def _valid_git_sha(value: Any) -> bool:
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
 
 
+def canonical_productive_apply_closure_bundle_path(
+    root: Path, productive_run_id: str,
+) -> Path:
+    if not _valid_uuid(productive_run_id):
+        raise RouteBError("productive_run_id_must_be_canonical_uuid4")
+    return (
+        root.resolve() / "evidence" / "runtime" / "022" / productive_run_id
+        / PRODUCTIVE_APPLY_CLOSURE_BUNDLE_FILENAME
+    )
+
+
+def _closure_source_definitions(plan: Mapping[str, Any]) -> dict[str, dict[str, str]]:
+    execution = plan.get("productive_execution", {})
+    configured = execution.get("source_evidence", {})
+    definitions: dict[str, dict[str, str]] = {}
+    for sequence, key in (
+        ("01", "01_readonly_pre_apply_target_check"),
+        ("02", "02_route_b_june_productive_apply"),
+        ("03", "03_readonly_post_apply_verification"),
+    ):
+        item = configured.get(key)
+        if not isinstance(item, dict):
+            raise RouteBError(f"closure_source_contract_missing:{sequence}")
+        definitions[sequence] = dict(item)
+    run_id = execution.get("productive_run_id")
+    definitions["04"] = {
+        "path": (
+            f"evidence/runtime/022/{run_id}/"
+            "04_route_b_post_apply_reattestation.json"
+        ),
+    }
+    return definitions
+
+
+def build_productive_apply_closure_bundle(
+    plan: dict[str, Any], root: Path, contract_git_sha: str,
+    *, generated_at_utc: str | None = None,
+) -> dict[str, Any]:
+    if plan.get("status") != PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS:
+        raise RouteBError("closure_bundle_requires_closure_pending_plan")
+    if not _valid_git_sha(contract_git_sha):
+        raise RouteBError("closure_bundle_contract_git_sha_invalid")
+    execution = plan["productive_execution"]
+    sources: dict[str, dict[str, Any]] = {}
+    payloads: dict[str, dict[str, Any]] = {}
+    for sequence, definition in _closure_source_definitions(plan).items():
+        path = root.resolve() / definition["path"]
+        raw = path.read_bytes()
+        payload = json.loads(raw.decode("utf-8"))
+        payloads[sequence] = payload
+        verdict = payload.get("verdict")
+        if sequence == "02":
+            verdict = payload.get("postcheck_verdict")
+        sources[sequence] = {
+            "path": path.relative_to(root.resolve()).as_posix(),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "document_type": payload.get("document_type"),
+            "verdict": verdict,
+        }
+    productive = payloads["02"]
+    reattestation = payloads["04"]
+    database = reattestation["database_execution"]
+    current = reattestation["current_productive_state"]
+    comparison = reattestation["baseline_comparison"]
+    return {
+        "document_type": PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE,
+        "verdict": PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT,
+        "generated_at_utc": generated_at_utc or datetime.now(timezone.utc).isoformat(),
+        "contract_git_sha": contract_git_sha,
+        "productive_run_id": execution["productive_run_id"],
+        "approved_apply_git_sha": execution["approved_git_sha"],
+        "runner_execution_uuid": execution["runner_execution_uuid"],
+        "reattestation_execution_uuid": reattestation["reattestation_execution_uuid"],
+        "batch_id": execution["batch_id"],
+        "source_evidence": sources,
+        "productive_result": {
+            "committed": productive["committed"],
+            "transaction_outcome": productive["transaction_outcome"],
+            "active_batch_count": current["active_batch_count"],
+            "active_batch_id": current["active_batch_id"],
+            "files": current["files"],
+            "staged_rows": current["staged_rows"],
+            "events": current["events"],
+            "day_presence": current["day_presence"],
+            "conflicts": current["conflicts"],
+        },
+        "database_safety": {
+            "read_only_reattestation": True,
+            "transaction_read_only": database["transaction_read_only"],
+            "writes_attempted": database["writes_attempted"],
+            "write_statements_defined": database["write_statements_defined"],
+            "rollback_completed": database["rollback_completed"],
+            "current_user": database["current_user"],
+            "session_user": database["session_user"],
+        },
+        "baseline_comparison": {
+            "baseline_evidence_sha256": reattestation["baseline_evidence_sha256"],
+            **comparison,
+        },
+        "gate_state": {
+            "gate_open": False,
+            "productive_apply_executed": True,
+            "productive_apply_authorized": False,
+            "productive_rollback_authorized": False,
+            "evidence_closure_complete": True,
+        },
+        "downstream_state": {
+            "route_b_productive_source_available": True,
+            "bridge_executed": False,
+            "mart_refresh_executed": False,
+            "app_validation_executed": False,
+        },
+    }
+
+
+def validate_productive_apply_closure_bundle(
+    plan: dict[str, Any], bundle: Mapping[str, Any], root: Path,
+    expected_contract_git_sha: str,
+) -> None:
+    if plan.get("status") != PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS:
+        raise RouteBError("closure_bundle_requires_closure_pending_plan")
+    required = {
+        "document_type", "verdict", "generated_at_utc", "contract_git_sha",
+        "productive_run_id", "approved_apply_git_sha", "runner_execution_uuid",
+        "reattestation_execution_uuid", "batch_id", "source_evidence",
+        "productive_result", "database_safety", "baseline_comparison",
+        "gate_state", "downstream_state",
+    }
+    if set(bundle) != required:
+        raise RouteBError("closure_bundle_top_level_schema_mismatch")
+    if bundle.get("document_type") != PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE:
+        raise RouteBError("closure_bundle_document_type_mismatch")
+    if bundle.get("verdict") != PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT:
+        raise RouteBError("closure_bundle_verdict_mismatch")
+    if bundle.get("contract_git_sha") != expected_contract_git_sha or not _valid_git_sha(
+        expected_contract_git_sha
+    ):
+        raise RouteBError("closure_bundle_contract_git_sha_mismatch")
+    try:
+        generated = datetime.fromisoformat(str(bundle.get("generated_at_utc")))
+    except ValueError:
+        raise RouteBError("closure_bundle_timestamp_invalid") from None
+    if generated.utcoffset() is None or generated.utcoffset().total_seconds() != 0:
+        raise RouteBError("closure_bundle_timestamp_not_utc")
+    execution = plan["productive_execution"]
+    identifiers = {
+        "productive_run_id": execution["productive_run_id"],
+        "approved_apply_git_sha": execution["approved_git_sha"],
+        "runner_execution_uuid": execution["runner_execution_uuid"],
+        "batch_id": execution["batch_id"],
+    }
+    if any(bundle.get(key) != value for key, value in identifiers.items()):
+        raise RouteBError("closure_bundle_identifier_mismatch")
+    for key in (
+        "productive_run_id", "runner_execution_uuid", "reattestation_execution_uuid", "batch_id",
+    ):
+        if not _valid_uuid(bundle.get(key)):
+            raise RouteBError(f"closure_bundle_uuid_invalid:{key}")
+    sources = bundle.get("source_evidence")
+    if not isinstance(sources, dict) or set(sources) != {"01", "02", "03", "04"}:
+        raise RouteBError("closure_bundle_source_set_mismatch")
+    expected_source_metadata = {
+        "01": ("stock_zero_route_b_productive_readonly_snapshot_v1", "PASS_READONLY_PRE_APPLY_TARGET_CHECK"),
+        "02": ("kpione_route_b_productive_execution_evidence_v1", "PASS"),
+        "03": ("stock_zero_route_b_productive_readonly_snapshot_v1", "PASS_READONLY_POST_APPLY_VERIFICATION"),
+        "04": ("stock_zero_route_b_post_apply_reattestation_v1", "PASS_ROUTE_B_POST_APPLY_REATTESTATION"),
+    }
+    definitions = _closure_source_definitions(plan)
+    for sequence, item in sources.items():
+        if not isinstance(item, dict) or set(item) != {"path", "sha256", "document_type", "verdict"}:
+            raise RouteBError(f"closure_bundle_source_schema_mismatch:{sequence}")
+        expected_path = root.resolve() / definitions[sequence]["path"]
+        candidate = root.resolve() / str(item.get("path", ""))
+        if candidate.resolve() != expected_path:
+            raise RouteBError(f"closure_bundle_source_path_mismatch:{sequence}")
+        raw = expected_path.read_bytes()
+        if item.get("sha256") != hashlib.sha256(raw).hexdigest():
+            raise RouteBError(f"closure_bundle_source_hash_mismatch:{sequence}")
+        payload = json.loads(raw.decode("utf-8"))
+        document_type, verdict = expected_source_metadata[sequence]
+        observed_verdict = payload.get("verdict") if sequence != "02" else payload.get("postcheck_verdict")
+        if item.get("document_type") != document_type or payload.get("document_type") != document_type:
+            raise RouteBError(f"closure_bundle_source_type_mismatch:{sequence}")
+        if item.get("verdict") != verdict or observed_verdict != verdict:
+            raise RouteBError(f"closure_bundle_source_verdict_mismatch:{sequence}")
+    reattestation = json.loads((root.resolve() / definitions["04"]["path"]).read_text(encoding="utf-8"))
+    if bundle.get("reattestation_execution_uuid") != reattestation.get("reattestation_execution_uuid"):
+        raise RouteBError("closure_bundle_reattestation_uuid_mismatch")
+    expected_metrics = execution["expected_metrics_confirmed"]
+    productive = bundle.get("productive_result", {})
+    if not (
+        set(productive) == {"committed", "transaction_outcome", "active_batch_count", "active_batch_id", "files", "staged_rows", "events", "day_presence", "conflicts"}
+        and productive.get("committed") is True
+        and productive.get("transaction_outcome") == "COMMITTED"
+        and productive.get("active_batch_count") == 1
+        and productive.get("active_batch_id") == execution["batch_id"]
+        and all(productive.get(key) == expected_metrics[key] for key in ("files", "staged_rows", "events", "day_presence", "conflicts"))
+    ):
+        raise RouteBError("closure_bundle_productive_result_mismatch")
+    safety = bundle.get("database_safety", {})
+    if not (
+        set(safety) == {"read_only_reattestation", "transaction_read_only", "writes_attempted", "write_statements_defined", "rollback_completed", "current_user", "session_user"}
+        and safety.get("read_only_reattestation") is True
+        and safety.get("transaction_read_only") == "on"
+        and safety.get("writes_attempted") is False
+        and safety.get("write_statements_defined") is False
+        and safety.get("rollback_completed") is True
+        and safety.get("current_user") == "stock_zero_codex_ro"
+        and safety.get("session_user") == "stock_zero_codex_ro"
+    ):
+        raise RouteBError("closure_bundle_database_safety_mismatch")
+    comparison = bundle.get("baseline_comparison", {})
+    if not (
+        comparison.get("baseline_evidence_sha256") == sources["01"]["sha256"]
+        and comparison.get("legacy_row_delta") == 0
+        and comparison.get("legacy_relation_size_delta") == 0
+        and comparison.get("public_acl_unchanged") is True
+        and comparison.get("physical_signatures_unchanged") is True
+        and comparison.get("observer_role_unchanged") is True
+    ):
+        raise RouteBError("closure_bundle_baseline_comparison_mismatch")
+    if bundle.get("gate_state") != {
+        "gate_open": False, "productive_apply_executed": True,
+        "productive_apply_authorized": False, "productive_rollback_authorized": False,
+        "evidence_closure_complete": True,
+    }:
+        raise RouteBError("closure_bundle_gate_state_mismatch")
+    if bundle.get("downstream_state") != {
+        "route_b_productive_source_available": True, "bridge_executed": False,
+        "mart_refresh_executed": False, "app_validation_executed": False,
+    }:
+        raise RouteBError("closure_bundle_downstream_state_mismatch")
+    rendered = json.dumps(bundle, sort_keys=True)
+    if re.search(r"(?i)(postgres(?:ql)?://|password|secret[_-]?value|\bdsn\b)", rendered):
+        raise RouteBError("closure_bundle_sensitive_content_detected")
+
+
 def _validate_post_apply_execution_contract(plan: dict[str, Any], *, closure_complete: bool) -> bool:
     execution = plan.get("productive_execution")
     if not isinstance(execution, dict):
@@ -291,15 +538,34 @@ def _validate_post_apply_execution_contract(plan: dict[str, Any], *, closure_com
     if closure_complete:
         reattestation = execution.get("reattestation")
         bundle = execution.get("evidence_bundle")
+        run_id = execution.get("productive_run_id")
         return (
             plan.get("supplemental_reattestation_required") is False
             and isinstance(reattestation, dict)
+            and set(reattestation) == {
+                "status", "path", "sha256", "verdict", "execution_uuid",
+            }
             and reattestation.get("status") == "PASSED"
             and reattestation.get("verdict") == "PASS_ROUTE_B_POST_APPLY_REATTESTATION"
+            and reattestation.get("path")
+            == f"evidence/runtime/022/{run_id}/04_route_b_post_apply_reattestation.json"
             and _valid_sha256(reattestation.get("sha256"))
+            and _valid_uuid(reattestation.get("execution_uuid"))
             and isinstance(bundle, dict)
+            and set(bundle) == {
+                "status", "path", "sha256", "sha256_method", "document_type",
+                "verdict", "contract_git_sha",
+            }
             and bundle.get("status") == "PASSED"
             and _valid_sha256(bundle.get("sha256"))
+            and bundle.get("path") == (
+                f"evidence/runtime/022/{run_id}/"
+                f"{PRODUCTIVE_APPLY_CLOSURE_BUNDLE_FILENAME}"
+            )
+            and bundle.get("sha256_method") == PRODUCTIVE_APPLY_CLOSURE_BUNDLE_HASH_METHOD
+            and bundle.get("document_type") == PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE
+            and bundle.get("verdict") == PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT
+            and _valid_git_sha(bundle.get("contract_git_sha"))
         )
     return (
         plan.get("supplemental_reattestation_required") is True

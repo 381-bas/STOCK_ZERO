@@ -20,12 +20,18 @@ from scripts.kpione_route_b_v1 import (
     PLANNED_PRODUCTIVE_ROLE,
     PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_BLOCKERS,
     PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS,
+    PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE,
+    PRODUCTIVE_APPLY_CLOSURE_BUNDLE_FILENAME,
+    PRODUCTIVE_APPLY_CLOSURE_BUNDLE_HASH_METHOD,
+    PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT,
     PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS,
     PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS,
     PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS,
     PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS,
     RouteBError,
     WorkbookPlan,
+    build_productive_apply_closure_bundle,
+    canonical_productive_apply_closure_bundle_path,
     classify_global_photo_duplicates,
     inspect_workbook,
     productive_blocked_report,
@@ -37,6 +43,7 @@ from scripts.kpione_route_b_v1 import (
     validate_productive_local_artifacts,
     validate_productive_dsn_target,
     validate_productive_role_contract,
+    validate_productive_apply_closure_bundle,
     validate_productive_state_transition,
     validate_registered_productive_target,
 )
@@ -1485,9 +1492,23 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             "status": "PASSED",
             "verdict": "PASS_ROUTE_B_POST_APPLY_REATTESTATION",
             "sha256": "a" * 64,
+            "path": (
+                "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/"
+                "04_route_b_post_apply_reattestation.json"
+            ),
+            "execution_uuid": "5e7718c0-199e-41ca-b967-b826fa0e9a7d",
         }
         recorded["productive_execution"]["evidence_bundle"] = {
-            "status": "PASSED", "sha256": "b" * 64,
+            "status": "PASSED",
+            "path": (
+                "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/"
+                "05_route_b_productive_apply_closure_bundle.json"
+            ),
+            "sha256": "b" * 64,
+            "sha256_method": PRODUCTIVE_APPLY_CLOSURE_BUNDLE_HASH_METHOD,
+            "document_type": PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE,
+            "verdict": PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT,
+            "contract_git_sha": "c" * 40,
         }
         self.assertEqual(validate_productive_role_contract(recorded), PLANNED_PRODUCTIVE_ROLE)
 
@@ -1556,6 +1577,92 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             mutation(report)
             with self.subTest(name=name), self.assertRaises(precheck.PrecheckBlock):
                 precheck.validate_post_apply_reattestation(report, self.plan)
+
+    def test_closure_bundle_canonical_path_and_contract(self) -> None:
+        run_id = self.plan["productive_execution"]["productive_run_id"]
+        expected = (
+            ROOT / "evidence" / "runtime" / "022" / run_id
+            / PRODUCTIVE_APPLY_CLOSURE_BUNDLE_FILENAME
+        )
+        self.assertEqual(
+            canonical_productive_apply_closure_bundle_path(ROOT, run_id), expected,
+        )
+        with self.assertRaisesRegex(RouteBError, "productive_run_id_must_be_canonical_uuid4"):
+            canonical_productive_apply_closure_bundle_path(ROOT, "../alternate")
+        bundle = build_productive_apply_closure_bundle(
+            self.plan, ROOT, "a" * 40, generated_at_utc="2026-07-19T18:00:00+00:00",
+        )
+        self.assertEqual(bundle["document_type"], PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE)
+        self.assertEqual(bundle["verdict"], PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT)
+        self.assertEqual(set(bundle["source_evidence"]), {"01", "02", "03", "04"})
+        validate_productive_apply_closure_bundle(self.plan, bundle, ROOT, "a" * 40)
+
+    def test_closure_bundle_validator_rejects_all_contract_drift(self) -> None:
+        contract_sha = "a" * 40
+        valid = build_productive_apply_closure_bundle(
+            self.plan, ROOT, contract_sha, generated_at_utc="2026-07-19T18:00:00+00:00",
+        )
+        mutations = {
+            "wrong_document_type": lambda item: item.update({"document_type": "wrong"}),
+            "wrong_verdict": lambda item: item.update({"verdict": "wrong"}),
+            "missing_source": lambda item: item["source_evidence"].pop("01"),
+            "extra_source": lambda item: item["source_evidence"].update({"05": {}}),
+            "wrong_source_path": lambda item: item["source_evidence"]["01"].update({"path": "evidence/runtime/022/alternate/01.json"}),
+            "wrong_source_hash": lambda item: item["source_evidence"]["01"].update({"sha256": "0" * 64}),
+            "wrong_apply_sha": lambda item: item.update({"approved_apply_git_sha": "b" * 40}),
+            "wrong_contract_sha": lambda item: item.update({"contract_git_sha": "b" * 40}),
+            "wrong_execution_uuid": lambda item: item.update({"runner_execution_uuid": str(uuid.uuid4())}),
+            "wrong_batch_id": lambda item: item.update({"batch_id": str(uuid.uuid4())}),
+            "wrong_active_count": lambda item: item["productive_result"].update({"active_batch_count": 2}),
+            "metrics_mismatch": lambda item: item["productive_result"].update({"events": 1}),
+            "not_readonly": lambda item: item["database_safety"].update({"transaction_read_only": "off"}),
+            "writes_attempted": lambda item: item["database_safety"].update({"writes_attempted": True}),
+            "rollback_false": lambda item: item["database_safety"].update({"rollback_completed": False}),
+            "legacy_delta": lambda item: item["baseline_comparison"].update({"legacy_row_delta": 1}),
+            "public_acl_false": lambda item: item["baseline_comparison"].update({"public_acl_unchanged": False}),
+            "gate_open": lambda item: item["gate_state"].update({"gate_open": True}),
+            "apply_authorized": lambda item: item["gate_state"].update({"productive_apply_authorized": True}),
+            "rollback_authorized": lambda item: item["gate_state"].update({"productive_rollback_authorized": True}),
+            "bridge_true": lambda item: item["downstream_state"].update({"bridge_executed": True}),
+            "mart_true": lambda item: item["downstream_state"].update({"mart_refresh_executed": True}),
+            "app_true": lambda item: item["downstream_state"].update({"app_validation_executed": True}),
+        }
+        for name, mutation in mutations.items():
+            bundle = copy.deepcopy(valid)
+            mutation(bundle)
+            with self.subTest(name=name), self.assertRaises(RouteBError):
+                validate_productive_apply_closure_bundle(
+                    self.plan, bundle, ROOT, contract_sha,
+                )
+
+    def test_recorded_state_rejects_incomplete_bundle_metadata_and_pending_stays_valid(self) -> None:
+        self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+        recorded = copy.deepcopy(self.plan)
+        recorded["status"] = PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS
+        recorded["remaining_blockers"] = []
+        recorded["evidence_closure_complete"] = True
+        recorded["supplemental_reattestation_required"] = False
+        recorded["productive_execution"]["reattestation"] = {
+            "status": "PASSED", "verdict": "PASS_ROUTE_B_POST_APPLY_REATTESTATION",
+            "sha256": "a" * 64,
+        }
+        recorded["productive_execution"]["evidence_bundle"] = {
+            "status": "PASSED", "sha256": "b" * 64,
+        }
+        with self.assertRaisesRegex(RouteBError, "productive_execution_state_contract_mismatch"):
+            validate_productive_role_contract(recorded)
+
+    def test_raw_evidence_01_through_04_hashes_are_immutable(self) -> None:
+        base = ROOT / "evidence" / "runtime" / "022" / self.plan["productive_execution"]["productive_run_id"]
+        expected = {
+            "01_readonly_pre_apply_target_check.json": "edee494b40187d01b9fc627f09a39f6ff9d0f46979c7a99f5cf82660d478c9fe",
+            "02_route_b_june_productive_apply.json": "1ec47bd1ab62dafdcd7463292e033882f2bea57d3db7587a4f9f84385c485159",
+            "03_readonly_post_apply_verification.json": "ad2823dd00d02b8b4c32e385a57c3516d14df834836c0790a3f3eb648733563b",
+            "04_route_b_post_apply_reattestation.json": "a78aff74ae0d201776f765e6f65633f71ccaa8dcb5c3db012f9117c8fd8dc383",
+        }
+        for name, digest in expected.items():
+            with self.subTest(name=name):
+                self.assertEqual(hashlib.sha256((base / name).read_bytes()).hexdigest(), digest)
 
 
 if __name__ == "__main__":
