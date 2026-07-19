@@ -660,13 +660,15 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
     def test_wrapper_and_vault_have_only_typed_operations_and_safe_storage(self) -> None:
         wrapper = WRAPPER.read_text(encoding="utf-8")
         for operation in (
-            "readonly-postcheck", "verify-route-b-role",
+            "readonly-postcheck", "readonly-reattest-route-b-june-apply",
+            "verify-route-b-role",
             "admin-reconcile-provisioning-evidence",
             "admin-reconcile-existing-provisioned-state",
             "admin-reconcile-route-b-readonly-observer",
         ):
             self.assertIn(f"'{operation}'", wrapper)
         self.assertIn("@('--check-stage', 'post-provision')", wrapper)
+        self.assertIn("@('--check-stage', 'post-apply-reattestation')", wrapper)
         self.assertIn("scripts/verify_kpione_route_b_productive_role.py", wrapper)
         self.assertNotIn("[string]$FilePath", wrapper)
 

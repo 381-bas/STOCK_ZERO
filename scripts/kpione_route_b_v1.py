@@ -31,6 +31,12 @@ PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS = (
     "PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED"
 )
 PRODUCTIVE_EXECUTION_STATUS = "READY_FOR_PRODUCTIVE_EXECUTION"
+PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS = (
+    "PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING"
+)
+PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS = (
+    "PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED"
+)
 PRODUCTIVE_PREPARATION_BLOCKERS = [
     "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
     "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
@@ -38,6 +44,19 @@ PRODUCTIVE_PREPARATION_BLOCKERS = [
 PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS = [
     "PRODUCTIVE_EXECUTION_NOT_AUTHORIZED",
 ]
+PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_BLOCKERS = [
+    "PRODUCTIVE_EVIDENCE_CLOSURE_INCOMPLETE",
+    "SUPPLEMENTAL_READONLY_REATTESTATION_REQUIRED",
+]
+PRODUCTIVE_STATE_TRANSITIONS = {
+    PRODUCTIVE_EXECUTION_STATUS: frozenset({
+        PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS,
+    }),
+    PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS: frozenset({
+        PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS,
+    }),
+    PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS: frozenset(),
+}
 PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS = (
     "readonly_baseline_precheck",
     "admin_provisioning",
@@ -195,6 +214,102 @@ def load_approved_productive_plan(path: Path) -> dict[str, Any]:
     return plan
 
 
+def validate_productive_state_transition(current: str, requested: str) -> None:
+    if requested not in PRODUCTIVE_STATE_TRANSITIONS.get(current, frozenset()):
+        raise RouteBError("productive_state_transition_not_allowed")
+
+
+def _valid_uuid(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        parsed = uuid.UUID(value)
+    except ValueError:
+        return False
+    return parsed.version == 4 and str(parsed) == value
+
+
+def _valid_sha256(value: Any) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
+
+
+def _valid_git_sha(value: Any) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
+
+
+def _validate_post_apply_execution_contract(plan: dict[str, Any], *, closure_complete: bool) -> bool:
+    execution = plan.get("productive_execution")
+    if not isinstance(execution, dict):
+        return False
+    evidence = execution.get("source_evidence")
+    expected_evidence_names = {
+        "01_readonly_pre_apply_target_check",
+        "02_route_b_june_productive_apply",
+        "03_readonly_post_apply_verification",
+    }
+    evidence_valid = (
+        isinstance(evidence, dict)
+        and set(evidence) == expected_evidence_names
+        and all(
+            isinstance(item, dict)
+            and set(item) == {"path", "sha256"}
+            and isinstance(item.get("path"), str)
+            and item["path"].startswith("evidence/runtime/022/")
+            and _valid_sha256(item.get("sha256"))
+            for item in evidence.values()
+        )
+    )
+    expected_metrics = {
+        "files": 9,
+        "staged_rows": 239159,
+        "events": 35287,
+        "cross_file_duplicate_rows": 10089,
+        "exact_duplicate_rows": 0,
+        "conflicts": 0,
+        "day_presence": 34996,
+    }
+    base_valid = (
+        _valid_git_sha(execution.get("approved_git_sha"))
+        and _valid_uuid(execution.get("productive_run_id"))
+        and _valid_uuid(execution.get("runner_execution_uuid"))
+        and _valid_uuid(execution.get("batch_id"))
+        and execution.get("active_batch_count") == 1
+        and execution.get("expected_metrics_confirmed") == expected_metrics
+        and evidence_valid
+        and plan.get("productive_apply_executed") is True
+        and plan.get("productive_apply_authorized") is False
+        and plan.get("productive_rollback_authorized") is False
+        and plan.get("activation_gate", {}).get("gate_open") is False
+        and plan.get("bridge_executed") is False
+        and plan.get("mart_refresh_executed") is False
+        and plan.get("app_validation_executed") is False
+        and plan.get("downstream_control_gestion_mart_use_allowed") is False
+        and plan.get("evidence_closure_complete") is closure_complete
+    )
+    if not base_valid:
+        return False
+    if closure_complete:
+        reattestation = execution.get("reattestation")
+        bundle = execution.get("evidence_bundle")
+        return (
+            plan.get("supplemental_reattestation_required") is False
+            and isinstance(reattestation, dict)
+            and reattestation.get("status") == "PASSED"
+            and reattestation.get("verdict") == "PASS_ROUTE_B_POST_APPLY_REATTESTATION"
+            and _valid_sha256(reattestation.get("sha256"))
+            and isinstance(bundle, dict)
+            and bundle.get("status") == "PASSED"
+            and _valid_sha256(bundle.get("sha256"))
+        )
+    return (
+        plan.get("supplemental_reattestation_required") is True
+        and execution.get("reattestation") is None
+        and execution.get("evidence_bundle") is None
+        and execution.get("missing_historical_linkage")
+        == "baseline_evidence_sha256 absent from evidence 03"
+    )
+
+
 def validate_productive_role_contract(plan: dict[str, Any]) -> str:
     target = plan.get("target", {})
     activation = plan.get("activation_gate", {})
@@ -281,10 +396,33 @@ def validate_productive_role_contract(plan: dict[str, Any]) -> str:
         and isinstance(plan.get("productive_apply_authorized"), bool)
         and isinstance(plan.get("productive_rollback_authorized"), bool)
     )
+    closure_pending_state = (
+        plan.get("status") == PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS
+        and plan.get("remaining_blockers")
+        == PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_BLOCKERS
+        and passed_readonly_precheck
+        and passed_infrastructure_evidence
+        and role_gate_state == (
+            "PROVISIONED_AND_VERIFIED", [PLANNED_PRODUCTIVE_ROLE], True, False,
+        )
+        and _validate_post_apply_execution_contract(plan, closure_complete=False)
+    )
+    recorded_gate_closed_state = (
+        plan.get("status") == PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS
+        and plan.get("remaining_blockers") == []
+        and passed_readonly_precheck
+        and passed_infrastructure_evidence
+        and role_gate_state == (
+            "PROVISIONED_AND_VERIFIED", [PLANNED_PRODUCTIVE_ROLE], True, False,
+        )
+        and _validate_post_apply_execution_contract(plan, closure_complete=True)
+    )
     if not (
         preparation_state
         or infrastructure_ready_gate_closed_state
         or execution_state
+        or closure_pending_state
+        or recorded_gate_closed_state
     ):
         raise RouteBError("productive_execution_state_contract_mismatch")
     return role

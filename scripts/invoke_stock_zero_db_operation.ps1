@@ -7,6 +7,7 @@ param(
     [ValidateSet(
         'readonly-precheck',
         'readonly-postcheck',
+        'readonly-reattest-route-b-june-apply',
         'verify-route-b-role',
         'route-b-apply',
         'route-b-rollback',
@@ -64,6 +65,11 @@ $operationMap = @{
         Script = 'scripts/precheck_kpione_route_b_018_read_only.py'
         Profile = 'readonly'
         PrefixArguments = @('--check-stage', 'post-provision')
+    }
+    'readonly-reattest-route-b-june-apply' = @{
+        Script = 'scripts/precheck_kpione_route_b_018_read_only.py'
+        Profile = 'readonly'
+        PrefixArguments = @('--check-stage', 'post-apply-reattestation')
     }
     'verify-route-b-role' = @{
         Script = 'scripts/verify_kpione_route_b_productive_role.py'
@@ -209,6 +215,39 @@ if ($evidenceFileByOperation.ContainsKey($Operation)) {
     )
     if ($actualOutput -ne $expectedOutput) {
         throw 'The evidence output path is not canonical for this operation.'
+    }
+    if (Test-Path -LiteralPath $expectedOutput) {
+        throw 'The evidence output already exists.'
+    }
+}
+
+if ($Operation -eq 'readonly-reattest-route-b-june-apply') {
+    $runIndex = [Array]::IndexOf($operationArguments, '--run-id')
+    if ($runIndex -lt 0 -or $runIndex + 1 -ge $operationArguments.Count) {
+        throw 'A canonical --run-id is required for the post-apply reattestation.'
+    }
+    $runId = $operationArguments[$runIndex + 1]
+    if ($runId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+        throw 'The evidence run id must be a canonical lowercase UUID v4.'
+    }
+    $runDirectory = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot (Join-Path 'evidence/runtime/022' $runId))
+    )
+    if (-not (Test-Path -LiteralPath $runDirectory -PathType Container)) {
+        throw 'The productive run directory does not exist.'
+    }
+    $outputIndex = [Array]::IndexOf($operationArguments, '--report-json')
+    if ($outputIndex -lt 0 -or $outputIndex + 1 -ge $operationArguments.Count) {
+        throw 'The canonical --report-json argument is required.'
+    }
+    $actualOutput = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot $operationArguments[$outputIndex + 1])
+    )
+    $expectedOutput = [IO.Path]::GetFullPath(
+        (Join-Path $runDirectory '04_route_b_post_apply_reattestation.json')
+    )
+    if ($actualOutput -ne $expectedOutput) {
+        throw 'The reattestation evidence output path is not canonical.'
     }
     if (Test-Path -LiteralPath $expectedOutput) {
         throw 'The evidence output already exists.'

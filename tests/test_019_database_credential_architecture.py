@@ -328,7 +328,8 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
     def test_secret_wrapper_uses_typed_entrypoints_and_scrubbed_child_environment(self) -> None:
         source = SECRET_WRAPPER.read_text(encoding="utf-8")
         for operation in (
-            "readonly-precheck", "readonly-postcheck", "verify-route-b-role",
+            "readonly-precheck", "readonly-postcheck",
+            "readonly-reattest-route-b-june-apply", "verify-route-b-role",
             "route-b-apply", "route-b-rollback", "admin-provision",
             "admin-reconcile-provisioning-evidence",
             "admin-reconcile-existing-provisioned-state",
@@ -376,7 +377,8 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         if not pwsh:
             self.skipTest("PowerShell 7 is required for the strict wrapper probe")
         operations = (
-            "readonly-precheck", "readonly-postcheck", "verify-route-b-role",
+            "readonly-precheck", "readonly-postcheck",
+            "readonly-reattest-route-b-june-apply", "verify-route-b-role",
             "route-b-apply", "route-b-rollback", "admin-provision",
             "admin-reconcile-provisioning-evidence",
             "admin-reconcile-existing-provisioned-state",
@@ -419,6 +421,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         expected_by_operation = {
             "readonly-precheck": ["DB_URL_CODEX_RO"],
             "readonly-postcheck": ["DB_URL_CODEX_RO"],
+            "readonly-reattest-route-b-june-apply": ["DB_URL_CODEX_RO"],
             "verify-route-b-role": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "route-b-apply": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "route-b-rollback": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
@@ -482,8 +485,11 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
 
             run_id = str(uuid.uuid4())
             maintenance_run_id = str(uuid.uuid4())
+            productive_run_id = str(uuid.uuid4())
             evidence_base = f"evidence/runtime/020B/{run_id}"
             maintenance_base = f"evidence/runtime/022/{maintenance_run_id}"
+            productive_base = f"evidence/runtime/022/{productive_run_id}"
+            (root / productive_base).mkdir(parents=True)
             operation_arguments = {
                 "readonly-precheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/01_readonly_baseline.json"],
                 "admin-provision": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
@@ -495,6 +501,10 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                 ],
                 "verify-route-b-role": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/03_productive_role_verification.json"],
                 "readonly-postcheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/04_readonly_postcheck.json"],
+                "readonly-reattest-route-b-june-apply": [
+                    "--run-id", productive_run_id,
+                    "--report-json", f"{productive_base}/04_route_b_post_apply_reattestation.json",
+                ],
             }
 
             for operation, expected_names in expected_by_operation.items():

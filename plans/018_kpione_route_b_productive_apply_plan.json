@@ -3,8 +3,11 @@
   "plan_version": "018_V1",
   "phase": "018_PRODUCTIVE_APPLY",
   "risk_class": "R3_PRODUCTIVE",
-  "status": "READY_FOR_PRODUCTIVE_EXECUTION",
-  "remaining_blockers": [],
+  "status": "PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING",
+  "remaining_blockers": [
+    "PRODUCTIVE_EVIDENCE_CLOSURE_INCOMPLETE",
+    "SUPPLEMENTAL_READONLY_REATTESTATION_REQUIRED"
+  ],
   "readonly_precheck": {
     "status": "PASSED",
     "evidence_sha256": "162f9cbf28628eaf58e68bc7f2ac2412a82ece4d1a48a7774c08039d16d06dc3"
@@ -18,6 +21,39 @@
       "productive_role_verification": "c1a90eeed228b2f9532d18527f41f93ed19c623cc34e4325451201a3f5f34502",
       "readonly_postcheck": "8ff5b7e1bf22acf352067f37493d7e5cdeb1dc5b1c26d79a0689dbf433c84827"
     }
+  },
+  "productive_execution": {
+    "approved_git_sha": "e6afdd4c7518ff78d749b468e1e8184f97b4f5cb",
+    "productive_run_id": "0c759fc0-b1d9-4a6b-9da8-02134e4df210",
+    "runner_execution_uuid": "c3cca30c-1266-4ba7-979f-72c6f1458ec3",
+    "batch_id": "ffe065dc-3db1-40df-97a8-c444f509cc16",
+    "active_batch_count": 1,
+    "expected_metrics_confirmed": {
+      "files": 9,
+      "staged_rows": 239159,
+      "events": 35287,
+      "cross_file_duplicate_rows": 10089,
+      "exact_duplicate_rows": 0,
+      "conflicts": 0,
+      "day_presence": 34996
+    },
+    "source_evidence": {
+      "01_readonly_pre_apply_target_check": {
+        "path": "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/01_readonly_pre_apply_target_check.json",
+        "sha256": "edee494b40187d01b9fc627f09a39f6ff9d0f46979c7a99f5cf82660d478c9fe"
+      },
+      "02_route_b_june_productive_apply": {
+        "path": "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/02_route_b_june_productive_apply.json",
+        "sha256": "1ec47bd1ab62dafdcd7463292e033882f2bea57d3db7587a4f9f84385c485159"
+      },
+      "03_readonly_post_apply_verification": {
+        "path": "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/03_readonly_post_apply_verification.json",
+        "sha256": "ad2823dd00d02b8b4c32e385a57c3516d14df834836c0790a3f3eb648733563b"
+      }
+    },
+    "missing_historical_linkage": "baseline_evidence_sha256 absent from evidence 03",
+    "reattestation": null,
+    "evidence_bundle": null
   },
   "git_reference_contract": {
     "mode": "CLI_EXACT_APPROVED_HEAD",
@@ -174,12 +210,12 @@
     "target_identity_registered": true,
     "productive_role_registered": true,
     "rollback_route_demonstrated": true,
-    "gate_open": true
+    "gate_open": false
   },
   "readonly_precheck_command": "python scripts/precheck_kpione_route_b_018_read_only.py --plan plans/018_kpione_route_b_productive_apply_plan.json --db-url-env DB_URL_CODEX_RO --expected-project-ref <REGISTERED_PROJECT_REF> --report-json <TEMP_OR_SEPARATELY_AUTHORIZED_PATH>",
   "future_productive_command": {
-    "status": "READY_FOR_PRODUCTIVE_EXECUTION",
-    "minimum_runner_change_required": "Authorized execution boundary: Route B approved manifest for June 2026 only, with source package revalidated and active batches verified as 0. Productive apply and app validation are not yet executed. This authorization excludes inventory apply, global loaders, separate bridge apply, app changes, rollback, future months and KPIONE legacy changes.",
+    "status": "PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING",
+    "minimum_runner_change_required": "Productive apply is committed and reapply is closed. Supplemental read-only reattestation and evidence closure remain pending; bridge, mart refresh, app validation and rollback remain unauthorized.",
     "command": "python scripts/run_kpione_route_b_ingestion_v1.py --apply-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --expected-plan-git-ref <APPROVED_COMMIT> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-productive KPIONE_ROUTE_B_018_APPLY --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
   },
   "postcheck_queries": [
@@ -218,6 +254,13 @@
   "evidence_fields": [
     "document_type","operation","execution_uuid","timestamp_utc","approved_git_sha","plan_path","plan_sha256","sql_sha256","target_fingerprint","current_user","session_user","source_hashes","batch_id","expected_counts","observed_counts","transaction_outcome","committed","postcheck_verdict","rollback_readiness","rollback_or_reconciliation_required","downstream_use_allowed","connection_attempted","writes_attempted"
   ],
+  "productive_apply_executed": true,
   "productive_rollback_authorized": false,
-  "productive_apply_authorized": true
+  "productive_apply_authorized": false,
+  "evidence_closure_complete": false,
+  "supplemental_reattestation_required": true,
+  "bridge_executed": false,
+  "mart_refresh_executed": false,
+  "app_validation_executed": false,
+  "downstream_control_gestion_mart_use_allowed": false
 }
