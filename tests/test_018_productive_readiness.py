@@ -429,6 +429,18 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         plan["productive_rollback_authorized"] = False
         return plan
 
+    def closure_pending_fixture(self) -> dict[str, object]:
+        plan = copy.deepcopy(self.plan)
+        plan["status"] = PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS
+        plan["remaining_blockers"] = copy.deepcopy(
+            PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_BLOCKERS
+        )
+        plan["evidence_closure_complete"] = False
+        plan["supplemental_reattestation_required"] = True
+        plan["productive_execution"]["reattestation"] = None
+        plan["productive_execution"]["evidence_bundle"] = None
+        return plan
+
     def init_git_fixture(self, folder: str) -> tuple[Path, Path, str]:
         root = Path(folder)
         plan_path = root / "plan.json"
@@ -444,19 +456,16 @@ class ProductiveReadiness018Tests(unittest.TestCase):
 
     def test_plan_records_committed_apply_and_closes_reapply_gate(self) -> None:
         self.assertEqual(
-            self.plan["status"], PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS,
+            self.plan["status"], PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS,
         )
         self.assertTrue(self.plan["source_package"]["approved_for_apply"])
         self.assertTrue(self.plan["productive_apply_executed"])
         self.assertFalse(self.plan["productive_apply_authorized"])
         self.assertFalse(self.plan["productive_rollback_authorized"])
         self.assertFalse(self.plan["activation_gate"]["gate_open"])
-        self.assertEqual(
-            self.plan["remaining_blockers"],
-            PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_BLOCKERS,
-        )
-        self.assertFalse(self.plan["evidence_closure_complete"])
-        self.assertTrue(self.plan["supplemental_reattestation_required"])
+        self.assertEqual(self.plan["remaining_blockers"], [])
+        self.assertTrue(self.plan["evidence_closure_complete"])
+        self.assertFalse(self.plan["supplemental_reattestation_required"])
         self.assertFalse(self.plan["bridge_executed"])
         self.assertFalse(self.plan["mart_refresh_executed"])
         self.assertFalse(self.plan["app_validation_executed"])
@@ -467,14 +476,13 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         })
         self.assertEqual(
             self.plan["future_productive_command"]["status"],
-            PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS,
+            PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS,
         )
         boundary = self.plan["future_productive_command"]["minimum_runner_change_required"]
         for required in (
-            "Productive apply is committed",
-            "reapply is closed",
-            "Supplemental read-only reattestation",
-            "bridge, mart refresh, app validation and rollback remain unauthorized",
+            "Productive apply evidence is closed",
+            "reapply remains closed",
+            "Bridge, mart refresh, app validation and rollback remain unauthorized",
         ):
             self.assertIn(required, boundary)
         requirements = self.plan["git_reference_contract"]["requirements"]
@@ -1513,6 +1521,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertEqual(validate_productive_role_contract(recorded), PLANNED_PRODUCTIVE_ROLE)
 
     def test_closure_pending_state_is_fail_closed(self) -> None:
+        pending = self.closure_pending_fixture()
         required = {
             "productive_apply_executed": True,
             "productive_apply_authorized": False,
@@ -1520,8 +1529,8 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             "bridge_executed": False,
         }
         for field, value in required.items():
-            self.assertIs(self.plan[field], value)
-        self.assertFalse(self.plan["activation_gate"]["gate_open"])
+            self.assertIs(pending[field], value)
+        self.assertFalse(pending["activation_gate"]["gate_open"])
         for mutation in (
             lambda plan: plan["activation_gate"].update({"gate_open": True}),
             lambda plan: plan.update({"productive_apply_authorized": True}),
@@ -1529,7 +1538,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             lambda plan: plan.update({"productive_rollback_authorized": True}),
             lambda plan: plan.update({"bridge_executed": True}),
         ):
-            altered = copy.deepcopy(self.plan)
+            altered = copy.deepcopy(pending)
             mutation(altered)
             with self.assertRaisesRegex(RouteBError, "productive_execution_state_contract_mismatch"):
                 validate_productive_role_contract(altered)
@@ -1579,7 +1588,8 @@ class ProductiveReadiness018Tests(unittest.TestCase):
                 precheck.validate_post_apply_reattestation(report, self.plan)
 
     def test_closure_bundle_canonical_path_and_contract(self) -> None:
-        run_id = self.plan["productive_execution"]["productive_run_id"]
+        pending = self.closure_pending_fixture()
+        run_id = pending["productive_execution"]["productive_run_id"]
         expected = (
             ROOT / "evidence" / "runtime" / "022" / run_id
             / PRODUCTIVE_APPLY_CLOSURE_BUNDLE_FILENAME
@@ -1590,17 +1600,18 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         with self.assertRaisesRegex(RouteBError, "productive_run_id_must_be_canonical_uuid4"):
             canonical_productive_apply_closure_bundle_path(ROOT, "../alternate")
         bundle = build_productive_apply_closure_bundle(
-            self.plan, ROOT, "a" * 40, generated_at_utc="2026-07-19T18:00:00+00:00",
+            pending, ROOT, "a" * 40, generated_at_utc="2026-07-19T18:00:00+00:00",
         )
         self.assertEqual(bundle["document_type"], PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE)
         self.assertEqual(bundle["verdict"], PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT)
         self.assertEqual(set(bundle["source_evidence"]), {"01", "02", "03", "04"})
-        validate_productive_apply_closure_bundle(self.plan, bundle, ROOT, "a" * 40)
+        validate_productive_apply_closure_bundle(pending, bundle, ROOT, "a" * 40)
 
     def test_closure_bundle_validator_rejects_all_contract_drift(self) -> None:
+        pending = self.closure_pending_fixture()
         contract_sha = "a" * 40
         valid = build_productive_apply_closure_bundle(
-            self.plan, ROOT, contract_sha, generated_at_utc="2026-07-19T18:00:00+00:00",
+            pending, ROOT, contract_sha, generated_at_utc="2026-07-19T18:00:00+00:00",
         )
         mutations = {
             "wrong_document_type": lambda item: item.update({"document_type": "wrong"}),
@@ -1632,7 +1643,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             mutation(bundle)
             with self.subTest(name=name), self.assertRaises(RouteBError):
                 validate_productive_apply_closure_bundle(
-                    self.plan, bundle, ROOT, contract_sha,
+                    pending, bundle, ROOT, contract_sha,
                 )
 
     def test_recorded_state_rejects_incomplete_bundle_metadata_and_pending_stays_valid(self) -> None:
