@@ -3,10 +3,8 @@
   "plan_version": "018_V1",
   "phase": "018_PRODUCTIVE_APPLY",
   "risk_class": "R3_PRODUCTIVE",
-  "status": "PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED",
-  "remaining_blockers": [
-    "PRODUCTIVE_EXECUTION_NOT_AUTHORIZED"
-  ],
+  "status": "READY_FOR_PRODUCTIVE_EXECUTION",
+  "remaining_blockers": [],
   "readonly_precheck": {
     "status": "PASSED",
     "evidence_sha256": "162f9cbf28628eaf58e68bc7f2ac2412a82ece4d1a48a7774c08039d16d06dc3"
@@ -32,7 +30,10 @@
       "plan SHA256 is recorded before connection",
       "Route B SQL is tracked at HEAD and its working-tree file equals the SQL blob at HEAD",
       "LF-normalized SQL blob SHA256 equals physical_contract.sql_sha256",
-      "plan and SQL SHA256 values are recorded before secrets are read or a connection is attempted"
+      "plan and SQL SHA256 values are recorded before secrets are read or a connection is attempted",
+      "authorization base SHA equals 61a2cb60209e21fe74a533c06d4cdacd8b8fdb9a",
+      "authorization timestamp UTC is 2026-07-19T03:50:26.5960950Z",
+      "infrastructure authority is run a554f464-8213-442c-bf0b-d06b7acc26ca with bundle SHA256 0cf15c1e39db58e550aed6758748591ce2589bd568ffcaed02435c7840c2c272 and maintenance run 757664d1-09bc-48f3-b4a8-25623d8a3b5c"
     ]
   },
   "runner_version": "017_ROUTE_B_V1",
@@ -173,12 +174,12 @@
     "target_identity_registered": true,
     "productive_role_registered": true,
     "rollback_route_demonstrated": true,
-    "gate_open": false
+    "gate_open": true
   },
   "readonly_precheck_command": "python scripts/precheck_kpione_route_b_018_read_only.py --plan plans/018_kpione_route_b_productive_apply_plan.json --db-url-env DB_URL_CODEX_RO --expected-project-ref <REGISTERED_PROJECT_REF> --report-json <TEMP_OR_SEPARATELY_AUTHORIZED_PATH>",
   "future_productive_command": {
-    "status": "TECHNICAL_BOUNDARY_IMPLEMENTED_GATE_CLOSED",
-    "minimum_runner_change_required": "No repository implementation gap remains; execution stays fail-closed until an approved Git head, clean tree, explicit productive authorization and gate-open contract are all satisfied. Productive apply and app validation remain pending.",
+    "status": "READY_FOR_PRODUCTIVE_EXECUTION",
+    "minimum_runner_change_required": "Authorized execution boundary: Route B approved manifest for June 2026 only, with source package revalidated and active batches verified as 0. Productive apply and app validation are not yet executed. This authorization excludes inventory apply, global loaders, separate bridge apply, app changes, rollback, future months and KPIONE legacy changes.",
     "command": "python scripts/run_kpione_route_b_ingestion_v1.py --apply-productive --approved-plan plans/018_kpione_route_b_productive_apply_plan.json --expected-plan-git-ref <APPROVED_COMMIT> --db-url-env DB_URL_KPIONE_ROUTE_B_PRODUCTIVE --expected-project-ref <REGISTERED_PROJECT_REF> --confirm-productive KPIONE_ROUTE_B_018_APPLY --postcheck-report-json <AUTHORIZED_EVIDENCE_PATH>"
   },
   "postcheck_queries": [
@@ -218,5 +219,5 @@
     "document_type","operation","execution_uuid","timestamp_utc","approved_git_sha","plan_path","plan_sha256","sql_sha256","target_fingerprint","current_user","session_user","source_hashes","batch_id","expected_counts","observed_counts","transaction_outcome","committed","postcheck_verdict","rollback_readiness","rollback_or_reconciliation_required","downstream_use_allowed","connection_attempted","writes_attempted"
   ],
   "productive_rollback_authorized": false,
-  "productive_apply_authorized": false
+  "productive_apply_authorized": true
 }

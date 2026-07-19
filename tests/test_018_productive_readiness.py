@@ -323,7 +323,7 @@ class FakeProductiveDbCursor:
 class ProductiveReadiness018Tests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.plan = precheck.load_plan(PLAN_PATH)
+        cls.plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
 
     @staticmethod
     def infrastructure_evidence_fixture() -> dict[str, object]:
@@ -431,18 +431,13 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
         return root, plan_path, head
 
-    def test_plan_source_ready_but_never_authorizes_apply(self) -> None:
-        self.assertEqual(
-            self.plan["status"], PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS,
-        )
+    def test_plan_authorizes_only_june_route_b_productive_apply(self) -> None:
+        self.assertEqual(self.plan["status"], "READY_FOR_PRODUCTIVE_EXECUTION")
         self.assertTrue(self.plan["source_package"]["approved_for_apply"])
-        self.assertFalse(self.plan["productive_apply_authorized"])
+        self.assertTrue(self.plan["productive_apply_authorized"])
         self.assertFalse(self.plan["productive_rollback_authorized"])
-        self.assertFalse(self.plan["activation_gate"]["gate_open"])
-        self.assertEqual(
-            self.plan["remaining_blockers"],
-            PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS,
-        )
+        self.assertTrue(self.plan["activation_gate"]["gate_open"])
+        self.assertEqual(self.plan["remaining_blockers"], [])
         self.assertEqual(self.plan["infrastructure_evidence"]["status"], "PASSED")
         self.assertEqual(self.plan["readonly_precheck"], {
             "status": "PASSED",
@@ -450,9 +445,29 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         })
         self.assertEqual(
             self.plan["future_productive_command"]["status"],
-            "TECHNICAL_BOUNDARY_IMPLEMENTED_GATE_CLOSED",
+            "READY_FOR_PRODUCTIVE_EXECUTION",
         )
+        boundary = self.plan["future_productive_command"]["minimum_runner_change_required"]
+        for required in (
+            "Route B approved manifest for June 2026 only",
+            "active batches verified as 0",
+            "Productive apply and app validation are not yet executed",
+            "excludes inventory apply, global loaders, separate bridge apply",
+            "rollback, future months and KPIONE legacy changes",
+        ):
+            self.assertIn(required, boundary)
+        requirements = self.plan["git_reference_contract"]["requirements"]
+        self.assertIn(
+            "authorization base SHA equals 61a2cb60209e21fe74a533c06d4cdacd8b8fdb9a",
+            requirements,
+        )
+        self.assertTrue(any(item.startswith("authorization timestamp UTC is ") for item in requirements))
+        self.assertTrue(any("a554f464-8213-442c-bf0b-d06b7acc26ca" in item for item in requirements))
+        baseline = json.loads((ROOT / "evidence/runtime/020B/a554f464-8213-442c-bf0b-d06b7acc26ca/01_readonly_baseline.json").read_text(encoding="utf-8"))
+        postcheck = json.loads((ROOT / "evidence/runtime/020B/a554f464-8213-442c-bf0b-d06b7acc26ca/04_readonly_postcheck.json").read_text(encoding="utf-8"))
+        self.assertEqual((baseline["active_batch_count"], postcheck["active_batch_count"]), (0, 0))
         self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+        require_productive_gate_open(self.plan, "apply_productive")
 
     def test_preparation_rejects_passed_bundle_or_provisioned_role(self) -> None:
         preparation = self.preparation_fixture()
@@ -471,13 +486,15 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         with self.assertRaisesRegex(RouteBError, "productive_execution_state_contract_mismatch"):
             validate_productive_role_contract(with_role)
 
-    def test_productive_role_is_registered_but_gate_remains_closed(self) -> None:
+    def test_productive_role_is_registered_and_apply_gate_is_open(self) -> None:
         target = self.plan["target"]
         self.assertEqual(target["planned_productive_role"], PLANNED_PRODUCTIVE_ROLE)
         self.assertEqual(target["productive_role_status"], "PROVISIONED_AND_VERIFIED")
         self.assertEqual(target["allowed_productive_roles"], [PLANNED_PRODUCTIVE_ROLE])
         self.assertTrue(self.plan["activation_gate"]["productive_role_registered"])
-        self.assertFalse(self.plan["activation_gate"]["gate_open"])
+        self.assertTrue(self.plan["activation_gate"]["gate_open"])
+        self.assertTrue(self.plan["productive_apply_authorized"])
+        self.assertFalse(self.plan["productive_rollback_authorized"])
         self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
 
     def test_productive_role_gate_state_machine_and_mode_authorization(self) -> None:
@@ -661,7 +678,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertEqual(target["allowed_readonly_roles"], ["stock_zero_codex_ro"])
         self.assertTrue(self.plan["activation_gate"]["target_identity_registered"])
         self.assertTrue(self.plan["activation_gate"]["productive_role_registered"])
-        self.assertFalse(self.plan["activation_gate"]["gate_open"])
+        self.assertTrue(self.plan["activation_gate"]["gate_open"])
 
     def test_git_reference_contract_is_external_and_non_self_referential(self) -> None:
         self.assertNotIn("expected_repository_commit", self.plan)
@@ -1047,7 +1064,9 @@ class ProductiveReadiness018Tests(unittest.TestCase):
                 self.assertNotIn(password, json.dumps(report))
 
     def test_apply_productive_blocks_before_dsn_env_read_when_gate_closed(self) -> None:
-        report = productive_blocked_report(self.plan, "apply_productive")
+        report = productive_blocked_report(
+            self.provisioned_gate_closed_fixture(), "apply_productive",
+        )
         self.assertEqual(report["verdict"], "BLOCKED")
         self.assertEqual(report["planned_productive_role"], PLANNED_PRODUCTIVE_ROLE)
         self.assertEqual(report["productive_role_status"], "PROVISIONED_AND_VERIFIED")
@@ -1089,7 +1108,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             with (
                 mock.patch.object(sys, "argv", argv),
                 mock.patch.object(productive_runner, "validate_productive_git_guard", return_value=git_guard),
-                mock.patch.object(productive_runner, "load_approved_productive_plan", return_value=copy.deepcopy(self.plan)),
+                mock.patch.object(productive_runner, "load_approved_productive_plan", return_value=self.provisioned_gate_closed_fixture()),
                 mock.patch.object(productive_runner, "build_approved_plan_from_manifest", return_value={}),
                 mock.patch.object(productive_runner.os.environ, "get", side_effect=guarded_environment_get),
                 redirect_stdout(output),

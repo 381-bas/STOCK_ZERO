@@ -132,6 +132,8 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
         plan["target"]["allowed_productive_roles"] = []
         plan["activation_gate"]["productive_role_registered"] = False
         plan["activation_gate"]["gate_open"] = False
+        plan["productive_apply_authorized"] = False
+        plan["productive_rollback_authorized"] = False
         return plan
 
     def test_baseline_accepts_empty_productive_allowlist_and_rejects_open_gate(self) -> None:
