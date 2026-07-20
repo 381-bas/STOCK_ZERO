@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from contextlib import contextmanager
 import os
 import json
 import time
 import hashlib
 import logging
+import re
 from typing import Any
 
 import pandas as pd
@@ -193,6 +195,62 @@ class AppError(RuntimeError):
     pass
 
 
+PUBLIC_DATABASE_ERROR_MESSAGES = {
+    "ENGINE_INITIALIZATION": "Public database engine initialization failed.",
+    "IDENTITY_VALIDATION": "Public database identity validation failed.",
+    "QUERY_EXECUTION": "Public database query failed.",
+}
+
+
+def _redact_database_error_text(value: object) -> str:
+    """Return local diagnostic text with connection material removed."""
+    rendered = str(value)
+    rendered = re.sub(
+        r"(?i)postgres(?:ql)?://[^\s'\"<>]+",
+        "[REDACTED_DATABASE_URL]",
+        rendered,
+    )
+    rendered = re.sub(
+        r"(?i)\b(password|passwd|pwd|user|username|host|hostname|port|dbname|database)\s*[=:]\s*[^\s,;]+",
+        lambda match: f"{match.group(1)}=[REDACTED]",
+        rendered,
+    )
+    return rendered
+
+
+def _database_app_error(
+    code: str,
+    exc: BaseException | None = None,
+    runtime_env: str | None = None,
+) -> AppError:
+    runtime = (runtime_env or _infer_runtime_env()).strip().lower()
+    if runtime == "public":
+        return AppError(PUBLIC_DATABASE_ERROR_MESSAGES[code])
+    detail = "" if exc is None else _redact_database_error_text(exc)
+    suffix = f" ({type(exc).__name__}: {detail})" if exc is not None else ""
+    return AppError(f"Local database failure [{code}]{suffix}.")
+
+
+def _dispose_engine_safely(engine: Engine | None) -> None:
+    if engine is None:
+        return
+    try:
+        engine.dispose()
+    except Exception:
+        logger.warning("DB_ENGINE_DISPOSE_FAILED")
+
+
+@contextmanager
+def _database_connection(engine: Engine, runtime_env: str | None = None):
+    try:
+        with engine.connect() as connection:
+            yield connection
+    except AppError as exc:
+        raise exc from None
+    except Exception as exc:
+        raise _database_app_error("QUERY_EXECUTION", exc, runtime_env) from None
+
+
 TRACE_STATE_KEY = "_stock_zero_trace"
 
 
@@ -345,8 +403,8 @@ def _validate_public_app_identity(engine: Engine) -> None:
                 "SELECT current_user,session_user,current_database(),"
                 "current_setting('role'),current_setting('transaction_read_only')"
             )).one()
-    except Exception:
-        raise AppError("Public database identity validation failed.") from None
+    except Exception as exc:
+        raise _database_app_error("IDENTITY_VALIDATION", exc, "public") from None
     if tuple(row) != (
         "stock_zero_app_ro",
         "stock_zero_app_ro",
@@ -361,9 +419,12 @@ def _enforce_runtime_database_identity(engine: Engine, runtime_env: str | None =
     if (runtime_env or _infer_runtime_env()).strip().lower() == "public":
         try:
             _validate_public_app_identity(engine)
-        except Exception:
-            engine.dispose()
-            raise
+        except AppError as exc:
+            _dispose_engine_safely(engine)
+            raise exc from None
+        except Exception as exc:
+            _dispose_engine_safely(engine)
+            raise _database_app_error("IDENTITY_VALIDATION", exc, "public") from None
     return engine
 
 
@@ -410,17 +471,11 @@ def _engine_cached(db_url: str, runtime_env: str) -> Engine:
         )
         _enforce_runtime_database_identity(eng, runtime_env)
     except AppError:
-        if eng is not None:
-            eng.dispose()
+        _dispose_engine_safely(eng)
         raise
     except Exception as exc:
-        if eng is not None:
-            eng.dispose()
-        if runtime_env.strip().lower() == "public":
-            raise AppError("Public database engine initialization failed.") from None
-        raise AppError(
-            f"Local database engine initialization failed ({type(exc).__name__})."
-        ) from None
+        _dispose_engine_safely(eng)
+        raise _database_app_error("ENGINE_INITIALIZATION", exc, runtime_env) from None
     _trace(
         "INFRA",
         "engine_exec",
@@ -453,7 +508,7 @@ def _get_data_version_info_cached() -> dict[str, Any]:
 
     eng = get_engine()
     total_t0 = time.perf_counter()
-    with eng.connect() as conn:
+    with _database_connection(eng) as conn:
         try:
             t_sql = time.perf_counter()
             df = pd.read_sql(text("SELECT fecha_datos, ingested_at FROM public.v_data_version;"), conn)
@@ -466,9 +521,9 @@ def _get_data_version_info_cached() -> dict[str, Any]:
                 }
                 _trace("DV", "get_data_version_info_exec", data_version_ms=_fmt_ms(time.perf_counter() - total_t0), source="public.v_data_version")
                 return out
-        except Exception as e:
-            logger.warning("No pude leer v_data_version: %s", e)
-            _trace("DV", "data_version_info_candidate_err", source="public.v_data_version", err=type(e).__name__)
+        except Exception:
+            logger.warning("DB_DATA_VERSION_CANDIDATE_FAILED")
+            _trace("DV", "data_version_info_candidate_err", source="public.v_data_version", err="DB_QUERY_FAILED")
 
         try:
             t_sql = time.perf_counter()
@@ -478,9 +533,9 @@ def _get_data_version_info_cached() -> dict[str, Any]:
             fd = df2.iloc[0].get("fecha_datos") if not df2.empty else None
             _trace("DV", "get_data_version_info_exec", data_version_ms=_fmt_ms(time.perf_counter() - total_t0), source=RESULT_VIEW)
             return {"fecha_datos": fd, "ingested_at": None}
-        except Exception as e:
-            logger.warning("No pude leer %s: %s", RESULT_VIEW, e)
-            _trace("DV", "data_version_info_candidate_err", source=RESULT_VIEW, err=type(e).__name__)
+        except Exception:
+            logger.warning("DB_DATA_VERSION_FALLBACK_FAILED")
+            _trace("DV", "data_version_info_candidate_err", source=RESULT_VIEW, err="DB_QUERY_FAILED")
 
     _trace("DV", "get_data_version_info_exec", data_version_ms=_fmt_ms(time.perf_counter() - total_t0), source="none")
     return {"fecha_datos": None, "ingested_at": None}
@@ -508,7 +563,7 @@ def _get_data_version_cached() -> str:
         ("public.v_data_version", "SELECT MAX(fecha_datos) AS dv FROM public.v_data_version;"),
     ]
     total_t0 = time.perf_counter()
-    with eng.connect() as conn:
+    with _database_connection(eng) as conn:
         for source, sql in candidates:
             try:
                 t_sql = time.perf_counter()
@@ -548,12 +603,17 @@ def _qdf_cached(data_version: str, sql: str, params: dict[str, Any] | None) -> p
     cache_sig = _sig(data_version, sql, params or {})
     _set_mark("QUERY", "qdf", cache_sig)
 
-    eng = get_engine()
-    total_t0 = time.perf_counter()
-    with eng.connect() as conn:
-        t_sql = time.perf_counter()
-        df = pd.read_sql(text(sql), conn, params=params)
-        read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
+    try:
+        eng = get_engine()
+        total_t0 = time.perf_counter()
+        with _database_connection(eng) as conn:
+            t_sql = time.perf_counter()
+            df = pd.read_sql(text(sql), conn, params=params)
+            read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
+    except AppError as exc:
+        raise exc from None
+    except Exception as exc:
+        raise _database_app_error("QUERY_EXECUTION", exc) from None
 
     total_ms = _fmt_ms(time.perf_counter() - total_t0)
     _trace(
@@ -620,12 +680,17 @@ def _selector_df_cached(name: str, sql: str, params: dict[str, Any] | None = Non
     cache_sig = _sig(name, sql, params or {})
     _set_mark("SELECTOR", name, cache_sig)
 
-    eng = get_engine()
-    total_t0 = time.perf_counter()
-    with eng.connect() as conn:
-        t_sql = time.perf_counter()
-        df = pd.read_sql(text(sql), conn, params=params)
-        read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
+    try:
+        eng = get_engine()
+        total_t0 = time.perf_counter()
+        with _database_connection(eng) as conn:
+            t_sql = time.perf_counter()
+            df = pd.read_sql(text(sql), conn, params=params)
+            read_sql_ms = _fmt_ms(time.perf_counter() - t_sql)
+    except AppError as exc:
+        raise exc from None
+    except Exception as exc:
+        raise _database_app_error("QUERY_EXECUTION", exc) from None
 
     total_ms = _fmt_ms(time.perf_counter() - total_t0)
     _trace(
@@ -3883,14 +3948,14 @@ def get_cg_contract_smoke() -> dict[str, Any]:
                 "has_rows": has_rows,
                 "status": status,
             })
-        except Exception as exc:
+        except Exception:
             failed_objects.append(object_name)
             results.append({
                 "object": object_name,
                 "view": view_name,
                 "has_rows": None,
                 "status": "fail",
-                "error": f"{type(exc).__name__}: {exc}",
+                "error": "DB_QUERY_FAILED",
             })
 
     smoke_status = "fail" if failed_objects else ("warn" if empty_warns else "ok")
@@ -3957,14 +4022,14 @@ def get_cg_v2_contract_smoke() -> dict[str, Any]:
                 "rows": rows,
                 "status": status,
             })
-        except Exception as exc:
+        except Exception:
             failed_objects.append(object_name)
             results.append({
                 "object": object_name,
                 "view": view_name,
                 "rows": None,
                 "status": "fail",
-                "error": f"{type(exc).__name__}: {exc}",
+                "error": "DB_QUERY_FAILED",
             })
 
     smoke_status = "fail" if failed_objects else ("warn" if zero_row_objects else "ok")

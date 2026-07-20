@@ -759,7 +759,7 @@ class Phase023WrapperAndObserverTests(unittest.TestCase):
 
     def test_windows_51_quoting_helper_handles_empty_quotes_and_backslashes(self) -> None:
         wrapper_literal = str(WRAPPER_PATH).replace("'", "''")
-        command = rf'''$tokens=$null;$errors=$null;$ast=[System.Management.Automation.Language.Parser]::ParseFile('{wrapper_literal}',[ref]$tokens,[ref]$errors);if($errors.Count){{throw $errors[0]}};$fn=$ast.Find({{param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'ConvertTo-StockZeroWindowsArgument'}},$true);Invoke-Expression $fn.Extent.Text;@('', 'a b', 'a"b', 'C:\tail\', 'C:\space \')|ForEach-Object {{ ConvertTo-StockZeroWindowsArgument -Value $_ }}|ConvertTo-Json -Compress'''
+        command = rf'''$tokens=$null;$errors=$null;$ast=[System.Management.Automation.Language.Parser]::ParseFile('{wrapper_literal}',[ref]$tokens,[ref]$errors);if($errors.Count){{throw $errors[0]}};$fn=$ast.Find({{param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'ConvertTo-StockZeroWindowsArgument'}},$true);Invoke-Expression $fn.Extent.Text;@('', 'a b', 'a"b', 'C:\tail\', 'C:\space \', 'a\\\"b')|ForEach-Object {{ ConvertTo-StockZeroWindowsArgument -Value $_ }}|ConvertTo-Json -Compress'''
         powershell = "powershell.exe" if os.name == "nt" else "pwsh"
         output = subprocess.run([powershell, "-NoProfile", "-Command", command], capture_output=True, text=True, check=True).stdout
         values = json.loads(output)
@@ -768,6 +768,7 @@ class Phase023WrapperAndObserverTests(unittest.TestCase):
         self.assertEqual(values[2], '"a\\"b"')
         self.assertEqual(values[3], "C:\\tail\\")
         self.assertEqual(values[4], '"C:\\space \\\\"')
+        self.assertEqual(values[5], '"a' + ('\\' * 7) + '"b"')
 
 
 class Phase023FrozenContractsTests(unittest.TestCase):
@@ -814,9 +815,10 @@ class _FakeAppConnection:
 
 
 class _FakeAppEngine:
-    def __init__(self, row: tuple[str, ...], *, connect_error: Exception | None = None) -> None:
+    def __init__(self, row: tuple[str, ...], *, connect_error: Exception | None = None, dispose_error: Exception | None = None) -> None:
         self.row = row
         self.connect_error = connect_error
+        self.dispose_error = dispose_error
         self.disposed = False
 
     def connect(self) -> _FakeAppConnection:
@@ -826,6 +828,8 @@ class _FakeAppEngine:
 
     def dispose(self) -> None:
         self.disposed = True
+        if self.dispose_error is not None:
+            raise self.dispose_error
 
 
 class Phase023PublicAppIdentityTests(unittest.TestCase):
@@ -836,6 +840,24 @@ class Phase023PublicAppIdentityTests(unittest.TestCase):
         fake_dotenv = types.SimpleNamespace(load_dotenv=lambda *_args, **_kwargs: False)
         with mock.patch.dict(sys.modules, {"dotenv": fake_dotenv}):
             cls.app_db = importlib.import_module("app.db")
+
+    def _assert_public_error_redacted(self, callback) -> None:
+        sensitive = "postgresql://usuario:password@host:5432/postgres?sslmode=require"
+        logs = io.StringIO()
+        handler = self.app_db.logging.StreamHandler(logs)
+        self.app_db.logger.addHandler(handler)
+        try:
+            with mock.patch.dict(os.environ, {"STOCKZERO_RUNTIME_ENV": "public"}, clear=False):
+                with self.assertRaises(self.app_db.AppError) as captured:
+                    callback(sensitive)
+            rendered = "".join(traceback.format_exception(captured.exception))
+            self.assertIsNone(captured.exception.__cause__)
+            for forbidden in (sensitive, "usuario", "password", "host", "5432", "sslmode"):
+                self.assertNotIn(forbidden, str(captured.exception))
+                self.assertNotIn(forbidden, rendered)
+                self.assertNotIn(forbidden, logs.getvalue())
+        finally:
+            self.app_db.logger.removeHandler(handler)
 
     def test_public_runtime_requires_db_url_app(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True):
@@ -960,7 +982,10 @@ class Phase023PublicAppIdentityTests(unittest.TestCase):
 
     def test_failed_identity_validation_is_not_cached_or_returned(self) -> None:
         sensitive = "postgresql://hidden:password@private-host/postgres"
-        invalid = _FakeAppEngine((), connect_error=RuntimeError(sensitive))
+        invalid = _FakeAppEngine(
+            (), connect_error=RuntimeError(sensitive),
+            dispose_error=RuntimeError(sensitive),
+        )
         valid = _FakeAppEngine((
             "stock_zero_app_ro", "stock_zero_app_ro", "postgres", "none", "on",
         ))
@@ -975,6 +1000,51 @@ class Phase023PublicAppIdentityTests(unittest.TestCase):
             self.assertEqual(factory.call_count, 2)
         finally:
             self.app_db._engine_cached.clear()
+
+    def test_identity_and_dispose_failures_preserve_sanitized_error(self) -> None:
+        def exercise(sensitive: str) -> None:
+            engine = _FakeAppEngine((), connect_error=RuntimeError(sensitive), dispose_error=RuntimeError(sensitive))
+            self.app_db._enforce_runtime_database_identity(engine, "public")
+        self._assert_public_error_redacted(exercise)
+
+    def test_query_and_selector_cache_failures_are_redacted(self) -> None:
+        for cache_name, callback in (
+            ("qdf", lambda: self.app_db._qdf_cached("dv", "SELECT 1", None)),
+            ("selector", lambda: self.app_db._selector_df_cached("name", "SELECT 1", None)),
+        ):
+            cached = self.app_db._qdf_cached if cache_name == "qdf" else self.app_db._selector_df_cached
+            cached.clear()
+            try:
+                def exercise(sensitive: str) -> None:
+                    engine = _FakeAppEngine(("unused",))
+                    with mock.patch.object(self.app_db, "get_engine", return_value=engine), \
+                         mock.patch.object(self.app_db.pd, "read_sql", side_effect=RuntimeError(sensitive)):
+                        callback()
+                self._assert_public_error_redacted(exercise)
+            finally:
+                cached.clear()
+
+    def test_data_version_logs_and_structured_smokes_never_expose_driver_text(self) -> None:
+        sensitive = "postgresql://usuario:password@host:5432/postgres?sslmode=require"
+        logs = io.StringIO(); handler = self.app_db.logging.StreamHandler(logs)
+        self.app_db.logger.addHandler(handler)
+        self.app_db._get_data_version_info_cached.clear()
+        try:
+            with mock.patch.dict(os.environ, {"STOCKZERO_RUNTIME_ENV": "public"}, clear=False), \
+                 mock.patch.object(self.app_db, "get_engine", return_value=_FakeAppEngine(("unused",))), \
+                 mock.patch.object(self.app_db.pd, "read_sql", side_effect=RuntimeError(sensitive)):
+                result = self.app_db._get_data_version_info_cached.__wrapped__()
+            self.assertEqual(result, {"fecha_datos": None, "ingested_at": None})
+            self.assertNotIn(sensitive, logs.getvalue())
+            with mock.patch.object(self.app_db, "_selector_df", side_effect=RuntimeError(sensitive)):
+                structured = [self.app_db.get_cg_contract_smoke(), self.app_db.get_cg_v2_contract_smoke()]
+            rendered = json.dumps(structured)
+            self.assertIn("DB_QUERY_FAILED", rendered)
+            for forbidden in (sensitive, "usuario", "password", "host", "5432", "sslmode"):
+                self.assertNotIn(forbidden, rendered)
+        finally:
+            self.app_db.logger.removeHandler(handler)
+            self.app_db._get_data_version_info_cached.clear()
 
 
 if __name__ == "__main__":
