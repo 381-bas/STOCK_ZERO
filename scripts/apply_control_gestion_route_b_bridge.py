@@ -11,6 +11,22 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import psycopg
+try:
+    from scripts.refresh_control_gestion_v2_incremental import (
+        COMMITTED_EVIDENCE_PENDING,
+        COMMITTED_EVIDENCE_RECORDED,
+        COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
+        write_committed_recovery_receipt,
+        write_json_exclusive,
+    )
+except ModuleNotFoundError:  # direct script execution
+    from refresh_control_gestion_v2_incremental import (  # type: ignore
+        COMMITTED_EVIDENCE_PENDING,
+        COMMITTED_EVIDENCE_RECORDED,
+        COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
+        write_committed_recovery_receipt,
+        write_json_exclusive,
+    )
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -229,7 +245,7 @@ def apply_bridge(
             connection.commit()
         return {
             **authority,
-            "verdict": "PASS_ROUTE_B_APP_BRIDGE_APPLY",
+            "verdict": COMMITTED_EVIDENCE_PENDING,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             "current_user": EXPECTED_ADMIN_ROLE,
             "session_user": EXPECTED_ADMIN_ROLE,
@@ -240,6 +256,8 @@ def apply_bridge(
             "connection_attempted": connection_attempted,
             "writes_attempted": writes_attempted,
             "committed": True,
+            "rolled_back": False,
+            "commit_state": COMMITTED_EVIDENCE_PENDING,
         }
     except Exception as exc:
         if isinstance(exc, BridgeApplyError):
@@ -305,9 +323,26 @@ def main() -> int:
             "writes_executed": True,
             "transaction_outcome": "COMMITTED",
         })
-        rendered = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
-        print(rendered)
-        evidence_path.write_text(rendered + "\n", encoding="utf-8")
+        report["verdict"] = "PASS_ROUTE_B_APP_BRIDGE_APPLY"
+        report["commit_state"] = COMMITTED_EVIDENCE_RECORDED
+        try:
+            write_json_exclusive(evidence_path, report)
+        except Exception as exc:
+            receipt = {
+                "verdict": COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
+                "run_id": args.run_id,
+                "commit_state": COMMITTED_EVIDENCE_PENDING,
+                "committed": True,
+                "rolled_back": False,
+                "target_evidence_path": evidence_path.relative_to(ROOT).as_posix(),
+                "approved_git_sha": authority["approved_git_sha"],
+                "sql_raw_sha256": authority["sql_raw_sha256"],
+                "evidence_error": type(exc).__name__,
+            }
+            receipt["receipt_path"] = str(write_committed_recovery_receipt(receipt))
+            print(json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True))
+            return 3
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
     except (BridgeApplyError, OSError) as exc:
         print(json.dumps({"verdict": "BLOCKED", "error": str(exc)}, sort_keys=True))

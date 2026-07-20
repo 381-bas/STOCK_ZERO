@@ -179,6 +179,72 @@ def validate_complete_closure_contract(plan: dict[str, Any]) -> None:
             raise ReadonlyValidationError("runtime_evidence_pass_verdict_required")
 
 
+def validate_operational_state(plan: dict[str, Any], mode: str, root: Path = ROOT) -> None:
+    state = plan.get("execution_state", {})
+    flags = {
+        "bridge_executed": state.get("bridge_executed"),
+        "june_refresh_executed": state.get("june_refresh_executed"),
+        "app_validation_executed": state.get("app_validation_executed"),
+    }
+    runtime = plan.get("runtime_evidence", {})
+    if mode == "baseline":
+        if flags != {
+            "bridge_executed": False,
+            "june_refresh_executed": False,
+            "app_validation_executed": False,
+        }:
+            raise ReadonlyValidationError("baseline_execution_state_mismatch")
+        if any(key in runtime for key in ("03", "04", "05")):
+            raise ReadonlyValidationError("baseline_productive_evidence_must_be_absent")
+        return
+    if flags["bridge_executed"] is not True or flags["june_refresh_executed"] is not True:
+        raise ReadonlyValidationError("postcheck_execution_state_incoherent")
+    if flags["app_validation_executed"] is not False:
+        raise ReadonlyValidationError("app_validation_must_be_pending")
+    run_id = plan.get("run_id")
+    templates = plan.get("evidence_contract", {}).get("file_templates", {})
+    for key in ("03", "04"):
+        record = runtime.get(key)
+        if not isinstance(record, dict):
+            raise ReadonlyValidationError("required_productive_evidence_missing")
+        expected_relative = f"evidence/runtime/023/{run_id}/{templates.get(key)}"
+        if record.get("path") != expected_relative:
+            raise ReadonlyValidationError("productive_evidence_path_mismatch")
+        path = root / expected_relative
+        if not path.is_file():
+            raise ReadonlyValidationError("required_productive_evidence_missing")
+        observed = hashlib.sha256(path.read_bytes()).hexdigest()
+        if record.get("raw_sha256") != observed:
+            raise ReadonlyValidationError("productive_evidence_hash_mismatch")
+
+
+def evaluate_app_acl_snapshot(
+    expected_objects: set[str],
+    direct_grants: Iterable[tuple[str, str]],
+    public_grants: Iterable[tuple[str, str]],
+    effective_writes: Iterable[tuple[str, str]],
+) -> dict[str, Any]:
+    direct = {tuple(row) for row in direct_grants}
+    public = {tuple(row) for row in public_grants}
+    writes = {tuple(row) for row in effective_writes}
+    expected = {(name, "SELECT") for name in expected_objects}
+    if direct != expected:
+        raise ReadonlyValidationError("app_direct_grant_surface_drift")
+    prohibited_public = {
+        row for row in public
+        if str(row[1]).upper() in {
+            "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"
+        }
+    }
+    if writes or prohibited_public:
+        raise ReadonlyValidationError("app_effective_write_privilege_forbidden")
+    return {
+        "direct_grants": sorted(direct),
+        "public_environmental_grants": sorted(public),
+        "effective_write_privileges": sorted(writes),
+    }
+
+
 def _git(*args: str, text: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["git", *args], cwd=ROOT, capture_output=True, text=text, check=False,
@@ -209,6 +275,7 @@ def _load_plan(path: Path, expected_git_ref: str, mode: str) -> tuple[dict, dict
             or active != ["runtime_app_validation_authorized"]
         ):
             raise ReadonlyValidationError("app_validation_not_exclusively_authorized")
+    validate_operational_state(plan, mode)
     payload = plan.get("scope", {}).get("canonical_payload")
     if canonical_json_sha256(payload) != plan.get("scope", {}).get("scope_sha256"):
         raise ReadonlyValidationError("scope_sha256_mismatch")
@@ -319,6 +386,36 @@ def _run_observation(dsn: str, mode: str, plan: dict, authority: dict[str, str])
             )
             if cursor.fetchone() != (True,):
                 raise ReadonlyValidationError("weekly_readonly_acl_mismatch")
+            app_acl = None
+            if mode == "app":
+                expected_objects = set(plan.get("app_readonly_surface", {}).get("direct_select_objects", []))
+                if not expected_objects:
+                    raise ReadonlyValidationError("app_readonly_surface_missing")
+                cursor.execute(
+                    "SELECT table_schema||'.'||table_name,privilege_type "
+                    "FROM information_schema.role_table_grants WHERE grantee=%s "
+                    "AND table_schema IN ('public','cg_core','cg_mart')",
+                    (EXPECTED_APP_ROLE,),
+                )
+                direct_grants = cursor.fetchall()
+                cursor.execute(
+                    "SELECT table_schema||'.'||table_name,privilege_type "
+                    "FROM information_schema.table_privileges WHERE grantee='PUBLIC' "
+                    "AND table_schema IN ('public','cg_core','cg_mart')"
+                )
+                public_grants = cursor.fetchall()
+                cursor.execute(
+                    "SELECT n.nspname||'.'||c.relname,p.privilege FROM pg_class c "
+                    "JOIN pg_namespace n ON n.oid=c.relnamespace "
+                    "CROSS JOIN (VALUES ('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),"
+                    "('REFERENCES'),('TRIGGER'),('MAINTAIN')) p(privilege) "
+                    "WHERE n.nspname IN ('public','cg_core','cg_mart') "
+                    "AND has_table_privilege(%s,c.oid,p.privilege)",
+                    (EXPECTED_APP_ROLE,),
+                )
+                app_acl = evaluate_app_acl_snapshot(
+                    expected_objects, direct_grants, public_grants, cursor.fetchall()
+                )
             grains = _fetch_grain_metrics(cursor, include_daily=mode != "app")
             cursor.execute(
                 'SELECT "SEMANA_INICIO"::text,COUNT(*)::bigint FROM '
@@ -350,6 +447,7 @@ def _run_observation(dsn: str, mode: str, plan: dict, authority: dict[str, str])
         "grain_metrics": grains,
         "june_week_rows": week_rows,
         "queryable_weeks": EXPECTED_WEEKS,
+        "app_acl": app_acl,
         "expected_ui_weeks": list(reversed(EXPECTED_WEEKS[-3:])),
         "secrets_printed": False,
         "dsn_printed": False,

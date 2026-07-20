@@ -12,6 +12,10 @@ from urllib.parse import parse_qs, quote, urlparse, urlunparse
 
 import psycopg
 from psycopg import sql
+try:
+    from scripts.refresh_control_gestion_v2_incremental import write_json_exclusive
+except ModuleNotFoundError:  # direct script execution
+    from refresh_control_gestion_v2_incremental import write_json_exclusive  # type: ignore
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +46,21 @@ WRITE_OBJECTS = (
     "cg_mart.fact_cg_visita_dia_resuelta_v2",
     "cg_mart.fact_cg_out_weekly_v2",
 )
+EXPECTED_DIRECT_GRANTS = {
+    ("database", EXPECTED_DATABASE, "CONNECT"),
+    ("database", EXPECTED_DATABASE, "TEMPORARY"),
+    ("schema", "cg_core", "USAGE"),
+    ("schema", "cg_mart", "USAGE"),
+} | {
+    ("relation", name, "SELECT") for name in SELECT_OBJECTS
+} | {
+    ("relation", name, privilege)
+    for name in WRITE_OBJECTS for privilege in ("INSERT", "DELETE")
+}
+PUBLIC_PROHIBITED_PRIVILEGES = {
+    "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER",
+    "CREATE", "MAINTAIN", "USAGE_SEQUENCE", "UPDATE_SEQUENCE", "EXECUTE_PROCEDURE",
+}
 
 
 class ProvisioningError(RuntimeError):
@@ -154,6 +173,92 @@ def _expected_role_state(cursor) -> dict[str, object]:
     return dict(zip(keys, row))
 
 
+def evaluate_privilege_snapshot(snapshot: dict[str, object]) -> dict[str, object]:
+    direct = {tuple(item) for item in snapshot.get("direct_grants", [])}  # type: ignore[arg-type]
+    memberships = {str(item) for item in snapshot.get("memberships", [])}  # type: ignore[arg-type]
+    ownerships = {tuple(item) for item in snapshot.get("ownerships", [])}  # type: ignore[arg-type]
+    public = {tuple(item) for item in snapshot.get("public_grants", [])}  # type: ignore[arg-type]
+    public_prohibited = {
+        item for item in public if str(item[2]).upper() in PUBLIC_PROHIBITED_PRIVILEGES
+    }
+    direct_missing = EXPECTED_DIRECT_GRANTS - direct
+    direct_extra = direct - EXPECTED_DIRECT_GRANTS
+    result = {
+        "direct_grants": sorted(direct),
+        "public_grants": sorted(public),
+        "memberships": sorted(memberships),
+        "ownerships": sorted(ownerships),
+        "direct_missing": sorted(direct_missing),
+        "direct_extra": sorted(direct_extra),
+        "effective_forbidden_privileges": sorted(public_prohibited),
+    }
+    if direct_missing or direct_extra:
+        raise ProvisioningError("mart_refresh_direct_grant_drift")
+    if memberships:
+        raise ProvisioningError("mart_refresh_membership_drift")
+    if ownerships:
+        raise ProvisioningError("mart_refresh_ownership_drift")
+    if public_prohibited:
+        raise ProvisioningError("mart_refresh_public_effective_write_drift")
+    return result
+
+
+def _collect_privilege_snapshot(cursor) -> dict[str, object]:
+    cursor.execute(
+        "SELECT 'database',d.datname,x.privilege_type FROM pg_database d "
+        "CROSS JOIN LATERAL aclexplode(COALESCE(d.datacl,acldefault('d',d.datdba))) x "
+        "JOIN pg_roles g ON g.oid=x.grantee WHERE g.rolname=%s "
+        "UNION ALL SELECT 'schema',n.nspname,x.privilege_type FROM pg_namespace n "
+        "CROSS JOIN LATERAL aclexplode(COALESCE(n.nspacl,acldefault('n',n.nspowner))) x "
+        "JOIN pg_roles g ON g.oid=x.grantee WHERE g.rolname=%s "
+        "AND n.nspname NOT LIKE 'pg_%%' AND n.nspname<>'information_schema' "
+        "UNION ALL SELECT CASE WHEN c.relkind='S' THEN 'sequence' ELSE 'relation' END,"
+        "n.nspname||'.'||c.relname,x.privilege_type FROM pg_class c "
+        "JOIN pg_namespace n ON n.oid=c.relnamespace "
+        "CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl,acldefault(CASE WHEN c.relkind='S' THEN 'S'::\"char\" ELSE 'r'::\"char\" END,c.relowner))) x "
+        "JOIN pg_roles g ON g.oid=x.grantee WHERE g.rolname=%s "
+        "AND n.nspname NOT LIKE 'pg_%%' AND n.nspname<>'information_schema' "
+        "UNION ALL SELECT CASE WHEN p.prokind='p' THEN 'procedure' ELSE 'function' END,"
+        "n.nspname||'.'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',x.privilege_type "
+        "FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+        "CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) x "
+        "JOIN pg_roles g ON g.oid=x.grantee WHERE g.rolname=%s "
+        "AND n.nspname NOT LIKE 'pg_%%' AND n.nspname<>'information_schema'",
+        (ROLE, ROLE, ROLE, ROLE),
+    )
+    direct = [tuple(row) for row in cursor.fetchall()]
+    cursor.execute(
+        "SELECT granted.rolname FROM pg_auth_members m "
+        "JOIN pg_roles member ON member.oid=m.member "
+        "JOIN pg_roles granted ON granted.oid=m.roleid WHERE member.rolname=%s",
+        (ROLE,),
+    )
+    memberships = [row[0] for row in cursor.fetchall()]
+    cursor.execute(
+        "SELECT kind,identity FROM ("
+        "SELECT 'database' kind,d.datname identity,d.datdba owner FROM pg_database d "
+        "UNION ALL SELECT 'schema',n.nspname,n.nspowner FROM pg_namespace n WHERE n.nspname NOT LIKE 'pg_%%' "
+        "UNION ALL SELECT 'relation',n.nspname||'.'||c.relname,c.relowner FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT LIKE 'pg_%%' "
+        "UNION ALL SELECT 'routine',n.nspname||'.'||p.proname,p.proowner FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname NOT LIKE 'pg_%%'"
+        ") owned JOIN pg_roles r ON r.oid=owned.owner WHERE r.rolname=%s",
+        (ROLE,),
+    )
+    ownerships = [tuple(row) for row in cursor.fetchall()]
+    cursor.execute(
+        "SELECT 'database',d.datname,x.privilege_type FROM pg_database d CROSS JOIN LATERAL aclexplode(COALESCE(d.datacl,acldefault('d',d.datdba))) x WHERE x.grantee=0 "
+        "UNION ALL SELECT 'schema',n.nspname,x.privilege_type FROM pg_namespace n CROSS JOIN LATERAL aclexplode(COALESCE(n.nspacl,acldefault('n',n.nspowner))) x WHERE x.grantee=0 AND n.nspname NOT LIKE 'pg_%%' AND n.nspname<>'information_schema' "
+        "UNION ALL SELECT CASE WHEN c.relkind='S' THEN 'sequence' ELSE 'relation' END,n.nspname||'.'||c.relname,CASE WHEN c.relkind='S' THEN x.privilege_type||'_SEQUENCE' ELSE x.privilege_type END FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl,acldefault(CASE WHEN c.relkind='S' THEN 'S'::\"char\" ELSE 'r'::\"char\" END,c.relowner))) x WHERE x.grantee=0 AND n.nspname NOT LIKE 'pg_%%' AND n.nspname<>'information_schema' "
+        "UNION ALL SELECT CASE WHEN p.prokind='p' THEN 'procedure' ELSE 'function' END,n.nspname||'.'||p.proname,CASE WHEN p.prokind='p' THEN 'EXECUTE_PROCEDURE' ELSE x.privilege_type END FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) x WHERE x.grantee=0 AND n.nspname NOT LIKE 'pg_%%' AND n.nspname<>'information_schema'"
+    )
+    public_grants = [tuple(row) for row in cursor.fetchall()]
+    return {
+        "direct_grants": direct,
+        "memberships": memberships,
+        "ownerships": ownerships,
+        "public_grants": public_grants,
+    }
+
+
 def _assert_exact_role_state(cursor) -> dict[str, object]:
     observed = _expected_role_state(cursor)
     expected = {
@@ -228,6 +333,7 @@ def _assert_exact_role_state(cursor) -> dict[str, object]:
     )
     if cursor.fetchone() != (False, False, False, False):
         raise ProvisioningError("mart_refresh_membership_or_ownership_drift")
+    evaluate_privilege_snapshot(_collect_privilege_snapshot(cursor))
     return observed
 
 
@@ -366,9 +472,8 @@ def main() -> int:
         _validate_admin_dsn(admin_dsn, plan)
         report = provision(plan, authority, admin_dsn, password)
         report["run_id"] = args.run_id
-        rendered = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
-        evidence_path.write_text(rendered + "\n", encoding="utf-8")
-        print(rendered)
+        write_json_exclusive(evidence_path, report)
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
     except (ProvisioningError, OSError) as exc:
         print(json.dumps({"verdict": "BLOCKED", "error": str(exc)}, sort_keys=True))

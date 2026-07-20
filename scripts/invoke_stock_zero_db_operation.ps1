@@ -230,16 +230,12 @@ function New-StockZeroStartInfo {
         }
     }
     else {
-        # Windows PowerShell 5.1 uses the legacy Arguments string. Approved
-        # arguments never contain embedded quote characters.
+        # Windows PowerShell 5.1 uses the CommandLineToArgvW-compatible
+        # legacy Arguments string. Preserve empty values and quote/backslash runs.
+        $quotedArguments = @()
         foreach ($argument in $allArguments) {
-            if ($argument.Contains('"')) {
-                throw 'Operation arguments may not contain quote characters.'
-            }
+            $quotedArguments += ConvertTo-StockZeroWindowsArgument -Value $argument
         }
-        $quotedArguments = @($allArguments | ForEach-Object {
-            if ($_ -match '[\s"]') { '"' + $_ + '"' } else { $_ }
-        })
         $startInfo.Arguments = $quotedArguments -join ' '
     }
     foreach ($name in $managedEnvironmentNames) {
@@ -249,6 +245,41 @@ function New-StockZeroStartInfo {
         [void]$startInfo.EnvironmentVariables.Remove($name)
     }
     return $startInfo
+}
+
+function ConvertTo-StockZeroWindowsArgument {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Value)
+
+    if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') {
+        return $Value
+    }
+    $builder = [System.Text.StringBuilder]::new()
+    [void]$builder.Append('"')
+    $backslashes = 0
+    foreach ($character in $Value.ToCharArray()) {
+        if ($character -eq [char]92) {
+            $backslashes++
+            continue
+        }
+        if ($character -eq [char]34) {
+            if ($backslashes -gt 0) {
+                [void]$builder.Append(('\' * (2 * $backslashes)))
+            }
+            [void]$builder.Append('\"')
+            $backslashes = 0
+            continue
+        }
+        if ($backslashes -gt 0) {
+            [void]$builder.Append(('\' * $backslashes))
+            $backslashes = 0
+        }
+        [void]$builder.Append($character)
+    }
+    if ($backslashes -gt 0) {
+        [void]$builder.Append(('\' * (2 * $backslashes)))
+    }
+    [void]$builder.Append('"')
+    return $builder.ToString()
 }
 
 $entrypoint = $operationMap[$Operation]
