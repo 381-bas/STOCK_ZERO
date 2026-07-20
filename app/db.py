@@ -156,12 +156,12 @@ def get_result_view_contract() -> dict[str, str]:
 
 
 @st.cache_data(ttl=ACTIVE_DB_URL_TTL, show_spinner=False)
-def _get_active_db_url_cached() -> str:
-    cache_sig = _sig("active_db_url")
+def _get_active_db_url_cached(runtime_env: str) -> str:
+    cache_sig = _sig("active_db_url", runtime_env)
     _set_mark("INFRA", "active_db_url", cache_sig)
 
     t0 = time.perf_counter()
-    primary, fallback = _get_db_urls()
+    primary, fallback = _get_db_urls(runtime_env)
     selected = "none"
 
     if primary and _probe_pg(primary, target="primary"):
@@ -281,9 +281,19 @@ def _set_mark(scope: str, name: str, sig: str) -> str:
 # =========================================================
 # 1) INFRA
 # =========================================================
-def _get_db_urls() -> tuple[str, str | None]:
-    primary = (os.getenv("DB_URL_APP", "") or os.getenv("DB_URL", "")).strip()
+def _get_db_urls(runtime_env: str | None = None) -> tuple[str, str | None]:
+    effective_runtime = (runtime_env or _infer_runtime_env()).strip().lower()
+    app_url = os.getenv("DB_URL_APP", "").strip()
+    legacy_url = os.getenv("DB_URL", "").strip()
     fallback = os.getenv("DB_URL_FALLBACK", "").strip() or None
+    if effective_runtime == "public":
+        if legacy_url or fallback:
+            raise AppError("Public runtime rejects legacy database URL variables.")
+        if not app_url:
+            raise AppError("Public runtime requires DB_URL_APP.")
+        return app_url, None
+
+    primary = app_url or legacy_url
     if not primary and not fallback:
         raise AppError(
             "Configuración incompleta: falta DB_URL_APP/DB_URL.\n"
@@ -328,19 +338,49 @@ def _probe_pg(url: str, target: str = "primary") -> bool:
     return ok
 
 
+def _validate_public_app_identity(engine: Engine) -> None:
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(text(
+                "SELECT current_user,session_user,current_database(),"
+                "current_setting('role'),current_setting('transaction_read_only')"
+            )).one()
+    except Exception as exc:
+        raise AppError("Public database identity validation failed.") from exc
+    if tuple(row) != (
+        "stock_zero_app_ro",
+        "stock_zero_app_ro",
+        "postgres",
+        "none",
+        "on",
+    ):
+        raise AppError("Public database identity contract mismatch.")
+
+
+def _enforce_runtime_database_identity(engine: Engine, runtime_env: str | None = None) -> Engine:
+    if (runtime_env or _infer_runtime_env()).strip().lower() == "public":
+        try:
+            _validate_public_app_identity(engine)
+        except Exception:
+            engine.dispose()
+            raise
+    return engine
+
+
 def get_active_db_url() -> str:
-    cache_sig = _sig("active_db_url")
+    runtime_env = _infer_runtime_env()
+    cache_sig = _sig("active_db_url", runtime_env)
     before = _get_mark("INFRA", "active_db_url", cache_sig)
     t0 = time.perf_counter()
-    out = _get_active_db_url_cached()
+    out = _get_active_db_url_cached(runtime_env)
     cache_state = "miss" if _get_mark("INFRA", "active_db_url", cache_sig) != before else "hit"
     _trace("INFRA", "get_active_db_url", active_db_url_ms=_fmt_ms(time.perf_counter() - t0), cache_state=cache_state)
     return out
 
 
 @st.cache_resource(show_spinner=False)
-def _engine_cached(db_url: str) -> Engine:
-    cache_sig = _sig(db_url)
+def _engine_cached(db_url: str, runtime_env: str) -> Engine:
+    cache_sig = _sig(db_url, runtime_env)
     _set_mark("INFRA", "engine", cache_sig)
 
     t0 = time.perf_counter()
@@ -366,6 +406,7 @@ def _engine_cached(db_url: str) -> Engine:
         future=True,
         connect_args=connect_args,
     )
+    _enforce_runtime_database_identity(eng, runtime_env)
     _trace(
         "INFRA",
         "engine_exec",
@@ -380,11 +421,12 @@ def _engine_cached(db_url: str) -> Engine:
 
 
 def get_engine() -> Engine:
+    runtime_env = _infer_runtime_env()
     db_url = get_active_db_url()
-    cache_sig = _sig(db_url)
+    cache_sig = _sig(db_url, runtime_env)
     before = _get_mark("INFRA", "engine", cache_sig)
     t0 = time.perf_counter()
-    eng = _engine_cached(db_url)
+    eng = _engine_cached(db_url, runtime_env)
     cache_state = "miss" if _get_mark("INFRA", "engine", cache_sig) != before else "hit"
     _trace("INFRA", "get_engine", engine_ms=_fmt_ms(time.perf_counter() - t0), cache_state=cache_state)
     return eng

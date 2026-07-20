@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import hashlib
+import importlib
 import io
 import json
 import os
@@ -367,6 +368,126 @@ class Phase023FrozenContractsTests(unittest.TestCase):
                 capture_output=True, text=True, check=True,
             ).stdout.strip()
             self.assertEqual(observed, expected, relative)
+
+
+class _FakeScalarResult:
+    def __init__(self, row: tuple[str, ...]) -> None:
+        self.row = row
+
+    def one(self) -> tuple[str, ...]:
+        return self.row
+
+
+class _FakeAppConnection:
+    def __init__(self, row: tuple[str, ...]) -> None:
+        self.row = row
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def execute(self, _statement) -> _FakeScalarResult:
+        return _FakeScalarResult(self.row)
+
+
+class _FakeAppEngine:
+    def __init__(self, row: tuple[str, ...], *, connect_error: Exception | None = None) -> None:
+        self.row = row
+        self.connect_error = connect_error
+        self.disposed = False
+
+    def connect(self) -> _FakeAppConnection:
+        if self.connect_error is not None:
+            raise self.connect_error
+        return _FakeAppConnection(self.row)
+
+    def dispose(self) -> None:
+        self.disposed = True
+
+
+class Phase023PublicAppIdentityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        # app.db normally loads a local .env at import time. Patch that side
+        # effect so this offline suite never reads local credentials.
+        with mock.patch("dotenv.load_dotenv", return_value=False):
+            cls.app_db = importlib.import_module("app.db")
+
+    def test_public_runtime_requires_db_url_app(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(self.app_db.AppError, "requires DB_URL_APP"):
+                self.app_db._get_db_urls("public")
+
+    def test_public_runtime_rejects_legacy_db_url(self) -> None:
+        with mock.patch.dict(os.environ, {"DB_URL": "postgresql://legacy"}, clear=True):
+            with self.assertRaisesRegex(self.app_db.AppError, "rejects legacy"):
+                self.app_db._get_db_urls("public")
+
+    def test_public_runtime_rejects_db_url_fallback(self) -> None:
+        environment = {
+            "DB_URL_APP": "postgresql://approved",
+            "DB_URL_FALLBACK": "postgresql://fallback",
+        }
+        with mock.patch.dict(os.environ, environment, clear=True):
+            with self.assertRaisesRegex(self.app_db.AppError, "rejects legacy"):
+                self.app_db._get_db_urls("public")
+
+    def test_public_runtime_accepts_only_db_url_app(self) -> None:
+        with mock.patch.dict(os.environ, {"DB_URL_APP": "postgresql://approved"}, clear=True):
+            self.assertEqual(
+                self.app_db._get_db_urls("public"),
+                ("postgresql://approved", None),
+            )
+
+    def test_public_identity_rejects_wrong_current_user(self) -> None:
+        engine = _FakeAppEngine(("postgres", "stock_zero_app_ro", "postgres", "none", "on"))
+        with self.assertRaisesRegex(self.app_db.AppError, "contract mismatch"):
+            self.app_db._enforce_runtime_database_identity(engine, "public")
+        self.assertTrue(engine.disposed)
+
+    def test_public_identity_rejects_different_session_user(self) -> None:
+        engine = _FakeAppEngine(("stock_zero_app_ro", "postgres", "postgres", "none", "on"))
+        with self.assertRaisesRegex(self.app_db.AppError, "contract mismatch"):
+            self.app_db._enforce_runtime_database_identity(engine, "public")
+        self.assertTrue(engine.disposed)
+
+    def test_public_identity_rejects_transaction_read_only_off(self) -> None:
+        engine = _FakeAppEngine((
+            "stock_zero_app_ro", "stock_zero_app_ro", "postgres", "none", "off",
+        ))
+        with self.assertRaisesRegex(self.app_db.AppError, "contract mismatch"):
+            self.app_db._enforce_runtime_database_identity(engine, "public")
+        self.assertTrue(engine.disposed)
+
+    def test_public_identity_accepts_exact_readonly_session(self) -> None:
+        engine = _FakeAppEngine((
+            "stock_zero_app_ro", "stock_zero_app_ro", "postgres", "none", "on",
+        ))
+        self.assertIs(self.app_db._enforce_runtime_database_identity(engine, "public"), engine)
+        self.assertFalse(engine.disposed)
+
+    def test_local_runtime_preserves_legacy_and_fallback_resolution(self) -> None:
+        environment = {
+            "DB_URL": "postgresql://local-primary",
+            "DB_URL_FALLBACK": "postgresql://local-fallback",
+        }
+        with mock.patch.dict(os.environ, environment, clear=True):
+            self.assertEqual(
+                self.app_db._get_db_urls("local"),
+                ("postgresql://local-primary", "postgresql://local-fallback"),
+            )
+        engine = _FakeAppEngine((), connect_error=AssertionError("must not connect"))
+        self.assertIs(self.app_db._enforce_runtime_database_identity(engine, "local"), engine)
+
+    def test_public_errors_do_not_leak_database_urls(self) -> None:
+        sensitive = "postgresql://secret-user:secret-password@secret-host/postgres"
+        with mock.patch.dict(os.environ, {"DB_URL": sensitive}, clear=True):
+            with self.assertRaises(self.app_db.AppError) as captured:
+                self.app_db._get_db_urls("public")
+        self.assertNotIn(sensitive, str(captured.exception))
+        self.assertNotIn("secret-password", str(captured.exception))
 
 
 if __name__ == "__main__":
