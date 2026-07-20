@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import traceback
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -756,6 +757,71 @@ class Phase023PublicAppIdentityTests(unittest.TestCase):
                 self.app_db._get_db_urls("public")
         self.assertNotIn(sensitive, str(captured.exception))
         self.assertNotIn("secret-password", str(captured.exception))
+
+    def test_public_driver_exception_is_unchained_and_fully_redacted(self) -> None:
+        sensitive = "postgresql://leak-user:leak-password@leak-host:6543/postgres?sslmode=require"
+        logs = io.StringIO()
+        handler = self.app_db.logging.StreamHandler(logs)
+        self.app_db.logger.addHandler(handler)
+        self.app_db._engine_cached.clear()
+        try:
+            with mock.patch.object(self.app_db, "create_engine", side_effect=RuntimeError(sensitive)):
+                with self.assertRaises(self.app_db.AppError) as captured:
+                    self.app_db._engine_cached(sensitive, "public")
+            rendered = "".join(traceback.format_exception(captured.exception))
+            self.assertIsNone(captured.exception.__cause__)
+            for forbidden in (sensitive, "leak-user", "leak-password", "leak-host", "6543", "sslmode"):
+                self.assertNotIn(forbidden, str(captured.exception))
+                self.assertNotIn(forbidden, rendered)
+                self.assertNotIn(forbidden, logs.getvalue())
+        finally:
+            self.app_db.logger.removeHandler(handler)
+            self.app_db._engine_cached.clear()
+
+    def test_real_engine_cache_keys_by_url_and_runtime_and_clear_rebuilds(self) -> None:
+        self.app_db._engine_cached.clear()
+        created: list[_FakeAppEngine] = []
+
+        def factory(*_args, **_kwargs):
+            engine = _FakeAppEngine((
+                "stock_zero_app_ro", "stock_zero_app_ro", "postgres", "none", "on",
+            ))
+            created.append(engine)
+            return engine
+
+        try:
+            with mock.patch.object(self.app_db, "create_engine", side_effect=factory):
+                public_a = self.app_db._engine_cached("postgresql://safe-a", "public")
+                self.assertIs(public_a, self.app_db._engine_cached("postgresql://safe-a", "public"))
+                public_b = self.app_db._engine_cached("postgresql://safe-b", "public")
+                local_a = self.app_db._engine_cached("postgresql://safe-a", "local")
+                self.assertIsNot(public_a, public_b)
+                self.assertIsNot(public_a, local_a)
+                self.assertEqual(len(created), 3)
+                self.app_db._engine_cached.clear()
+                rebuilt = self.app_db._engine_cached("postgresql://safe-a", "public")
+                self.assertIsNot(rebuilt, public_a)
+                self.assertEqual(len(created), 4)
+        finally:
+            self.app_db._engine_cached.clear()
+
+    def test_failed_identity_validation_is_not_cached_or_returned(self) -> None:
+        sensitive = "postgresql://hidden:password@private-host/postgres"
+        invalid = _FakeAppEngine((), connect_error=RuntimeError(sensitive))
+        valid = _FakeAppEngine((
+            "stock_zero_app_ro", "stock_zero_app_ro", "postgres", "none", "on",
+        ))
+        self.app_db._engine_cached.clear()
+        try:
+            with mock.patch.object(self.app_db, "create_engine", side_effect=[invalid, valid]) as factory:
+                with self.assertRaises(self.app_db.AppError):
+                    self.app_db._engine_cached("postgresql://same-cache-key", "public")
+                observed = self.app_db._engine_cached("postgresql://same-cache-key", "public")
+            self.assertIs(observed, valid)
+            self.assertTrue(invalid.disposed)
+            self.assertEqual(factory.call_count, 2)
+        finally:
+            self.app_db._engine_cached.clear()
 
 
 if __name__ == "__main__":

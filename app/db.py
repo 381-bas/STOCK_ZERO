@@ -345,8 +345,8 @@ def _validate_public_app_identity(engine: Engine) -> None:
                 "SELECT current_user,session_user,current_database(),"
                 "current_setting('role'),current_setting('transaction_read_only')"
             )).one()
-    except Exception as exc:
-        raise AppError("Public database identity validation failed.") from exc
+    except Exception:
+        raise AppError("Public database identity validation failed.") from None
     if tuple(row) != (
         "stock_zero_app_ro",
         "stock_zero_app_ro",
@@ -396,17 +396,31 @@ def _engine_cached(db_url: str, runtime_env: str) -> Engine:
     if stmt_timeout_ms > 0:
         connect_args["options"] = f"-c statement_timeout={stmt_timeout_ms}"
 
-    eng = create_engine(
-        db_url,
-        pool_size=pool_size,
-        max_overflow=max_overflow,
-        pool_timeout=pool_timeout,
-        pool_recycle=pool_recycle,
-        pool_pre_ping=True,
-        future=True,
-        connect_args=connect_args,
-    )
-    _enforce_runtime_database_identity(eng, runtime_env)
+    eng: Engine | None = None
+    try:
+        eng = create_engine(
+            db_url,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_timeout=pool_timeout,
+            pool_recycle=pool_recycle,
+            pool_pre_ping=True,
+            future=True,
+            connect_args=connect_args,
+        )
+        _enforce_runtime_database_identity(eng, runtime_env)
+    except AppError:
+        if eng is not None:
+            eng.dispose()
+        raise
+    except Exception as exc:
+        if eng is not None:
+            eng.dispose()
+        if runtime_env.strip().lower() == "public":
+            raise AppError("Public database engine initialization failed.") from None
+        raise AppError(
+            f"Local database engine initialization failed ({type(exc).__name__})."
+        ) from None
     _trace(
         "INFRA",
         "engine_exec",
