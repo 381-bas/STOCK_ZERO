@@ -128,6 +128,7 @@
     "runtime_app_validation": "STOCK_ZERO_023_VALIDATE_APP_RO"
   },
   "advisory_lock_key": 5426926728611921735,
+  "approved_mart_loaded_at_utc": null,
   "dry_run_authorization": null,
   "content_fingerprint_contract": {
     "schema_version": "stock_zero_cg_content_fingerprint_v1",
@@ -144,7 +145,8 @@
     ]
   },
   "app_readonly_surface": {
-    "direct_select_objects": [
+    "status": "PENDING_PRODUCTIVE_READONLY_DISCOVERY",
+    "required_control_gestion_select_objects": [
       "cg_core.v_cg_visita_dia_resuelta_v2",
       "cg_core.v_rr_frecuencia_base_resuelta_v2",
       "cg_mart.fact_cg_out_weekly_v2",
@@ -153,12 +155,6 @@
       "cg_mart.v_cg_marcaje_multifuente_dia_v2",
       "cg_mart.v_cg_ruta_duplicados_auditoria_v2",
       "cg_mart.v_cg_sin_batch_ruta_semana_v2",
-      "public.fact_stock_venta",
-      "public.mv_cliente_scope_inventory_enriched",
-      "public.mv_cliente_scope_ranking_cliente",
-      "public.mv_cliente_scope_ranking_responsable",
-      "public.mv_scope_fact_latest_cliente",
-      "public.ruta_rutero",
       "public.v_alertas_control_gestion",
       "public.v_cg_alertas_control_gestion",
       "public.v_cg_cumplimiento_detalle",
@@ -170,17 +166,9 @@
       "public.v_cg_inicio_jefe",
       "public.v_cumplimiento_detalle",
       "public.v_inicio_gestor",
-      "public.v_inicio_jefe",
-      "public.v_data_version",
-      "public.v_locales_home",
-      "public.v_locales_por_modalidad_rutero",
-      "public.v_scope_cliente_responsable_fact_bridge",
-      "public.v_scope_cliente_responsable_rr_distinct",
-      "public.v_scope_cliente_responsable_summary",
-      "public.v_selector_modalidad",
-      "public.v_selector_rutero_reponedor_modalidad",
-      "public.v_stock_local_cliente_ux"
+      "public.v_inicio_jefe"
     ],
+    "global_select_allowlist": [],
     "allowed_direct_privileges": ["SELECT"],
     "public_environmental_privileges_recorded_separately": true,
     "effective_write_privileges_forbidden": true

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import ast
 import hashlib
 import importlib
 import io
@@ -11,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import traceback
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -246,14 +248,27 @@ class Phase023RefreshGuardTests(unittest.TestCase):
         self.assertIn("ON COMMIT DROP", source)
 
     def test_direct_apply_rejects_fabricated_dsn_scope_and_contract_before_core(self) -> None:
-        with mock.patch.object(refresh, "_run_incremental_transaction") as core:
-            with self.assertRaises(TypeError):
-                refresh.run_incremental_apply(  # type: ignore[call-arg]
-                    db_url="postgresql://forged", week_scope={"forged": True},
-                    contract_023={"authorized": True}, statement_timeout_seconds=1,
-                    post_apply_validate=True,
-                )
-        core.assert_not_called()
+        connection = _CoreConnection()
+        with self.assertRaisesRegex(refresh.RefreshContractError, "legacy_apply_interface_removed"):
+            refresh.run_incremental_apply(
+                db_url="postgresql://forged", connection=connection,
+                week_scope={"forged": True}, contract_023={"authorized": True},
+                fingerprints={"forged": True}, advisory_lock_key=1,
+            )
+        self.assertEqual((connection.commits, connection.rollbacks), (0, 0))
+        self.assertFalse(any("DELETE FROM" in call or "INSERT INTO" in call for call in connection.cursor_value.calls))
+
+    def test_no_importable_helper_accepts_authority_and_contains_dml(self) -> None:
+        tree = ast.parse((ROOT / "scripts" / "refresh_control_gestion_v2_incremental.py").read_text(encoding="utf-8"))
+        offenders = []
+        for node in tree.body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            params = {arg.arg for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)}
+            body = ast.get_source_segment((ROOT / "scripts" / "refresh_control_gestion_v2_incremental.py").read_text(encoding="utf-8"), node) or ""
+            if (params & {"db_url", "connection", "conn", "week_scope", "contract_023", "expected_content_fingerprints", "advisory_lock_key"}) and ("_delete_daily_query" in body or "_insert_daily_query" in body or ".commit(" in body):
+                offenders.append(node.name)
+        self.assertEqual(offenders, [])
 
 
 class Phase023FingerprintTests(unittest.TestCase):
@@ -291,13 +306,35 @@ class Phase023FingerprintTests(unittest.TestCase):
             with self.assertRaisesRegex(refresh.RefreshContractError, "PRESTATE_OR_SOURCE_DRIFT"):
                 refresh._assert_fingerprints_match(base, changed)
 
+    def test_daily_loaded_at_is_part_of_the_exact_fingerprint(self) -> None:
+        columns = ["key", "mart_loaded_at"]
+        first = refresh.fingerprint_rows([("A", "2026-07-19T12:00:00Z")], columns)
+        second = refresh.fingerprint_rows([("A", "2026-07-19T12:00:01Z")], columns)
+        self.assertNotEqual(first["sha256"], second["sha256"])
+
+    def test_weekly_stage_uses_daily_overlay_and_exact_daily_stage(self) -> None:
+        query = refresh._create_weekly_stage_query()
+        self.assertIn("daily_stage AS MATERIALIZED", query)
+        self.assertIn("daily_overlay AS MATERIALIZED", query)
+        self.assertIn("UNION ALL", query)
+        self.assertIn("LEFT JOIN daily_overlay d", query)
+        self.assertNotIn(f"LEFT JOIN {refresh.DAILY_FACT} d", query)
+        self.assertIn("%s::timestamptz AS mart_loaded_at", query)
+
+    def test_changed_daily_stage_changes_weekly_source_fingerprint(self) -> None:
+        columns = ["week", "daily_stage_rows"]
+        before = refresh.fingerprint_rows([("2026-06-01", "A:1")], columns)
+        after = refresh.fingerprint_rows([("2026-06-01", "A:2")], columns)
+        self.assertNotEqual(before["sha256"], after["sha256"])
+
 
 class _CoreCursor:
-    def __init__(self, fail_weekly: bool = False) -> None:
+    def __init__(self, fail_weekly: bool = False, identity=None) -> None:
         self.calls: list[str] = []
         self.rowcount = 1
         self.fail_weekly = fail_weekly
         self._one = None
+        self.identity = identity or (refresh.MART_REFRESH_ROLE, refresh.MART_REFRESH_ROLE, "postgres", "none", "off")
 
     def __enter__(self): return self
     def __exit__(self, *_args): return False
@@ -305,15 +342,15 @@ class _CoreCursor:
         rendered = str(query)
         self.calls.append(rendered)
         if "SELECT current_user,session_user" in rendered:
-            self._one = (refresh.MART_REFRESH_ROLE, refresh.MART_REFRESH_ROLE, "postgres", "none", "off")
+            self._one = self.identity
         if self.fail_weekly and rendered.lstrip().startswith("INSERT INTO cg_mart.fact_cg_out_weekly_v2"):
             raise RuntimeError("weekly failed")
     def fetchone(self): return self._one
 
 
 class _CoreConnection:
-    def __init__(self, fail_weekly: bool = False) -> None:
-        self.cursor_value = _CoreCursor(fail_weekly)
+    def __init__(self, fail_weekly: bool = False, identity=None) -> None:
+        self.cursor_value = _CoreCursor(fail_weekly, identity)
         self.commits = 0
         self.rollbacks = 0
         self.closed = 0
@@ -325,26 +362,60 @@ class _CoreConnection:
 
 
 class Phase023ApplyTransactionTests(unittest.TestCase):
-    def _scope(self):
-        dates = {refresh.date(2026, 6, 1)}
-        weeks = {refresh.date(2026, 6, 1)}
-        return refresh.build_week_scope(dates, weeks, 0)
+    @staticmethod
+    def _minimal_args():
+        return types.SimpleNamespace(
+            apply=True, dry_run=False, confirm_real_apply=False, plan_023=None,
+            db_url=None, affected_date=[], affected_week=[], safety_window_weeks=0,
+            confirm=refresh.APPLY_CONFIRM_TOKEN, evidence_json=Path("unused.json"),
+            run_id="12345678-1234-4123-8123-123456789abc",
+            dry_run_report_json=Path("unused-dry.json"),
+            statement_timeout_seconds=1, post_apply_validate=True,
+        )
 
-    def _run(self, connection: _CoreConnection):
+    def _run(self, connection: _CoreConnection, *, observed_fingerprints=None):
         fingerprints = {key: {"schema_version": refresh.FINGERPRINT_SCHEMA_VERSION, "row_count": 1, "sha256": hashlib.sha256(key.encode()).hexdigest()} for key in refresh.FINGERPRINT_KEYS}
-        present = [{"semana_inicio": "2026-06-01", "scope_status": "present"}]
-        with mock.patch.object(refresh, "_compute_content_fingerprints", return_value=fingerprints), \
-             mock.patch.object(refresh, "_route_scope_by_week", return_value=present), \
-             mock.patch.object(refresh, "_count_temp_rows", return_value=1), \
-             mock.patch.object(refresh, "_run_daily_check", return_value={"validation_status": "ok"}), \
-             mock.patch.object(refresh, "_run_weekly_fact_validation", return_value={"validation_status": "ok"}):
-            return refresh._run_incremental_transaction(
-                db_url="postgresql://not-opened", week_scope=self._scope(),
+        observed_fingerprints = fingerprints if observed_fingerprints is None else observed_fingerprints
+        present = [
+            {"semana_inicio": week, "scope_status": "present"}
+            for week in ("2026-06-01", "2026-06-08", "2026-06-15", "2026-06-22", "2026-06-29")
+        ]
+        plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
+        plan["approved_mart_loaded_at_utc"] = "2026-07-19T12:00:00Z"
+        authority = {"scope_sha256": plan["scope"]["scope_sha256"], "approved_git_sha": "a" * 40}
+        run_id = "12345678-1234-4123-8123-123456789abc"
+        with tempfile.TemporaryDirectory() as folder:
+            dry_path = Path(folder) / "dry.json"
+            dry_report = {"content_fingerprints": fingerprints, "approved_mart_loaded_at_utc": plan["approved_mart_loaded_at_utc"]}
+            dry_path.write_text(json.dumps(dry_report), encoding="utf-8")
+            plan["dry_run_authorization"] = {
+                "raw_sha256": hashlib.sha256(dry_path.read_bytes()).hexdigest(),
+                "scope_sha256": authority["scope_sha256"],
+                "content_fingerprints": fingerprints,
+                "approved_mart_loaded_at_utc": plan["approved_mart_loaded_at_utc"],
+            }
+            args = types.SimpleNamespace(
+                apply=True, dry_run=False, confirm_real_apply=False, plan_023=None,
+                db_url=None, affected_date=[], affected_week=[], safety_window_weeks=0,
+                confirm=refresh.APPLY_CONFIRM_TOKEN, evidence_json=Path(folder) / "unused.json",
+                run_id=run_id, dry_run_report_json=dry_path,
                 statement_timeout_seconds=1, post_apply_validate=True,
-                advisory_lock_key=1, expected_content_fingerprints=fingerprints,
-                _marker=refresh._INTERNAL_APPLY_MARKER,
-                _connect_fn=lambda _dsn: connection,
             )
+            parser = mock.Mock(); parser.parse_args.return_value = args
+            psycopg2 = types.SimpleNamespace(connect=lambda _dsn: connection)
+            with mock.patch.object(refresh, "build_parser", return_value=parser), \
+                 mock.patch.object(refresh, "_load_plan_023", return_value=(plan, authority)), \
+                 mock.patch.object(refresh, "_validate_wrapper_marker"), \
+                 mock.patch.object(refresh, "_validate_productive_dsn"), \
+                 mock.patch.object(refresh, "_canonical_evidence_path", return_value=Path(folder) / "evidence.json"), \
+                 mock.patch.object(refresh, "_compute_content_fingerprints", return_value=observed_fingerprints), \
+                 mock.patch.object(refresh, "_route_scope_by_week", return_value=present), \
+                 mock.patch.object(refresh, "_count_temp_rows", return_value=1), \
+                 mock.patch.object(refresh, "_run_daily_check", return_value={"validation_status": "ok"}), \
+                 mock.patch.object(refresh, "_run_weekly_fact_validation", return_value={"validation_status": "ok"}), \
+                 mock.patch.dict(sys.modules, {"psycopg2": psycopg2}), \
+                 mock.patch.dict(os.environ, {refresh.MART_REFRESH_ENV: "postgresql://not-opened"}, clear=False):
+                return refresh.run_authorized_june_refresh_023()
 
     def test_daily_success_weekly_failure_rolls_back_once_without_commit(self) -> None:
         connection = _CoreConnection(fail_weekly=True)
@@ -359,40 +430,58 @@ class Phase023ApplyTransactionTests(unittest.TestCase):
         self.assertEqual((connection.commits, connection.rollbacks), (1, 0))
         self.assertTrue(result["committed"])
         self.assertFalse(result["rolled_back"])
-        self.assertEqual(result["commit_state"], refresh.COMMITTED_EVIDENCE_PENDING)
+        self.assertEqual(result["commit_state"], refresh.COMMITTED_EVIDENCE_RECORDED)
 
     def test_postcommit_evidence_failure_is_recovery_not_reapply(self) -> None:
-        run_id = "12345678-1234-4123-8123-123456789abc"
-        fingerprints = {key: {"schema_version": refresh.FINGERPRINT_SCHEMA_VERSION, "row_count": 1, "sha256": hashlib.sha256(key.encode()).hexdigest()} for key in refresh.FINGERPRINT_KEYS}
+        connection = _CoreConnection()
+        with mock.patch.object(refresh, "write_json_exclusive", side_effect=OSError("disk")), \
+             mock.patch.object(refresh, "write_committed_recovery_receipt", return_value=Path(tempfile.gettempdir()) / "receipt.json"):
+            result = self._run(connection)
+        self.assertTrue(result["committed"])
+        self.assertFalse(result["rolled_back"])
+        self.assertFalse(result["reapply_allowed"])
+        self.assertEqual(result["verdict"], refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED)
+
+    def test_each_fingerprint_mismatch_blocks_before_dml(self) -> None:
+        expected = {key: {"schema_version": refresh.FINGERPRINT_SCHEMA_VERSION, "row_count": 1, "sha256": hashlib.sha256(key.encode()).hexdigest()} for key in refresh.FINGERPRINT_KEYS}
+        for key in refresh.FINGERPRINT_KEYS:
+            observed = copy.deepcopy(expected); observed[key]["sha256"] = "0" * 64
+            connection = _CoreConnection()
+            result = self._run(connection, observed_fingerprints=observed)
+            self.assertEqual((connection.commits, connection.rollbacks), (0, 1), key)
+            self.assertFalse(any("DELETE FROM" in call or "INSERT INTO" in call for call in connection.cursor_value.calls), key)
+
+    def test_canonical_plan_auth_and_head_failures_never_connect(self) -> None:
+        for error in ("plan_blob_mismatch", "apply_not_exclusively_authorized", "head_mismatch"):
+            parser = mock.Mock(); parser.parse_args.return_value = self._minimal_args()
+            connect = mock.Mock()
+            with mock.patch.object(refresh, "build_parser", return_value=parser), \
+                 mock.patch.object(refresh, "_load_plan_023", side_effect=refresh.RefreshContractError(error)), \
+                 mock.patch.dict(sys.modules, {"psycopg2": types.SimpleNamespace(connect=connect)}):
+                with self.assertRaisesRegex(refresh.RefreshContractError, error):
+                    refresh.run_authorized_june_refresh_023()
+            connect.assert_not_called()
+
+    def test_wrong_dsn_target_never_connects(self) -> None:
         plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
-        plan["dry_run_authorization"] = {"raw_sha256": "ignored", "scope_sha256": plan["scope"]["scope_sha256"], "content_fingerprints": fingerprints}
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, dir=tempfile.gettempdir(), encoding="utf-8") as handle:
-            json.dump({"content_fingerprints": fingerprints}, handle)
-            dry_path = Path(handle.name)
-        raw_sha = hashlib.sha256(dry_path.read_bytes()).hexdigest()
-        plan["dry_run_authorization"]["raw_sha256"] = raw_sha
-        committed = {"status": "ok", "final_status": "apply_ok", "committed": True, "rolled_back": False, "content_fingerprints": fingerprints}
-        try:
-            with mock.patch.object(refresh, "PLAN_023_DEFAULT", PLAN_PATH), \
-                 mock.patch.object(refresh, "_load_plan_023", return_value=(plan, {"scope_sha256": plan["scope"]["scope_sha256"], "approved_git_sha": "a" * 40})), \
-                 mock.patch.object(refresh, "_validate_wrapper_marker"), \
-                 mock.patch.object(refresh, "_validate_productive_dsn"), \
-                 mock.patch.object(refresh, "_canonical_evidence_path", return_value=ROOT / "not-written.json"), \
-                 mock.patch.object(refresh, "_run_incremental_transaction", return_value=committed) as transaction, \
-                 mock.patch.object(refresh, "write_json_exclusive", side_effect=OSError("disk")), \
-                 mock.patch.object(refresh, "write_committed_recovery_receipt", return_value=Path(tempfile.gettempdir()) / "receipt.json"), \
-                 mock.patch.dict(os.environ, {refresh.MART_REFRESH_ENV: "hidden"}, clear=False):
-                result = refresh.run_incremental_apply(
-                    plan_path=PLAN_PATH, confirm=refresh.APPLY_CONFIRM_TOKEN, run_id=run_id,
-                    evidence_json=Path("unused"), dry_run_report_json=dry_path,
-                    statement_timeout_seconds=1, post_apply_validate=True,
-                )
-            self.assertEqual(transaction.call_count, 1)
-            self.assertTrue(result["committed"])
-            self.assertFalse(result["rolled_back"])
-            self.assertEqual(result["verdict"], refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED)
-        finally:
-            dry_path.unlink(missing_ok=True)
+        authority = {"scope_sha256": plan["scope"]["scope_sha256"]}
+        parser = mock.Mock(); parser.parse_args.return_value = self._minimal_args()
+        connect = mock.Mock()
+        with mock.patch.object(refresh, "build_parser", return_value=parser), \
+             mock.patch.object(refresh, "_load_plan_023", return_value=(plan, authority)), \
+             mock.patch.object(refresh, "_validate_wrapper_marker"), \
+             mock.patch.object(refresh, "_validate_productive_dsn", side_effect=refresh.RefreshContractError("dsn_target_mismatch")), \
+             mock.patch.dict(os.environ, {refresh.MART_REFRESH_ENV: "postgresql://wrong"}, clear=False), \
+             mock.patch.dict(sys.modules, {"psycopg2": types.SimpleNamespace(connect=connect)}):
+            with self.assertRaisesRegex(refresh.RefreshContractError, "dsn_target_mismatch"):
+                refresh.run_authorized_june_refresh_023()
+        connect.assert_not_called()
+
+    def test_wrong_session_role_rolls_back_before_dml(self) -> None:
+        connection = _CoreConnection(identity=("postgres", "postgres", "postgres", "none", "off"))
+        result = self._run(connection)
+        self.assertEqual((connection.commits, connection.rollbacks), (0, 1))
+        self.assertFalse(any("DELETE FROM" in call or "INSERT INTO" in call for call in connection.cursor_value.calls))
 
 
 class Phase023EvidenceWriterTests(unittest.TestCase):
@@ -415,10 +504,24 @@ class Phase023EvidenceWriterTests(unittest.TestCase):
         argv = ["bridge", "--expected-git-ref", "a" * 40, "--db-url-env", "DB_URL_ADMIN", "--expected-project-ref", "xheyrgfagpoigpgakilu", "--confirm", bridge.CONFIRM_TOKEN, "--run-id", "12345678-1234-4123-8123-123456789abc", "--evidence-json", "unused"]
         output = io.StringIO()
         committed = {"committed": True, "rolled_back": False, "content": "ok"}
-        with mock.patch.object(sys, "argv", argv), mock.patch.object(bridge, "_load_plan", return_value={}), mock.patch.object(bridge, "validate_git_guard", return_value={"approved_git_sha": "a" * 40, "sql_raw_sha256": "b" * 64}), mock.patch.object(bridge, "_canonical_evidence_path", return_value=ROOT / "never.json"), mock.patch.object(bridge, "validate_dsn"), mock.patch.object(bridge, "apply_bridge", return_value=committed), mock.patch.object(bridge, "write_json_exclusive", side_effect=OSError("disk")), mock.patch.object(bridge, "write_committed_recovery_receipt", return_value=Path(tempfile.gettempdir()) / "receipt.json"), mock.patch.dict(os.environ, {"STOCK_ZERO_OPERATION_PROFILE": "admin-ddl", "STOCK_ZERO_OPERATION": "apply-route-b-bridge-023", "DB_URL_ADMIN": "hidden"}), contextlib.redirect_stdout(output):
+        recovery = {"verdict": refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED, "committed": True, "rolled_back": False, "reapply_allowed": False}
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(bridge, "_load_plan", return_value={}), mock.patch.object(bridge, "validate_git_guard", return_value={"approved_git_sha": "a" * 40, "sql_raw_sha256": "b" * 64}), mock.patch.object(bridge, "_canonical_evidence_path", return_value=ROOT / "never.json"), mock.patch.object(bridge, "validate_dsn"), mock.patch.object(bridge, "apply_bridge", return_value=committed), mock.patch.object(bridge, "_emit_committed_recovery_nonthrowing", return_value=recovery), mock.patch.dict(os.environ, {"STOCK_ZERO_OPERATION_PROFILE": "admin-ddl", "STOCK_ZERO_OPERATION": "apply-route-b-bridge-023", "DB_URL_ADMIN": "hidden"}), contextlib.redirect_stdout(output):
             self.assertEqual(bridge.main(), 3)
         self.assertNotIn("PASS_ROUTE_B_APP_BRIDGE_APPLY", output.getvalue())
         self.assertIn(refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED, output.getvalue())
+
+    def test_committed_recovery_survives_all_three_emitter_failures(self) -> None:
+        report = {"run_id": "12345678-1234-4123-8123-123456789abc", "committed": True}
+        broken_stderr = mock.Mock()
+        broken_stderr.write.side_effect = OSError("stderr")
+        with mock.patch.object(refresh, "write_json_exclusive", side_effect=OSError("evidence")), \
+             mock.patch.object(refresh, "write_committed_recovery_receipt", side_effect=OSError("receipt")), \
+             mock.patch.object(refresh.sys, "stderr", broken_stderr):
+            result = refresh._emit_committed_recovery_nonthrowing(Path("never.json"), report)
+        self.assertEqual(result["verdict"], refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED)
+        self.assertTrue(result["committed"])
+        self.assertFalse(result["rolled_back"])
+        self.assertFalse(result["reapply_allowed"])
 
 
 class Phase023SqlAndRoleContractTests(unittest.TestCase):
@@ -501,12 +604,61 @@ class Phase023SqlAndRoleContractTests(unittest.TestCase):
                 provisioner.evaluate_privilege_snapshot(mutated)
 
     def test_harmless_public_privileges_are_recorded_not_rejected(self) -> None:
-        snapshot = {"direct_grants": list(provisioner.EXPECTED_DIRECT_GRANTS), "memberships": [], "ownerships": [], "public_grants": [("schema", "public", "USAGE"), ("function", "public.safe()", "EXECUTE")]}
+        snapshot = {"direct_grants": list(provisioner.EXPECTED_DIRECT_GRANTS), "memberships": [], "ownerships": [], "public_grants": [("schema", "public", "USAGE")], "routine_privileges": [{"schema": "pg_catalog", "identity": "now()", "prokind": "f", "security_definer": False, "owner": "postgres", "source": "PUBLIC"}]}
         observed = provisioner.evaluate_privilege_snapshot(snapshot)
-        self.assertEqual(len(observed["public_grants"]), 2)
+        self.assertEqual(len(observed["routine_privileges"]), 1)
+
+    def test_all_non_system_routine_execute_sources_are_rejected(self) -> None:
+        base = {"direct_grants": list(provisioner.EXPECTED_DIRECT_GRANTS), "memberships": [], "ownerships": [], "public_grants": []}
+        for source, security_definer, prokind in (
+            ("PUBLIC", True, "f"), ("PUBLIC", False, "f"),
+            ("direct", False, "p"), ("membership", False, "a"),
+        ):
+            snapshot = {**base, "routine_privileges": [{"schema": "public", "identity": "danger(integer)", "prokind": prokind, "security_definer": security_definer, "owner": "postgres", "source": source}]}
+            with self.assertRaisesRegex(provisioner.ProvisioningError, "non_system_routine_execute"):
+                provisioner.evaluate_privilege_snapshot(snapshot)
 
 
 class Phase023WrapperAndObserverTests(unittest.TestCase):
+    def _app_snapshot(self):
+        required = {"public.v_required"}
+        return required, {
+            "role_attributes": {"login": True, "superuser": False, "createdb": False, "createrole": False, "replication": False, "bypassrls": False},
+            "memberships": [], "ownerships": [],
+            "grants": [{"source": "direct", "object_type": "relation", "schema": "public", "identity": "public.v_required", "privilege": "SELECT"}],
+        }
+
+    def test_app_full_capability_snapshot_blocks_pending_allowlist(self) -> None:
+        required, snapshot = self._app_snapshot()
+        with self.assertRaisesRegex(observer.ReadonlyValidationError, "ALLOWLIST_NOT_FROZEN"):
+            observer.evaluate_app_capability_snapshot(snapshot, required, required, observer.APP_ALLOWLIST_PENDING)
+
+    def test_app_full_capability_snapshot_rejects_every_forbidden_class(self) -> None:
+        required, base = self._app_snapshot()
+        mutations = (
+            ("database CREATE", {"source": "PUBLIC", "object_type": "database", "schema": "", "identity": "postgres", "privilege": "CREATE"}),
+            ("schema CREATE", {"source": "direct", "object_type": "schema", "schema": "public", "identity": "public", "privilege": "CREATE"}),
+            ("sequence", {"source": "membership", "object_type": "sequence", "schema": "public", "identity": "public.s", "privilege": "USAGE"}),
+            ("routine", {"source": "PUBLIC", "object_type": "routine", "schema": "public", "identity": "public.f()", "privilege": "EXECUTE"}),
+            ("write", {"source": "direct", "object_type": "relation", "schema": "public", "identity": "public.t", "privilege": "UPDATE"}),
+        )
+        for label, grant in mutations:
+            snapshot = copy.deepcopy(base); snapshot["grants"].append(grant)
+            with self.assertRaises(observer.ReadonlyValidationError, msg=label):
+                observer.evaluate_app_capability_snapshot(snapshot, required, required, observer.APP_ALLOWLIST_FROZEN)
+        for field, value in (("memberships", ["writer"]), ("ownerships", [("relation", "public.t")])):
+            snapshot = copy.deepcopy(base); snapshot[field] = value
+            with self.assertRaises(observer.ReadonlyValidationError):
+                observer.evaluate_app_capability_snapshot(snapshot, required, required, observer.APP_ALLOWLIST_FROZEN)
+
+    def test_app_full_capability_allows_system_public_and_requires_exact_selects(self) -> None:
+        required, snapshot = self._app_snapshot()
+        snapshot["grants"].append({"source": "PUBLIC", "object_type": "routine", "schema": "pg_catalog", "identity": "pg_catalog.now()", "privilege": "EXECUTE"})
+        observed = observer.evaluate_app_capability_snapshot(snapshot, required, required, observer.APP_ALLOWLIST_FROZEN)
+        self.assertEqual(observed["effective_select_objects"], ["public.v_required"])
+        missing = copy.deepcopy(snapshot); missing["grants"] = missing["grants"][1:]
+        with self.assertRaisesRegex(observer.ReadonlyValidationError, "required_control_gestion"):
+            observer.evaluate_app_capability_snapshot(missing, required, required, observer.APP_ALLOWLIST_FROZEN)
     def test_wrapper_profiles_and_operations_are_explicit(self) -> None:
         source = WRAPPER_PATH.read_text(encoding="utf-8")
         for profile in ("cg-mart-refresh", "cg-mart-refresh-provisioning", "app-readonly"):
@@ -681,7 +833,8 @@ class Phase023PublicAppIdentityTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         # app.db normally loads a local .env at import time. Patch that side
         # effect so this offline suite never reads local credentials.
-        with mock.patch("dotenv.load_dotenv", return_value=False):
+        fake_dotenv = types.SimpleNamespace(load_dotenv=lambda *_args, **_kwargs: False)
+        with mock.patch.dict(sys.modules, {"dotenv": fake_dotenv}):
             cls.app_db = importlib.import_module("app.db")
 
     def test_public_runtime_requires_db_url_app(self) -> None:

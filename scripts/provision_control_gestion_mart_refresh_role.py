@@ -61,6 +61,7 @@ PUBLIC_PROHIBITED_PRIVILEGES = {
     "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER",
     "CREATE", "MAINTAIN", "USAGE_SEQUENCE", "UPDATE_SEQUENCE", "EXECUTE_PROCEDURE",
 }
+SYSTEM_ROUTINE_SCHEMAS = {"pg_catalog", "information_schema"}
 
 
 class ProvisioningError(RuntimeError):
@@ -181,6 +182,11 @@ def evaluate_privilege_snapshot(snapshot: dict[str, object]) -> dict[str, object
     public_prohibited = {
         item for item in public if str(item[2]).upper() in PUBLIC_PROHIBITED_PRIVILEGES
     }
+    routine_privileges = list(snapshot.get("routine_privileges", []))  # type: ignore[arg-type]
+    prohibited_routines = [
+        dict(item) for item in routine_privileges
+        if str(dict(item).get("schema", "")) not in SYSTEM_ROUTINE_SCHEMAS
+    ]
     direct_missing = EXPECTED_DIRECT_GRANTS - direct
     direct_extra = direct - EXPECTED_DIRECT_GRANTS
     result = {
@@ -191,6 +197,8 @@ def evaluate_privilege_snapshot(snapshot: dict[str, object]) -> dict[str, object
         "direct_missing": sorted(direct_missing),
         "direct_extra": sorted(direct_extra),
         "effective_forbidden_privileges": sorted(public_prohibited),
+        "routine_privileges": routine_privileges,
+        "prohibited_routine_privileges": prohibited_routines,
     }
     if direct_missing or direct_extra:
         raise ProvisioningError("mart_refresh_direct_grant_drift")
@@ -200,6 +208,8 @@ def evaluate_privilege_snapshot(snapshot: dict[str, object]) -> dict[str, object
         raise ProvisioningError("mart_refresh_ownership_drift")
     if public_prohibited:
         raise ProvisioningError("mart_refresh_public_effective_write_drift")
+    if prohibited_routines:
+        raise ProvisioningError("mart_refresh_non_system_routine_execute_forbidden")
     return result
 
 
@@ -251,11 +261,35 @@ def _collect_privilege_snapshot(cursor) -> dict[str, object]:
         "UNION ALL SELECT CASE WHEN p.prokind='p' THEN 'procedure' ELSE 'function' END,n.nspname||'.'||p.proname,CASE WHEN p.prokind='p' THEN 'EXECUTE_PROCEDURE' ELSE x.privilege_type END FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) x WHERE x.grantee=0 AND n.nspname NOT LIKE 'pg_%%' AND n.nspname<>'information_schema'"
     )
     public_grants = [tuple(row) for row in cursor.fetchall()]
+    cursor.execute(
+        "SELECT n.nspname,p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',"
+        "p.prokind,p.prosecdef,owner.rolname,"
+        "CASE WHEN x.grantee=0 THEN 'PUBLIC' WHEN grantee.rolname=%s THEN 'direct' ELSE 'membership' END "
+        "FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+        "JOIN pg_roles owner ON owner.oid=p.proowner "
+        "CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) x "
+        "LEFT JOIN pg_roles grantee ON grantee.oid=x.grantee "
+        "WHERE x.privilege_type='EXECUTE' AND (x.grantee=0 OR grantee.rolname=%s OR "
+        "x.grantee IN (SELECT m.roleid FROM pg_auth_members m JOIN pg_roles member ON member.oid=m.member WHERE member.rolname=%s))",
+        (ROLE, ROLE, ROLE),
+    )
+    routine_privileges = [
+        {
+            "schema": row[0],
+            "identity": row[1],
+            "prokind": row[2],
+            "security_definer": bool(row[3]),
+            "owner": row[4],
+            "source": row[5],
+        }
+        for row in cursor.fetchall()
+    ]
     return {
         "direct_grants": direct,
         "memberships": memberships,
         "ownerships": ownerships,
         "public_grants": public_grants,
+        "routine_privileges": routine_privileges,
     }
 
 

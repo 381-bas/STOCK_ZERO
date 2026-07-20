@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import time
 from typing import Any
@@ -46,7 +47,6 @@ PRECOMMIT = "PRECOMMIT"
 COMMITTED_EVIDENCE_PENDING = "COMMITTED_EVIDENCE_PENDING"
 COMMITTED_EVIDENCE_RECORDED = "COMMITTED_EVIDENCE_RECORDED"
 COMMITTED_EVIDENCE_RECOVERY_REQUIRED = "COMMITTED_EVIDENCE_RECOVERY_REQUIRED"
-_INTERNAL_APPLY_MARKER = object()
 
 DAILY_SOURCE = "cg_core.v_cg_visita_dia_precedencia_route_b_v1"
 DAILY_FACT = "cg_mart.fact_cg_visita_dia_resuelta_v2"
@@ -255,6 +255,12 @@ def _load_plan_023(plan_path: Path, *, operation: str) -> tuple[dict[str, Any], 
         "sslmode": "require",
     }:
         raise RefreshContractError("registered_target_contract_mismatch")
+    loaded_at = plan.get("approved_mart_loaded_at_utc")
+    if operation == "dry-run":
+        if loaded_at is not None:
+            raise RefreshContractError("dry_run_requires_unset_mart_loaded_at")
+    elif _normalize_utc_timestamp(loaded_at) != loaded_at:
+        raise RefreshContractError("approved_mart_loaded_at_utc_required")
     authority = _validate_git_and_plan(plan_path, plan)
     authority["scope_sha256"] = calculated
     return plan, authority
@@ -354,6 +360,52 @@ def write_committed_recovery_receipt(report: dict[str, Any]) -> Path:
     return receipt
 
 
+def _emit_committed_recovery_nonthrowing(
+    evidence_path: Path,
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    """Persist committed evidence or return a recovery receipt; never raise."""
+    recorded = dict(report)
+    recorded["commit_state"] = COMMITTED_EVIDENCE_RECORDED
+    try:
+        write_json_exclusive(evidence_path, recorded)
+        try:
+            recorded["evidence_path"] = evidence_path.relative_to(ROOT).as_posix()
+        except Exception:
+            recorded["evidence_path"] = evidence_path.name
+        return recorded
+    except Exception as evidence_exc:
+        try:
+            target_path = evidence_path.relative_to(ROOT).as_posix()
+        except Exception:
+            target_path = evidence_path.name
+        recovery = {
+            "verdict": COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
+            "status": "error",
+            "final_status": "committed_evidence_recovery_required",
+            "run_id": report.get("run_id"),
+            "commit_state": COMMITTED_EVIDENCE_PENDING,
+            "committed": True,
+            "rolled_back": False,
+            "reapply_allowed": False,
+            "target_evidence_path": target_path,
+            "approved_git_sha": report.get("approved_git_sha"),
+            "content_fingerprints": report.get("content_fingerprints"),
+            "sql_raw_sha256": report.get("sql_raw_sha256"),
+            "evidence_error": type(evidence_exc).__name__,
+        }
+        try:
+            recovery["receipt_path"] = str(write_committed_recovery_receipt(recovery))
+        except Exception as receipt_exc:
+            recovery["receipt_error"] = type(receipt_exc).__name__
+        try:
+            sys.stderr.write(json.dumps(recovery, ensure_ascii=False, sort_keys=True) + "\n")
+            sys.stderr.flush()
+        except Exception:
+            pass
+        return recovery
+
+
 def _canonical_scalar(value: Any) -> dict[str, Any]:
     if value is None:
         return {"type": "null", "value": None}
@@ -438,13 +490,15 @@ def _stage_select_query(create_query: str, cte_name: str) -> str:
     return create_query[offset:].strip()
 
 
-def _compute_content_fingerprints(cur, affected_dates: list[str], affected_weeks: list[str]) -> dict[str, Any]:
+def _compute_content_fingerprints(
+    cur,
+    affected_dates: list[str],
+    affected_weeks: list[str],
+    approved_mart_loaded_at_utc: str,
+) -> dict[str, Any]:
     daily_columns = _quoted_ident_list(DAILY_FACT_COLUMNS)
     weekly_columns = _quoted_ident_list(WEEKLY_FACT_COLUMNS)
-    daily_source = _stage_select_query(_create_daily_stage_query(), "affected_dates").replace(
-        "now()::timestamptz AS mart_loaded_at",
-        "NULL::timestamptz AS mart_loaded_at",
-    )
+    daily_source = _stage_select_query(_create_daily_stage_query(), "affected_dates")
     weekly_source = _stage_select_query(_create_weekly_stage_query(), "affected_weeks")
     return {
         "target_daily_sha256": _fingerprint_query(
@@ -465,13 +519,18 @@ def _compute_content_fingerprints(cur, affected_dates: list[str], affected_weeks
             cur,
             f"SELECT {daily_columns} FROM ({daily_source}) source_daily "
             "ORDER BY fecha_visita,cod_rt,cliente_norm",
-            (affected_dates,), DAILY_FACT_COLUMNS,
+            (affected_dates, approved_mart_loaded_at_utc), DAILY_FACT_COLUMNS,
         ),
         "source_weekly_stage_sha256": _fingerprint_query(
             cur,
             f"SELECT {weekly_columns} FROM ({weekly_source}) source_weekly "
             'ORDER BY "SEMANA_INICIO","COD_RT","CLIENTE_NORM_FILTER"',
-            (affected_weeks,), WEEKLY_FACT_COLUMNS,
+            (
+                affected_weeks,
+                affected_dates,
+                approved_mart_loaded_at_utc,
+                affected_dates,
+            ), WEEKLY_FACT_COLUMNS,
         ),
     }
 
@@ -494,6 +553,18 @@ def _assert_fingerprints_match(expected: Any, observed: Any) -> None:
 
 def _now_ms() -> int:
     return int(time.perf_counter() * 1000)
+
+
+def _normalize_utc_timestamp(value: Any) -> str | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def ensure_sslmode(db_url: str) -> str:
@@ -950,7 +1021,7 @@ def _create_daily_stage_query() -> str:
         COALESCE(v.persona_conflicto_rows_dia, 0)::integer AS persona_conflicto_rows_dia,
         v.match_quality,
         COALESCE(v.registro_fuera_cruce, '')::text AS registro_fuera_cruce,
-        now()::timestamptz AS mart_loaded_at
+        %s::timestamptz AS mart_loaded_at
     FROM {DAILY_SOURCE} v
     JOIN affected_dates ad
       ON ad.fecha_visita = v.fecha_visita
@@ -979,11 +1050,24 @@ def _insert_daily_query() -> str:
 
 
 def _create_weekly_stage_query() -> str:
+    daily_stage_select = _stage_select_query(_create_daily_stage_query(), "affected_dates")
+    daily_columns = _quoted_ident_list(DAILY_FACT_COLUMNS)
     return f"""
     CREATE TEMP TABLE _cg_weekly_stage
     ON COMMIT DROP AS
     WITH affected_weeks AS (
         SELECT unnest(%s::date[]) AS semana_inicio
+    ),
+    daily_stage AS MATERIALIZED (
+        {daily_stage_select}
+    ),
+    daily_overlay AS MATERIALIZED (
+        SELECT {daily_columns}
+        FROM {DAILY_FACT}
+        WHERE NOT (fecha_visita = ANY(%s::date[]))
+        UNION ALL
+        SELECT {daily_columns}
+        FROM daily_stage
     ),
     base AS MATERIALIZED (
         SELECT
@@ -1087,7 +1171,7 @@ def _create_weekly_stage_query() -> str:
                 CASE WHEN max(CASE WHEN COALESCE(d.tiene_power_app, 0) = 1 THEN 1 ELSE 0 END) = 1 THEN 'POWER_APP' END
             ) AS fuentes_reportadas_semana
         FROM base b
-        LEFT JOIN {DAILY_FACT} d
+        LEFT JOIN daily_overlay d
           ON d.cod_rt = b.cod_rt
          AND d.cliente_norm = b.cliente_norm
          AND d.semana_inicio = b.effective_week_start
@@ -1536,6 +1620,11 @@ def run_incremental_dry_run(
         with conn.cursor() as cur:
             cur.execute("SET LOCAL statement_timeout = %s", (timeout_ms,))
             if contract_023 is not None:
+                approved_loaded_at = _normalize_utc_timestamp(
+                    contract_023.get("approved_mart_loaded_at_utc")
+                )
+                if approved_loaded_at is None:
+                    raise RefreshContractError("dry_run_mart_loaded_at_required")
                 cur.execute(
                     "SELECT current_user,session_user,current_database(),"
                     "current_setting('role'),current_setting('transaction_read_only')"
@@ -1554,8 +1643,12 @@ def run_incremental_dry_run(
                     (int(contract_023["advisory_lock_key"]),),
                 )
                 result["content_fingerprints"] = _compute_content_fingerprints(
-                    cur, requested_affected_date_values, apply_scope["apply_weekly_weeks"]
+                    cur,
+                    requested_affected_date_values,
+                    apply_scope["apply_weekly_weeks"],
+                    approved_loaded_at,
                 )
+                result["approved_mart_loaded_at_utc"] = approved_loaded_at
             if requested_affected_date_values:
                 result["daily_check"] = _run_daily_check(cur, requested_affected_date_values, validate)
             else:
@@ -1683,21 +1776,60 @@ def _run_weekly_fact_validation(cur, affected_weeks: list[str]) -> dict[str, Any
     }
 
 
-def _run_incremental_transaction(
-    *,
-    db_url: str,
-    week_scope: dict[str, set[date]],
-    statement_timeout_seconds: int,
-    post_apply_validate: bool,
-    advisory_lock_key: int,
-    expected_content_fingerprints: dict[str, Any],
-    _marker: object,
-    _connect_fn: Any = None,
-) -> dict[str, Any]:
-    if _marker is not _INTERNAL_APPLY_MARKER:
-        raise RefreshContractError("internal_apply_authority_required")
+def run_authorized_june_refresh_023() -> dict[str, Any]:
+    """Sole productive June entrypoint; all authority is canonical and internal."""
+    args = build_parser().parse_args()
+    if not args.apply or args.dry_run or args.confirm_real_apply:
+        raise RefreshContractError("authorized_june_apply_interface_required")
+    if args.plan_023 is not None and args.plan_023.resolve() != PLAN_023_DEFAULT.resolve():
+        raise RefreshContractError("canonical_plan_023_path_required")
+    if args.db_url or args.affected_date or args.affected_week or args.safety_window_weeks != 0:
+        raise RefreshContractError("plan_023_scope_override_forbidden")
+    plan, authority = _load_plan_023(PLAN_023_DEFAULT, operation="apply")
+    _validate_wrapper_marker(MART_REFRESH_APPLY_OPERATION)
+    if args.confirm != APPLY_CONFIRM_TOKEN:
+        raise RefreshContractError("plan_023_confirmation_token_mismatch")
+    db_url = os.getenv(MART_REFRESH_ENV, "")
     if not db_url:
-        raise RuntimeError("NO_DB_URL_AVAILABLE")
+        raise RefreshContractError("cg_mart_refresh_env_required")
+    _validate_productive_dsn(db_url, plan)
+    if args.evidence_json is None:
+        raise RefreshContractError("june_refresh_evidence_path_required")
+    evidence_path = _canonical_evidence_path(
+        args.evidence_json, args.run_id, "04_june_mart_refresh_apply.json"
+    )
+    if args.dry_run_report_json is None:
+        raise RefreshContractError("authorized_dry_run_report_required")
+    dry_path = args.dry_run_report_json.resolve()
+    try:
+        dry_path.relative_to(Path(tempfile.gettempdir()).resolve())
+    except ValueError as exc:
+        raise RefreshContractError("authorized_dry_run_report_must_be_in_temp") from exc
+    dry_bytes = dry_path.read_bytes()
+    dry_report = json.loads(dry_bytes.decode("utf-8"))
+    expected_content_fingerprints = dry_report.get("content_fingerprints")
+    _assert_fingerprints_match(expected_content_fingerprints, expected_content_fingerprints)
+    approved_loaded_at = _normalize_utc_timestamp(plan.get("approved_mart_loaded_at_utc"))
+    if approved_loaded_at is None or dry_report.get("approved_mart_loaded_at_utc") != approved_loaded_at:
+        raise RefreshContractError("approved_mart_loaded_at_link_mismatch")
+    dry_authority = plan.get("dry_run_authorization")
+    required_dry = {
+        "raw_sha256": _sha256_bytes(dry_bytes),
+        "scope_sha256": authority["scope_sha256"],
+        "content_fingerprints": expected_content_fingerprints,
+        "approved_mart_loaded_at_utc": approved_loaded_at,
+    }
+    if not isinstance(dry_authority, dict) or any(
+        dry_authority.get(key) != value for key, value in required_dry.items()
+    ):
+        raise RefreshContractError("dry_run_authorization_link_mismatch")
+    payload = plan["scope"]["canonical_payload"]
+    dates = {date.fromisoformat(value) for value in payload["affected_dates"]}
+    weeks = {date.fromisoformat(value) for value in payload["affected_weeks"]}
+    week_scope = build_week_scope(dates, weeks, 0)
+    statement_timeout_seconds = args.statement_timeout_seconds
+    post_apply_validate = args.post_apply_validate
+    advisory_lock_key = int(plan["advisory_lock_key"])
 
     requested_affected_date_values = sorted_iso(week_scope["requested_affected_dates"])
     derived_affected_week_values = sorted_iso(week_scope["derived_affected_weeks"])
@@ -1711,9 +1843,7 @@ def _run_incremental_transaction(
     if not requested_affected_date_values and not affected_week_values:
         raise RuntimeError("NO_AFFECTED_DATES_OR_WEEKS")
 
-    if _connect_fn is None:
-        import psycopg2
-        _connect_fn = psycopg2.connect
+    import psycopg2
 
     db_url = ensure_sslmode(db_url)
     timeout_ms = _statement_timeout_ms(statement_timeout_seconds)
@@ -1757,8 +1887,10 @@ def _run_incremental_transaction(
     conn = None
     committed = False
     try:
-        conn = _connect_fn(db_url)
-        conn.set_session(readonly=False, autocommit=False)
+        conn = psycopg2.connect(db_url)
+        conn.set_session(
+            readonly=False, autocommit=False, isolation_level="REPEATABLE READ"
+        )
         with conn.cursor() as cur:
             cur.execute("SET LOCAL statement_timeout = %s", (timeout_ms,))
             cur.execute(
@@ -1779,7 +1911,10 @@ def _run_incremental_transaction(
                 (int(advisory_lock_key),),
             )
             observed_prestate = _compute_content_fingerprints(
-                cur, requested_affected_date_values, affected_week_values
+                cur,
+                requested_affected_date_values,
+                affected_week_values,
+                approved_loaded_at,
             )
             _assert_fingerprints_match(expected_content_fingerprints, observed_prestate)
             result["content_fingerprints"] = observed_prestate
@@ -1795,8 +1930,11 @@ def _run_incremental_transaction(
                 if missing_explicit_route:
                     raise RuntimeError("explicit_week_no_route_scope:" + ",".join(missing_explicit_route))
 
-            if requested_affected_date_values:
-                cur.execute(_create_daily_stage_query(), (requested_affected_date_values,))
+            def _execute_daily_dml() -> None:
+                cur.execute(
+                    _create_daily_stage_query(),
+                    (requested_affected_date_values, approved_loaded_at),
+                )
                 daily_stage_rows = _count_temp_rows(cur, "_cg_daily_stage")
                 result["daily_apply"]["stage_rows"] = daily_stage_rows
                 if daily_stage_rows == 0:
@@ -1813,8 +1951,16 @@ def _run_incremental_transaction(
                 if daily_validation.get("validation_status") != "ok":
                     raise RuntimeError("daily_validation_diff")
 
-            if affected_week_values:
-                cur.execute(_create_weekly_stage_query(), (affected_week_values,))
+            def _execute_weekly_dml() -> None:
+                cur.execute(
+                    _create_weekly_stage_query(),
+                    (
+                        affected_week_values,
+                        requested_affected_date_values,
+                        approved_loaded_at,
+                        requested_affected_date_values,
+                    ),
+                )
                 weekly_stage_rows = _count_temp_rows(cur, "_cg_weekly_stage")
                 result["weekly_apply"]["stage_rows"] = weekly_stage_rows
                 if weekly_stage_rows == 0:
@@ -1831,6 +1977,11 @@ def _run_incremental_transaction(
                 if weekly_validation.get("validation_status") != "ok":
                     raise RuntimeError("weekly_validation_diff")
 
+            if requested_affected_date_values:
+                _execute_daily_dml()
+            if affected_week_values:
+                _execute_weekly_dml()
+
             conn.commit()
             committed = True
             result["committed"] = True
@@ -1838,8 +1989,38 @@ def _run_incremental_transaction(
         result["status"] = "ok"
         result["final_status"] = "apply_ok"
         result["elapsed_ms"] = _now_ms() - started_ms
-        return result
+        result.update(authority)
+        result.update({
+            "document_type": "stock_zero_cg_june_mart_refresh_apply_v1",
+            "schema_version": 1,
+            "verdict": "PASS_023_JUNE_MART_REFRESH_APPLY",
+            "run_id": args.run_id,
+            "scope_sha256": authority.get("scope_sha256"),
+            "dry_run_raw_sha256": required_dry["raw_sha256"],
+            "approved_mart_loaded_at_utc": approved_loaded_at,
+            "writes_attempted": True,
+            "writes_executed": True,
+            "transaction_outcome": "COMMITTED",
+            "commit_state": COMMITTED_EVIDENCE_PENDING,
+            "committed": True,
+            "rolled_back": False,
+            "reapply_allowed": False,
+        })
+        return _emit_committed_recovery_nonthrowing(evidence_path, result)
     except Exception as exc:
+        if committed:
+            committed_report = {
+                **authority,
+                "run_id": args.run_id,
+                "verdict": COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
+                "commit_state": COMMITTED_EVIDENCE_PENDING,
+                "committed": True,
+                "rolled_back": False,
+                "reapply_allowed": False,
+                "evidence_error": type(exc).__name__,
+                "content_fingerprints": result.get("content_fingerprints"),
+            }
+            return _emit_committed_recovery_nonthrowing(evidence_path, committed_report)
         if conn is not None and not committed:
             conn.rollback()
             result["rolled_back"] = True
@@ -1850,106 +2031,16 @@ def _run_incremental_transaction(
         return result
     finally:
         if conn is not None:
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                if not committed:
+                    raise
 
 
-def run_incremental_apply(
-    *,
-    plan_path: Path,
-    confirm: str,
-    run_id: str,
-    evidence_json: Path,
-    dry_run_report_json: Path,
-    statement_timeout_seconds: int,
-    post_apply_validate: bool,
-) -> dict[str, Any]:
-    """The only productive entrypoint; authority is reloaded from canonical state."""
-    if plan_path.resolve() != PLAN_023_DEFAULT.resolve():
-        raise RefreshContractError("canonical_plan_023_path_required")
-    plan, authority = _load_plan_023(plan_path, operation="apply")
-    _validate_wrapper_marker(MART_REFRESH_APPLY_OPERATION)
-    if confirm != APPLY_CONFIRM_TOKEN:
-        raise RefreshContractError("plan_023_confirmation_token_mismatch")
-    dsn = os.getenv(MART_REFRESH_ENV, "")
-    if not dsn:
-        raise RefreshContractError("cg_mart_refresh_env_required")
-    _validate_productive_dsn(dsn, plan)
-    evidence_path = _canonical_evidence_path(
-        evidence_json, run_id, "04_june_mart_refresh_apply.json"
-    )
-    dry_path = dry_run_report_json.resolve()
-    try:
-        dry_path.relative_to(Path(tempfile.gettempdir()).resolve())
-    except ValueError as exc:
-        raise RefreshContractError("authorized_dry_run_report_must_be_in_temp") from exc
-    dry_bytes = dry_path.read_bytes()
-    dry_report = json.loads(dry_bytes.decode("utf-8"))
-    expected_fingerprints = dry_report.get("content_fingerprints")
-    _assert_fingerprints_match(expected_fingerprints, expected_fingerprints)
-    dry_authority = plan.get("dry_run_authorization")
-    required_dry = {
-        "raw_sha256": _sha256_bytes(dry_bytes),
-        "scope_sha256": authority["scope_sha256"],
-        "content_fingerprints": expected_fingerprints,
-    }
-    if not isinstance(dry_authority, dict) or any(
-        dry_authority.get(key) != value for key, value in required_dry.items()
-    ):
-        raise RefreshContractError("dry_run_authorization_link_mismatch")
-    payload = plan["scope"]["canonical_payload"]
-    dates = {date.fromisoformat(value) for value in payload["affected_dates"]}
-    weeks = {date.fromisoformat(value) for value in payload["affected_weeks"]}
-    week_scope = build_week_scope(dates, weeks, 0)
-    result = _run_incremental_transaction(
-        db_url=dsn,
-        week_scope=week_scope,
-        statement_timeout_seconds=statement_timeout_seconds,
-        post_apply_validate=post_apply_validate,
-        advisory_lock_key=int(plan["advisory_lock_key"]),
-        expected_content_fingerprints=expected_fingerprints,
-        _marker=_INTERNAL_APPLY_MARKER,
-    )
-    if result.get("final_status") != "apply_ok":
-        return result
-    result.update(authority)
-    result.update({
-        "document_type": "stock_zero_cg_june_mart_refresh_apply_v1",
-        "schema_version": 1,
-        "verdict": "PASS_023_JUNE_MART_REFRESH_APPLY",
-        "run_id": run_id,
-        "scope_sha256": authority["scope_sha256"],
-        "dry_run_raw_sha256": required_dry["raw_sha256"],
-        "writes_attempted": True,
-        "writes_executed": True,
-        "transaction_outcome": "COMMITTED",
-        "commit_state": COMMITTED_EVIDENCE_PENDING,
-        "committed": True,
-        "rolled_back": False,
-    })
-    result["commit_state"] = COMMITTED_EVIDENCE_RECORDED
-    try:
-        write_json_exclusive(evidence_path, result)
-    except Exception as exc:
-        result["commit_state"] = COMMITTED_EVIDENCE_PENDING
-        receipt = {
-            "verdict": COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
-            "run_id": run_id,
-            "commit_state": COMMITTED_EVIDENCE_PENDING,
-            "committed": True,
-            "rolled_back": False,
-            "target_evidence_path": evidence_path.relative_to(ROOT).as_posix(),
-            "approved_git_sha": authority["approved_git_sha"],
-            "content_fingerprints": result["content_fingerprints"],
-            "evidence_error": type(exc).__name__,
-        }
-        receipt_path = write_committed_recovery_receipt(receipt)
-        receipt["receipt_path"] = str(receipt_path)
-        result.update(receipt)
-        result["status"] = "error"
-        result["final_status"] = "committed_evidence_recovery_required"
-        return result
-    result["evidence_path"] = evidence_path.relative_to(ROOT).as_posix()
-    return result
+def run_incremental_apply(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+    """Blocked legacy API retained only so historical import sites fail closed."""
+    raise RefreshContractError("legacy_apply_interface_removed_use_authorized_023_entrypoint")
 
 
 def _operator_next_step(result: dict[str, Any]) -> str:
@@ -2155,6 +2246,9 @@ def main() -> int:
                 "advisory_lock_key": int(plan["advisory_lock_key"]),
             }
             if operation == "dry-run":
+                contract_runtime["approved_mart_loaded_at_utc"] = (
+                    datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                )
                 if args.report_json is None:
                     raise RefreshContractError("dry_run_report_json_required")
                 report_path = _temporary_report_path(args.report_json)
@@ -2185,6 +2279,9 @@ def main() -> int:
                     "raw_sha256": dry_hash,
                     "scope_sha256": authority["scope_sha256"],
                     "content_fingerprints": dry_report.get("content_fingerprints"),
+                    "approved_mart_loaded_at_utc": dry_report.get(
+                        "approved_mart_loaded_at_utc"
+                    ),
                 }
                 if any(dry_authority.get(key) != value for key, value in required_dry.items()):
                     raise RefreshContractError("dry_run_authorization_link_mismatch")
@@ -2218,15 +2315,7 @@ def main() -> int:
                 })
                 _write_json_once(report_path, result)
         else:
-            result = run_incremental_apply(
-                plan_path=args.plan_023,
-                confirm=args.confirm,
-                run_id=args.run_id,
-                evidence_json=args.evidence_json,
-                dry_run_report_json=args.dry_run_report_json,
-                statement_timeout_seconds=args.statement_timeout_seconds,
-                post_apply_validate=args.post_apply_validate,
-            )
+            result = run_authorized_june_refresh_023()
         result["db_url_source"] = db_url_source
         result["operator_next_step"] = _operator_next_step(result)
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))

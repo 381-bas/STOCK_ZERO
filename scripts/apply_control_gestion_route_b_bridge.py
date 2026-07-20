@@ -14,18 +14,14 @@ import psycopg
 try:
     from scripts.refresh_control_gestion_v2_incremental import (
         COMMITTED_EVIDENCE_PENDING,
-        COMMITTED_EVIDENCE_RECORDED,
         COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
-        write_committed_recovery_receipt,
-        write_json_exclusive,
+        _emit_committed_recovery_nonthrowing,
     )
 except ModuleNotFoundError:  # direct script execution
     from refresh_control_gestion_v2_incremental import (  # type: ignore
         COMMITTED_EVIDENCE_PENDING,
-        COMMITTED_EVIDENCE_RECORDED,
         COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
-        write_committed_recovery_receipt,
-        write_json_exclusive,
+        _emit_committed_recovery_nonthrowing,
     )
 
 
@@ -181,6 +177,7 @@ def apply_bridge(
 ) -> dict[str, object]:
     connection_attempted = False
     writes_attempted = False
+    committed = False
     try:
         connection_attempted = True
         with psycopg.connect(dsn) as connection:
@@ -243,6 +240,7 @@ def apply_bridge(
                 }:
                     raise BridgeApplyError("bridge_direct_acl_signature_mismatch")
             connection.commit()
+            committed = True
         return {
             **authority,
             "verdict": COMMITTED_EVIDENCE_PENDING,
@@ -260,6 +258,18 @@ def apply_bridge(
             "commit_state": COMMITTED_EVIDENCE_PENDING,
         }
     except Exception as exc:
+        if committed:
+            return {
+                **authority,
+                "verdict": COMMITTED_EVIDENCE_PENDING,
+                "connection_attempted": connection_attempted,
+                "writes_attempted": writes_attempted,
+                "committed": True,
+                "rolled_back": False,
+                "reapply_allowed": False,
+                "commit_state": COMMITTED_EVIDENCE_PENDING,
+                "post_commit_error": type(exc).__name__,
+            }
         if isinstance(exc, BridgeApplyError):
             raise
         raise BridgeApplyError(type(exc).__name__) from exc
@@ -323,27 +333,16 @@ def main() -> int:
             "writes_executed": True,
             "transaction_outcome": "COMMITTED",
         })
-        report["verdict"] = "PASS_ROUTE_B_APP_BRIDGE_APPLY"
-        report["commit_state"] = COMMITTED_EVIDENCE_RECORDED
-        try:
-            write_json_exclusive(evidence_path, report)
-        except Exception as exc:
-            receipt = {
-                "verdict": COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
-                "run_id": args.run_id,
-                "commit_state": COMMITTED_EVIDENCE_PENDING,
-                "committed": True,
-                "rolled_back": False,
-                "target_evidence_path": evidence_path.relative_to(ROOT).as_posix(),
-                "approved_git_sha": authority["approved_git_sha"],
-                "sql_raw_sha256": authority["sql_raw_sha256"],
-                "evidence_error": type(exc).__name__,
-            }
-            receipt["receipt_path"] = str(write_committed_recovery_receipt(receipt))
-            print(json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True))
-            return 3
-        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
-        return 0
+        report["verdict"] = (
+            COMMITTED_EVIDENCE_RECOVERY_REQUIRED
+            if report.get("post_commit_error")
+            else "PASS_ROUTE_B_APP_BRIDGE_APPLY"
+        )
+        report["commit_state"] = COMMITTED_EVIDENCE_PENDING
+        report["reapply_allowed"] = False
+        persisted = _emit_committed_recovery_nonthrowing(evidence_path, report)
+        print(json.dumps(persisted, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0 if persisted.get("verdict") == "PASS_ROUTE_B_APP_BRIDGE_APPLY" else 3
     except (BridgeApplyError, OSError) as exc:
         print(json.dumps({"verdict": "BLOCKED", "error": str(exc)}, sort_keys=True))
         return 2

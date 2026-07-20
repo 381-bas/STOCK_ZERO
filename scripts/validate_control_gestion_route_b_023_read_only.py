@@ -23,6 +23,8 @@ EXPECTED_DATABASE = "postgres"
 EXPECTED_PROJECT = "xheyrgfagpoigpgakilu"
 EXPECTED_RO_ROLE = "stock_zero_codex_ro"
 EXPECTED_APP_ROLE = "stock_zero_app_ro"
+APP_ALLOWLIST_PENDING = "PENDING_PRODUCTIVE_READONLY_DISCOVERY"
+APP_ALLOWLIST_FROZEN = "FROZEN_PRODUCTIVE_READONLY_ALLOWLIST"
 EXPECTED_WEEKS = [
     "2026-06-01", "2026-06-08", "2026-06-15", "2026-06-22", "2026-06-29",
 ]
@@ -245,6 +247,72 @@ def evaluate_app_acl_snapshot(
     }
 
 
+def evaluate_app_capability_snapshot(
+    snapshot: dict[str, Any],
+    required_select_objects: set[str],
+    global_select_allowlist: set[str],
+    allowlist_status: str,
+) -> dict[str, Any]:
+    if allowlist_status != APP_ALLOWLIST_FROZEN:
+        raise ReadonlyValidationError("STOP_023_APP_READ_ALLOWLIST_NOT_FROZEN")
+    attributes = snapshot.get("role_attributes", {})
+    if attributes.get("login") is not True or any(
+        attributes.get(name) is not False
+        for name in (
+            "superuser", "createdb", "createrole", "replication", "bypassrls"
+        )
+    ):
+        raise ReadonlyValidationError("app_elevated_role_attribute_forbidden")
+    memberships = list(snapshot.get("memberships", []))
+    ownerships = list(snapshot.get("ownerships", []))
+    if memberships:
+        raise ReadonlyValidationError("app_membership_forbidden")
+    if ownerships:
+        raise ReadonlyValidationError("app_ownership_forbidden")
+    grants = [dict(item) for item in snapshot.get("grants", [])]
+    prohibited = {
+        "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER",
+        "CREATE", "TEMP", "TEMPORARY", "MAINTAIN",
+    }
+    for grant in grants:
+        privilege = str(grant.get("privilege", "")).upper()
+        object_type = str(grant.get("object_type", ""))
+        schema = str(grant.get("schema", ""))
+        if privilege in prohibited:
+            raise ReadonlyValidationError("app_effective_write_privilege_forbidden")
+        if object_type == "sequence":
+            raise ReadonlyValidationError("app_sequence_privilege_forbidden")
+        if object_type == "routine" and schema not in {"pg_catalog", "information_schema"}:
+            raise ReadonlyValidationError("app_non_system_routine_execute_forbidden")
+    effective_selects = {
+        str(grant.get("identity")) for grant in grants
+        if grant.get("object_type") == "relation"
+        and str(grant.get("privilege", "")).upper() == "SELECT"
+    }
+    missing = required_select_objects - effective_selects
+    if missing:
+        raise ReadonlyValidationError("app_required_control_gestion_select_missing")
+    if effective_selects != global_select_allowlist:
+        raise ReadonlyValidationError("app_global_select_allowlist_drift")
+    return {
+        "role_attributes": attributes,
+        "memberships": memberships,
+        "ownerships": ownerships,
+        "grants": grants,
+        "required_select_objects": sorted(required_select_objects),
+        "effective_select_objects": sorted(effective_selects),
+    }
+
+
+def _assert_app_allowlist_frozen(plan: dict[str, Any]) -> None:
+    surface = plan.get("app_readonly_surface", {})
+    if surface.get("status") != APP_ALLOWLIST_FROZEN:
+        raise ReadonlyValidationError("STOP_023_APP_READ_ALLOWLIST_NOT_FROZEN")
+    allowlist = surface.get("global_select_allowlist")
+    if not isinstance(allowlist, list) or not allowlist:
+        raise ReadonlyValidationError("app_global_select_allowlist_missing")
+
+
 def _git(*args: str, text: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["git", *args], cwd=ROOT, capture_output=True, text=text, check=False,
@@ -275,6 +343,7 @@ def _load_plan(path: Path, expected_git_ref: str, mode: str) -> tuple[dict, dict
             or active != ["runtime_app_validation_authorized"]
         ):
             raise ReadonlyValidationError("app_validation_not_exclusively_authorized")
+        _assert_app_allowlist_frozen(plan)
     validate_operational_state(plan, mode)
     payload = plan.get("scope", {}).get("canonical_payload")
     if canonical_json_sha256(payload) != plan.get("scope", {}).get("scope_sha256"):
@@ -345,6 +414,94 @@ def _fetch_grain_metrics(cursor, *, include_daily: bool) -> dict[str, dict[str, 
     return result
 
 
+def _collect_app_capability_snapshot(cursor) -> dict[str, Any]:
+    cursor.execute(
+        "SELECT oid,rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls "
+        "FROM pg_roles WHERE rolname=%s",
+        (EXPECTED_APP_ROLE,),
+    )
+    role = cursor.fetchone()
+    if role is None:
+        raise ReadonlyValidationError("app_role_missing")
+    target_oid = int(role[0])
+    role_attributes = dict(zip(
+        ("login", "superuser", "createdb", "createrole", "replication", "bypassrls"),
+        role[1:],
+    ))
+    cursor.execute(
+        "SELECT granted.oid,granted.rolname FROM pg_auth_members m "
+        "JOIN pg_roles member ON member.oid=m.member "
+        "JOIN pg_roles granted ON granted.oid=m.roleid WHERE member.rolname=%s",
+        (EXPECTED_APP_ROLE,),
+    )
+    membership_rows = list(cursor.fetchall())
+    membership_oids = {int(row[0]) for row in membership_rows}
+    memberships = [str(row[1]) for row in membership_rows]
+    cursor.execute(
+        "SELECT kind,identity FROM ("
+        "SELECT 'database' kind,d.datname identity,d.datdba owner FROM pg_database d "
+        "UNION ALL SELECT 'schema',n.nspname,n.nspowner FROM pg_namespace n "
+        "UNION ALL SELECT 'relation',n.nspname||'.'||c.relname,c.relowner FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+        "UNION ALL SELECT 'routine',n.nspname||'.'||p.proname,p.proowner FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace"
+        ") owned WHERE owner=%s",
+        (target_oid,),
+    )
+    ownerships = [tuple(row) for row in cursor.fetchall()]
+    raw_grants: list[tuple[Any, ...]] = []
+    catalog_queries = (
+        (
+            "SELECT x.grantee,'database','',d.datname,x.privilege_type FROM pg_database d "
+            "CROSS JOIN LATERAL aclexplode(COALESCE(d.datacl,acldefault('d',d.datdba))) x",
+            (),
+        ),
+        (
+            "SELECT x.grantee,'schema',n.nspname,n.nspname,x.privilege_type FROM pg_namespace n "
+            "CROSS JOIN LATERAL aclexplode(COALESCE(n.nspacl,acldefault('n',n.nspowner))) x",
+            (),
+        ),
+        (
+            "SELECT x.grantee,CASE WHEN c.relkind='S' THEN 'sequence' ELSE 'relation' END,"
+            "n.nspname,n.nspname||'.'||c.relname,x.privilege_type FROM pg_class c "
+            "JOIN pg_namespace n ON n.oid=c.relnamespace "
+            "CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl,acldefault(CASE WHEN c.relkind='S' THEN 'S'::\"char\" ELSE 'r'::\"char\" END,c.relowner))) x",
+            (),
+        ),
+        (
+            "SELECT x.grantee,'routine',n.nspname,n.nspname||'.'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',x.privilege_type "
+            "FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+            "CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) x",
+            (),
+        ),
+    )
+    for query, params in catalog_queries:
+        cursor.execute(query, params)
+        raw_grants.extend(tuple(row) for row in cursor.fetchall())
+    grants: list[dict[str, Any]] = []
+    for grantee, object_type, schema, identity, privilege in raw_grants:
+        grantee_oid = int(grantee)
+        if grantee_oid == 0:
+            source = "PUBLIC"
+        elif grantee_oid == target_oid:
+            source = "direct"
+        elif grantee_oid in membership_oids:
+            source = "membership"
+        else:
+            continue
+        grants.append({
+            "source": source,
+            "object_type": str(object_type),
+            "schema": str(schema),
+            "identity": str(identity),
+            "privilege": str(privilege),
+        })
+    return {
+        "role_attributes": role_attributes,
+        "memberships": memberships,
+        "ownerships": ownerships,
+        "grants": grants,
+    }
+
+
 def _run_observation(dsn: str, mode: str, plan: dict, authority: dict[str, str]) -> dict[str, Any]:
     expected_role = EXPECTED_APP_ROLE if mode == "app" else EXPECTED_RO_ROLE
     with psycopg.connect(dsn) as connection:
@@ -388,33 +545,17 @@ def _run_observation(dsn: str, mode: str, plan: dict, authority: dict[str, str])
                 raise ReadonlyValidationError("weekly_readonly_acl_mismatch")
             app_acl = None
             if mode == "app":
-                expected_objects = set(plan.get("app_readonly_surface", {}).get("direct_select_objects", []))
+                surface = plan.get("app_readonly_surface", {})
+                expected_objects = set(
+                    surface.get("required_control_gestion_select_objects", [])
+                )
                 if not expected_objects:
                     raise ReadonlyValidationError("app_readonly_surface_missing")
-                cursor.execute(
-                    "SELECT table_schema||'.'||table_name,privilege_type "
-                    "FROM information_schema.role_table_grants WHERE grantee=%s "
-                    "AND table_schema IN ('public','cg_core','cg_mart')",
-                    (EXPECTED_APP_ROLE,),
-                )
-                direct_grants = cursor.fetchall()
-                cursor.execute(
-                    "SELECT table_schema||'.'||table_name,privilege_type "
-                    "FROM information_schema.table_privileges WHERE grantee='PUBLIC' "
-                    "AND table_schema IN ('public','cg_core','cg_mart')"
-                )
-                public_grants = cursor.fetchall()
-                cursor.execute(
-                    "SELECT n.nspname||'.'||c.relname,p.privilege FROM pg_class c "
-                    "JOIN pg_namespace n ON n.oid=c.relnamespace "
-                    "CROSS JOIN (VALUES ('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),"
-                    "('REFERENCES'),('TRIGGER'),('MAINTAIN')) p(privilege) "
-                    "WHERE n.nspname IN ('public','cg_core','cg_mart') "
-                    "AND has_table_privilege(%s,c.oid,p.privilege)",
-                    (EXPECTED_APP_ROLE,),
-                )
-                app_acl = evaluate_app_acl_snapshot(
-                    expected_objects, direct_grants, public_grants, cursor.fetchall()
+                app_acl = evaluate_app_capability_snapshot(
+                    _collect_app_capability_snapshot(cursor),
+                    expected_objects,
+                    set(surface.get("global_select_allowlist", [])),
+                    str(surface.get("status", "")),
                 )
             grains = _fetch_grain_metrics(cursor, include_daily=mode != "app")
             cursor.execute(
