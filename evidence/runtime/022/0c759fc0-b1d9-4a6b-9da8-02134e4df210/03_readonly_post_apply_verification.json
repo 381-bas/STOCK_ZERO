@@ -1,0 +1,82 @@
+{
+  "active_batch_count": 1,
+  "approved_git_sha": "e6afdd4c7518ff78d749b468e1e8184f97b4f5cb",
+  "current_user": "stock_zero_codex_ro",
+  "database": "postgres",
+  "document_type": "stock_zero_route_b_productive_readonly_snapshot_v1",
+  "dsn_printed": false,
+  "legacy": {
+    "acl": "{postgres=arwdDxtm/postgres,stock_zero_codex_ro=r/postgres}",
+    "column_signature_sha256": "db6af58a38fa04d39be82806f7eda4e440e0a6670d42618a9e9ea6e9383c2d3d",
+    "object_identity": "cg_raw.kpione2_raw",
+    "oid": "23127",
+    "owner": "postgres",
+    "relation_kind": "r",
+    "relation_size_bytes": 44875776,
+    "row_count": 45736,
+    "select_available": true
+  },
+  "legacy_activity_delta": {
+    "relation_size_bytes": {
+      "after": 44875776,
+      "before": 44875776,
+      "delta": 0
+    },
+    "row_count": {
+      "after": 45736,
+      "before": 45736,
+      "delta": 0
+    }
+  },
+  "persistent_rows_written": 0,
+  "phase": "POST_APPLY",
+  "public_acl": {
+    "relations": {
+      "cg_core.kpione_day_presence_v1": [],
+      "cg_core.kpione_event_normalized_v1": [],
+      "cg_raw.kpione2_raw": [],
+      "cg_raw.kpione_raw_event_photo_staging_v1": [],
+      "cg_raw.kpione_raw_ingest_batch_file_v1": [],
+      "cg_raw.kpione_raw_ingest_batch_v1": []
+    },
+    "schemas": {
+      "cg_core": [],
+      "cg_raw": []
+    }
+  },
+  "public_acl_unchanged": true,
+  "route_b_signatures": [
+    {
+      "columns_sha256": "254fc9d8922bc5bd3058f56295b38db9dd24100fdc576d0c6df4becdea96eae6",
+      "object": "cg_core.kpione_day_presence_v1",
+      "relation_kind": "v"
+    },
+    {
+      "columns_sha256": "24bfa476e83d2961c0ee0a22a1512f32386e61f412e6d796851ede5f2302939b",
+      "object": "cg_core.kpione_event_normalized_v1",
+      "relation_kind": "v"
+    },
+    {
+      "columns_sha256": "e4b13de8215227f5476604b46b5889c0ed3285aa9e44ee1359d18c447874a9bb",
+      "object": "cg_raw.kpione_raw_event_photo_staging_v1",
+      "relation_kind": "r"
+    },
+    {
+      "columns_sha256": "06beec4fa6f2d0bee8e5a958872edb4caecf619c9fbddc41f0b6a0a0a38b0938",
+      "object": "cg_raw.kpione_raw_ingest_batch_file_v1",
+      "relation_kind": "r"
+    },
+    {
+      "columns_sha256": "8797dd0ddd70d7edc4d4c0580c72b8aa8c3f899aae86101410a6ce22e6956f68",
+      "object": "cg_raw.kpione_raw_ingest_batch_v1",
+      "relation_kind": "r"
+    }
+  ],
+  "run_id": "0c759fc0-b1d9-4a6b-9da8-02134e4df210",
+  "secrets_printed": false,
+  "session_user": "stock_zero_codex_ro",
+  "target_fingerprint": "747804afb6f4dc071b098c10b557f115f425e0cfebb43f4152405a510277678c",
+  "transaction_outcome": "ROLLED_BACK_READ_ONLY",
+  "transaction_read_only": "on",
+  "verdict": "PASS_READONLY_POST_APPLY_VERIFICATION"
+}

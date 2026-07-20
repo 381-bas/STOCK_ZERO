@@ -1,0 +1,157 @@
+{
+  "approved_git_sha": "e6afdd4c7518ff78d749b468e1e8184f97b4f5cb",
+  "batch_id": "ffe065dc-3db1-40df-97a8-c444f509cc16",
+  "committed": true,
+  "connection_attempted": true,
+  "current_user": "stock_zero_kpione_route_b_load",
+  "document_type": "kpione_route_b_productive_execution_evidence_v1",
+  "downstream_use_allowed": true,
+  "execution_uuid": "c3cca30c-1266-4ba7-979f-72c6f1458ec3",
+  "expected_counts": {
+    "conflicts": 0,
+    "cross_file_duplicate_rows": 10089,
+    "day_presence": 34996,
+    "events": 35287,
+    "exact_duplicate_rows": 0,
+    "files": 9,
+    "identities_without_exactly_one_unique": 0,
+    "staged_rows": 239159,
+    "total_duplicate_rows": 10089,
+    "unique_rows": 229070
+  },
+  "observed_counts": {
+    "conflicts": 0,
+    "cross_file_duplicate_rows": 10089,
+    "day_presence": 34996,
+    "events": 35287,
+    "exact_duplicate_rows": 0,
+    "files": 9,
+    "identities_without_exactly_one_unique": 0,
+    "staged_rows": 239159,
+    "total_duplicate_rows": 10089,
+    "unique_rows": 229070
+  },
+  "operation": "APPLY",
+  "plan_path": "plans/018_kpione_route_b_productive_apply_plan.json",
+  "plan_sha256": "50ac8ce043d96618f933547f74ed1d2639ea40534d78443ce8082000b08db109",
+  "postcheck": {
+    "active_batch_count": 1,
+    "batch_status": "ACTIVE",
+    "declared_failures": [],
+    "declared_postchecks": [
+      {
+        "index": 0,
+        "row_count": 5
+      },
+      {
+        "index": 1,
+        "row_count": 1
+      },
+      {
+        "index": 2,
+        "row_count": 9
+      },
+      {
+        "index": 3,
+        "row_count": 1
+      },
+      {
+        "index": 4,
+        "row_count": 1
+      },
+      {
+        "index": 5,
+        "row_count": 1
+      },
+      {
+        "index": 6,
+        "row_count": 1
+      },
+      {
+        "boolean_result": true,
+        "index": 7,
+        "result_type": "boolean",
+        "row_count": 1
+      },
+      {
+        "index": 8,
+        "row_count": 1
+      },
+      {
+        "index": 9,
+        "row_count": 1
+      },
+      {
+        "boolean_result": true,
+        "index": 10,
+        "result_type": "boolean",
+        "row_count": 1
+      },
+      {
+        "boolean_result": true,
+        "index": 11,
+        "result_type": "boolean",
+        "row_count": 1
+      },
+      {
+        "index": 12,
+        "row_count": 1
+      },
+      {
+        "index": 13,
+        "row_count": 1
+      },
+      {
+        "index": 14,
+        "row_count": 1
+      }
+    ],
+    "expected_counts": {
+      "conflicts": 0,
+      "cross_file_duplicate_rows": 10089,
+      "day_presence": 34996,
+      "events": 35287,
+      "exact_duplicate_rows": 0,
+      "files": 9,
+      "identities_without_exactly_one_unique": 0,
+      "staged_rows": 239159,
+      "total_duplicate_rows": 10089,
+      "unique_rows": 229070
+    },
+    "legacy_object": "cg_raw.kpione2_raw",
+    "observed_counts": {
+      "conflicts": 0,
+      "cross_file_duplicate_rows": 10089,
+      "day_presence": 34996,
+      "events": 35287,
+      "exact_duplicate_rows": 0,
+      "files": 9,
+      "identities_without_exactly_one_unique": 0,
+      "staged_rows": 239159,
+      "total_duplicate_rows": 10089,
+      "unique_rows": 229070
+    },
+    "overlapping_active_batch_count": 0,
+    "verdict": "PASS"
+  },
+  "postcheck_verdict": "PASS",
+  "predecessor_batch_id": null,
+  "rollback_readiness": "EXPLICIT_LOGICAL_ROLLBACK_AVAILABLE",
+  "session_user": "stock_zero_kpione_route_b_load",
+  "source_hashes": [
+    "1e345f7bdbad142ebff41472ffc7917e31412a81d88e3f99bd0b0248c60fb180",
+    "3f151a27cadec8f0b6531208155d19844ea01bc0d5efeccd94da9f5ce654de72",
+    "43ac12e662ca194dbad9fe632a11c684134a51e9dbbb52f6a90b3bbadde57978",
+    "45f296e43df434f0142315d0095148f83614f224a8355f6e0a888a55ea18355b",
+    "679ff8bc7a261122aae89def5c82a9dc575eebca254c1fd16cc9a3d5255fbeb7",
+    "8a52dda5d4593918878fb27db9a70e14991e090629a92ff714a467dfb1a1a21d",
+    "8b7dc02667d0c4267895ea58dae44a531811d9d4084d69f28558e67e1300358b",
+    "e9d3529f74aa87911dedad0d3f41ebccef1d8ae5dab4b08e3cc70d46d3b5f83d",
+    "ed8462c9db2efda4af662f0294817592090ebeab482f1d3e4bbf8abddcd236b0"
+  ],
+  "sql_sha256": "94b6049454435bf03b2a348a8c93653528a011a94339ac3c13b071c8e0e2da0e",
+  "target_fingerprint": "38de5786bab26906884c8bae2fa381a8fa3a3379cc405847d6f81cdae11cf9a3",
+  "timestamp_utc": "2026-07-19T16:32:59.794949+00:00",
+  "transaction_outcome": "COMMITTED",
+  "writes_attempted": true
+}

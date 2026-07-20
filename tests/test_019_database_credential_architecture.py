@@ -19,8 +19,10 @@ from scripts.kpione_route_b_v1 import run_productive_apply
 from scripts.provision_kpione_route_b_role import (
     EXPECTED_ADMIN_ROLE,
     PLANNED_PRODUCTIVE_ROLE,
+    PRODUCTIVE_CONNECTION_LIMIT,
     PROVISION_CONFIRM_TOKEN,
     ProvisioningError,
+    _role_statement,
     execute_cli,
     validate_admin_git_guard,
     validate_admin_dsn_target,
@@ -36,6 +38,16 @@ PRODUCTIVE_RUNNER = ROOT / "scripts" / "run_kpione_route_b_ingestion_v1.py"
 PROVISIONER = ROOT / "scripts" / "provision_kpione_route_b_role.py"
 SECRET_WRAPPER = ROOT / "scripts" / "invoke_stock_zero_db_operation.ps1"
 DIAGNOSTIC = ROOT / "scripts" / "diagnose_stock_zero_db_credentials.py"
+
+
+def find_pwsh() -> str | None:
+    discovered = shutil.which("pwsh")
+    if discovered:
+        return discovered
+    bundled = Path("C:/Program Files/PowerShell/7/pwsh.exe")
+    if bundled.exists():
+        return str(bundled)
+    return None
 
 
 def run_git(root: Path, *args: str) -> str:
@@ -161,11 +173,28 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
 
     def test_provisioner_declares_restrictive_role_and_only_route_b_grants(self) -> None:
         source = PROVISIONER.read_text(encoding="utf-8")
-        for token in (
-            "LOGIN", "NOSUPERUSER", "NOCREATEDB", "NOCREATEROLE",
-            "NOREPLICATION", "NOBYPASSRLS", "CONNECTION LIMIT",
-        ):
+        for token in ("LOGIN", "NOINHERIT", "CONNECTION LIMIT", "PASSWORD"):
             self.assertIn(token, source)
+        self.assertNotIn("NOSUPERUSER", source)
+        self.assertNotIn("NOCREATEDB", source)
+        self.assertNotIn("NOCREATEROLE", source)
+        self.assertNotIn("NOREPLICATION", source)
+        self.assertNotIn("NOBYPASSRLS", source)
+        self.assertIn("sql.Literal(password)", source)
+        self.assertIn("sql.Literal(PRODUCTIVE_CONNECTION_LIMIT)", source)
+        self.assertIn("rolinherit", source)
+        self.assertIn(
+            "True, False, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT",
+            source,
+        )
+        self.assertIn('"inherit": False', source)
+        self.assertEqual(PRODUCTIVE_CONNECTION_LIMIT, 5)
+        rendered_role_statement = str(_role_statement("synthetic_role", "synthetic_password"))
+        for token in ("LOGIN", "NOINHERIT", "CONNECTION LIMIT", "PASSWORD"):
+            self.assertIn(token, rendered_role_statement)
+        for token in ("SUPERUSER", "CREATEDB", "CREATEROLE", "REPLICATION", "BYPASSRLS"):
+            self.assertNotIn(token, rendered_role_statement)
+        self.assertIn("Literal('synthetic_password')", rendered_role_statement)
         self.assertIn("GRANT SELECT,INSERT ON TABLE", source)
         self.assertIn("GRANT UPDATE(status,activated_at,rolled_back_at) ON TABLE", source)
         self.assertIn("GRANT USAGE ON SEQUENCE", source)
@@ -299,9 +328,12 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
     def test_secret_wrapper_uses_typed_entrypoints_and_scrubbed_child_environment(self) -> None:
         source = SECRET_WRAPPER.read_text(encoding="utf-8")
         for operation in (
-            "readonly-precheck", "readonly-postcheck", "verify-route-b-role",
+            "readonly-precheck", "readonly-postcheck",
+            "readonly-reattest-route-b-june-apply", "verify-route-b-role",
             "route-b-apply", "route-b-rollback", "admin-provision",
             "admin-reconcile-provisioning-evidence",
+            "admin-reconcile-existing-provisioned-state",
+            "admin-reconcile-route-b-readonly-observer",
             "diagnose-readonly", "diagnose-route-b", "diagnose-admin",
         ):
             self.assertIn(f"'{operation}'", source)
@@ -340,8 +372,48 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
 
-    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell 7 is required for the child isolation probe")
+    def test_secret_wrapper_all_operations_run_under_strictmode_with_synthetic_children(self) -> None:
+        pwsh = find_pwsh()
+        if not pwsh:
+            self.skipTest("PowerShell 7 is required for the strict wrapper probe")
+        operations = (
+            "readonly-precheck", "readonly-postcheck",
+            "readonly-reattest-route-b-june-apply", "verify-route-b-role",
+            "route-b-apply", "route-b-rollback", "admin-provision",
+            "admin-reconcile-provisioning-evidence",
+            "admin-reconcile-existing-provisioned-state",
+            "admin-reconcile-route-b-readonly-observer",
+            "apply-route-b-app-bridge", "diagnose-readonly", "diagnose-route-b",
+            "diagnose-admin",
+        )
+        source = SECRET_WRAPPER.read_text(encoding="utf-8")
+        for operation in operations:
+            self.assertIn(f"'{operation}'", source)
+        self.assertIn("$entrypoint.ContainsKey('AuthorityPrecheck')", source)
+        self.assertIn("[bool]$entrypoint['AuthorityPrecheck']", source)
+        self.assertNotIn("if ($entrypoint.AuthorityPrecheck)", source)
+        command = (
+            "Set-StrictMode -Version Latest; "
+            "$without=@{Script='x';Profile='readonly';PrefixArguments=@()}; "
+            "$with=@{Script='x';Profile='admin';PrefixArguments=@();AuthorityPrecheck=$true}; "
+            "function Test-Enabled($entrypoint) { "
+            "($entrypoint.ContainsKey('AuthorityPrecheck') -and [bool]$entrypoint['AuthorityPrecheck']) "
+            "}; "
+            "if (Test-Enabled $without) { exit 1 }; "
+            "if (-not (Test-Enabled $with)) { exit 2 }"
+        )
+        completed = subprocess.run(
+            [pwsh, "-NoLogo", "-NoProfile", "-Command", command],
+            cwd=ROOT, capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
     def test_secret_wrapper_child_probe_receives_only_operation_secrets(self) -> None:
+        if os.environ.get("STOCK_ZERO_ENABLE_POWERSHELL_SECRETSTORE_RUNTIME_TESTS") != "1":
+            self.skipTest("PowerShell SecretStore runtime probes are opt-in to avoid interactive vault prompts")
+        pwsh = find_pwsh()
+        if not pwsh:
+            self.skipTest("PowerShell 7 is required for the child isolation probe")
         managed = (
             "DB_URL_CODEX_RO", "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE", "DB_URL_ADMIN",
             "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD", "DB_URL_LOAD", "DB_URL_CODEX_LOCAL",
@@ -349,11 +421,14 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
         expected_by_operation = {
             "readonly-precheck": ["DB_URL_CODEX_RO"],
             "readonly-postcheck": ["DB_URL_CODEX_RO"],
+            "readonly-reattest-route-b-june-apply": ["DB_URL_CODEX_RO"],
             "verify-route-b-role": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "route-b-apply": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "route-b-rollback": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "admin-provision": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
             "admin-reconcile-provisioning-evidence": ["DB_URL_ADMIN"],
+            "admin-reconcile-existing-provisioned-state": ["DB_URL_ADMIN"],
+            "admin-reconcile-route-b-readonly-observer": ["DB_URL_ADMIN"],
             "diagnose-readonly": ["DB_URL_CODEX_RO"],
             "diagnose-route-b": ["DB_URL_KPIONE_ROUTE_B_PRODUCTIVE"],
             "diagnose-admin": ["DB_URL_ADMIN", "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"],
@@ -378,6 +453,7 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                 "verify_kpione_route_b_productive_role.py",
                 "run_kpione_route_b_ingestion_v1.py",
                 "provision_kpione_route_b_role.py",
+                "reconcile_route_b_readonly_observer.py",
                 "diagnose_stock_zero_db_credentials.py",
             ):
                 (scripts / name).write_text(probe, encoding="utf-8")
@@ -408,13 +484,27 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                 environment[name] = f"synthetic-parent-{name.lower()}"
 
             run_id = str(uuid.uuid4())
+            maintenance_run_id = str(uuid.uuid4())
+            productive_run_id = str(uuid.uuid4())
             evidence_base = f"evidence/runtime/020B/{run_id}"
+            maintenance_base = f"evidence/runtime/022/{maintenance_run_id}"
+            productive_base = f"evidence/runtime/022/{productive_run_id}"
+            (root / productive_base).mkdir(parents=True)
             operation_arguments = {
                 "readonly-precheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/01_readonly_baseline.json"],
                 "admin-provision": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
                 "admin-reconcile-provisioning-evidence": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
+                "admin-reconcile-existing-provisioned-state": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/02_admin_provisioning.json"],
+                "admin-reconcile-route-b-readonly-observer": [
+                    "--maintenance-run-id", maintenance_run_id,
+                    "--evidence-json", f"{maintenance_base}/01_route_b_readonly_observer_grants.json",
+                ],
                 "verify-route-b-role": ["--run-id", run_id, "--evidence-json", f"{evidence_base}/03_productive_role_verification.json"],
                 "readonly-postcheck": ["--run-id", run_id, "--report-json", f"{evidence_base}/04_readonly_postcheck.json"],
+                "readonly-reattest-route-b-june-apply": [
+                    "--run-id", productive_run_id,
+                    "--report-json", f"{productive_base}/04_route_b_post_apply_reattestation.json",
+                ],
             }
 
             for operation, expected_names in expected_by_operation.items():
@@ -429,26 +519,38 @@ class DatabaseCredentialArchitecture019Tests(unittest.TestCase):
                     )
                     completed = subprocess.run(
                         [
-                            "pwsh", "-NoLogo", "-NoProfile", "-Command", command,
+                            pwsh, "-NoLogo", "-NoProfile", "-Command", command,
                         ],
                         cwd=root, env=environment, capture_output=True, text=True, check=False,
+                        timeout=30,
                     )
                     self.assertEqual(completed.returncode, 0, completed.stderr)
                     reports = [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
                     self.assertEqual(reports[-1]["managed"], sorted(expected_names))
-                    if operation in ("admin-provision", "admin-reconcile-provisioning-evidence"):
+                    if operation in (
+                        "admin-provision",
+                        "admin-reconcile-provisioning-evidence",
+                        "admin-reconcile-existing-provisioned-state",
+                        "admin-reconcile-route-b-readonly-observer",
+                    ):
                         self.assertEqual(reports[0]["managed"], [])
-                        self.assertEqual(reports[-1]["entrypoint"], "provision_kpione_route_b_role.py")
+                        expected_entrypoint = (
+                            "reconcile_route_b_readonly_observer.py"
+                            if operation == "admin-reconcile-route-b-readonly-observer"
+                            else "provision_kpione_route_b_role.py"
+                        )
+                        self.assertEqual(reports[-1]["entrypoint"], expected_entrypoint)
                     for secret in secret_values:
                         self.assertNotIn(secret, completed.stdout)
                         self.assertNotIn(secret, completed.stderr)
 
             arbitrary = subprocess.run(
                 [
-                    "pwsh", "-NoLogo", "-NoProfile", "-File",
+                    pwsh, "-NoLogo", "-NoProfile", "-File",
                     str(scripts / SECRET_WRAPPER.name), "-Operation", "arbitrary-entrypoint",
                 ],
                 cwd=root, env=environment, capture_output=True, text=True, check=False,
+                timeout=30,
             )
             self.assertNotEqual(arbitrary.returncode, 0)
 

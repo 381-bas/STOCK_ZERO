@@ -1,0 +1,51 @@
+{
+  "approved_git_sha": "e6afdd4c7518ff78d749b468e1e8184f97b4f5cb",
+  "baseline_comparison": {
+    "legacy_relation_size_delta": 0,
+    "legacy_row_delta": 0,
+    "observer_role_unchanged": true,
+    "physical_signatures_unchanged": true,
+    "public_acl_unchanged": true
+  },
+  "baseline_evidence_sha256": "edee494b40187d01b9fc627f09a39f6ff9d0f46979c7a99f5cf82660d478c9fe",
+  "batch_id": "ffe065dc-3db1-40df-97a8-c444f509cc16",
+  "current_productive_state": {
+    "active_batch_count": 1,
+    "active_batch_id": "ffe065dc-3db1-40df-97a8-c444f509cc16",
+    "conflicts": 0,
+    "day_presence": 34996,
+    "events": 35287,
+    "files": 9,
+    "staged_rows": 239159
+  },
+  "database_execution": {
+    "begin_read_only": true,
+    "current_user": "stock_zero_codex_ro",
+    "expected_role": "stock_zero_codex_ro",
+    "rollback_completed": true,
+    "session_user": "stock_zero_codex_ro",
+    "transaction_read_only": "on",
+    "write_statements_defined": false,
+    "writes_attempted": false
+  },
+  "document_type": "stock_zero_route_b_post_apply_reattestation_v1",
+  "observed_at_utc": "2026-07-19T18:14:16.230364+00:00",
+  "productive_run_id": "0c759fc0-b1d9-4a6b-9da8-02134e4df210",
+  "reattestation_execution_uuid": "5e7718c0-199e-41ca-b967-b826fa0e9a7d",
+  "runner_execution_uuid": "c3cca30c-1266-4ba7-979f-72c6f1458ec3",
+  "source_evidence": {
+    "01": {
+      "path": "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/01_readonly_pre_apply_target_check.json",
+      "sha256": "edee494b40187d01b9fc627f09a39f6ff9d0f46979c7a99f5cf82660d478c9fe"
+    },
+    "02": {
+      "path": "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/02_route_b_june_productive_apply.json",
+      "sha256": "1ec47bd1ab62dafdcd7463292e033882f2bea57d3db7587a4f9f84385c485159"
+    },
+    "03": {
+      "path": "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/03_readonly_post_apply_verification.json",
+      "sha256": "ad2823dd00d02b8b4c32e385a57c3516d14df834836c0790a3f3eb648733563b"
+    }
+  },
+  "verdict": "PASS_ROUTE_B_POST_APPLY_REATTESTATION"
+}

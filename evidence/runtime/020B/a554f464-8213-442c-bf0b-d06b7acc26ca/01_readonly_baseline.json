@@ -1,0 +1,89 @@
+{
+  "active_batch_count": 0,
+  "approved_file_count": 9,
+  "approved_git_sha": "75ba94fbb3bba9a0d90565c93a951a66892487db",
+  "approved_source_bytes": 16571976,
+  "check_stage": "baseline",
+  "current_user": "stock_zero_codex_ro",
+  "database": "postgres",
+  "document_type": "kpione_route_b_readonly_baseline_evidence_v1",
+  "evidence_sequence_step": 1,
+  "excluded_file_count": 2,
+  "excluded_source_bytes": 4023244,
+  "extensions": [],
+  "legacy": {
+    "acl": "{postgres=arwdDxtm/postgres,stock_zero_codex_ro=r/postgres}",
+    "column_signature_sha256": "db6af58a38fa04d39be82806f7eda4e440e0a6670d42618a9e9ea6e9383c2d3d",
+    "object_identity": "cg_raw.kpione2_raw",
+    "oid": "23127",
+    "owner": "postgres",
+    "relation_kind": "r",
+    "relation_size_bytes": 44875776,
+    "row_count": 45736,
+    "select_available": true
+  },
+  "observed_directory_bytes": 20595220,
+  "observed_file_count": 11,
+  "plan_sha256": "fa91d43c8c3ce229210e5bb293734a6423cfbc3341445b76a6d61d7f17160ef9",
+  "public_acl": {
+    "relations": {
+      "cg_core.kpione_day_presence_v1": [],
+      "cg_core.kpione_event_normalized_v1": [],
+      "cg_raw.kpione2_raw": [],
+      "cg_raw.kpione_raw_event_photo_staging_v1": [],
+      "cg_raw.kpione_raw_ingest_batch_file_v1": [],
+      "cg_raw.kpione_raw_ingest_batch_v1": []
+    },
+    "schemas": {
+      "cg_core": [],
+      "cg_raw": []
+    }
+  },
+  "route_b_objects": [
+    "cg_core.kpione_day_presence_v1",
+    "cg_core.kpione_event_normalized_v1",
+    "cg_raw.kpione_raw_event_photo_staging_v1",
+    "cg_raw.kpione_raw_ingest_batch_file_v1",
+    "cg_raw.kpione_raw_ingest_batch_v1"
+  ],
+  "route_b_signatures": [
+    {
+      "columns_sha256": "254fc9d8922bc5bd3058f56295b38db9dd24100fdc576d0c6df4becdea96eae6",
+      "object": "cg_core.kpione_day_presence_v1",
+      "relation_kind": "v"
+    },
+    {
+      "columns_sha256": "24bfa476e83d2961c0ee0a22a1512f32386e61f412e6d796851ede5f2302939b",
+      "object": "cg_core.kpione_event_normalized_v1",
+      "relation_kind": "v"
+    },
+    {
+      "columns_sha256": "e4b13de8215227f5476604b46b5889c0ed3285aa9e44ee1359d18c447874a9bb",
+      "object": "cg_raw.kpione_raw_event_photo_staging_v1",
+      "relation_kind": "r"
+    },
+    {
+      "columns_sha256": "06beec4fa6f2d0bee8e5a958872edb4caecf619c9fbddc41f0b6a0a0a38b0938",
+      "object": "cg_raw.kpione_raw_ingest_batch_file_v1",
+      "relation_kind": "r"
+    },
+    {
+      "columns_sha256": "8797dd0ddd70d7edc4d4c0580c72b8aa8c3f899aae86101410a6ce22e6956f68",
+      "object": "cg_raw.kpione_raw_ingest_batch_v1",
+      "relation_kind": "r"
+    }
+  ],
+  "run_id": "a554f464-8213-442c-bf0b-d06b7acc26ca",
+  "schemas": [
+    "cg_core",
+    "cg_raw"
+  ],
+  "server_version": "17.6",
+  "session_user": "stock_zero_codex_ro",
+  "sql_sha256": "94b6049454435bf03b2a348a8c93653528a011a94339ac3c13b071c8e0e2da0e",
+  "target_fingerprint": "747804afb6f4dc071b098c10b557f115f425e0cfebb43f4152405a510277678c",
+  "timestamp_utc": "2026-07-18T15:59:53.276280+00:00",
+  "transaction_read_only": "on",
+  "verdict": "PASS_READONLY_BASELINE",
+  "writes_attempted": false
+}

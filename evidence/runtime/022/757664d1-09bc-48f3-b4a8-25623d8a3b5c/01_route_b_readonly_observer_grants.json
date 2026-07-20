@@ -1,0 +1,171 @@
+{
+  "after_privileges": {
+    "objects": {
+      "cg_core.kpione_day_presence_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": true,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      },
+      "cg_core.kpione_event_normalized_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": true,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      },
+      "cg_raw.kpione_raw_event_photo_staging_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": true,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      },
+      "cg_raw.kpione_raw_ingest_batch_file_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": true,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      },
+      "cg_raw.kpione_raw_ingest_batch_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": true,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      }
+    },
+    "schemas": {
+      "cg_core": {
+        "CREATE": false,
+        "USAGE": true
+      },
+      "cg_raw": {
+        "CREATE": false,
+        "USAGE": true
+      }
+    },
+    "sequence": {
+      "name": "cg_raw.kpione_raw_event_photo_staging_v1_staging_id_seq",
+      "privileges": {
+        "SELECT": false,
+        "UPDATE": false,
+        "USAGE": false
+      }
+    }
+  },
+  "approved_git_sha": "75ba94fbb3bba9a0d90565c93a951a66892487db",
+  "before_privileges": {
+    "objects": {
+      "cg_core.kpione_day_presence_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": true,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      },
+      "cg_core.kpione_event_normalized_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": true,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      },
+      "cg_raw.kpione_raw_event_photo_staging_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": false,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      },
+      "cg_raw.kpione_raw_ingest_batch_file_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": false,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      },
+      "cg_raw.kpione_raw_ingest_batch_v1": {
+        "DELETE": false,
+        "INSERT": false,
+        "REFERENCES": false,
+        "SELECT": false,
+        "TRIGGER": false,
+        "TRUNCATE": false,
+        "UPDATE": false
+      }
+    },
+    "schemas": {
+      "cg_core": {
+        "CREATE": false,
+        "USAGE": true
+      },
+      "cg_raw": {
+        "CREATE": false,
+        "USAGE": true
+      }
+    },
+    "sequence": {
+      "name": "cg_raw.kpione_raw_event_photo_staging_v1_staging_id_seq",
+      "privileges": {
+        "SELECT": false,
+        "UPDATE": false,
+        "USAGE": false
+      }
+    }
+  },
+  "committed": true,
+  "document_type": "stock_zero_route_b_readonly_observer_grants_reconciliation_v1",
+  "dsn_printed": false,
+  "legacy_unchanged": true,
+  "maintenance_run_id": "757664d1-09bc-48f3-b4a8-25623d8a3b5c",
+  "physical_signatures_match": true,
+  "plan_sha256": "fa91d43c8c3ce229210e5bb293734a6423cfbc3341445b76a6d61d7f17160ef9",
+  "public_acl_unchanged": true,
+  "readonly_observer_attributes_after": {
+    "bypassrls": false,
+    "connection_limit": -1,
+    "createdb": false,
+    "createrole": false,
+    "inherit": true,
+    "login": true,
+    "replication": false,
+    "superuser": false
+  },
+  "readonly_observer_attributes_before": {
+    "bypassrls": false,
+    "connection_limit": -1,
+    "createdb": false,
+    "createrole": false,
+    "inherit": true,
+    "login": true,
+    "replication": false,
+    "superuser": false
+  },
+  "secrets_printed": false,
+  "sql_sha256": "94b6049454435bf03b2a348a8c93653528a011a94339ac3c13b071c8e0e2da0e",
+  "target_fingerprint": "747804afb6f4dc071b098c10b557f115f425e0cfebb43f4152405a510277678c",
+  "timestamp_utc": "2026-07-18T15:57:10.865261+00:00",
+  "verdict": "PASS_READONLY_OBSERVER_GRANTS_RECONCILED",
+  "writes_attempted": true
+}

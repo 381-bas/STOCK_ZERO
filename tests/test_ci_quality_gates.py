@@ -82,7 +82,7 @@ class CIQualityGateTests(unittest.TestCase):
         self.assertEqual(sum(map(len, groups.values())), len(list((ROOT / "tests").glob("test_*.py"))))
         self.assertIn("tests/test_ci_quality_gates.py", groups["CI_CORE"])
         self.assertEqual({category: len(modules) for category, modules in groups.items()}, {
-            "CI_CORE": 24,
+            "CI_CORE": 27,
             "CI_POSTGRESQL": 2,
             "LOCAL_SOURCE_INTEGRATION": 2,
             "LOCAL_ENVIRONMENT": 2,

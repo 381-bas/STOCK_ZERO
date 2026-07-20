@@ -31,7 +31,10 @@ from scripts.kpione_route_b_evidence_v1 import (
 )
 from scripts.provision_kpione_route_b_role import (
     ProvisioningError,
+    _validate_committed_provisioning_source_mapping,
+    _validate_committed_provisioning_source_report,
     _validate_prior_failure_mapping,
+    reconcile_existing_provisioned_state,
     reconcile_provisioning_evidence,
     provision_route_b_role,
 )
@@ -44,6 +47,16 @@ WRAPPER = ROOT / "scripts" / "invoke_stock_zero_db_operation.ps1"
 VAULT = ROOT / "scripts" / "manage_stock_zero_secret_vault.ps1"
 BUILDER = ROOT / "scripts" / "build_kpione_route_b_infrastructure_evidence.py"
 RUN_ID = str(uuid.uuid4())
+
+
+def find_pwsh() -> str | None:
+    discovered = shutil.which("pwsh")
+    if discovered:
+        return discovered
+    bundled = Path("C:/Program Files/PowerShell/7/pwsh.exe")
+    if bundled.exists():
+        return str(bundled)
+    return None
 
 
 class ExistingRoleCursor:
@@ -103,10 +116,31 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
 
+    def preparation_fixture(self) -> dict[str, object]:
+        plan = copy.deepcopy(self.plan)
+        plan["status"] = "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING"
+        plan["remaining_blockers"] = [
+            "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
+            "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
+        ]
+        plan["readonly_precheck"] = {
+            "status": "NOT_AUTHORIZED_OR_EXECUTED",
+            "evidence_sha256": None,
+        }
+        plan.pop("infrastructure_evidence", None)
+        plan["target"]["productive_role_status"] = "PLANNED_NOT_PROVISIONED"
+        plan["target"]["allowed_productive_roles"] = []
+        plan["activation_gate"]["productive_role_registered"] = False
+        plan["activation_gate"]["gate_open"] = False
+        plan["productive_apply_authorized"] = False
+        plan["productive_rollback_authorized"] = False
+        return plan
+
     def test_baseline_accepts_empty_productive_allowlist_and_rejects_open_gate(self) -> None:
-        self.assertEqual(self.plan["target"]["allowed_productive_roles"], [])
-        precheck.validate_plan_readiness(self.plan, "baseline")
-        altered = copy.deepcopy(self.plan)
+        preparation = self.preparation_fixture()
+        self.assertEqual(preparation["target"]["allowed_productive_roles"], [])
+        precheck.validate_plan_readiness(preparation, "baseline")
+        altered = copy.deepcopy(preparation)
         altered["activation_gate"]["gate_open"] = True
         with self.assertRaisesRegex(precheck.PrecheckBlock, "productive_gate_must_be_closed"):
             precheck.validate_plan_readiness(altered, "baseline")
@@ -130,7 +164,7 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
 
         with self.assertRaisesRegex(precheck.PrecheckBlock, "baseline_evidence_required"):
             precheck.run_precheck(
-                self.plan,
+                self.preparation_fixture(),
                 "synthetic",
                 forbidden_connect,
                 check_stage="post-provision",
@@ -451,6 +485,147 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
         for mutation in ("CREATE ROLE", "ALTER ROLE", "GRANT ", "REVOKE "):
             self.assertNotIn(mutation, source)
 
+    def test_existing_provisioned_state_source_requires_committed_pass_evidence(self) -> None:
+        guard = {
+            "approved_git_sha": "c" * 40,
+            "plan_sha256": hashlib.sha256(PLAN_PATH.read_bytes()).hexdigest(),
+        }
+        source = {
+            "document_type": "kpione_route_b_role_provisioning_evidence_v1",
+            "run_id": RUN_ID,
+            "evidence_sequence_step": 2,
+            "verdict": "PASS_ADMIN_PROVISIONING",
+            "evidence_mode": "DIRECT_COMMITTED_EXECUTION",
+            "approved_git_sha": "b" * 40,
+            "plan_sha256": guard["plan_sha256"],
+            "sql_sha256": self.plan["physical_contract"]["sql_sha256"],
+            "target_fingerprint": precheck.target_fingerprint(self.plan),
+            "committed": True,
+            "role_created": True,
+            "rollback_or_reconciliation_required": False,
+            "role_attributes": {
+                "login": True,
+                "superuser": False,
+                "createdb": False,
+                "createrole": False,
+                "replication": False,
+                "bypassrls": False,
+                "inherit": False,
+                "connection_limit": 5,
+            },
+            "route_b_objects_validated": sorted(self.plan["physical_contract"]["objects"]),
+            "route_b_sequence": "cg_raw.kpione_raw_event_photo_staging_v1_staging_id_seq",
+            "legacy_structure_after": {"object_identity": "cg_raw.kpione2_raw"},
+            "public_acl_after": {"schemas": {}, "relations": {}},
+        }
+        self.assertEqual(
+            _validate_committed_provisioning_source_mapping(source, guard, self.plan),
+            source,
+        )
+        for field, value in (
+            ("verdict", "BLOCKED"),
+            ("committed", False),
+            ("role_created", False),
+            ("rollback_or_reconciliation_required", True),
+            ("plan_sha256", "b" * 64),
+            ("sql_sha256", "b" * 64),
+            ("target_fingerprint", "b" * 64),
+        ):
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ProvisioningError, f"source_admin_provisioning_mismatch:{field}",
+            ):
+                _validate_committed_provisioning_source_mapping(
+                    {**source, field: value}, guard, self.plan,
+                )
+
+        reconciler_source = inspect.getsource(reconcile_existing_provisioned_state).upper()
+        self.assertIn("BEGIN READ ONLY", reconciler_source)
+        self.assertIn("ROLLBACK", reconciler_source)
+        for mutation in ("CREATE ROLE", "ALTER ROLE", "GRANT ", "REVOKE "):
+            self.assertNotIn(mutation, reconciler_source)
+
+    def test_existing_provisioned_state_source_path_is_repo_root_relative_and_canonical(self) -> None:
+        guard = {
+            "approved_git_sha": "c" * 40,
+            "plan_sha256": hashlib.sha256(PLAN_PATH.read_bytes()).hexdigest(),
+        }
+        source = {
+            "document_type": "kpione_route_b_role_provisioning_evidence_v1",
+            "run_id": RUN_ID,
+            "evidence_sequence_step": 2,
+            "verdict": "PASS_ADMIN_PROVISIONING",
+            "evidence_mode": "DIRECT_COMMITTED_EXECUTION",
+            "approved_git_sha": "b" * 40,
+            "plan_sha256": guard["plan_sha256"],
+            "sql_sha256": self.plan["physical_contract"]["sql_sha256"],
+            "target_fingerprint": precheck.target_fingerprint(self.plan),
+            "committed": True,
+            "role_created": True,
+            "rollback_or_reconciliation_required": False,
+            "role_attributes": {
+                "login": True,
+                "superuser": False,
+                "createdb": False,
+                "createrole": False,
+                "replication": False,
+                "bypassrls": False,
+                "inherit": False,
+                "connection_limit": 5,
+            },
+            "route_b_objects_validated": sorted(self.plan["physical_contract"]["objects"]),
+            "route_b_sequence": "cg_raw.kpione_raw_event_photo_staging_v1_staging_id_seq",
+            "legacy_structure_after": {"object_identity": "cg_raw.kpione2_raw"},
+            "public_acl_after": {"schemas": {}, "relations": {}},
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source_run = str(uuid.uuid4())
+            target_run = str(uuid.uuid4())
+            source_dir = root / "evidence" / "runtime" / "020B" / source_run
+            source_dir.mkdir(parents=True)
+            source_path = source_dir / "02_admin_provisioning.json"
+            source_path.write_text(json.dumps({**source, "run_id": source_run}) + "\n", encoding="utf-8")
+
+            relative = Path("evidence") / "runtime" / "020B" / source_run / "02_admin_provisioning.json"
+            relative_report, relative_sha = _validate_committed_provisioning_source_report(
+                relative, guard, self.plan, root,
+            )
+            absolute_report, absolute_sha = _validate_committed_provisioning_source_report(
+                source_path.resolve(), guard, self.plan, root,
+            )
+            self.assertEqual(relative_report["run_id"], source_run)
+            self.assertEqual(absolute_report["run_id"], source_run)
+            self.assertEqual(relative_sha, absolute_sha)
+
+            same_run_dir = root / "evidence" / "runtime" / "020B" / target_run
+            same_run_dir.mkdir(parents=True)
+            same_run_path = same_run_dir / "02_admin_provisioning.json"
+            same_run_path.write_text(json.dumps({**source, "run_id": target_run}) + "\n", encoding="utf-8")
+            same_report, _same_sha = _validate_committed_provisioning_source_report(
+                same_run_path, guard, self.plan, root,
+            )
+            self.assertEqual(same_report["run_id"], target_run)
+
+            with self.assertRaisesRegex(ProvisioningError, "source_admin_provisioning_path_invalid"):
+                _validate_committed_provisioning_source_report(
+                    Path("evidence/runtime/020B") / str(uuid.uuid4()) / "02_admin_provisioning.json",
+                    guard,
+                    self.plan,
+                    root,
+                )
+            wrong_name = source_dir / "not_02_admin_provisioning.json"
+            wrong_name.write_text(json.dumps(source) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ProvisioningError, "source_admin_provisioning_filename_invalid"):
+                _validate_committed_provisioning_source_report(wrong_name, guard, self.plan, root)
+            outside = root / "outside.json"
+            outside.write_text(json.dumps(source) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ProvisioningError, "source_admin_provisioning_path_invalid"):
+                _validate_committed_provisioning_source_report(outside, guard, self.plan, root)
+            invalid_json = source_dir / "02_admin_provisioning.json"
+            invalid_json.write_text("{not-json", encoding="utf-8")
+            with self.assertRaisesRegex(ProvisioningError, "source_admin_provisioning_unreadable"):
+                _validate_committed_provisioning_source_report(invalid_json, guard, self.plan, root)
+
     def test_existing_role_blocks_before_password_rotation_or_other_write(self) -> None:
         connection = ExistingRoleConnection()
         dsn = (
@@ -485,11 +660,15 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
     def test_wrapper_and_vault_have_only_typed_operations_and_safe_storage(self) -> None:
         wrapper = WRAPPER.read_text(encoding="utf-8")
         for operation in (
-            "readonly-postcheck", "verify-route-b-role",
+            "readonly-postcheck", "readonly-reattest-route-b-june-apply",
+            "verify-route-b-role",
             "admin-reconcile-provisioning-evidence",
+            "admin-reconcile-existing-provisioned-state",
+            "admin-reconcile-route-b-readonly-observer",
         ):
             self.assertIn(f"'{operation}'", wrapper)
         self.assertIn("@('--check-stage', 'post-provision')", wrapper)
+        self.assertIn("@('--check-stage', 'post-apply-reattestation')", wrapper)
         self.assertIn("scripts/verify_kpione_route_b_productive_role.py", wrapper)
         self.assertNotIn("[string]$FilePath", wrapper)
 
@@ -515,8 +694,12 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
         self.assertNotIn("ProductiveRoleVerificationEvidence", vault)
         self.assertNotIn("ReadonlyPostcheckEvidence", vault)
 
-    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell 7 is required for the vault runtime probe")
     def test_vault_runtime_uses_secure_types_and_evidence_gated_removal(self) -> None:
+        if os.environ.get("STOCK_ZERO_ENABLE_POWERSHELL_SECRETSTORE_RUNTIME_TESTS") != "1":
+            self.skipTest("PowerShell SecretStore runtime probes are opt-in to avoid interactive vault prompts")
+        pwsh = find_pwsh()
+        if not pwsh:
+            self.skipTest("PowerShell 7 is required for the vault runtime probe")
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             scripts = root / "scripts"
@@ -601,12 +784,13 @@ class OperationalEvidenceTooling020BTests(unittest.TestCase):
                 )
                 command = f"{prelude}\n& '{vault_copy}' -Operation '{operation}' {args}"
                 completed = subprocess.run(
-                    ["pwsh", "-NoLogo", "-NoProfile", "-Command", command],
+                    [pwsh, "-NoLogo", "-NoProfile", "-Command", command],
                     cwd=root,
                     env=operation_environment or environment,
                     capture_output=True,
                     text=True,
                     check=False,
+                    timeout=30,
                 )
                 if expected_success:
                     self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)

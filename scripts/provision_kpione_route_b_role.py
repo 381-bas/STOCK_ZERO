@@ -65,6 +65,7 @@ ADMIN_DB_ENV = "DB_URL_ADMIN"
 PRODUCTIVE_ROLE_PASSWORD_ENV = "KPIONE_ROUTE_B_PRODUCTIVE_PASSWORD"
 PROVISION_CONFIRM_TOKEN = "STOCK_ZERO_019_PROVISION_ROUTE_B_ROLE"
 RECONCILE_CONFIRM_TOKEN = "STOCK_ZERO_020B_RECONCILE_PROVISIONING_EVIDENCE"
+RECONCILE_EXISTING_CONFIRM_TOKEN = "STOCK_ZERO_020B_RECONCILE_EXISTING_PROVISIONED_STATE"
 EXPECTED_ADMIN_ROLE = "postgres"
 PRODUCTIVE_CONNECTION_LIMIT = 5
 PROVISION_LOCK_KEY = ADVISORY_LOCK_KEY + 19
@@ -83,12 +84,46 @@ ROUTE_B_OBJECTS = {
 class ProvisioningError(RuntimeError):
     def __init__(self, identifier: str, *, connection_attempted: bool = False,
                  writes_attempted: bool = False, committed: bool = False,
-                 report: dict[str, Any] | None = None) -> None:
+                 report: dict[str, Any] | None = None,
+                 failed_stage: str | None = None,
+                 exception_type: str | None = None,
+                 sqlstate: str | None = None,
+                 fixed_error_category: str | None = None) -> None:
         super().__init__(identifier)
         self.connection_attempted = connection_attempted
         self.writes_attempted = writes_attempted
         self.committed = committed
         self.report = report or {}
+        self.failed_stage = failed_stage
+        self.exception_type = exception_type
+        self.sqlstate = sqlstate
+        self.fixed_error_category = fixed_error_category
+
+
+def _sqlstate(exc: BaseException) -> str | None:
+    value = getattr(exc, "sqlstate", None)
+    return value if isinstance(value, str) and value else None
+
+
+def _fixed_error_category(exc: BaseException) -> str:
+    sqlstate = _sqlstate(exc)
+    if sqlstate == "42501":
+        return "INSUFFICIENT_PRIVILEGE"
+    if sqlstate == "42710":
+        return "OBJECT_ALREADY_EXISTS"
+    if sqlstate == "42P07":
+        return "RELATION_ALREADY_EXISTS"
+    if sqlstate == "42704":
+        return "OBJECT_NOT_FOUND"
+    if sqlstate == "0A000":
+        return "FEATURE_NOT_SUPPORTED"
+    if sqlstate == "23505":
+        return "UNIQUE_VIOLATION"
+    if sqlstate == "23P01":
+        return "EXCLUSION_VIOLATION"
+    if sqlstate:
+        return "DATABASE_ERROR"
+    return "UNCLASSIFIED_RUNTIME_ERROR"
 
 
 def _run_git(root: Path, *args: str, text: bool = True) -> subprocess.CompletedProcess[Any]:
@@ -278,8 +313,7 @@ def _load_ddl(plan: dict[str, Any], root: Path) -> tuple[str, str]:
 
 def _role_statement(role: str, password: str) -> sql.Composed:
     return sql.SQL(
-        "ALTER ROLE {} WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE "
-        "NOREPLICATION NOBYPASSRLS NOINHERIT CONNECTION LIMIT {} PASSWORD {}"
+        "ALTER ROLE {} WITH LOGIN NOINHERIT CONNECTION LIMIT {} PASSWORD {}"
     ).format(
         sql.Identifier(role),
         sql.Literal(PRODUCTIVE_CONNECTION_LIMIT),
@@ -326,10 +360,13 @@ def provision_route_b_role(
     public_acl_before: dict[str, Any] = {}
     public_acl_after: dict[str, Any] = {}
     sequence_name: str | None = None
+    current_stage = "bootstrap"
     try:
+        current_stage = "admin_connect"
         connection = _connect(dsn, connect_fn)
         connection.autocommit = False
         with connection.cursor() as cursor:
+            current_stage = "session_identity"
             cursor.execute(
                 "SELECT current_user,session_user,current_database(),"
                 "current_setting('transaction_read_only')"
@@ -343,25 +380,33 @@ def provision_route_b_role(
                 raise ProvisioningError("admin_session_read_write_required")
             cursor.execute("SET LOCAL statement_timeout = '15min'")
             cursor.execute("SET LOCAL lock_timeout = '10s'")
+            current_stage = "advisory_lock"
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", (PROVISION_LOCK_KEY,))
+            current_stage = "legacy_snapshot"
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
             legacy_before = cursor.fetchone()[0]
             legacy_snapshot_before = _legacy_snapshot(cursor)
             acl_relations = list(plan["physical_contract"]["object_signatures"]) + [
                 "cg_raw.kpione2_raw"
             ]
+            current_stage = "public_acl_snapshot"
             public_acl_before = _public_acl_snapshot(cursor, acl_relations)
+            current_stage = "role_existence_check"
             cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (PLANNED_PRODUCTIVE_ROLE,))
             if cursor.fetchone() is not None:
                 raise ProvisioningError(
                     "productive_role_exists_password_rotation_not_authorized"
                 )
             writes_attempted = True
+            current_stage = "create_role"
             cursor.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(PLANNED_PRODUCTIVE_ROLE)))
             role_created = True
             writes_attempted = True
+            current_stage = "alter_role_attributes"
             cursor.execute(_role_statement(PLANNED_PRODUCTIVE_ROLE, role_password))
+            current_stage = "ddl_apply"
             cursor.execute(ddl)
+            current_stage = "object_signature_validation"
             _assert_route_b_object_signatures(cursor, plan, allow_empty=False)
 
             tables = [
@@ -372,18 +417,21 @@ def provision_route_b_role(
                 name for name, spec in plan["physical_contract"]["object_signatures"].items()
                 if spec["relation_kind"] == "v"
             ]
+            current_stage = "ownership_tables"
             for name in tables:
                 cursor.execute(
                     sql.SQL("ALTER TABLE {} OWNER TO {}").format(
                         _qualified_identifier(name), sql.Identifier(expected_admin_username),
                     )
                 )
+            current_stage = "ownership_views"
             for name in views:
                 cursor.execute(
                     sql.SQL("ALTER VIEW {} OWNER TO {}").format(
                         _qualified_identifier(name), sql.Identifier(expected_admin_username),
                     )
                 )
+            current_stage = "sequence_resolution"
             cursor.execute(
                 "SELECT pg_get_serial_sequence(%s,%s)",
                 ("cg_raw.kpione_raw_event_photo_staging_v1", "staging_id"),
@@ -391,12 +439,14 @@ def provision_route_b_role(
             sequence_name = cursor.fetchone()[0]
             if not sequence_name:
                 raise ProvisioningError("route_b_identity_sequence_missing")
+            current_stage = "sequence_ownership"
             cursor.execute(
                 sql.SQL("ALTER SEQUENCE {} OWNER TO {}").format(
                     _qualified_identifier(sequence_name), sql.Identifier(expected_admin_username),
                 )
             )
 
+            current_stage = "schema_privileges"
             cursor.execute(
                 sql.SQL("REVOKE CREATE ON SCHEMA cg_raw,cg_core FROM {}").format(
                     sql.Identifier(PLANNED_PRODUCTIVE_ROLE)
@@ -407,6 +457,7 @@ def provision_route_b_role(
                     sql.Identifier(PLANNED_PRODUCTIVE_ROLE)
                 )
             )
+            current_stage = "table_privileges"
             for name in tables + views:
                 identifier = _qualified_identifier(name)
                 cursor.execute(
@@ -416,6 +467,7 @@ def provision_route_b_role(
                 )
             role_identifier = sql.Identifier(PLANNED_PRODUCTIVE_ROLE)
             batch_identifier = _qualified_identifier("cg_raw.kpione_raw_ingest_batch_v1")
+            current_stage = "table_privileges"
             cursor.execute(
                 sql.SQL("GRANT SELECT,INSERT ON TABLE {} TO {}").format(
                     batch_identifier, role_identifier,
@@ -436,12 +488,14 @@ def provision_route_b_role(
                     )
                 )
             for name in views:
+                current_stage = "view_privileges"
                 cursor.execute(
                     sql.SQL("GRANT SELECT ON TABLE {} TO {}").format(
                         _qualified_identifier(name), sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
                     )
                 )
             sequence_identifier = _qualified_identifier(sequence_name)
+            current_stage = "sequence_privileges"
             cursor.execute(
                 sql.SQL("REVOKE ALL PRIVILEGES ON SEQUENCE {} FROM {}").format(
                     sequence_identifier, sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
@@ -452,24 +506,32 @@ def provision_route_b_role(
                     sequence_identifier, sql.Identifier(PLANNED_PRODUCTIVE_ROLE),
                 )
             )
+            current_stage = "role_attribute_validation"
             cursor.execute(
                 "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,"
-                "rolbypassrls,rolconnlimit FROM pg_roles WHERE rolname=%s",
+                "rolbypassrls,rolinherit,rolconnlimit FROM pg_roles WHERE rolname=%s",
                 (PLANNED_PRODUCTIVE_ROLE,),
             )
             role_attributes = cursor.fetchone()
-            if role_attributes != (True, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT):
+            if role_attributes != (
+                True, False, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT,
+            ):
                 raise ProvisioningError("productive_role_attributes_mismatch")
+            current_stage = "legacy_validation"
             cursor.execute("SELECT to_regclass('cg_raw.kpione2_raw')::text")
             legacy_after = cursor.fetchone()[0]
             legacy_snapshot_after = _legacy_snapshot(cursor)
+            current_stage = "public_acl_validation"
             public_acl_after = _public_acl_snapshot(cursor, acl_relations)
+            current_stage = "legacy_validation"
             if legacy_structural_identity(legacy_snapshot_after) != legacy_structural_identity(
                 legacy_snapshot_before
             ):
                 raise ProvisioningError("legacy_structural_state_changed")
+            current_stage = "public_acl_validation"
             if public_acl_after != public_acl_before:
                 raise ProvisioningError("public_acl_changed")
+        current_stage = "commit"
         connection.commit()
         committed = True
     except ProvisioningError as exc:
@@ -478,8 +540,15 @@ def provision_route_b_role(
         raise ProvisioningError(
             str(exc), connection_attempted=connection is not None,
             writes_attempted=writes_attempted, committed=committed,
+            failed_stage=getattr(exc, "failed_stage", None) or current_stage,
+            exception_type=getattr(exc, "exception_type", None) or type(exc).__name__,
+            sqlstate=getattr(exc, "sqlstate", None) or _sqlstate(exc),
+            fixed_error_category=(
+                getattr(exc, "fixed_error_category", None)
+                or _fixed_error_category(exc)
+            ),
         ) from None
-    except Exception:
+    except Exception as exc:
         if connection is not None and not committed:
             connection.rollback()
         raise ProvisioningError(
@@ -487,6 +556,10 @@ def provision_route_b_role(
             connection_attempted=connection is not None,
             writes_attempted=writes_attempted,
             committed=committed,
+            failed_stage=current_stage,
+            exception_type=type(exc).__name__,
+            sqlstate=_sqlstate(exc),
+            fixed_error_category=_fixed_error_category(exc),
         ) from None
     finally:
         if connection is not None:
@@ -512,6 +585,7 @@ def provision_route_b_role(
             "createrole": False,
             "replication": False,
             "bypassrls": False,
+            "inherit": False,
             "connection_limit": PRODUCTIVE_CONNECTION_LIMIT,
         },
         "ddl_sha256": ddl_sha256,
@@ -539,12 +613,17 @@ def provision_route_b_role(
         "rollback_or_reconciliation_required": False,
     }
     try:
+        current_stage = "evidence_write"
         _write_provisioning_evidence(evidence_json, report)
     except OSError:
         failure_report = dict(report)
         failure_report.update({
             "verdict": "BLOCKED",
             "error": "admin_provisioning_evidence_write_failed",
+            "failed_stage": "evidence_write",
+            "exception_type": "OSError",
+            "sqlstate": None,
+            "fixed_error_category": "UNCLASSIFIED_RUNTIME_ERROR",
             "rollback_or_reconciliation_required": True,
         })
         raise ProvisioningError(
@@ -553,6 +632,10 @@ def provision_route_b_role(
             writes_attempted=True,
             committed=True,
             report=failure_report,
+            failed_stage="evidence_write",
+            exception_type="OSError",
+            sqlstate=None,
+            fixed_error_category="UNCLASSIFIED_RUNTIME_ERROR",
         ) from None
     return report
 
@@ -602,6 +685,84 @@ def _validate_prior_failure_report(
     return _validate_prior_failure_mapping(report, run_id, git_guard, plan)
 
 
+def _validate_committed_provisioning_source_mapping(
+    report: Mapping[str, Any],
+    git_guard: Mapping[str, str],
+    plan: Mapping[str, Any],
+) -> dict[str, Any]:
+    required = {
+        "document_type": "kpione_route_b_role_provisioning_evidence_v1",
+        "verdict": "PASS_ADMIN_PROVISIONING",
+        "evidence_sequence_step": 2,
+        "committed": True,
+        "role_created": True,
+        "rollback_or_reconciliation_required": False,
+        "plan_sha256": git_guard["plan_sha256"],
+        "sql_sha256": plan["physical_contract"]["sql_sha256"],
+        "target_fingerprint": target_fingerprint(plan),
+    }
+    for key, expected in required.items():
+        if report.get(key) != expected:
+            raise ProvisioningError(f"source_admin_provisioning_mismatch:{key}")
+    if report.get("evidence_mode") not in {
+        "DIRECT_COMMITTED_EXECUTION", "RECONCILED_COMMITTED_STATE",
+    }:
+        raise ProvisioningError("source_admin_provisioning_mismatch:evidence_mode")
+    if not isinstance(report.get("run_id"), str):
+        raise ProvisioningError("source_admin_provisioning_run_id_missing")
+    if not isinstance(report.get("approved_git_sha"), str):
+        raise ProvisioningError("source_admin_provisioning_git_sha_missing")
+    if not isinstance(report.get("role_attributes"), dict):
+        raise ProvisioningError("source_admin_provisioning_role_attributes_missing")
+    if not isinstance(report.get("legacy_structure_after"), dict):
+        raise ProvisioningError("source_admin_provisioning_legacy_structure_missing")
+    if not isinstance(report.get("public_acl_after"), dict):
+        raise ProvisioningError("source_admin_provisioning_public_acl_missing")
+    if report.get("route_b_sequence") in (None, ""):
+        raise ProvisioningError("source_admin_provisioning_sequence_missing")
+    if set(report.get("route_b_objects_validated", [])) != set(plan["physical_contract"]["objects"]):
+        raise ProvisioningError("source_admin_provisioning_object_scope_mismatch")
+    return dict(report)
+
+
+def _resolve_source_admin_provisioning_path(path: Path, root: Path) -> Path:
+    candidate = path if path.is_absolute() else root / path
+    try:
+        resolved = candidate.resolve(strict=True)
+        evidence_root = (root / "evidence" / "runtime" / "020B").resolve(strict=True)
+        relative = resolved.relative_to(evidence_root)
+    except (OSError, ValueError) as exc:
+        raise ProvisioningError("source_admin_provisioning_path_invalid") from exc
+    if len(relative.parts) != 2:
+        raise ProvisioningError("source_admin_provisioning_path_invalid")
+    source_run_id, filename = relative.parts
+    try:
+        validate_run_id(source_run_id)
+    except EvidenceContractError as exc:
+        raise ProvisioningError("source_admin_provisioning_run_id_invalid") from exc
+    if filename != "02_admin_provisioning.json":
+        raise ProvisioningError("source_admin_provisioning_filename_invalid")
+    return resolved
+
+
+def _validate_committed_provisioning_source_report(
+    path: Path,
+    git_guard: Mapping[str, str],
+    plan: Mapping[str, Any],
+    root: Path = ROOT,
+) -> tuple[dict[str, Any], str]:
+    resolved = _resolve_source_admin_provisioning_path(path, root)
+    try:
+        raw = resolved.read_bytes()
+        report = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProvisioningError("source_admin_provisioning_unreadable") from exc
+    return (
+        _validate_committed_provisioning_source_mapping(report, git_guard, plan),
+        hashlib.sha256(raw).hexdigest(),
+    )
+
+
 def _observe_reconciled_state(
     cursor: Any,
     plan: dict[str, Any],
@@ -609,12 +770,12 @@ def _observe_reconciled_state(
 ) -> dict[str, Any]:
     cursor.execute(
         "SELECT rolcanlogin,rolsuper,rolcreatedb,rolcreaterole,rolreplication,"
-        "rolbypassrls,rolconnlimit FROM pg_roles WHERE rolname=%s",
+        "rolbypassrls,rolinherit,rolconnlimit FROM pg_roles WHERE rolname=%s",
         (PLANNED_PRODUCTIVE_ROLE,),
     )
     role_attributes = cursor.fetchone()
     expected_attributes = (
-        True, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT,
+        True, False, False, False, False, False, False, PRODUCTIVE_CONNECTION_LIMIT,
     )
     if role_attributes != expected_attributes:
         raise ProvisioningError("reconciliation_role_attributes_mismatch")
@@ -693,7 +854,8 @@ def _observe_reconciled_state(
             "login": role_attributes[0], "superuser": role_attributes[1],
             "createdb": role_attributes[2], "createrole": role_attributes[3],
             "replication": role_attributes[4], "bypassrls": role_attributes[5],
-            "connection_limit": role_attributes[6],
+            "inherit": role_attributes[6],
+            "connection_limit": role_attributes[7],
         },
         "route_b_owners": owners,
         "route_b_sequence": sequence_name,
@@ -789,6 +951,121 @@ def reconcile_provisioning_evidence(
     return report
 
 
+def reconcile_existing_provisioned_state(
+    plan: dict[str, Any],
+    dsn: str,
+    run_id: str,
+    source_admin_provisioning: Mapping[str, Any],
+    source_admin_provisioning_sha256: str,
+    evidence_json: Path,
+    *,
+    git_guard: Mapping[str, str],
+    connect_fn: Callable[[str], Any] | None = None,
+    expected_admin_username: str = EXPECTED_ADMIN_ROLE,
+) -> dict[str, Any]:
+    validate_run_id(run_id)
+    validate_provisioning_plan(plan)
+    source_admin_provisioning = _validate_committed_provisioning_source_mapping(
+        source_admin_provisioning, git_guard, plan,
+    )
+    target = validate_admin_dsn_target(
+        dsn, plan, expected_admin_username=expected_admin_username,
+    )
+    connection: Any | None = None
+    try:
+        connection = _connect(dsn, connect_fn)
+        connection.autocommit = False
+        with connection.cursor() as cursor:
+            cursor.execute("BEGIN READ ONLY")
+            cursor.execute("SET LOCAL statement_timeout = '30s'")
+            cursor.execute("SET LOCAL lock_timeout = '5s'")
+            cursor.execute(
+                "SELECT current_user,session_user,current_database(),"
+                "current_setting('transaction_read_only')"
+            )
+            current_user, session_user, database, readonly = cursor.fetchone()
+            if current_user != expected_admin_username or session_user != expected_admin_username:
+                raise ProvisioningError("existing_state_admin_session_role_mismatch")
+            if database != plan["target"]["expected_database"] or readonly != "on":
+                raise ProvisioningError("existing_state_readonly_session_mismatch")
+            observed = _observe_reconciled_state(cursor, plan, expected_admin_username)
+            source_attributes = source_admin_provisioning["role_attributes"]
+            expected_attributes = {
+                "login": True,
+                "superuser": False,
+                "createdb": False,
+                "createrole": False,
+                "replication": False,
+                "bypassrls": False,
+                "inherit": False,
+                "connection_limit": PRODUCTIVE_CONNECTION_LIMIT,
+            }
+            if source_attributes != expected_attributes:
+                raise ProvisioningError("source_admin_provisioning_role_attributes_mismatch")
+            if observed["role_attributes"] != expected_attributes:
+                raise ProvisioningError("existing_state_role_attributes_mismatch")
+            if observed["route_b_sequence"] != source_admin_provisioning["route_b_sequence"]:
+                raise ProvisioningError("existing_state_sequence_mismatch")
+            if legacy_structural_identity(observed["legacy"]) != source_admin_provisioning["legacy_structure_after"]:
+                raise ProvisioningError("existing_state_legacy_structural_drift")
+            if observed["public_acl"] != source_admin_provisioning["public_acl_after"]:
+                raise ProvisioningError("existing_state_public_acl_drift")
+        connection.rollback()
+    except ProvisioningError:
+        if connection is not None:
+            connection.rollback()
+        raise
+    except Exception:
+        if connection is not None:
+            connection.rollback()
+        raise ProvisioningError("existing_state_reconciliation_failed") from None
+    finally:
+        if connection is not None:
+            connection.close()
+    report = {
+        "document_type": "kpione_route_b_role_provisioning_evidence_v1",
+        "run_id": run_id,
+        "evidence_sequence_step": 2,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "verdict": "PASS_ADMIN_PROVISIONING",
+        "evidence_mode": "RECONCILED_COMMITTED_STATE",
+        "credential_class": target["credential_class"],
+        "target_fingerprint": target_fingerprint(plan),
+        "approved_git_sha": git_guard["approved_git_sha"],
+        "plan_sha256": git_guard["plan_sha256"],
+        "ddl_sha256": plan["physical_contract"]["sql_sha256"],
+        "sql_sha256": plan["physical_contract"]["sql_sha256"],
+        "planned_productive_role": PLANNED_PRODUCTIVE_ROLE,
+        "role_created": True,
+        "role_attributes": observed["role_attributes"],
+        "route_b_objects_validated": sorted(plan["physical_contract"]["objects"]),
+        "route_b_owners": observed["route_b_owners"],
+        "route_b_sequence": observed["route_b_sequence"],
+        "grant_matrix_verified": True,
+        "legacy_structure_before": source_admin_provisioning["legacy_structure_after"],
+        "legacy_structure_after": legacy_structural_identity(observed["legacy"]),
+        "legacy_activity_before": source_admin_provisioning.get("legacy_activity_after", {}),
+        "legacy_activity_after": {
+            "row_count": observed["legacy"].get("row_count", "unavailable"),
+            "relation_size_bytes": observed["legacy"].get("relation_size_bytes", "unavailable"),
+        },
+        "public_acl_before": source_admin_provisioning["public_acl_after"],
+        "public_acl_after": observed["public_acl"],
+        "source_admin_provisioning": {
+            "run_id": source_admin_provisioning["run_id"],
+            "approved_git_sha": source_admin_provisioning["approved_git_sha"],
+            "sha256": source_admin_provisioning_sha256,
+        },
+        "connection_attempted": True,
+        "writes_attempted": False,
+        "committed": True,
+        "transaction_outcome": "ROLLED_BACK_READ_ONLY",
+        "rollback_or_reconciliation_required": False,
+    }
+    _write_provisioning_evidence(evidence_json, report)
+    return report
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Provision the restricted KPIONE Route B role")
     result.add_argument("--plan", type=Path, default=DEFAULT_PLAN)
@@ -799,7 +1076,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--confirm", required=True)
     result.add_argument("--evidence-json", type=Path, required=True)
     result.add_argument("--reconcile-provisioning-evidence", action="store_true")
+    result.add_argument("--reconcile-existing-provisioned-state", action="store_true")
     result.add_argument("--prior-failure-report", type=Path)
+    result.add_argument("--source-admin-provisioning-evidence", type=Path)
     result.add_argument("--authority-precheck-only", action="store_true")
     return result
 
@@ -827,17 +1106,40 @@ def _prepare_admin_operation(args: argparse.Namespace, root: Path = ROOT) -> tup
     prepare_run_directory(root, args.run_id)
     if not args.evidence_json.parent.is_dir():
         raise ProvisioningError("provisioning_evidence_parent_missing")
-    if args.reconcile_provisioning_evidence:
+    reconcile_prior_failure = getattr(args, "reconcile_provisioning_evidence", False)
+    reconcile_existing_state = getattr(args, "reconcile_existing_provisioned_state", False)
+    source_admin_evidence = getattr(args, "source_admin_provisioning_evidence", None)
+    prior_failure_report = getattr(args, "prior_failure_report", None)
+    if reconcile_prior_failure and reconcile_existing_state:
+        raise ProvisioningError("single_reconciliation_mode_required")
+    if reconcile_prior_failure:
         if args.confirm != RECONCILE_CONFIRM_TOKEN:
             raise ProvisioningError("admin_reconciliation_confirmation_required")
-        if args.prior_failure_report is None:
+        if prior_failure_report is None:
             raise ProvisioningError("prior_failure_report_required")
+        if source_admin_evidence is not None:
+            raise ProvisioningError("source_admin_provisioning_not_allowed_for_prior_failure")
         args._prior_failure = _validate_prior_failure_report(
-            args.prior_failure_report, args.run_id, authority, plan,
+            prior_failure_report, args.run_id, authority, plan,
+        )
+    elif reconcile_existing_state:
+        if args.confirm != RECONCILE_EXISTING_CONFIRM_TOKEN:
+            raise ProvisioningError("existing_state_reconciliation_confirmation_required")
+        if prior_failure_report is not None:
+            raise ProvisioningError("prior_failure_report_not_allowed_for_existing_state")
+        if source_admin_evidence is None:
+            raise ProvisioningError("source_admin_provisioning_evidence_required")
+        (
+            args._source_admin_provisioning,
+            args._source_admin_provisioning_sha256,
+        ) = _validate_committed_provisioning_source_report(
+            source_admin_evidence, authority, plan, root,
         )
     else:
-        if args.prior_failure_report is not None:
+        if prior_failure_report is not None:
             raise ProvisioningError("prior_failure_report_not_allowed_for_initial_provisioning")
+        if source_admin_evidence is not None:
+            raise ProvisioningError("source_admin_provisioning_not_allowed_for_initial_provisioning")
         if args.confirm != PROVISION_CONFIRM_TOKEN:
             raise ProvisioningError("admin_provision_confirmation_required")
     public_guard = {
@@ -865,9 +1167,15 @@ def execute_cli(
     dsn = environ.get(ADMIN_DB_ENV)
     if not dsn:
         raise ProvisioningError("admin_dsn_missing")
-    if args.reconcile_provisioning_evidence:
+    if getattr(args, "reconcile_provisioning_evidence", False):
         return reconcile_provisioning_evidence(
             plan, dsn, args.run_id, args._prior_failure, args.evidence_json,
+            git_guard=git_guard,
+        )
+    if getattr(args, "reconcile_existing_provisioned_state", False):
+        return reconcile_existing_provisioned_state(
+            plan, dsn, args.run_id, args._source_admin_provisioning,
+            args._source_admin_provisioning_sha256, args.evidence_json,
             git_guard=git_guard,
         )
     role_password = environ.get(PRODUCTIVE_ROLE_PASSWORD_ENV)
@@ -888,12 +1196,17 @@ def _blocked_report(exc: BaseException) -> dict[str, Any]:
         "writes_attempted": getattr(exc, "writes_attempted", False),
         "committed": getattr(exc, "committed", False),
     }
+    for key in ("failed_stage", "exception_type", "sqlstate", "fixed_error_category"):
+        value = getattr(exc, key, None)
+        if key == "sqlstate" or value is not None:
+            report[key] = value
     safe_fields = {
         "approved_git_sha", "plan_sha256", "ddl_sha256", "target_fingerprint",
         "run_id", "evidence_sequence_step", "sql_sha256", "planned_productive_role",
         "role_created", "committed", "legacy_structure_before", "legacy_structure_after",
         "legacy_activity_before", "legacy_activity_after", "public_acl_before", "public_acl_after",
         "legacy_object_unchanged", "rollback_or_reconciliation_required",
+        "failed_stage", "exception_type", "sqlstate", "fixed_error_category",
     }
     report.update({
         key: value for key, value in getattr(exc, "report", {}).items()

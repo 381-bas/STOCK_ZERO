@@ -1,0 +1,114 @@
+{
+  "approved_git_sha": "75ba94fbb3bba9a0d90565c93a951a66892487db",
+  "committed": false,
+  "connection_attempted": true,
+  "credential_role": "stock_zero_kpione_route_b_load",
+  "current_user": "stock_zero_kpione_route_b_load",
+  "database": "postgres",
+  "document_type": "kpione_route_b_productive_role_verification_evidence_v1",
+  "evidence_sequence_step": 3,
+  "negative_probes": [
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "batch-protected-update",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "batch-file-update",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "batch-file-delete",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "staging-update",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "staging-delete",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "create-cg-raw",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "create-cg-core",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "legacy-insert",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "legacy-update",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "legacy-delete",
+      "sqlstate": "42501"
+    },
+    {
+      "error_class": "InsufficientPrivilege",
+      "outcome": "DENIED",
+      "probe": "route-b-ddl",
+      "sqlstate": "42501"
+    }
+  ],
+  "persistent_rows_written": 0,
+  "plan_sha256": "fa91d43c8c3ce229210e5bb293734a6423cfbc3341445b76a6d61d7f17160ef9",
+  "positive_probes": [
+    {
+      "outcome": "PASS",
+      "probe": "select_allowed_route_b_tables"
+    },
+    {
+      "outcome": "PASS",
+      "probe": "insert_synthetic_batch"
+    },
+    {
+      "outcome": "PASS",
+      "probe": "update_authorized_transition_columns"
+    },
+    {
+      "outcome": "PASS",
+      "probe": "insert_synthetic_batch_file"
+    },
+    {
+      "outcome": "PASS",
+      "probe": "insert_staging_and_use_identity_sequence"
+    },
+    {
+      "outcome": "PASS",
+      "probe": "select_allowed_route_b_views"
+    }
+  ],
+  "run_id": "a554f464-8213-442c-bf0b-d06b7acc26ca",
+  "session_user": "stock_zero_kpione_route_b_load",
+  "sql_sha256": "94b6049454435bf03b2a348a8c93653528a011a94339ac3c13b071c8e0e2da0e",
+  "target_fingerprint": "747804afb6f4dc071b098c10b557f115f425e0cfebb43f4152405a510277678c",
+  "timestamp_utc": "2026-07-18T16:00:17.185441+00:00",
+  "transaction_outcome": "ROLLED_BACK",
+  "verdict": "PASS_PRODUCTIVE_ROLE_VERIFICATION",
+  "writes_attempted": true
+}

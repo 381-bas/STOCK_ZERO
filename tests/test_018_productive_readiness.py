@@ -18,11 +18,20 @@ from scripts import precheck_kpione_route_b_018_read_only as precheck
 from scripts import run_kpione_route_b_ingestion_v1 as productive_runner
 from scripts.kpione_route_b_v1 import (
     PLANNED_PRODUCTIVE_ROLE,
+    PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_BLOCKERS,
+    PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS,
+    PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE,
+    PRODUCTIVE_APPLY_CLOSURE_BUNDLE_FILENAME,
+    PRODUCTIVE_APPLY_CLOSURE_BUNDLE_HASH_METHOD,
+    PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT,
+    PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS,
     PRODUCTIVE_INFRASTRUCTURE_EVIDENCE_COMPONENTS,
     PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS,
     PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_STATUS,
     RouteBError,
     WorkbookPlan,
+    build_productive_apply_closure_bundle,
+    canonical_productive_apply_closure_bundle_path,
     classify_global_photo_duplicates,
     inspect_workbook,
     productive_blocked_report,
@@ -34,6 +43,8 @@ from scripts.kpione_route_b_v1 import (
     validate_productive_local_artifacts,
     validate_productive_dsn_target,
     validate_productive_role_contract,
+    validate_productive_apply_closure_bundle,
+    validate_productive_state_transition,
     validate_registered_productive_target,
 )
 
@@ -238,19 +249,19 @@ class FakeProductiveDbCursor:
             self.rows = [(self.database.role, self.database.role, "postgres", readonly)]
         elif normalized.startswith("set local") or "pg_advisory_xact_lock" in normalized:
             pass
-        elif "from pg_class c join pg_namespace" in normalized:
-            if self.database.state["objects_exist"]:
-                expected = self.database.plan["physical_contract"]["object_signatures"]
-                self.rows = [(name, spec["relation_kind"]) for name, spec in sorted(expected.items())]
-                if not self.database.state["signatures_match"]:
-                    self.rows = self.rows[:-1]
-        elif "from information_schema.columns" in normalized:
+        elif "join pg_attribute" in normalized and "not a.attisdropped" in normalized:
             expected = self.database.plan["physical_contract"]["object_signatures"]
             self.rows = [
                 (name, column)
                 for name, spec in sorted(expected.items())
                 for column in spec["columns"]
             ]
+        elif "from pg_class c join pg_namespace" in normalized:
+            if self.database.state["objects_exist"]:
+                expected = self.database.plan["physical_contract"]["object_signatures"]
+                self.rows = [(name, spec["relation_kind"]) for name, spec in sorted(expected.items())]
+                if not self.database.state["signatures_match"]:
+                    self.rows = self.rows[:-1]
         elif normalized.startswith("create schema if not exists cg_raw"):
             self.database.state["objects_exist"] = True
         elif normalized.startswith("insert into cg_raw.kpione_raw_ingest_batch_v1"):
@@ -323,7 +334,7 @@ class FakeProductiveDbCursor:
 class ProductiveReadiness018Tests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.plan = precheck.load_plan(PLAN_PATH)
+        cls.plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
 
     @staticmethod
     def infrastructure_evidence_fixture() -> dict[str, object]:
@@ -398,6 +409,38 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         plan["productive_rollback_authorized"] = False
         return plan
 
+    def preparation_fixture(self) -> dict[str, object]:
+        plan = copy.deepcopy(self.plan)
+        plan["status"] = "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING"
+        plan["remaining_blockers"] = [
+            "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
+            "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
+        ]
+        plan["readonly_precheck"] = {
+            "status": "NOT_AUTHORIZED_OR_EXECUTED",
+            "evidence_sha256": None,
+        }
+        plan.pop("infrastructure_evidence", None)
+        plan["target"]["productive_role_status"] = "PLANNED_NOT_PROVISIONED"
+        plan["target"]["allowed_productive_roles"] = []
+        plan["activation_gate"]["productive_role_registered"] = False
+        plan["activation_gate"]["gate_open"] = False
+        plan["productive_apply_authorized"] = False
+        plan["productive_rollback_authorized"] = False
+        return plan
+
+    def closure_pending_fixture(self) -> dict[str, object]:
+        plan = copy.deepcopy(self.plan)
+        plan["status"] = PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS
+        plan["remaining_blockers"] = copy.deepcopy(
+            PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_BLOCKERS
+        )
+        plan["evidence_closure_complete"] = False
+        plan["supplemental_reattestation_required"] = True
+        plan["productive_execution"]["reattestation"] = None
+        plan["productive_execution"]["evidence_bundle"] = None
+        return plan
+
     def init_git_fixture(self, folder: str) -> tuple[Path, Path, str]:
         root = Path(folder)
         plan_path = root / "plan.json"
@@ -411,43 +454,78 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
         return root, plan_path, head
 
-    def test_plan_source_ready_but_never_authorizes_apply(self) -> None:
-        self.assertEqual(self.plan["status"], "TECHNICAL_BOUNDARY_READY_ROLE_PROVISIONING_PENDING")
+    def test_plan_records_committed_apply_and_closes_reapply_gate(self) -> None:
+        self.assertEqual(
+            self.plan["status"], PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS,
+        )
         self.assertTrue(self.plan["source_package"]["approved_for_apply"])
+        self.assertTrue(self.plan["productive_apply_executed"])
         self.assertFalse(self.plan["productive_apply_authorized"])
         self.assertFalse(self.plan["productive_rollback_authorized"])
         self.assertFalse(self.plan["activation_gate"]["gate_open"])
-        self.assertIsNone(self.plan.get("infrastructure_evidence"))
+        self.assertEqual(self.plan["remaining_blockers"], [])
+        self.assertTrue(self.plan["evidence_closure_complete"])
+        self.assertFalse(self.plan["supplemental_reattestation_required"])
+        self.assertFalse(self.plan["bridge_executed"])
+        self.assertFalse(self.plan["mart_refresh_executed"])
+        self.assertFalse(self.plan["app_validation_executed"])
+        self.assertEqual(self.plan["infrastructure_evidence"]["status"], "PASSED")
         self.assertEqual(self.plan["readonly_precheck"], {
-            "status": "NOT_AUTHORIZED_OR_EXECUTED",
-            "evidence_sha256": None,
+            "status": "PASSED",
+            "evidence_sha256": "162f9cbf28628eaf58e68bc7f2ac2412a82ece4d1a48a7774c08039d16d06dc3",
         })
         self.assertEqual(
             self.plan["future_productive_command"]["status"],
-            "TECHNICAL_BOUNDARY_IMPLEMENTED_GATE_CLOSED",
+            PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS,
         )
-        precheck.validate_plan_readiness(self.plan, "baseline")
+        boundary = self.plan["future_productive_command"]["minimum_runner_change_required"]
+        for required in (
+            "Productive apply evidence is closed",
+            "reapply remains closed",
+            "Bridge, mart refresh, app validation and rollback remain unauthorized",
+        ):
+            self.assertIn(required, boundary)
+        requirements = self.plan["git_reference_contract"]["requirements"]
+        self.assertIn(
+            "authorization base SHA equals 61a2cb60209e21fe74a533c06d4cdacd8b8fdb9a",
+            requirements,
+        )
+        self.assertTrue(any(item.startswith("authorization timestamp UTC is ") for item in requirements))
+        self.assertTrue(any("a554f464-8213-442c-bf0b-d06b7acc26ca" in item for item in requirements))
+        baseline = json.loads((ROOT / "evidence/runtime/020B/a554f464-8213-442c-bf0b-d06b7acc26ca/01_readonly_baseline.json").read_text(encoding="utf-8"))
+        postcheck = json.loads((ROOT / "evidence/runtime/020B/a554f464-8213-442c-bf0b-d06b7acc26ca/04_readonly_postcheck.json").read_text(encoding="utf-8"))
+        self.assertEqual((baseline["active_batch_count"], postcheck["active_batch_count"]), (0, 0))
+        self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+        with self.assertRaisesRegex(RouteBError, "apply_productive_gate_closed"):
+            require_productive_gate_open(self.plan, "apply_productive")
 
     def test_preparation_rejects_passed_bundle_or_provisioned_role(self) -> None:
-        self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+        preparation = self.preparation_fixture()
+        self.assertEqual(validate_productive_role_contract(preparation), PLANNED_PRODUCTIVE_ROLE)
+        precheck.validate_plan_readiness(preparation, "baseline")
 
-        with_bundle = copy.deepcopy(self.plan)
+        with_bundle = copy.deepcopy(preparation)
         with_bundle["infrastructure_evidence"] = self.infrastructure_evidence_fixture()
         with self.assertRaisesRegex(RouteBError, "productive_execution_state_contract_mismatch"):
             validate_productive_role_contract(with_bundle)
 
-        with_role = copy.deepcopy(self.plan)
+        with_role = copy.deepcopy(preparation)
         with_role["target"]["productive_role_status"] = "PROVISIONED_AND_VERIFIED"
         with_role["target"]["allowed_productive_roles"] = [PLANNED_PRODUCTIVE_ROLE]
         with_role["activation_gate"]["productive_role_registered"] = True
         with self.assertRaisesRegex(RouteBError, "productive_execution_state_contract_mismatch"):
             validate_productive_role_contract(with_role)
 
-    def test_planned_productive_role_registered_but_not_allowed(self) -> None:
+    def test_productive_role_is_registered_and_apply_gate_is_closed(self) -> None:
         target = self.plan["target"]
         self.assertEqual(target["planned_productive_role"], PLANNED_PRODUCTIVE_ROLE)
-        self.assertEqual(target["productive_role_status"], "PLANNED_NOT_PROVISIONED")
-        self.assertEqual(target["allowed_productive_roles"], [])
+        self.assertEqual(target["productive_role_status"], "PROVISIONED_AND_VERIFIED")
+        self.assertEqual(target["allowed_productive_roles"], [PLANNED_PRODUCTIVE_ROLE])
+        self.assertTrue(self.plan["activation_gate"]["productive_role_registered"])
+        self.assertFalse(self.plan["activation_gate"]["gate_open"])
+        self.assertFalse(self.plan["productive_apply_authorized"])
+        self.assertTrue(self.plan["productive_apply_executed"])
+        self.assertFalse(self.plan["productive_rollback_authorized"])
         self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
 
     def test_productive_role_gate_state_machine_and_mode_authorization(self) -> None:
@@ -630,7 +708,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertEqual(target["expected_database"], "postgres")
         self.assertEqual(target["allowed_readonly_roles"], ["stock_zero_codex_ro"])
         self.assertTrue(self.plan["activation_gate"]["target_identity_registered"])
-        self.assertFalse(self.plan["activation_gate"]["productive_role_registered"])
+        self.assertTrue(self.plan["activation_gate"]["productive_role_registered"])
         self.assertFalse(self.plan["activation_gate"]["gate_open"])
 
     def test_git_reference_contract_is_external_and_non_self_referential(self) -> None:
@@ -1017,15 +1095,17 @@ class ProductiveReadiness018Tests(unittest.TestCase):
                 self.assertNotIn(password, json.dumps(report))
 
     def test_apply_productive_blocks_before_dsn_env_read_when_gate_closed(self) -> None:
-        report = productive_blocked_report(self.plan, "apply_productive")
+        report = productive_blocked_report(
+            self.provisioned_gate_closed_fixture(), "apply_productive",
+        )
         self.assertEqual(report["verdict"], "BLOCKED")
         self.assertEqual(report["planned_productive_role"], PLANNED_PRODUCTIVE_ROLE)
-        self.assertEqual(report["productive_role_status"], "PLANNED_NOT_PROVISIONED")
-        self.assertEqual(report["allowed_productive_roles"], [])
-        self.assertEqual(report["remaining_blockers"], [
-            "PRODUCTIVE_ROLE_NOT_PROVISIONED_OR_VERIFIED",
-            "READ_ONLY_PRECHECK_NOT_AUTHORIZED_OR_EXECUTED",
-        ])
+        self.assertEqual(report["productive_role_status"], "PROVISIONED_AND_VERIFIED")
+        self.assertEqual(report["allowed_productive_roles"], [PLANNED_PRODUCTIVE_ROLE])
+        self.assertEqual(
+            report["remaining_blockers"],
+            PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED_BLOCKERS,
+        )
         self.assertFalse(report["dsn_read"])
         self.assertFalse(report["connection_attempted"])
         self.assertFalse(report["writes_attempted"])
@@ -1059,7 +1139,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
             with (
                 mock.patch.object(sys, "argv", argv),
                 mock.patch.object(productive_runner, "validate_productive_git_guard", return_value=git_guard),
-                mock.patch.object(productive_runner, "load_approved_productive_plan", return_value=copy.deepcopy(self.plan)),
+                mock.patch.object(productive_runner, "load_approved_productive_plan", return_value=self.provisioned_gate_closed_fixture()),
                 mock.patch.object(productive_runner, "build_approved_plan_from_manifest", return_value={}),
                 mock.patch.object(productive_runner.os.environ, "get", side_effect=guarded_environment_get),
                 redirect_stdout(output),
@@ -1329,7 +1409,7 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertEqual(self.plan["target"]["future_productive_env"], "DB_URL_KPIONE_ROUTE_B_PRODUCTIVE")
 
     def test_run_precheck_success_report_and_connection_lifecycle(self) -> None:
-        ready = copy.deepcopy(self.plan)
+        ready = self.preparation_fixture()
         connection = FakeConnection()
         report = precheck.run_precheck(
             ready, "redacted", lambda _dsn: connection, run_id=str(uuid.uuid4()),
@@ -1345,6 +1425,255 @@ class ProductiveReadiness018Tests(unittest.TestCase):
         self.assertFalse(report["writes_attempted"])
         self.assertTrue(connection.rollback_called)
         self.assertTrue(connection.close_called)
+
+    def reattestation_report_fixture(self) -> dict[str, object]:
+        execution = self.plan["productive_execution"]
+        sources = execution["source_evidence"]
+        return {
+            "document_type": "stock_zero_route_b_post_apply_reattestation_v1",
+            "verdict": "PASS_ROUTE_B_POST_APPLY_REATTESTATION",
+            "productive_run_id": execution["productive_run_id"],
+            "approved_git_sha": execution["approved_git_sha"],
+            "runner_execution_uuid": execution["runner_execution_uuid"],
+            "batch_id": execution["batch_id"],
+            "reattestation_execution_uuid": str(uuid.uuid4()),
+            "observed_at_utc": "2026-07-19T17:00:00+00:00",
+            "source_evidence": {
+                "01": copy.deepcopy(sources["01_readonly_pre_apply_target_check"]),
+                "02": copy.deepcopy(sources["02_route_b_june_productive_apply"]),
+                "03": copy.deepcopy(sources["03_readonly_post_apply_verification"]),
+            },
+            "baseline_evidence_sha256": sources["01_readonly_pre_apply_target_check"]["sha256"],
+            "database_execution": {
+                "current_user": "stock_zero_codex_ro",
+                "session_user": "stock_zero_codex_ro",
+                "expected_role": "stock_zero_codex_ro",
+                "transaction_read_only": "on",
+                "begin_read_only": True,
+                "rollback_completed": True,
+                "writes_attempted": False,
+                "write_statements_defined": False,
+            },
+            "current_productive_state": {
+                "active_batch_count": 1,
+                "active_batch_id": execution["batch_id"],
+                "staged_rows": 239159,
+                "events": 35287,
+                "day_presence": 34996,
+                "files": 9,
+                "conflicts": 0,
+            },
+            "baseline_comparison": {
+                "legacy_row_delta": 0,
+                "legacy_relation_size_delta": 0,
+                "public_acl_unchanged": True,
+                "physical_signatures_unchanged": True,
+                "observer_role_unchanged": True,
+            },
+        }
+
+    def test_post_apply_states_and_forward_only_transitions(self) -> None:
+        self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+        validate_productive_state_transition(
+            "READY_FOR_PRODUCTIVE_EXECUTION",
+            PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS,
+        )
+        validate_productive_state_transition(
+            PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS,
+            PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS,
+        )
+        for current, requested in (
+            (PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS, "READY_FOR_PRODUCTIVE_EXECUTION"),
+            (PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS, PRODUCTIVE_APPLY_COMMITTED_CLOSURE_PENDING_STATUS),
+        ):
+            with self.subTest(current=current, requested=requested), self.assertRaisesRegex(
+                RouteBError, "productive_state_transition_not_allowed",
+            ):
+                validate_productive_state_transition(current, requested)
+
+        recorded = copy.deepcopy(self.plan)
+        recorded["status"] = PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS
+        recorded["remaining_blockers"] = []
+        recorded["evidence_closure_complete"] = True
+        recorded["supplemental_reattestation_required"] = False
+        recorded["productive_execution"]["reattestation"] = {
+            "status": "PASSED",
+            "verdict": "PASS_ROUTE_B_POST_APPLY_REATTESTATION",
+            "sha256": "a" * 64,
+            "path": (
+                "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/"
+                "04_route_b_post_apply_reattestation.json"
+            ),
+            "execution_uuid": "5e7718c0-199e-41ca-b967-b826fa0e9a7d",
+        }
+        recorded["productive_execution"]["evidence_bundle"] = {
+            "status": "PASSED",
+            "path": (
+                "evidence/runtime/022/0c759fc0-b1d9-4a6b-9da8-02134e4df210/"
+                "05_route_b_productive_apply_closure_bundle.json"
+            ),
+            "sha256": "b" * 64,
+            "sha256_method": PRODUCTIVE_APPLY_CLOSURE_BUNDLE_HASH_METHOD,
+            "document_type": PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE,
+            "verdict": PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT,
+            "contract_git_sha": "c" * 40,
+        }
+        self.assertEqual(validate_productive_role_contract(recorded), PLANNED_PRODUCTIVE_ROLE)
+
+    def test_closure_pending_state_is_fail_closed(self) -> None:
+        pending = self.closure_pending_fixture()
+        required = {
+            "productive_apply_executed": True,
+            "productive_apply_authorized": False,
+            "productive_rollback_authorized": False,
+            "bridge_executed": False,
+        }
+        for field, value in required.items():
+            self.assertIs(pending[field], value)
+        self.assertFalse(pending["activation_gate"]["gate_open"])
+        for mutation in (
+            lambda plan: plan["activation_gate"].update({"gate_open": True}),
+            lambda plan: plan.update({"productive_apply_authorized": True}),
+            lambda plan: plan.update({"productive_apply_executed": False}),
+            lambda plan: plan.update({"productive_rollback_authorized": True}),
+            lambda plan: plan.update({"bridge_executed": True}),
+        ):
+            altered = copy.deepcopy(pending)
+            mutation(altered)
+            with self.assertRaisesRegex(RouteBError, "productive_execution_state_contract_mismatch"):
+                validate_productive_role_contract(altered)
+
+    def test_current_raw_evidence_matches_plan_and_remains_byte_identical(self) -> None:
+        run_id = self.plan["productive_execution"]["productive_run_id"]
+        loaded = precheck.load_post_apply_source_evidence(self.plan, ROOT, run_id)
+        self.assertEqual(set(loaded["payloads"]), {"01", "02", "03"})
+        self.assertNotIn("productive_run_id", loaded["payloads"]["02"])
+        self.assertEqual(
+            loaded["baseline_evidence_sha256"],
+            "edee494b40187d01b9fc627f09a39f6ff9d0f46979c7a99f5cf82660d478c9fe",
+        )
+        for sequence, expected in {
+            "01": "edee494b40187d01b9fc627f09a39f6ff9d0f46979c7a99f5cf82660d478c9fe",
+            "02": "1ec47bd1ab62dafdcd7463292e033882f2bea57d3db7587a4f9f84385c485159",
+            "03": "ad2823dd00d02b8b4c32e385a57c3516d14df834836c0790a3f3eb648733563b",
+        }.items():
+            path = ROOT / loaded["references"][sequence]["path"]
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), expected)
+
+        altered = copy.deepcopy(self.plan)
+        altered["productive_execution"]["source_evidence"][
+            "01_readonly_pre_apply_target_check"
+        ]["sha256"] = "0" * 64
+        with self.assertRaisesRegex(precheck.PrecheckBlock, "source_evidence_sha256_mismatch:01"):
+            precheck.load_post_apply_source_evidence(altered, ROOT, run_id)
+
+    def test_reattestation_contract_requires_authority_and_readonly_invariants(self) -> None:
+        valid = self.reattestation_report_fixture()
+        precheck.validate_post_apply_reattestation(valid, self.plan)
+        mutations = {
+            "missing_run_id": lambda report: report.pop("productive_run_id"),
+            "wrong_execution_uuid": lambda report: report.update({"runner_execution_uuid": str(uuid.uuid4())}),
+            "wrong_batch_id": lambda report: report.update({"batch_id": str(uuid.uuid4())}),
+            "missing_baseline_sha": lambda report: report.pop("baseline_evidence_sha256"),
+            "wrong_source_hash": lambda report: report["source_evidence"]["01"].update({"sha256": "0" * 64}),
+            "wrong_role": lambda report: report["database_execution"].update({"current_user": "postgres"}),
+            "not_readonly": lambda report: report["database_execution"].update({"transaction_read_only": "off"}),
+            "writes_attempted": lambda report: report["database_execution"].update({"writes_attempted": True}),
+            "wrong_active_count": lambda report: report["current_productive_state"].update({"active_batch_count": 2}),
+        }
+        for name, mutation in mutations.items():
+            report = copy.deepcopy(valid)
+            mutation(report)
+            with self.subTest(name=name), self.assertRaises(precheck.PrecheckBlock):
+                precheck.validate_post_apply_reattestation(report, self.plan)
+
+    def test_closure_bundle_canonical_path_and_contract(self) -> None:
+        pending = self.closure_pending_fixture()
+        run_id = pending["productive_execution"]["productive_run_id"]
+        expected = (
+            ROOT / "evidence" / "runtime" / "022" / run_id
+            / PRODUCTIVE_APPLY_CLOSURE_BUNDLE_FILENAME
+        )
+        self.assertEqual(
+            canonical_productive_apply_closure_bundle_path(ROOT, run_id), expected,
+        )
+        with self.assertRaisesRegex(RouteBError, "productive_run_id_must_be_canonical_uuid4"):
+            canonical_productive_apply_closure_bundle_path(ROOT, "../alternate")
+        bundle = build_productive_apply_closure_bundle(
+            pending, ROOT, "a" * 40, generated_at_utc="2026-07-19T18:00:00+00:00",
+        )
+        self.assertEqual(bundle["document_type"], PRODUCTIVE_APPLY_CLOSURE_BUNDLE_DOCUMENT_TYPE)
+        self.assertEqual(bundle["verdict"], PRODUCTIVE_APPLY_CLOSURE_BUNDLE_VERDICT)
+        self.assertEqual(set(bundle["source_evidence"]), {"01", "02", "03", "04"})
+        validate_productive_apply_closure_bundle(pending, bundle, ROOT, "a" * 40)
+
+    def test_closure_bundle_validator_rejects_all_contract_drift(self) -> None:
+        pending = self.closure_pending_fixture()
+        contract_sha = "a" * 40
+        valid = build_productive_apply_closure_bundle(
+            pending, ROOT, contract_sha, generated_at_utc="2026-07-19T18:00:00+00:00",
+        )
+        mutations = {
+            "wrong_document_type": lambda item: item.update({"document_type": "wrong"}),
+            "wrong_verdict": lambda item: item.update({"verdict": "wrong"}),
+            "missing_source": lambda item: item["source_evidence"].pop("01"),
+            "extra_source": lambda item: item["source_evidence"].update({"05": {}}),
+            "wrong_source_path": lambda item: item["source_evidence"]["01"].update({"path": "evidence/runtime/022/alternate/01.json"}),
+            "wrong_source_hash": lambda item: item["source_evidence"]["01"].update({"sha256": "0" * 64}),
+            "wrong_apply_sha": lambda item: item.update({"approved_apply_git_sha": "b" * 40}),
+            "wrong_contract_sha": lambda item: item.update({"contract_git_sha": "b" * 40}),
+            "wrong_execution_uuid": lambda item: item.update({"runner_execution_uuid": str(uuid.uuid4())}),
+            "wrong_batch_id": lambda item: item.update({"batch_id": str(uuid.uuid4())}),
+            "wrong_active_count": lambda item: item["productive_result"].update({"active_batch_count": 2}),
+            "metrics_mismatch": lambda item: item["productive_result"].update({"events": 1}),
+            "not_readonly": lambda item: item["database_safety"].update({"transaction_read_only": "off"}),
+            "writes_attempted": lambda item: item["database_safety"].update({"writes_attempted": True}),
+            "rollback_false": lambda item: item["database_safety"].update({"rollback_completed": False}),
+            "legacy_delta": lambda item: item["baseline_comparison"].update({"legacy_row_delta": 1}),
+            "public_acl_false": lambda item: item["baseline_comparison"].update({"public_acl_unchanged": False}),
+            "gate_open": lambda item: item["gate_state"].update({"gate_open": True}),
+            "apply_authorized": lambda item: item["gate_state"].update({"productive_apply_authorized": True}),
+            "rollback_authorized": lambda item: item["gate_state"].update({"productive_rollback_authorized": True}),
+            "bridge_true": lambda item: item["downstream_state"].update({"bridge_executed": True}),
+            "mart_true": lambda item: item["downstream_state"].update({"mart_refresh_executed": True}),
+            "app_true": lambda item: item["downstream_state"].update({"app_validation_executed": True}),
+        }
+        for name, mutation in mutations.items():
+            bundle = copy.deepcopy(valid)
+            mutation(bundle)
+            with self.subTest(name=name), self.assertRaises(RouteBError):
+                validate_productive_apply_closure_bundle(
+                    pending, bundle, ROOT, contract_sha,
+                )
+
+    def test_recorded_state_rejects_incomplete_bundle_metadata_and_pending_stays_valid(self) -> None:
+        self.assertEqual(validate_productive_role_contract(self.plan), PLANNED_PRODUCTIVE_ROLE)
+        recorded = copy.deepcopy(self.plan)
+        recorded["status"] = PRODUCTIVE_APPLY_RECORDED_GATE_CLOSED_STATUS
+        recorded["remaining_blockers"] = []
+        recorded["evidence_closure_complete"] = True
+        recorded["supplemental_reattestation_required"] = False
+        recorded["productive_execution"]["reattestation"] = {
+            "status": "PASSED", "verdict": "PASS_ROUTE_B_POST_APPLY_REATTESTATION",
+            "sha256": "a" * 64,
+        }
+        recorded["productive_execution"]["evidence_bundle"] = {
+            "status": "PASSED", "sha256": "b" * 64,
+        }
+        with self.assertRaisesRegex(RouteBError, "productive_execution_state_contract_mismatch"):
+            validate_productive_role_contract(recorded)
+
+    def test_raw_evidence_01_through_04_hashes_are_immutable(self) -> None:
+        base = ROOT / "evidence" / "runtime" / "022" / self.plan["productive_execution"]["productive_run_id"]
+        expected = {
+            "01_readonly_pre_apply_target_check.json": "edee494b40187d01b9fc627f09a39f6ff9d0f46979c7a99f5cf82660d478c9fe",
+            "02_route_b_june_productive_apply.json": "1ec47bd1ab62dafdcd7463292e033882f2bea57d3db7587a4f9f84385c485159",
+            "03_readonly_post_apply_verification.json": "ad2823dd00d02b8b4c32e385a57c3516d14df834836c0790a3f3eb648733563b",
+            "04_route_b_post_apply_reattestation.json": "a78aff74ae0d201776f765e6f65633f71ccaa8dcb5c3db012f9117c8fd8dc383",
+        }
+        for name, digest in expected.items():
+            with self.subTest(name=name):
+                self.assertEqual(hashlib.sha256((base / name).read_bytes()).hexdigest(), digest)
 
 
 if __name__ == "__main__":

@@ -7,11 +7,15 @@ param(
     [ValidateSet(
         'readonly-precheck',
         'readonly-postcheck',
+        'readonly-reattest-route-b-june-apply',
         'verify-route-b-role',
         'route-b-apply',
         'route-b-rollback',
         'admin-provision',
         'admin-reconcile-provisioning-evidence',
+        'admin-reconcile-existing-provisioned-state',
+        'admin-reconcile-route-b-readonly-observer',
+        'apply-route-b-app-bridge',
         'diagnose-readonly',
         'diagnose-route-b',
         'diagnose-admin'
@@ -47,6 +51,9 @@ $profileMap = @{
     'admin-reconciliation' = @(
         @{ SecretName = 'STOCK_ZERO_DB_ADMIN'; EnvironmentName = 'DB_URL_ADMIN' }
     )
+    'admin-ddl' = @(
+        @{ SecretName = 'STOCK_ZERO_DB_ADMIN'; EnvironmentName = 'DB_URL_ADMIN' }
+    )
 }
 $operationMap = @{
     'readonly-precheck' = @{
@@ -58,6 +65,11 @@ $operationMap = @{
         Script = 'scripts/precheck_kpione_route_b_018_read_only.py'
         Profile = 'readonly'
         PrefixArguments = @('--check-stage', 'post-provision')
+    }
+    'readonly-reattest-route-b-june-apply' = @{
+        Script = 'scripts/precheck_kpione_route_b_018_read_only.py'
+        Profile = 'readonly'
+        PrefixArguments = @('--check-stage', 'post-apply-reattestation')
     }
     'verify-route-b-role' = @{
         Script = 'scripts/verify_kpione_route_b_productive_role.py'
@@ -85,6 +97,23 @@ $operationMap = @{
         Profile = 'admin-reconciliation'
         PrefixArguments = @('--reconcile-provisioning-evidence')
         AuthorityPrecheck = $true
+    }
+    'admin-reconcile-existing-provisioned-state' = @{
+        Script = 'scripts/provision_kpione_route_b_role.py'
+        Profile = 'admin-reconciliation'
+        PrefixArguments = @('--reconcile-existing-provisioned-state')
+        AuthorityPrecheck = $true
+    }
+    'admin-reconcile-route-b-readonly-observer' = @{
+        Script = 'scripts/reconcile_route_b_readonly_observer.py'
+        Profile = 'admin-reconciliation'
+        PrefixArguments = @()
+        AuthorityPrecheck = $true
+    }
+    'apply-route-b-app-bridge' = @{
+        Script = 'scripts/apply_control_gestion_route_b_bridge.py'
+        Profile = 'admin-ddl'
+        PrefixArguments = @()
     }
     'diagnose-readonly' = @{
         Script = 'scripts/diagnose_stock_zero_db_credentials.py'
@@ -152,6 +181,7 @@ $evidenceFileByOperation = @{
     'readonly-precheck' = '01_readonly_baseline.json'
     'admin-provision' = '02_admin_provisioning.json'
     'admin-reconcile-provisioning-evidence' = '02_admin_provisioning.json'
+    'admin-reconcile-existing-provisioned-state' = '02_admin_provisioning.json'
     'verify-route-b-role' = '03_productive_role_verification.json'
     'readonly-postcheck' = '04_readonly_postcheck.json'
 }
@@ -191,8 +221,76 @@ if ($evidenceFileByOperation.ContainsKey($Operation)) {
     }
 }
 
+if ($Operation -eq 'readonly-reattest-route-b-june-apply') {
+    $runIndex = [Array]::IndexOf($operationArguments, '--run-id')
+    if ($runIndex -lt 0 -or $runIndex + 1 -ge $operationArguments.Count) {
+        throw 'A canonical --run-id is required for the post-apply reattestation.'
+    }
+    $runId = $operationArguments[$runIndex + 1]
+    if ($runId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+        throw 'The evidence run id must be a canonical lowercase UUID v4.'
+    }
+    $runDirectory = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot (Join-Path 'evidence/runtime/022' $runId))
+    )
+    if (-not (Test-Path -LiteralPath $runDirectory -PathType Container)) {
+        throw 'The productive run directory does not exist.'
+    }
+    $outputIndex = [Array]::IndexOf($operationArguments, '--report-json')
+    if ($outputIndex -lt 0 -or $outputIndex + 1 -ge $operationArguments.Count) {
+        throw 'The canonical --report-json argument is required.'
+    }
+    $actualOutput = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot $operationArguments[$outputIndex + 1])
+    )
+    $expectedOutput = [IO.Path]::GetFullPath(
+        (Join-Path $runDirectory '04_route_b_post_apply_reattestation.json')
+    )
+    if ($actualOutput -ne $expectedOutput) {
+        throw 'The reattestation evidence output path is not canonical.'
+    }
+    if (Test-Path -LiteralPath $expectedOutput) {
+        throw 'The evidence output already exists.'
+    }
+}
+
+if ($Operation -eq 'admin-reconcile-route-b-readonly-observer') {
+    $maintenanceRunIndex = [Array]::IndexOf($operationArguments, '--maintenance-run-id')
+    if ($maintenanceRunIndex -lt 0 -or $maintenanceRunIndex + 1 -ge $operationArguments.Count) {
+        throw 'A canonical --maintenance-run-id is required for maintenance evidence operations.'
+    }
+    $maintenanceRunId = $operationArguments[$maintenanceRunIndex + 1]
+    if ($maintenanceRunId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+        throw 'The maintenance run id must be a canonical lowercase UUID v4.'
+    }
+    $maintenanceDirectory = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot (Join-Path 'evidence/runtime/022' $maintenanceRunId))
+    )
+    [void](New-Item -ItemType Directory -Path $maintenanceDirectory -Force)
+    $outputIndex = [Array]::IndexOf($operationArguments, '--evidence-json')
+    if ($outputIndex -lt 0 -or $outputIndex + 1 -ge $operationArguments.Count) {
+        throw 'The canonical --evidence-json argument is required.'
+    }
+    $actualOutput = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot $operationArguments[$outputIndex + 1])
+    )
+    $expectedOutput = [IO.Path]::GetFullPath(
+        (Join-Path $maintenanceDirectory '01_route_b_readonly_observer_grants.json')
+    )
+    if ($actualOutput -ne $expectedOutput) {
+        throw 'The maintenance evidence output path is not canonical for this operation.'
+    }
+    if (Test-Path -LiteralPath $expectedOutput) {
+        throw 'The maintenance evidence output already exists.'
+    }
+}
+
 # Admin authority is checked in a secret-free child before the vault is opened.
-if ($entrypoint.AuthorityPrecheck) {
+$authorityPrecheckEnabled = (
+    $entrypoint.ContainsKey('AuthorityPrecheck') -and
+    [bool]$entrypoint['AuthorityPrecheck']
+)
+if ($authorityPrecheckEnabled) {
     $precheckInfo = New-StockZeroStartInfo `
         -Script $entrypoint.Script `
         -Arguments ($operationArguments + @('--authority-precheck-only'))
