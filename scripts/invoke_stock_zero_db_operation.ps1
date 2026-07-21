@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 5.1
 #Requires -Modules Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore
 
 [CmdletBinding()]
@@ -16,6 +16,13 @@ param(
         'admin-reconcile-existing-provisioned-state',
         'admin-reconcile-route-b-readonly-observer',
         'apply-route-b-app-bridge',
+        'readonly-baseline-023',
+        'provision-cg-mart-refresh-023',
+        'apply-route-b-bridge-023',
+        'dry-run-june-refresh-023',
+        'apply-june-refresh-023',
+        'readonly-postcheck-023',
+        'validate-app-readonly-023',
         'diagnose-readonly',
         'diagnose-route-b',
         'diagnose-admin'
@@ -37,6 +44,13 @@ $managedEnvironmentNames = @(
     'DB_URL_LOAD',
     'DB_URL_CODEX_LOCAL'
 )
+$phase023EnvironmentNames = @(
+    'DB_URL_CG_MART_REFRESH',
+    'CG_MART_REFRESH_PASSWORD',
+    'DB_URL_APP',
+    'STOCK_ZERO_OPERATION_PROFILE',
+    'STOCK_ZERO_OPERATION'
+)
 $profileMap = @{
     'readonly' = @(
         @{ SecretName = 'STOCK_ZERO_DB_CODEX_RO'; EnvironmentName = 'DB_URL_CODEX_RO' }
@@ -53,6 +67,16 @@ $profileMap = @{
     )
     'admin-ddl' = @(
         @{ SecretName = 'STOCK_ZERO_DB_ADMIN'; EnvironmentName = 'DB_URL_ADMIN' }
+    )
+    'cg-mart-refresh' = @(
+        @{ SecretName = 'STOCK_ZERO_DB_CG_MART_REFRESH'; EnvironmentName = 'DB_URL_CG_MART_REFRESH' }
+    )
+    'cg-mart-refresh-provisioning' = @(
+        @{ SecretName = 'STOCK_ZERO_DB_ADMIN'; EnvironmentName = 'DB_URL_ADMIN' },
+        @{ SecretName = 'STOCK_ZERO_DB_CG_MART_REFRESH_PASSWORD'; EnvironmentName = 'CG_MART_REFRESH_PASSWORD' }
+    )
+    'app-readonly' = @(
+        @{ SecretName = 'STOCK_ZERO_DB_APP_RO'; EnvironmentName = 'DB_URL_APP' }
     )
 }
 $operationMap = @{
@@ -115,6 +139,41 @@ $operationMap = @{
         Profile = 'admin-ddl'
         PrefixArguments = @()
     }
+    'readonly-baseline-023' = @{
+        Script = 'scripts/validate_control_gestion_route_b_023_read_only.py'
+        Profile = 'readonly'
+        PrefixArguments = @('--mode', 'baseline')
+    }
+    'provision-cg-mart-refresh-023' = @{
+        Script = 'scripts/provision_control_gestion_mart_refresh_role.py'
+        Profile = 'cg-mart-refresh-provisioning'
+        PrefixArguments = @()
+    }
+    'apply-route-b-bridge-023' = @{
+        Script = 'scripts/apply_control_gestion_route_b_bridge.py'
+        Profile = 'admin-ddl'
+        PrefixArguments = @()
+    }
+    'dry-run-june-refresh-023' = @{
+        Script = 'scripts/refresh_control_gestion_v2_incremental.py'
+        Profile = 'cg-mart-refresh'
+        PrefixArguments = @('--dry-run', '--safety-window-weeks', '0')
+    }
+    'apply-june-refresh-023' = @{
+        Script = 'scripts/refresh_control_gestion_v2_incremental.py'
+        Profile = 'cg-mart-refresh'
+        PrefixArguments = @('--apply', '--safety-window-weeks', '0')
+    }
+    'readonly-postcheck-023' = @{
+        Script = 'scripts/validate_control_gestion_route_b_023_read_only.py'
+        Profile = 'readonly'
+        PrefixArguments = @('--mode', 'postcheck')
+    }
+    'validate-app-readonly-023' = @{
+        Script = 'scripts/validate_control_gestion_route_b_023_read_only.py'
+        Profile = 'app-readonly'
+        PrefixArguments = @('--mode', 'app')
+    }
     'diagnose-readonly' = @{
         Script = 'scripts/diagnose_stock_zero_db_credentials.py'
         Profile = 'readonly'
@@ -164,18 +223,106 @@ function New-StockZeroStartInfo {
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
     $startInfo.FileName = $python
     $startInfo.UseShellExecute = $false
-    [void]$startInfo.ArgumentList.Add($scriptPath)
-    foreach ($argument in $Arguments) {
-        [void]$startInfo.ArgumentList.Add($argument)
+    $allArguments = @($scriptPath) + @($Arguments)
+    if ($null -ne $startInfo.PSObject.Properties['ArgumentList']) {
+        foreach ($argument in $allArguments) {
+            [void]$startInfo.ArgumentList.Add($argument)
+        }
+    }
+    else {
+        # Windows PowerShell 5.1 uses the CommandLineToArgvW-compatible
+        # legacy Arguments string. Preserve empty values and quote/backslash runs.
+        $quotedArguments = @()
+        foreach ($argument in $allArguments) {
+            $quotedArguments += ConvertTo-StockZeroWindowsArgument -Value $argument
+        }
+        $startInfo.Arguments = $quotedArguments -join ' '
     }
     foreach ($name in $managedEnvironmentNames) {
         [void]$startInfo.Environment.Remove($name)
     }
+    foreach ($name in $phase023EnvironmentNames) {
+        [void]$startInfo.EnvironmentVariables.Remove($name)
+    }
     return $startInfo
+}
+
+function ConvertTo-StockZeroWindowsArgument {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Value)
+
+    if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') {
+        return $Value
+    }
+    $builder = [System.Text.StringBuilder]::new()
+    [void]$builder.Append('"')
+    $backslashes = 0
+    foreach ($character in $Value.ToCharArray()) {
+        if ($character -eq [char]92) {
+            $backslashes++
+            continue
+        }
+        if ($character -eq [char]34) {
+            if ($backslashes -gt 0) {
+                [void]$builder.Append(('\' * (2 * $backslashes)))
+            }
+            [void]$builder.Append('\"')
+            $backslashes = 0
+            continue
+        }
+        if ($backslashes -gt 0) {
+            [void]$builder.Append(('\' * $backslashes))
+            $backslashes = 0
+        }
+        [void]$builder.Append($character)
+    }
+    if ($backslashes -gt 0) {
+        [void]$builder.Append(('\' * (2 * $backslashes)))
+    }
+    [void]$builder.Append('"')
+    return $builder.ToString()
 }
 
 $entrypoint = $operationMap[$Operation]
 $operationArguments = @($entrypoint.PrefixArguments) + @($ArgumentList)
+
+$phase023EvidenceFileByOperation = @{
+    'readonly-baseline-023' = @{ File = '01_readonly_baseline.json'; Switch = '--report-json' }
+    'provision-cg-mart-refresh-023' = @{ File = '02_refresh_role_provisioning.json'; Switch = '--evidence-json' }
+    'apply-route-b-bridge-023' = @{ File = '03_route_b_bridge_apply.json'; Switch = '--evidence-json' }
+    'apply-june-refresh-023' = @{ File = '04_june_mart_refresh_apply.json'; Switch = '--evidence-json' }
+    'validate-app-readonly-023' = @{ File = '05_readonly_app_postcheck.json'; Switch = '--report-json' }
+}
+if ($phase023EvidenceFileByOperation.ContainsKey($Operation)) {
+    $runIndex = [Array]::IndexOf($operationArguments, '--run-id')
+    if ($runIndex -lt 0 -or $runIndex + 1 -ge $operationArguments.Count) {
+        throw 'A canonical --run-id is required for 023 evidence operations.'
+    }
+    $runId = $operationArguments[$runIndex + 1]
+    if ($runId -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+        throw 'The evidence run id must be a canonical lowercase UUID v4.'
+    }
+    $runDirectory = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot (Join-Path 'evidence/runtime/023' $runId))
+    )
+    [void](New-Item -ItemType Directory -Path $runDirectory -Force)
+    $evidenceContract = $phase023EvidenceFileByOperation[$Operation]
+    $outputIndex = [Array]::IndexOf($operationArguments, $evidenceContract.Switch)
+    if ($outputIndex -lt 0 -or $outputIndex + 1 -ge $operationArguments.Count) {
+        throw "The canonical $($evidenceContract.Switch) argument is required."
+    }
+    $actualOutput = [IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot $operationArguments[$outputIndex + 1])
+    )
+    $expectedOutput = [IO.Path]::GetFullPath(
+        (Join-Path $runDirectory $evidenceContract.File)
+    )
+    if ($actualOutput -ne $expectedOutput) {
+        throw 'The evidence output path is not canonical for this 023 operation.'
+    }
+    if (Test-Path -LiteralPath $expectedOutput) {
+        throw 'The evidence output already exists.'
+    }
+}
 
 $evidenceFileByOperation = @{
     'readonly-precheck' = '01_readonly_baseline.json'
@@ -307,6 +454,8 @@ if ($vault.Name -ne $vaultName) {
 }
 
 $startInfo = New-StockZeroStartInfo -Script $entrypoint.Script -Arguments $operationArguments
+$startInfo.EnvironmentVariables['STOCK_ZERO_OPERATION_PROFILE'] = $entrypoint.Profile
+$startInfo.EnvironmentVariables['STOCK_ZERO_OPERATION'] = $Operation
 $injectedNames = [System.Collections.Generic.List[string]]::new()
 $plainValues = [System.Collections.Generic.List[string]]::new()
 try {
@@ -316,7 +465,7 @@ try {
         if ([string]::IsNullOrWhiteSpace($plain)) {
             throw "Required STOCK_ZERO secret is empty: $($mapping.SecretName)"
         }
-        $startInfo.Environment[$mapping.EnvironmentName] = $plain
+        $startInfo.EnvironmentVariables[$mapping.EnvironmentName] = $plain
         $injectedNames.Add($mapping.EnvironmentName)
         $plainValues.Add($plain)
         $plain = $null
@@ -328,7 +477,7 @@ try {
 }
 finally {
     foreach ($name in $injectedNames) {
-        [void]$startInfo.Environment.Remove($name)
+        [void]$startInfo.EnvironmentVariables.Remove($name)
     }
     for ($index = 0; $index -lt $plainValues.Count; $index++) {
         $plainValues[$index] = [string]::Empty

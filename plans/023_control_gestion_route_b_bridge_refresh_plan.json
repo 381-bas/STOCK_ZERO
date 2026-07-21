@@ -1,0 +1,196 @@
+{
+  "document_type": "stock_zero_control_gestion_route_b_bridge_refresh_plan_v1",
+  "schema_version": 1,
+  "phase": "023B_CONTROL_GESTION_BRIDGE_REFRESH_SECURITY_CONTRACT",
+  "risk_class": "R3_PRODUCTIVE",
+  "status": "CONTRACT_READY_GATE_CLOSED",
+  "approved_git_sha": null,
+  "gate_open": false,
+  "productive_actions_authorized": false,
+  "authorizations": {
+    "provision_refresh_role_authorized": false,
+    "apply_bridge_authorized": false,
+    "apply_june_refresh_authorized": false,
+    "runtime_app_validation_authorized": false
+  },
+  "state_contract": {
+    "states": [
+      "CONTRACT_READY_GATE_CLOSED",
+      "PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED",
+      "BRIDGE_COMMITTED_REFRESH_PENDING_GATE_CLOSED",
+      "BRIDGE_AND_REFRESH_COMMITTED_APP_VALIDATION_PENDING",
+      "COMPLETE_GATE_CLOSED"
+    ],
+    "transitions": {
+      "CONTRACT_READY_GATE_CLOSED": [
+        "PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED"
+      ],
+      "PRODUCTIVE_INFRASTRUCTURE_READY_GATE_CLOSED": [
+        "BRIDGE_COMMITTED_REFRESH_PENDING_GATE_CLOSED"
+      ],
+      "BRIDGE_COMMITTED_REFRESH_PENDING_GATE_CLOSED": [
+        "BRIDGE_AND_REFRESH_COMMITTED_APP_VALIDATION_PENDING"
+      ],
+      "BRIDGE_AND_REFRESH_COMMITTED_APP_VALIDATION_PENDING": [
+        "COMPLETE_GATE_CLOSED"
+      ],
+      "COMPLETE_GATE_CLOSED": []
+    },
+    "maximum_simultaneous_authorizations": 1,
+    "approved_git_sha_required_when_authorized": true,
+    "plan_must_equal_head_blob_when_authorized": true,
+    "complete_requires_all_authorizations_false": true
+  },
+  "scope": {
+    "canonical_payload": {
+      "affected_dates": [
+        "2026-06-01",
+        "2026-06-02",
+        "2026-06-03",
+        "2026-06-04",
+        "2026-06-05",
+        "2026-06-06",
+        "2026-06-07",
+        "2026-06-08",
+        "2026-06-09",
+        "2026-06-10",
+        "2026-06-11",
+        "2026-06-12",
+        "2026-06-13",
+        "2026-06-14",
+        "2026-06-15",
+        "2026-06-16",
+        "2026-06-17",
+        "2026-06-18",
+        "2026-06-19",
+        "2026-06-20",
+        "2026-06-21",
+        "2026-06-22",
+        "2026-06-23",
+        "2026-06-24",
+        "2026-06-25",
+        "2026-06-26",
+        "2026-06-27",
+        "2026-06-28",
+        "2026-06-29",
+        "2026-06-30"
+      ],
+      "affected_weeks": [
+        "2026-06-01",
+        "2026-06-08",
+        "2026-06-15",
+        "2026-06-22",
+        "2026-06-29"
+      ],
+      "schema_version": 1
+    },
+    "canonicalization": "UTF8_JSON_SORT_KEYS_COMPACT",
+    "scope_sha256": "502e7804d3edb7f120e937f73b27875a70a83dcc7c9398d96b503b70837a87bb"
+  },
+  "bridge_contract": {
+    "sql_path": "sql/18_control_gestion_route_b_app_bridge_v1.sql",
+    "sql_raw_sha256": "81c733a408c5adbcebfd9d884363d6de3a4b4df987992ed4e132ea28a40a8c0a",
+    "object": "cg_core.v_cg_visita_dia_precedencia_route_b_v1",
+    "overlap_key": [
+      "fecha_visita",
+      "cod_rt",
+      "cliente_norm"
+    ]
+  },
+  "target": {
+    "project_ref": "xheyrgfagpoigpgakilu",
+    "hostname": "db.xheyrgfagpoigpgakilu.supabase.co",
+    "database": "postgres",
+    "sslmode": "require"
+  },
+  "expected_roles": {
+    "readonly": "stock_zero_codex_ro",
+    "admin": "postgres",
+    "mart_refresh": "stock_zero_cg_mart_refresh",
+    "app": "stock_zero_app_ro"
+  },
+  "expected_role_by_operation": {
+    "readonly-baseline-023": "stock_zero_codex_ro",
+    "provision-cg-mart-refresh-023": "postgres",
+    "apply-route-b-bridge-023": "postgres",
+    "dry-run-june-refresh-023": "stock_zero_cg_mart_refresh",
+    "apply-june-refresh-023": "stock_zero_cg_mart_refresh",
+    "readonly-postcheck-023": "stock_zero_codex_ro",
+    "validate-app-readonly-023": "stock_zero_app_ro"
+  },
+  "confirmation_tokens": {
+    "provision_refresh_role": "STOCK_ZERO_023_PROVISION_CG_MART_REFRESH",
+    "apply_bridge": "STOCK_ZERO_023_APPLY_ROUTE_B_BRIDGE",
+    "dry_run_june_refresh": "STOCK_ZERO_023_DRY_RUN_JUNE_REFRESH",
+    "apply_june_refresh": "STOCK_ZERO_023_APPLY_JUNE_REFRESH",
+    "readonly_baseline": "STOCK_ZERO_023_READONLY_BASELINE",
+    "readonly_postcheck": "STOCK_ZERO_023_READONLY_POSTCHECK",
+    "runtime_app_validation": "STOCK_ZERO_023_VALIDATE_APP_RO"
+  },
+  "advisory_lock_key": 5426926728611921735,
+  "approved_mart_loaded_at_utc": null,
+  "dry_run_authorization": null,
+  "content_fingerprint_contract": {
+    "schema_version": "stock_zero_cg_content_fingerprint_v1",
+    "algorithm": "sha256",
+    "encoding": "UTF-8",
+    "row_serialization": "TYPED_CANONICAL_JSON_LENGTH_PREFIXED",
+    "ordering": "CANONICAL_GRAIN_ASC",
+    "stream_batch_rows": 1000,
+    "required_fingerprints": [
+      "target_daily_sha256",
+      "target_weekly_sha256",
+      "source_daily_stage_sha256",
+      "source_weekly_stage_sha256"
+    ]
+  },
+  "app_readonly_surface": {
+    "status": "PENDING_PRODUCTIVE_READONLY_DISCOVERY",
+    "required_control_gestion_select_objects": [
+      "cg_core.v_cg_visita_dia_resuelta_v2",
+      "cg_core.v_rr_frecuencia_base_resuelta_v2",
+      "cg_mart.fact_cg_out_weekly_v2",
+      "cg_mart.mv_cg_out_weekly_v2",
+      "cg_mart.v_cg_fuera_cruce_real_v2",
+      "cg_mart.v_cg_marcaje_multifuente_dia_v2",
+      "cg_mart.v_cg_ruta_duplicados_auditoria_v2",
+      "cg_mart.v_cg_sin_batch_ruta_semana_v2",
+      "public.v_alertas_control_gestion",
+      "public.v_cg_alertas_control_gestion",
+      "public.v_cg_cumplimiento_detalle",
+      "public.v_cg_cumplimiento_detalle_v2",
+      "public.v_cg_cumplimiento_semana_local_parity",
+      "public.v_cg_cumplimiento_semana_scope",
+      "public.v_cg_cumplimiento_semana_scope_v2",
+      "public.v_cg_inicio_gestor",
+      "public.v_cg_inicio_jefe",
+      "public.v_cumplimiento_detalle",
+      "public.v_inicio_gestor",
+      "public.v_inicio_jefe"
+    ],
+    "global_select_allowlist": [],
+    "allowed_direct_privileges": ["SELECT"],
+    "public_environmental_privileges_recorded_separately": true,
+    "effective_write_privileges_forbidden": true
+  },
+  "evidence_contract": {
+    "directory_template": "evidence/runtime/023/{run_id}",
+    "file_templates": {
+      "01": "01_readonly_baseline.json",
+      "02": "02_refresh_role_provisioning.json",
+      "03": "03_route_b_bridge_apply.json",
+      "04": "04_june_mart_refresh_apply.json",
+      "05": "05_readonly_app_postcheck.json"
+    },
+    "closure_file_allowed": false
+  },
+  "runtime_evidence": {},
+  "execution_state": {
+    "refresh_role_provisioned": false,
+    "bridge_executed": false,
+    "june_refresh_executed": false,
+    "app_validation_executed": false,
+    "closure_complete": false,
+    "closure_git_sha": null
+  }
+}

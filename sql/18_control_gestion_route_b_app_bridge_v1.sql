@@ -84,10 +84,19 @@ SELECT
     CASE
         WHEN r.fecha IS NOT NULL OR COALESCE(l.useful_day, 0) = 1 THEN 1 ELSE 0
     END::integer AS useful_day,
-    (COALESCE(l.raw_evidence_count, 0) + COALESCE(r.event_count, 0))::integer AS raw_evidence_count,
+    -- Route B replaces the legacy KPIONE2 contribution on the exact overlap
+    -- key; audit evidence from KPIONE1/POWER_APP remains visible.
     CASE
-        WHEN COALESCE(l.kpione2_rows_dia, 0) + COALESCE(r.event_count, 0) > 1
-            THEN 1
+        WHEN r.fecha IS NOT NULL THEN
+            GREATEST(
+                COALESCE(l.raw_evidence_count, 0) - COALESCE(l.kpione2_rows_dia, 0),
+                0
+            ) + COALESCE(r.event_count, 0)
+        ELSE COALESCE(l.raw_evidence_count, 0)
+    END::integer AS raw_evidence_count,
+    CASE
+        WHEN r.fecha IS NOT NULL THEN
+            CASE WHEN COALESCE(r.event_count, 0) > 1 THEN 1 ELSE 0 END
         ELSE COALESCE(l.same_source_multimark, 0)
     END::integer AS same_source_multimark,
     CASE
@@ -97,7 +106,10 @@ SELECT
         ELSE COALESCE(l.multisource_overlap, 0)
     END::integer AS multisource_overlap,
     COALESCE(l.kpione_rows_dia, 0)::integer AS kpione_rows_dia,
-    (COALESCE(l.kpione2_rows_dia, 0) + COALESCE(r.event_count, 0))::integer AS kpione2_rows_dia,
+    CASE
+        WHEN r.fecha IS NOT NULL THEN COALESCE(r.event_count, 0)
+        ELSE COALESCE(l.kpione2_rows_dia, 0)
+    END::integer AS kpione2_rows_dia,
     COALESCE(l.power_app_rows_dia, 0)::integer AS power_app_rows_dia,
     COALESCE(l.persona_conflicto_rows_dia, 0)::integer AS persona_conflicto_rows_dia,
     COALESCE(l.match_quality, 'route_b_week_location_cliente')::text AS match_quality,

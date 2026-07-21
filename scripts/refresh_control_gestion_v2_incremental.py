@@ -3,19 +3,50 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timezone, timedelta
+from decimal import Decimal
+import hashlib
 import json
 import os
 from pathlib import Path
+import re
+import subprocess
+import sys
+import tempfile
 import time
 from typing import Any
+import uuid
+from urllib.parse import parse_qs, urlparse
 
 
 PHASE = "FASE_9C5N_N4B_3A_CONTROL_GESTION_INITIAL_SEED_APPLY_TYPE_FIX"
 DEFAULT_STATEMENT_TIMEOUT_SECONDS = 1800
-REAL_APPLY_ENABLED = False
 ROOT = Path(__file__).resolve().parents[1]
 CODEX_RO_SECRET_FILE = ROOT / ".local_secrets" / "codex_ro.env"
+PLAN_023_DEFAULT = ROOT / "plans" / "023_control_gestion_route_b_bridge_refresh_plan.json"
+PLAN_023_TYPE = "stock_zero_control_gestion_route_b_bridge_refresh_plan_v1"
+PLAN_023_REFRESH_STATE = "BRIDGE_COMMITTED_REFRESH_PENDING_GATE_CLOSED"
+MART_REFRESH_ROLE = "stock_zero_cg_mart_refresh"
+MART_REFRESH_ENV = "DB_URL_CG_MART_REFRESH"
+MART_REFRESH_PROFILE = "cg-mart-refresh"
+MART_REFRESH_DRY_RUN_OPERATION = "dry-run-june-refresh-023"
+MART_REFRESH_APPLY_OPERATION = "apply-june-refresh-023"
+EXPECTED_PROJECT_REF = "xheyrgfagpoigpgakilu"
+EXPECTED_HOST = "db.xheyrgfagpoigpgakilu.supabase.co"
+EXPECTED_DATABASE = "postgres"
+DRY_RUN_CONFIRM_TOKEN = "STOCK_ZERO_023_DRY_RUN_JUNE_REFRESH"
+APPLY_CONFIRM_TOKEN = "STOCK_ZERO_023_APPLY_JUNE_REFRESH"
+FINGERPRINT_SCHEMA_VERSION = "stock_zero_cg_content_fingerprint_v1"
+FINGERPRINT_KEYS = (
+    "target_daily_sha256",
+    "target_weekly_sha256",
+    "source_daily_stage_sha256",
+    "source_weekly_stage_sha256",
+)
+PRECOMMIT = "PRECOMMIT"
+COMMITTED_EVIDENCE_PENDING = "COMMITTED_EVIDENCE_PENDING"
+COMMITTED_EVIDENCE_RECORDED = "COMMITTED_EVIDENCE_RECORDED"
+COMMITTED_EVIDENCE_RECOVERY_REQUIRED = "COMMITTED_EVIDENCE_RECOVERY_REQUIRED"
 
 DAILY_SOURCE = "cg_core.v_cg_visita_dia_precedencia_route_b_v1"
 DAILY_FACT = "cg_mart.fact_cg_visita_dia_resuelta_v2"
@@ -112,9 +143,440 @@ WEEKLY_FACT_COLUMNS = [
     "VISITAS_PENDIENTES_CALC",
 ]
 
+FINGERPRINT_COLUMNS_BY_KEY = {
+    "target_daily_sha256": DAILY_FACT_COLUMNS,
+    "target_weekly_sha256": WEEKLY_FACT_COLUMNS,
+    "source_daily_stage_sha256": DAILY_FACT_COLUMNS,
+    "source_weekly_stage_sha256": WEEKLY_FACT_COLUMNS,
+}
+
+
+class RefreshContractError(RuntimeError):
+    pass
+
+
+def _canonical_json_bytes(payload: Any) -> bytes:
+    return json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+
+
+def _sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _git(*args: str, text: bool = True) -> subprocess.CompletedProcess[Any]:
+    return subprocess.run(
+        ["git", *args], cwd=ROOT, capture_output=True, text=text, check=False,
+    )
+
+
+def _validate_git_and_plan(plan_path: Path, plan: dict[str, Any]) -> dict[str, str]:
+    approved = plan.get("approved_git_sha")
+    if not isinstance(approved, str) or re.fullmatch(r"[0-9a-f]{40}", approved) is None:
+        raise RefreshContractError("approved_git_sha_required")
+    head = _git("rev-parse", "HEAD")
+    if head.returncode != 0 or head.stdout.strip() != approved:
+        raise RefreshContractError("repository_head_mismatch")
+    if _git("diff", "--quiet").returncode != 0:
+        raise RefreshContractError("repository_worktree_not_clean")
+    if _git("diff", "--cached", "--quiet").returncode != 0:
+        raise RefreshContractError("repository_index_not_clean")
+    untracked = _git("ls-files", "--others", "--exclude-standard")
+    if untracked.returncode != 0 or untracked.stdout.strip():
+        raise RefreshContractError("repository_untracked_files_present")
+    try:
+        relative = plan_path.resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError as exc:
+        raise RefreshContractError("plan_outside_repository") from exc
+    blob = _git("show", f"HEAD:{relative}", text=False)
+    if blob.returncode != 0:
+        raise RefreshContractError("plan_not_tracked_at_head")
+    if plan_path.read_bytes() != blob.stdout:
+        raise RefreshContractError("plan_worktree_blob_mismatch")
+    return {
+        "approved_git_sha": approved,
+        "plan_path": relative,
+        "plan_raw_sha256": _sha256_bytes(blob.stdout),
+    }
+
+
+def _load_plan_023(plan_path: Path, *, operation: str) -> tuple[dict[str, Any], dict[str, str]]:
+    try:
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RefreshContractError("plan_023_unavailable_or_invalid") from exc
+    if plan.get("document_type") != PLAN_023_TYPE:
+        raise RefreshContractError("plan_023_document_type_mismatch")
+    if plan.get("status") != PLAN_023_REFRESH_STATE:
+        raise RefreshContractError("plan_023_refresh_state_mismatch")
+    authorizations = plan.get("authorizations")
+    if not isinstance(authorizations, dict):
+        raise RefreshContractError("plan_023_authorizations_missing")
+    expected_names = {
+        "provision_refresh_role_authorized",
+        "apply_bridge_authorized",
+        "apply_june_refresh_authorized",
+        "runtime_app_validation_authorized",
+    }
+    if set(authorizations) != expected_names:
+        raise RefreshContractError("plan_023_authorization_set_mismatch")
+    active = [name for name, enabled in authorizations.items() if enabled is True]
+    if len(active) > 1:
+        raise RefreshContractError("multiple_productive_authorizations_active")
+    if operation == "apply":
+        if active != ["apply_june_refresh_authorized"]:
+            raise RefreshContractError("june_refresh_not_exclusively_authorized")
+        if plan.get("gate_open") is not True or plan.get("productive_actions_authorized") is not True:
+            raise RefreshContractError("june_refresh_gate_closed")
+    elif operation == "dry-run":
+        if active:
+            raise RefreshContractError("dry_run_requires_all_authorizations_closed")
+        if plan.get("gate_open") is not False or plan.get("productive_actions_authorized") is not False:
+            raise RefreshContractError("dry_run_requires_closed_gate")
+    else:
+        raise RefreshContractError("unsupported_plan_operation")
+    scope = plan.get("scope", {})
+    payload = scope.get("canonical_payload")
+    if not isinstance(payload, dict):
+        raise RefreshContractError("scope_payload_missing")
+    calculated = _sha256_bytes(_canonical_json_bytes(payload))
+    if calculated != scope.get("scope_sha256"):
+        raise RefreshContractError("scope_sha256_mismatch")
+    dates = payload.get("affected_dates")
+    weeks = payload.get("affected_weeks")
+    expected_dates = [
+        (date(2026, 6, 1) + timedelta(days=offset)).isoformat()
+        for offset in range(30)
+    ]
+    expected_weeks = [
+        "2026-06-01", "2026-06-08", "2026-06-15", "2026-06-22", "2026-06-29",
+    ]
+    if dates != expected_dates or weeks != expected_weeks:
+        raise RefreshContractError("june_scope_exact_match_required")
+    target = plan.get("target", {})
+    if target != {
+        "project_ref": EXPECTED_PROJECT_REF,
+        "hostname": EXPECTED_HOST,
+        "database": EXPECTED_DATABASE,
+        "sslmode": "require",
+    }:
+        raise RefreshContractError("registered_target_contract_mismatch")
+    loaded_at = plan.get("approved_mart_loaded_at_utc")
+    if operation == "dry-run":
+        if loaded_at is not None:
+            raise RefreshContractError("dry_run_requires_unset_mart_loaded_at")
+    elif _normalize_utc_timestamp(loaded_at) != loaded_at:
+        raise RefreshContractError("approved_mart_loaded_at_utc_required")
+    authority = _validate_git_and_plan(plan_path, plan)
+    authority["scope_sha256"] = calculated
+    return plan, authority
+
+
+def _validate_wrapper_marker(expected_operation: str) -> None:
+    if os.getenv("STOCK_ZERO_OPERATION_PROFILE") != MART_REFRESH_PROFILE:
+        raise RefreshContractError("cg_mart_refresh_wrapper_profile_required")
+    if os.getenv("STOCK_ZERO_OPERATION") != expected_operation:
+        raise RefreshContractError("cg_mart_refresh_wrapper_operation_required")
+
+
+def _validate_productive_dsn(dsn: str, plan: dict[str, Any]) -> None:
+    parsed = urlparse(dsn)
+    if parsed.scheme not in {"postgres", "postgresql"}:
+        raise RefreshContractError("unsupported_db_scheme")
+    if parsed.username != MART_REFRESH_ROLE:
+        raise RefreshContractError("mart_refresh_dsn_role_mismatch")
+    target = plan["target"]
+    if (parsed.hostname or "").lower() != target["hostname"]:
+        raise RefreshContractError("mart_refresh_hostname_mismatch")
+    if target["project_ref"] not in (parsed.hostname or ""):
+        raise RefreshContractError("mart_refresh_project_mismatch")
+    if (parsed.path or "").lstrip("/") != target["database"]:
+        raise RefreshContractError("mart_refresh_database_mismatch")
+    sslmodes = parse_qs(parsed.query, keep_blank_values=True).get("sslmode", [])
+    if sslmodes != [target["sslmode"]]:
+        raise RefreshContractError("mart_refresh_sslmode_require_required")
+
+
+def _canonical_evidence_path(path: Path, run_id: str, filename: str) -> Path:
+    if re.fullmatch(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+        run_id or "",
+    ) is None:
+        raise RefreshContractError("canonical_run_id_required")
+    expected = (ROOT / "evidence" / "runtime" / "023" / run_id / filename).resolve()
+    actual = (ROOT / path).resolve() if not path.is_absolute() else path.resolve()
+    if actual != expected:
+        raise RefreshContractError("canonical_evidence_path_required")
+    if actual.exists():
+        raise RefreshContractError("evidence_output_already_exists")
+    if not actual.parent.is_dir():
+        raise RefreshContractError("evidence_parent_missing")
+    return actual
+
+
+def _temporary_report_path(path: Path) -> Path:
+    actual = path.resolve()
+    temporary_root = Path(tempfile.gettempdir()).resolve()
+    try:
+        actual.relative_to(temporary_root)
+    except ValueError as exc:
+        raise RefreshContractError("dry_run_report_must_be_in_temp") from exc
+    if actual.exists() or not actual.parent.is_dir():
+        raise RefreshContractError("unused_dry_run_report_path_required")
+    return actual
+
+
+def write_json_exclusive(path: Path, report: dict[str, Any]) -> None:
+    """Publish JSON without ever replacing an existing final path."""
+    if path.exists():
+        raise RefreshContractError("evidence_output_already_exists")
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    fd: int | None = None
+    try:
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            fd = None
+            json.dump(report, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Hard-link publication is atomic and fails if the destination exists.
+        os.link(temporary, path)
+    except FileExistsError as exc:
+        raise RefreshContractError("evidence_output_already_exists") from exc
+    finally:
+        if fd is not None:
+            os.close(fd)
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _write_json_once(path: Path, report: dict[str, Any]) -> None:
+    write_json_exclusive(path, report)
+
+
+def write_committed_recovery_receipt(report: dict[str, Any]) -> Path:
+    receipt = Path(tempfile.gettempdir()) / (
+        "stock_zero_023_committed_evidence_recovery_"
+        f"{report['run_id']}_{uuid.uuid4().hex}.json"
+    )
+    write_json_exclusive(receipt, report)
+    return receipt
+
+
+def _emit_committed_recovery_nonthrowing(
+    evidence_path: Path,
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    """Persist committed evidence or return a recovery receipt; never raise."""
+    recorded = dict(report)
+    recorded["commit_state"] = COMMITTED_EVIDENCE_RECORDED
+    try:
+        write_json_exclusive(evidence_path, recorded)
+        try:
+            recorded["evidence_path"] = evidence_path.relative_to(ROOT).as_posix()
+        except Exception:
+            recorded["evidence_path"] = evidence_path.name
+        return recorded
+    except Exception as evidence_exc:
+        try:
+            target_path = evidence_path.relative_to(ROOT).as_posix()
+        except Exception:
+            target_path = evidence_path.name
+        recovery = {
+            "verdict": COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
+            "status": "error",
+            "final_status": "committed_evidence_recovery_required",
+            "run_id": report.get("run_id"),
+            "commit_state": COMMITTED_EVIDENCE_PENDING,
+            "committed": True,
+            "rolled_back": False,
+            "reapply_allowed": False,
+            "target_evidence_path": target_path,
+            "approved_git_sha": report.get("approved_git_sha"),
+            "content_fingerprints": report.get("content_fingerprints"),
+            "sql_raw_sha256": report.get("sql_raw_sha256"),
+            "evidence_error": type(evidence_exc).__name__,
+        }
+        try:
+            recovery["receipt_path"] = str(write_committed_recovery_receipt(recovery))
+        except Exception as receipt_exc:
+            recovery["receipt_error"] = type(receipt_exc).__name__
+        try:
+            sys.stderr.write(json.dumps(recovery, ensure_ascii=False, sort_keys=True) + "\n")
+            sys.stderr.flush()
+        except Exception:
+            pass
+        return recovery
+
+
+def _canonical_scalar(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {"type": "null", "value": None}
+    if isinstance(value, bool):
+        return {"type": "bool", "value": value}
+    if isinstance(value, int):
+        return {"type": "integer", "value": str(value)}
+    if isinstance(value, (Decimal, float)):
+        number = Decimal(str(value))
+        normalized = format(number.normalize(), "f")
+        return {"type": "number", "value": "0" if normalized == "-0" else normalized}
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            rendered = value.replace(tzinfo=timezone.utc).isoformat()
+        else:
+            rendered = value.astimezone(timezone.utc).isoformat()
+        return {"type": "timestamp", "value": rendered.replace("+00:00", "Z")}
+    if isinstance(value, date):
+        return {"type": "date", "value": value.isoformat()}
+    if isinstance(value, bytes):
+        return {"type": "bytes", "value": value.hex()}
+    return {"type": "text", "value": str(value)}
+
+
+def _canonical_row_bytes(row: Any, columns: list[str]) -> bytes:
+    values = list(row)
+    if len(values) != len(columns):
+        raise RefreshContractError("fingerprint_column_count_mismatch")
+    return _canonical_json_bytes({
+        "schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "columns": columns,
+        "values": [_canonical_scalar(value) for value in values],
+    })
+
+
+def fingerprint_rows(rows: Any, columns: list[str]) -> dict[str, Any]:
+    ordered_columns = list(columns)
+    encoded = sorted(_canonical_row_bytes(row, ordered_columns) for row in rows)
+    digest = hashlib.sha256()
+    digest.update(_canonical_json_bytes({
+        "schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "columns": ordered_columns,
+    }))
+    for payload in encoded:
+        digest.update(len(payload).to_bytes(8, "big"))
+        digest.update(payload)
+    return {
+        "schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "columns": ordered_columns,
+        "row_count": len(encoded),
+        "sha256": digest.hexdigest(),
+    }
+
+
+def _fingerprint_query(cur, query: str, params: tuple[Any, ...], columns: list[str]) -> dict[str, Any]:
+    ordered_columns = list(columns)
+    cur.execute(query, params)
+    digest = hashlib.sha256()
+    digest.update(_canonical_json_bytes({
+        "schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "columns": ordered_columns,
+    }))
+    row_count = 0
+    while True:
+        rows = cur.fetchmany(1000)
+        if not rows:
+            break
+        for row in rows:
+            payload = _canonical_row_bytes(row, ordered_columns)
+            digest.update(len(payload).to_bytes(8, "big"))
+            digest.update(payload)
+            row_count += 1
+    return {
+        "schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "columns": ordered_columns,
+        "row_count": row_count,
+        "sha256": digest.hexdigest(),
+    }
+
+
+def _stage_select_query(create_query: str, cte_name: str) -> str:
+    marker = f"WITH {cte_name} AS"
+    offset = create_query.find(marker)
+    if offset < 0:
+        raise RefreshContractError("stage_select_contract_missing")
+    return create_query[offset:].strip()
+
+
+def _compute_content_fingerprints(
+    cur,
+    affected_dates: list[str],
+    affected_weeks: list[str],
+    approved_mart_loaded_at_utc: str,
+) -> dict[str, Any]:
+    daily_columns = _quoted_ident_list(DAILY_FACT_COLUMNS)
+    weekly_columns = _quoted_ident_list(WEEKLY_FACT_COLUMNS)
+    daily_source = _stage_select_query(_create_daily_stage_query(), "affected_dates")
+    weekly_source = _stage_select_query(_create_weekly_stage_query(), "affected_weeks")
+    return {
+        "target_daily_sha256": _fingerprint_query(
+            cur,
+            f"SELECT {daily_columns} FROM {DAILY_FACT} "
+            "WHERE fecha_visita = ANY(%s::date[]) "
+            "ORDER BY fecha_visita,cod_rt,cliente_norm",
+            (affected_dates,), DAILY_FACT_COLUMNS,
+        ),
+        "target_weekly_sha256": _fingerprint_query(
+            cur,
+            f"SELECT {weekly_columns} FROM {WEEKLY_FACT} "
+            'WHERE "SEMANA_INICIO" = ANY(%s::date[]) '
+            'ORDER BY "SEMANA_INICIO","COD_RT","CLIENTE_NORM_FILTER"',
+            (affected_weeks,), WEEKLY_FACT_COLUMNS,
+        ),
+        "source_daily_stage_sha256": _fingerprint_query(
+            cur,
+            f"SELECT {daily_columns} FROM ({daily_source}) source_daily "
+            "ORDER BY fecha_visita,cod_rt,cliente_norm",
+            (affected_dates, approved_mart_loaded_at_utc), DAILY_FACT_COLUMNS,
+        ),
+        "source_weekly_stage_sha256": _fingerprint_query(
+            cur,
+            f"SELECT {weekly_columns} FROM ({weekly_source}) source_weekly "
+            'ORDER BY "SEMANA_INICIO","COD_RT","CLIENTE_NORM_FILTER"',
+            (
+                affected_weeks,
+                affected_dates,
+                approved_mart_loaded_at_utc,
+                affected_dates,
+            ), WEEKLY_FACT_COLUMNS,
+        ),
+    }
+
+
+def _assert_fingerprints_match(expected: Any, observed: Any) -> None:
+    if not isinstance(expected, dict) or set(expected) != set(FINGERPRINT_KEYS):
+        raise RefreshContractError("authorized_content_fingerprints_missing")
+    for key, value in expected.items():
+        if (
+            not isinstance(value, dict)
+            or value.get("schema_version") != FINGERPRINT_SCHEMA_VERSION
+            or value.get("columns") != FINGERPRINT_COLUMNS_BY_KEY[key]
+            or not isinstance(value.get("row_count"), int)
+            or value["row_count"] < 0
+            or re.fullmatch(r"[0-9a-f]{64}", str(value.get("sha256", ""))) is None
+        ):
+            raise RefreshContractError("authorized_content_fingerprint_invalid")
+    if expected != observed:
+        raise RefreshContractError("STOP_023_JUNE_REFRESH_PRESTATE_OR_SOURCE_DRIFT")
+
 
 def _now_ms() -> int:
     return int(time.perf_counter() * 1000)
+
+
+def _normalize_utc_timestamp(value: Any) -> str | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def ensure_sslmode(db_url: str) -> str:
@@ -532,7 +994,6 @@ def _weekly_relation_query(relation_name: str) -> str:
 
 def _create_daily_stage_query() -> str:
     return f"""
-    DROP TABLE IF EXISTS _cg_daily_stage;
     CREATE TEMP TABLE _cg_daily_stage
     ON COMMIT DROP AS
     WITH affected_dates AS (
@@ -572,7 +1033,7 @@ def _create_daily_stage_query() -> str:
         COALESCE(v.persona_conflicto_rows_dia, 0)::integer AS persona_conflicto_rows_dia,
         v.match_quality,
         COALESCE(v.registro_fuera_cruce, '')::text AS registro_fuera_cruce,
-        now()::timestamptz AS mart_loaded_at
+        %s::timestamptz AS mart_loaded_at
     FROM {DAILY_SOURCE} v
     JOIN affected_dates ad
       ON ad.fecha_visita = v.fecha_visita
@@ -601,12 +1062,24 @@ def _insert_daily_query() -> str:
 
 
 def _create_weekly_stage_query() -> str:
+    daily_stage_select = _stage_select_query(_create_daily_stage_query(), "affected_dates")
+    daily_columns = _quoted_ident_list(DAILY_FACT_COLUMNS)
     return f"""
-    DROP TABLE IF EXISTS _cg_weekly_stage;
     CREATE TEMP TABLE _cg_weekly_stage
     ON COMMIT DROP AS
     WITH affected_weeks AS (
         SELECT unnest(%s::date[]) AS semana_inicio
+    ),
+    daily_stage AS MATERIALIZED (
+        {daily_stage_select}
+    ),
+    daily_overlay AS MATERIALIZED (
+        SELECT {daily_columns}
+        FROM {DAILY_FACT}
+        WHERE NOT (fecha_visita = ANY(%s::date[]))
+        UNION ALL
+        SELECT {daily_columns}
+        FROM daily_stage
     ),
     base AS MATERIALIZED (
         SELECT
@@ -710,7 +1183,7 @@ def _create_weekly_stage_query() -> str:
                 CASE WHEN max(CASE WHEN COALESCE(d.tiene_power_app, 0) = 1 THEN 1 ELSE 0 END) = 1 THEN 'POWER_APP' END
             ) AS fuentes_reportadas_semana
         FROM base b
-        LEFT JOIN {DAILY_FACT} d
+        LEFT JOIN daily_overlay d
           ON d.cod_rt = b.cod_rt
          AND d.cliente_norm = b.cliente_norm
          AND d.semana_inicio = b.effective_week_start
@@ -1092,6 +1565,7 @@ def run_incremental_dry_run(
     require_complete_safety_window: bool,
     post_apply_validate: bool,
     statement_timeout_seconds: int,
+    contract_023: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not db_url:
         raise RuntimeError("NO_DB_URL_AVAILABLE")
@@ -1146,7 +1620,6 @@ def run_incremental_dry_run(
             "daily_fact": bool(requested_affected_date_values),
             "weekly_fact": bool(validation_week_values),
         },
-        "real_apply_enabled": REAL_APPLY_ENABLED,
         "validate": bool(validate),
         "post_apply_validate": bool(post_apply_validate),
         "require_complete_safety_window": bool(require_complete_safety_window),
@@ -1158,6 +1631,36 @@ def run_incremental_dry_run(
         conn.set_session(readonly=True, autocommit=False)
         with conn.cursor() as cur:
             cur.execute("SET LOCAL statement_timeout = %s", (timeout_ms,))
+            if contract_023 is not None:
+                approved_loaded_at = _normalize_utc_timestamp(
+                    contract_023.get("approved_mart_loaded_at_utc")
+                )
+                if approved_loaded_at is None:
+                    raise RefreshContractError("dry_run_mart_loaded_at_required")
+                cur.execute(
+                    "SELECT current_user,session_user,current_database(),"
+                    "current_setting('role'),current_setting('transaction_read_only')"
+                )
+                current_user, session_user, database, active_role, readonly = cur.fetchone()
+                if (
+                    current_user != MART_REFRESH_ROLE
+                    or session_user != MART_REFRESH_ROLE
+                    or current_user != session_user
+                ):
+                    raise RefreshContractError("mart_refresh_session_role_mismatch")
+                if database != EXPECTED_DATABASE or active_role != "none" or readonly != "on":
+                    raise RefreshContractError("mart_refresh_dry_run_session_mismatch")
+                cur.execute(
+                    "SELECT pg_advisory_xact_lock_shared(%s)",
+                    (int(contract_023["advisory_lock_key"]),),
+                )
+                result["content_fingerprints"] = _compute_content_fingerprints(
+                    cur,
+                    requested_affected_date_values,
+                    apply_scope["apply_weekly_weeks"],
+                    approved_loaded_at,
+                )
+                result["approved_mart_loaded_at_utc"] = approved_loaded_at
             if requested_affected_date_values:
                 result["daily_check"] = _run_daily_check(cur, requested_affected_date_values, validate)
             else:
@@ -1285,15 +1788,60 @@ def _run_weekly_fact_validation(cur, affected_weeks: list[str]) -> dict[str, Any
     }
 
 
-def run_incremental_apply(
-    *,
-    db_url: str,
-    week_scope: dict[str, set[date]],
-    statement_timeout_seconds: int,
-    post_apply_validate: bool,
-) -> dict[str, Any]:
+def run_authorized_june_refresh_023() -> dict[str, Any]:
+    """Sole productive June entrypoint; all authority is canonical and internal."""
+    args = build_parser().parse_args()
+    if not args.apply or args.dry_run or args.confirm_real_apply:
+        raise RefreshContractError("authorized_june_apply_interface_required")
+    if args.plan_023 is not None and args.plan_023.resolve() != PLAN_023_DEFAULT.resolve():
+        raise RefreshContractError("canonical_plan_023_path_required")
+    if args.db_url or args.affected_date or args.affected_week or args.safety_window_weeks != 0:
+        raise RefreshContractError("plan_023_scope_override_forbidden")
+    plan, authority = _load_plan_023(PLAN_023_DEFAULT, operation="apply")
+    _validate_wrapper_marker(MART_REFRESH_APPLY_OPERATION)
+    if args.confirm != APPLY_CONFIRM_TOKEN:
+        raise RefreshContractError("plan_023_confirmation_token_mismatch")
+    db_url = os.getenv(MART_REFRESH_ENV, "")
     if not db_url:
-        raise RuntimeError("NO_DB_URL_AVAILABLE")
+        raise RefreshContractError("cg_mart_refresh_env_required")
+    _validate_productive_dsn(db_url, plan)
+    if args.evidence_json is None:
+        raise RefreshContractError("june_refresh_evidence_path_required")
+    evidence_path = _canonical_evidence_path(
+        args.evidence_json, args.run_id, "04_june_mart_refresh_apply.json"
+    )
+    if args.dry_run_report_json is None:
+        raise RefreshContractError("authorized_dry_run_report_required")
+    dry_path = args.dry_run_report_json.resolve()
+    try:
+        dry_path.relative_to(Path(tempfile.gettempdir()).resolve())
+    except ValueError as exc:
+        raise RefreshContractError("authorized_dry_run_report_must_be_in_temp") from exc
+    dry_bytes = dry_path.read_bytes()
+    dry_report = json.loads(dry_bytes.decode("utf-8"))
+    expected_content_fingerprints = dry_report.get("content_fingerprints")
+    _assert_fingerprints_match(expected_content_fingerprints, expected_content_fingerprints)
+    approved_loaded_at = _normalize_utc_timestamp(plan.get("approved_mart_loaded_at_utc"))
+    if approved_loaded_at is None or dry_report.get("approved_mart_loaded_at_utc") != approved_loaded_at:
+        raise RefreshContractError("approved_mart_loaded_at_link_mismatch")
+    dry_authority = plan.get("dry_run_authorization")
+    required_dry = {
+        "raw_sha256": _sha256_bytes(dry_bytes),
+        "scope_sha256": authority["scope_sha256"],
+        "content_fingerprints": expected_content_fingerprints,
+        "approved_mart_loaded_at_utc": approved_loaded_at,
+    }
+    if not isinstance(dry_authority, dict) or any(
+        dry_authority.get(key) != value for key, value in required_dry.items()
+    ):
+        raise RefreshContractError("dry_run_authorization_link_mismatch")
+    payload = plan["scope"]["canonical_payload"]
+    dates = {date.fromisoformat(value) for value in payload["affected_dates"]}
+    weeks = {date.fromisoformat(value) for value in payload["affected_weeks"]}
+    week_scope = build_week_scope(dates, weeks, 0)
+    statement_timeout_seconds = args.statement_timeout_seconds
+    post_apply_validate = args.post_apply_validate
+    advisory_lock_key = int(plan["advisory_lock_key"])
 
     requested_affected_date_values = sorted_iso(week_scope["requested_affected_dates"])
     derived_affected_week_values = sorted_iso(week_scope["derived_affected_weeks"])
@@ -1317,7 +1865,6 @@ def run_incremental_apply(
         "status": "started",
         "dry_run": False,
         "apply": True,
-        "real_apply_enabled": True,
         "affected_dates": requested_affected_date_values,
         "affected_weeks": affected_week_values,
         "requested_affected_dates": requested_affected_date_values,
@@ -1343,6 +1890,9 @@ def run_incremental_apply(
         },
         "post_apply_validate": bool(post_apply_validate),
         "statement_timeout_seconds": int(statement_timeout_seconds),
+        "commit_state": PRECOMMIT,
+        "committed": False,
+        "rolled_back": False,
         "final_status": "apply_started",
     }
 
@@ -1350,9 +1900,36 @@ def run_incremental_apply(
     committed = False
     try:
         conn = psycopg2.connect(db_url)
-        conn.set_session(readonly=False, autocommit=False)
+        conn.set_session(
+            readonly=False, autocommit=False, isolation_level="REPEATABLE READ"
+        )
         with conn.cursor() as cur:
             cur.execute("SET LOCAL statement_timeout = %s", (timeout_ms,))
+            cur.execute(
+                "SELECT current_user,session_user,current_database(),"
+                "current_setting('role'),current_setting('transaction_read_only')"
+            )
+            current_user, session_user, database, active_role, readonly = cur.fetchone()
+            if (
+                current_user != MART_REFRESH_ROLE
+                or session_user != MART_REFRESH_ROLE
+                or current_user != session_user
+            ):
+                raise RefreshContractError("mart_refresh_session_role_mismatch")
+            if database != EXPECTED_DATABASE or active_role != "none" or readonly != "off":
+                raise RefreshContractError("mart_refresh_apply_session_mismatch")
+            cur.execute(
+                "SELECT pg_advisory_xact_lock(%s)",
+                (int(advisory_lock_key),),
+            )
+            observed_prestate = _compute_content_fingerprints(
+                cur,
+                requested_affected_date_values,
+                affected_week_values,
+                approved_loaded_at,
+            )
+            _assert_fingerprints_match(expected_content_fingerprints, observed_prestate)
+            result["content_fingerprints"] = observed_prestate
 
             if affected_week_values:
                 route_scope = _route_scope_by_week(cur, affected_week_values, week_origin_by_week)
@@ -1365,8 +1942,11 @@ def run_incremental_apply(
                 if missing_explicit_route:
                     raise RuntimeError("explicit_week_no_route_scope:" + ",".join(missing_explicit_route))
 
-            if requested_affected_date_values:
-                cur.execute(_create_daily_stage_query(), (requested_affected_date_values,))
+            def _execute_daily_dml() -> None:
+                cur.execute(
+                    _create_daily_stage_query(),
+                    (requested_affected_date_values, approved_loaded_at),
+                )
                 daily_stage_rows = _count_temp_rows(cur, "_cg_daily_stage")
                 result["daily_apply"]["stage_rows"] = daily_stage_rows
                 if daily_stage_rows == 0:
@@ -1383,8 +1963,16 @@ def run_incremental_apply(
                 if daily_validation.get("validation_status") != "ok":
                     raise RuntimeError("daily_validation_diff")
 
-            if affected_week_values:
-                cur.execute(_create_weekly_stage_query(), (affected_week_values,))
+            def _execute_weekly_dml() -> None:
+                cur.execute(
+                    _create_weekly_stage_query(),
+                    (
+                        affected_week_values,
+                        requested_affected_date_values,
+                        approved_loaded_at,
+                        requested_affected_date_values,
+                    ),
+                )
                 weekly_stage_rows = _count_temp_rows(cur, "_cg_weekly_stage")
                 result["weekly_apply"]["stage_rows"] = weekly_stage_rows
                 if weekly_stage_rows == 0:
@@ -1401,34 +1989,53 @@ def run_incremental_apply(
                 if weekly_validation.get("validation_status") != "ok":
                     raise RuntimeError("weekly_validation_diff")
 
+            if requested_affected_date_values:
+                _execute_daily_dml()
+            if affected_week_values:
+                _execute_weekly_dml()
+
             conn.commit()
             committed = True
-
-            analyze_targets = []
-            if requested_affected_date_values:
-                analyze_targets.append(DAILY_FACT)
-            if affected_week_values:
-                analyze_targets.append(WEEKLY_FACT)
-            result["analyze"] = {"targets": analyze_targets, "status": "skipped" if not analyze_targets else "pending"}
-            if analyze_targets:
-                try:
-                    for target in analyze_targets:
-                        cur.execute(f"ANALYZE {target}")
-                    conn.commit()
-                    result["analyze"]["status"] = "ok"
-                except Exception as analyze_exc:
-                    conn.rollback()
-                    result["analyze"]["status"] = "warn"
-                    result["analyze"]["warning"] = str(analyze_exc)
-                    result["warnings"].append("analyze_after_commit_failed")
-
-        result["status"] = "ok" if result.get("analyze", {}).get("status") != "warn" else "warn"
+            result["committed"] = True
+            result["commit_state"] = COMMITTED_EVIDENCE_PENDING
+        result["status"] = "ok"
         result["final_status"] = "apply_ok"
         result["elapsed_ms"] = _now_ms() - started_ms
-        return result
+        result.update(authority)
+        result.update({
+            "document_type": "stock_zero_cg_june_mart_refresh_apply_v1",
+            "schema_version": 1,
+            "verdict": "PASS_023_JUNE_MART_REFRESH_APPLY",
+            "run_id": args.run_id,
+            "scope_sha256": authority.get("scope_sha256"),
+            "dry_run_raw_sha256": required_dry["raw_sha256"],
+            "approved_mart_loaded_at_utc": approved_loaded_at,
+            "writes_attempted": True,
+            "writes_executed": True,
+            "transaction_outcome": "COMMITTED",
+            "commit_state": COMMITTED_EVIDENCE_PENDING,
+            "committed": True,
+            "rolled_back": False,
+            "reapply_allowed": False,
+        })
+        return _emit_committed_recovery_nonthrowing(evidence_path, result)
     except Exception as exc:
+        if committed:
+            committed_report = {
+                **authority,
+                "run_id": args.run_id,
+                "verdict": COMMITTED_EVIDENCE_RECOVERY_REQUIRED,
+                "commit_state": COMMITTED_EVIDENCE_PENDING,
+                "committed": True,
+                "rolled_back": False,
+                "reapply_allowed": False,
+                "evidence_error": type(exc).__name__,
+                "content_fingerprints": result.get("content_fingerprints"),
+            }
+            return _emit_committed_recovery_nonthrowing(evidence_path, committed_report)
         if conn is not None and not committed:
             conn.rollback()
+            result["rolled_back"] = True
         result["status"] = "error"
         result["error"] = str(exc)
         result["final_status"] = "apply_failed_rolled_back" if not committed else "apply_committed_with_post_commit_error"
@@ -1436,7 +2043,16 @@ def run_incremental_apply(
         return result
     finally:
         if conn is not None:
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                if not committed:
+                    raise
+
+
+def run_incremental_apply(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+    """Blocked legacy API retained only so historical import sites fail closed."""
+    raise RefreshContractError("legacy_apply_interface_removed_use_authorized_023_entrypoint")
 
 
 def _operator_next_step(result: dict[str, Any]) -> str:
@@ -1447,6 +2063,7 @@ def _operator_next_step(result: dict[str, Any]) -> str:
         "dry_run_ok_with_skipped_safety_weeks": "review_skipped_safety_weeks_before_apply",
         "dry_run_error": "fix_blockers_before_apply",
         "apply_ok": "apply_completed_validate_app_or_exports_if_needed",
+        "committed_evidence_recovery_required": "recover_evidence_only_do_not_reapply",
         "apply_failed_rolled_back": "review_error_no_commit_expected",
         "real_apply_requires_apply_and_confirm_flags": "rerun_with_dry_run_or_explicit_apply_confirm",
     }.get(final_status, "review_final_status_and_warnings")
@@ -1489,7 +2106,6 @@ def blocked_real_apply_result(
             "daily_fact": bool(raw_dates),
             "weekly_fact": bool(week_scope["validation_weeks"]),
         },
-        "real_apply_enabled": REAL_APPLY_ENABLED,
         "final_status": "real_apply_requires_apply_and_confirm_flags",
         "elapsed_ms": elapsed_ms,
     }
@@ -1510,17 +2126,15 @@ def build_parser() -> argparse.ArgumentParser:
   python scripts/refresh_control_gestion_v2_incremental.py --dry-run --affected-date 2026-05-18 --validate
   python scripts/refresh_control_gestion_v2_incremental.py --dry-run --affected-week 2026-05-18 --safety-window-weeks 1 --validate
 
-Apply requires both --apply and --confirm-real-apply. Run dry-run first and review
-final_status, operator_next_step, expected_updates, skipped_weeks, and warnings.
-Dry-run can resolve DB_URL_CODEX_RO from env or .local_secrets/codex_ro.env.
-Apply always requires an explicit --db-url and never auto-resolves Codex RO.""",
+Legacy dry-run can resolve DB_URL_CODEX_RO from env or the local read-only file.
+Productive June apply is available only through plan 023 and the credential wrapper;
+it never accepts a DSN argument.""",
     )
     parser.add_argument(
         "--db-url",
         default="",
         help=(
-            "Postgres DSN. Dry-run may omit this when DB_URL_CODEX_RO is available; "
-            "apply requires explicit --db-url. The value is never printed."
+            "Legacy dry-run DSN only. Productive plan-023 apply rejects this option."
         ),
     )
     parser.add_argument(
@@ -1561,8 +2175,14 @@ Apply always requires an explicit --db-url and never auto-resolves Codex RO.""",
     parser.add_argument(
         "--confirm-real-apply",
         action="store_true",
-        help="Second explicit confirmation required before real apply can run.",
+        help="Legacy flag retained for CLI compatibility; it cannot authorize writes.",
     )
+    parser.add_argument("--plan-023", type=Path)
+    parser.add_argument("--confirm", default="")
+    parser.add_argument("--run-id", default="")
+    parser.add_argument("--report-json", type=Path)
+    parser.add_argument("--evidence-json", type=Path)
+    parser.add_argument("--dry-run-report-json", type=Path)
     parser.add_argument(
         "--post-apply-validate",
         action="store_true",
@@ -1590,11 +2210,16 @@ def main() -> int:
     if args.safety_window_weeks < 0:
         parser.error("--safety-window-weeks must be >= 0")
 
+    contract_mode = args.plan_023 is not None
     raw_dates = set(args.affected_date or [])
     raw_weeks = set(args.affected_week or [])
-    week_scope = build_week_scope(raw_dates, raw_weeks, args.safety_window_weeks)
+    plan: dict[str, Any] | None = None
+    authority: dict[str, str] = {}
+    contract_runtime: dict[str, Any] | None = None
+    evidence_path: Path | None = None
 
-    if not args.dry_run and not (args.apply and args.confirm_real_apply):
+    if not args.dry_run and not args.apply:
+        week_scope = build_week_scope(raw_dates, raw_weeks, args.safety_window_weeks)
         print(json.dumps(
             blocked_real_apply_result(args, week_scope, _now_ms() - started_ms),
             ensure_ascii=False,
@@ -1604,7 +2229,81 @@ def main() -> int:
         return 1
 
     try:
-        resolved_db_url, db_url_source = resolve_readonly_db_url_for_dry_run(args)
+        if args.apply and not contract_mode:
+            raise RefreshContractError("plan_023_required_for_any_apply")
+        if contract_mode:
+            if raw_dates or raw_weeks or args.safety_window_weeks != 0:
+                raise RefreshContractError("plan_023_scope_override_forbidden")
+            operation = "dry-run" if args.dry_run and not args.apply else "apply"
+            plan, authority = _load_plan_023(args.plan_023, operation=operation)
+            payload = plan["scope"]["canonical_payload"]
+            raw_dates = {date.fromisoformat(value) for value in payload["affected_dates"]}
+            raw_weeks = {date.fromisoformat(value) for value in payload["affected_weeks"]}
+            week_scope = build_week_scope(raw_dates, raw_weeks, 0)
+            expected_operation = (
+                MART_REFRESH_DRY_RUN_OPERATION if operation == "dry-run"
+                else MART_REFRESH_APPLY_OPERATION
+            )
+            _validate_wrapper_marker(expected_operation)
+            expected_token = DRY_RUN_CONFIRM_TOKEN if operation == "dry-run" else APPLY_CONFIRM_TOKEN
+            if args.confirm != expected_token:
+                raise RefreshContractError("plan_023_confirmation_token_mismatch")
+            if args.db_url:
+                raise RefreshContractError("explicit_db_url_forbidden_for_plan_023")
+            dsn = os.getenv(MART_REFRESH_ENV, "")
+            if not dsn:
+                raise RefreshContractError("cg_mart_refresh_env_required")
+            _validate_productive_dsn(dsn, plan)
+            contract_runtime = {
+                "advisory_lock_key": int(plan["advisory_lock_key"]),
+            }
+            if operation == "dry-run":
+                contract_runtime["approved_mart_loaded_at_utc"] = (
+                    datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                )
+                if args.report_json is None:
+                    raise RefreshContractError("dry_run_report_json_required")
+                report_path = _temporary_report_path(args.report_json)
+                resolved_db_url, db_url_source = dsn, "wrapper:DB_URL_CG_MART_REFRESH"
+            else:
+                if args.dry_run or args.confirm_real_apply:
+                    raise RefreshContractError("legacy_apply_flags_forbidden")
+                if args.dry_run_report_json is None or not args.dry_run_report_json.is_file():
+                    raise RefreshContractError("authorized_dry_run_report_required")
+                dry_run_report_path = args.dry_run_report_json.resolve()
+                temporary_root = Path(tempfile.gettempdir()).resolve()
+                try:
+                    dry_run_report_path.relative_to(temporary_root)
+                except ValueError as exc:
+                    raise RefreshContractError("authorized_dry_run_report_must_be_in_temp") from exc
+                if args.evidence_json is None:
+                    raise RefreshContractError("june_refresh_evidence_path_required")
+                evidence_path = _canonical_evidence_path(
+                    args.evidence_json, args.run_id, "04_june_mart_refresh_apply.json"
+                )
+                dry_bytes = dry_run_report_path.read_bytes()
+                dry_hash = _sha256_bytes(dry_bytes)
+                dry_report = json.loads(dry_bytes.decode("utf-8"))
+                dry_authority = plan.get("dry_run_authorization")
+                if not isinstance(dry_authority, dict):
+                    raise RefreshContractError("dry_run_authorization_missing")
+                required_dry = {
+                    "raw_sha256": dry_hash,
+                    "scope_sha256": authority["scope_sha256"],
+                    "content_fingerprints": dry_report.get("content_fingerprints"),
+                    "approved_mart_loaded_at_utc": dry_report.get(
+                        "approved_mart_loaded_at_utc"
+                    ),
+                }
+                if any(dry_authority.get(key) != value for key, value in required_dry.items()):
+                    raise RefreshContractError("dry_run_authorization_link_mismatch")
+                contract_runtime["expected_content_fingerprints"] = required_dry["content_fingerprints"]
+                contract_runtime["dry_run_raw_sha256"] = dry_hash
+                resolved_db_url, db_url_source = dsn, "wrapper:DB_URL_CG_MART_REFRESH"
+        else:
+            week_scope = build_week_scope(raw_dates, raw_weeks, args.safety_window_weeks)
+            resolved_db_url, db_url_source = resolve_readonly_db_url_for_dry_run(args)
+
         if args.dry_run:
             result = run_incremental_dry_run(
                 db_url=resolved_db_url,
@@ -1613,21 +2312,35 @@ def main() -> int:
                 require_complete_safety_window=args.require_complete_safety_window,
                 post_apply_validate=args.post_apply_validate,
                 statement_timeout_seconds=args.statement_timeout_seconds,
+                contract_023=contract_runtime,
             )
+            if contract_mode:
+                result.update(authority)
+                result.update({
+                    "document_type": "stock_zero_cg_june_refresh_dry_run_v1",
+                    "verdict": "PASS_023_JUNE_REFRESH_DRY_RUN"
+                    if result.get("status") in {"ok", "warn"} else "BLOCKED",
+                    "scope_sha256": authority["scope_sha256"],
+                    "writes_attempted": False,
+                    "writes_executed": False,
+                    "transaction_outcome": "ROLLED_BACK_READ_ONLY",
+                })
+                _write_json_once(report_path, result)
         else:
-            result = run_incremental_apply(
-                db_url=args.db_url,
-                week_scope=week_scope,
-                statement_timeout_seconds=args.statement_timeout_seconds,
-                post_apply_validate=args.post_apply_validate,
-            )
-            db_url_source = "explicit" if _normalize_db_url(args.db_url) else "missing"
+            result = run_authorized_june_refresh_023()
         result["db_url_source"] = db_url_source
         result["operator_next_step"] = _operator_next_step(result)
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        if result.get("final_status") == "committed_evidence_recovery_required":
+            return 2
         return 0 if result.get("status") in {"ok", "warn"} else 1
     except Exception as exc:
-        _, db_url_source = resolve_readonly_db_url_for_dry_run(args)
+        if not contract_mode:
+            _, db_url_source = resolve_readonly_db_url_for_dry_run(args)
+        else:
+            db_url_source = "wrapper" if os.getenv(MART_REFRESH_ENV) else "missing"
+        if 'week_scope' not in locals():
+            week_scope = build_week_scope(raw_dates, raw_weeks, 0)
         error_result = {
             "phase": PHASE,
             "status": "error",
@@ -1657,9 +2370,8 @@ def main() -> int:
                 "daily_fact": bool(raw_dates),
                 "weekly_fact": bool(week_scope["validation_weeks"]),
             },
-            "real_apply_enabled": REAL_APPLY_ENABLED,
             "db_url_source": db_url_source,
-            "error": str(exc),
+            "error": str(exc) if isinstance(exc, RefreshContractError) else type(exc).__name__,
             "final_status": "dry_run_error" if args.dry_run else "apply_failed_rolled_back",
             "elapsed_ms": _now_ms() - started_ms,
         }
