@@ -143,6 +143,13 @@ WEEKLY_FACT_COLUMNS = [
     "VISITAS_PENDIENTES_CALC",
 ]
 
+FINGERPRINT_COLUMNS_BY_KEY = {
+    "target_daily_sha256": DAILY_FACT_COLUMNS,
+    "target_weekly_sha256": WEEKLY_FACT_COLUMNS,
+    "source_daily_stage_sha256": DAILY_FACT_COLUMNS,
+    "source_weekly_stage_sha256": WEEKLY_FACT_COLUMNS,
+}
+
 
 class RefreshContractError(RuntimeError):
     pass
@@ -442,28 +449,31 @@ def _canonical_row_bytes(row: Any, columns: list[str]) -> bytes:
 
 
 def fingerprint_rows(rows: Any, columns: list[str]) -> dict[str, Any]:
-    encoded = sorted(_canonical_row_bytes(row, columns) for row in rows)
+    ordered_columns = list(columns)
+    encoded = sorted(_canonical_row_bytes(row, ordered_columns) for row in rows)
     digest = hashlib.sha256()
     digest.update(_canonical_json_bytes({
         "schema_version": FINGERPRINT_SCHEMA_VERSION,
-        "columns": columns,
+        "columns": ordered_columns,
     }))
     for payload in encoded:
         digest.update(len(payload).to_bytes(8, "big"))
         digest.update(payload)
     return {
         "schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "columns": ordered_columns,
         "row_count": len(encoded),
         "sha256": digest.hexdigest(),
     }
 
 
 def _fingerprint_query(cur, query: str, params: tuple[Any, ...], columns: list[str]) -> dict[str, Any]:
+    ordered_columns = list(columns)
     cur.execute(query, params)
     digest = hashlib.sha256()
     digest.update(_canonical_json_bytes({
         "schema_version": FINGERPRINT_SCHEMA_VERSION,
-        "columns": columns,
+        "columns": ordered_columns,
     }))
     row_count = 0
     while True:
@@ -471,12 +481,13 @@ def _fingerprint_query(cur, query: str, params: tuple[Any, ...], columns: list[s
         if not rows:
             break
         for row in rows:
-            payload = _canonical_row_bytes(row, columns)
+            payload = _canonical_row_bytes(row, ordered_columns)
             digest.update(len(payload).to_bytes(8, "big"))
             digest.update(payload)
             row_count += 1
     return {
         "schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "columns": ordered_columns,
         "row_count": row_count,
         "sha256": digest.hexdigest(),
     }
@@ -538,10 +549,11 @@ def _compute_content_fingerprints(
 def _assert_fingerprints_match(expected: Any, observed: Any) -> None:
     if not isinstance(expected, dict) or set(expected) != set(FINGERPRINT_KEYS):
         raise RefreshContractError("authorized_content_fingerprints_missing")
-    for value in expected.values():
+    for key, value in expected.items():
         if (
             not isinstance(value, dict)
             or value.get("schema_version") != FINGERPRINT_SCHEMA_VERSION
+            or value.get("columns") != FINGERPRINT_COLUMNS_BY_KEY[key]
             or not isinstance(value.get("row_count"), int)
             or value["row_count"] < 0
             or re.fullmatch(r"[0-9a-f]{64}", str(value.get("sha256", ""))) is None

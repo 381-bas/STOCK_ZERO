@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import contextlib
 import copy
-import ast
 import hashlib
 import importlib
+import inspect
 import io
 import json
 import os
@@ -40,6 +40,18 @@ AUTHORIZATION_NAMES = (
 
 def completed(returncode: int = 0, stdout="") -> subprocess.CompletedProcess:
     return subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="")
+
+
+def fingerprint_contracts() -> dict[str, dict[str, object]]:
+    return {
+        key: {
+            "schema_version": refresh.FINGERPRINT_SCHEMA_VERSION,
+            "columns": list(refresh.FINGERPRINT_COLUMNS_BY_KEY[key]),
+            "row_count": 1,
+            "sha256": hashlib.sha256(key.encode()).hexdigest(),
+        }
+        for key in refresh.FINGERPRINT_KEYS
+    }
 
 
 class Phase023PlanContractTests(unittest.TestCase):
@@ -258,21 +270,186 @@ class Phase023RefreshGuardTests(unittest.TestCase):
         self.assertEqual((connection.commits, connection.rollbacks), (0, 0))
         self.assertFalse(any("DELETE FROM" in call or "INSERT INTO" in call for call in connection.cursor_value.calls))
 
-    def test_no_importable_helper_accepts_authority_and_contains_dml(self) -> None:
-        tree = ast.parse((ROOT / "scripts" / "refresh_control_gestion_v2_incremental.py").read_text(encoding="utf-8"))
-        offenders = []
-        for node in tree.body:
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            params = {arg.arg for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)}
-            body = ast.get_source_segment((ROOT / "scripts" / "refresh_control_gestion_v2_incremental.py").read_text(encoding="utf-8"), node) or ""
-            if (params & {"db_url", "connection", "conn", "week_scope", "contract_023", "expected_content_fingerprints", "advisory_lock_key"}) and ("_delete_daily_query" in body or "_insert_daily_query" in body or ".commit(" in body):
-                offenders.append(node.name)
-        self.assertEqual(offenders, [])
+    def test_runtime_callable_enumeration_blocks_fabricated_authority(self) -> None:
+        suspicious_name_terms = (
+            "apply", "transaction", "stage", "delete", "insert", "commit", "refresh",
+        )
+        suspicious_parameters = {
+            "dsn", "connection", "conn", "scope", "plan", "contract", "fingerprint",
+            "lock", "cursor", "cur", "db_url", "week_scope", "contract_023",
+            "expected_content_fingerprints", "advisory_lock_key",
+        }
+        classifications = {
+            "_compute_content_fingerprints": "read_only",
+            "_count_temp_rows": "read_only",
+            "_create_daily_stage_query": "pure_query_factory",
+            "_create_weekly_stage_query": "pure_query_factory",
+            "_daily_fact_coverage_by_week": "read_only",
+            "_delete_daily_query": "pure_query_factory",
+            "_delete_weekly_query": "pure_query_factory",
+            "_emit_committed_recovery_nonthrowing": "postcommit_evidence",
+            "_fetch_dicts": "read_only",
+            "_fetch_relation_exists": "read_only",
+            "_fingerprint_query": "read_only",
+            "_insert_daily_query": "pure_query_factory",
+            "_insert_weekly_query": "pure_query_factory",
+            "_operator_next_step": "pure",
+            "_route_scope_by_week": "read_only",
+            "_run_daily_check": "read_only",
+            "_run_weekly_check": "read_only",
+            "_run_weekly_fact_validation": "read_only",
+            "_stage_select_list": "pure_query_factory",
+            "_stage_select_query": "pure_query_factory",
+            "_validate_git_and_plan": "pure_guard",
+            "_validate_productive_dsn": "pure_guard",
+            "blocked_real_apply_result": "pure",
+            "build_apply_scope": "pure",
+            "build_week_origin_by_week": "pure",
+            "ensure_sslmode": "pure",
+            "main": "authorized_dispatcher",
+            "run_authorized_june_refresh_023": "authorized_entry",
+            "run_incremental_apply": "blocked_legacy",
+            "run_incremental_dry_run": "read_only",
+            "write_committed_recovery_receipt": "postcommit_evidence",
+        }
+        candidates = {}
+        for name, function in inspect.getmembers(refresh, inspect.isfunction):
+            signature = inspect.signature(function)
+            source = inspect.getsource(function)
+            if (
+                any(term in name.lower() for term in suspicious_name_terms)
+                or set(signature.parameters) & suspicious_parameters
+                or any(term in source for term in ("execute", "executemany", "commit", "DELETE", "INSERT"))
+            ):
+                candidates[name] = function
+        self.assertEqual(set(candidates), set(classifications))
+
+        class AdversarialCursor:
+            def __init__(self) -> None:
+                self.delete_calls = 0
+                self.insert_calls = 0
+                self.description = []
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+            def execute(self, query, _params=None):
+                statement = str(query).lstrip().upper()
+                self.delete_calls += int(statement.startswith("DELETE"))
+                self.insert_calls += int(statement.startswith("INSERT"))
+            def fetchone(self): return (0,)
+            def fetchall(self): return []
+            def fetchmany(self, _size=1000): return []
+
+        class AdversarialConnection:
+            def __init__(self) -> None:
+                self.cursor_value = AdversarialCursor()
+                self.commit_calls = 0
+            def cursor(self): return self.cursor_value
+            def set_session(self, **_kwargs): pass
+            def rollback(self): pass
+            def close(self): pass
+            def commit(self): self.commit_calls += 1
+
+        connection = AdversarialConnection()
+        scope = refresh.build_week_scope(set(), set(), 0)
+        args = types.SimpleNamespace(apply=False, affected_date=[])
+        invocation_cases = {
+            "_compute_content_fingerprints": lambda: refresh._compute_content_fingerprints(connection.cursor_value, [], [], "2026-07-20T00:00:00Z"),
+            "_count_temp_rows": lambda: refresh._count_temp_rows(connection.cursor_value, "_fake"),
+            "_daily_fact_coverage_by_week": lambda: refresh._daily_fact_coverage_by_week(connection.cursor_value, [], {}),
+            "_fetch_dicts": lambda: refresh._fetch_dicts(connection.cursor_value, "SELECT 1", ()),
+            "_fetch_relation_exists": lambda: refresh._fetch_relation_exists(connection.cursor_value, "fake.relation"),
+            "_fingerprint_query": lambda: refresh._fingerprint_query(connection.cursor_value, "SELECT 1", (), ["value"]),
+            "_route_scope_by_week": lambda: refresh._route_scope_by_week(connection.cursor_value, [], {}),
+            "_run_daily_check": lambda: refresh._run_daily_check(connection.cursor_value, [], False),
+            "_run_weekly_check": lambda: refresh._run_weekly_check(connection.cursor_value, [], set(), set(), set(), {}, False, False, False),
+            "_run_weekly_fact_validation": lambda: refresh._run_weekly_fact_validation(connection.cursor_value, []),
+            "_validate_git_and_plan": lambda: refresh._validate_git_and_plan(Path("fabricated.json"), {}),
+            "_validate_productive_dsn": lambda: refresh._validate_productive_dsn("postgresql://fake", {}),
+            "blocked_real_apply_result": lambda: refresh.blocked_real_apply_result(args, scope, 0),
+            "build_apply_scope": lambda: refresh.build_apply_scope(scope),
+            "build_week_origin_by_week": lambda: refresh.build_week_origin_by_week(scope),
+            "ensure_sslmode": lambda: refresh.ensure_sslmode("postgresql://fake"),
+            "run_incremental_apply": lambda: refresh.run_incremental_apply(
+                db_url="postgresql://fake", connection=connection, week_scope=scope,
+                contract_023={"authorized": True}, fingerprints=fingerprint_contracts(),
+                advisory_lock_key=1,
+            ),
+            "run_incremental_dry_run": lambda: refresh.run_incremental_dry_run(
+                db_url="postgresql://fake", week_scope=scope, validate=False,
+                require_complete_safety_window=False, post_apply_validate=False,
+                statement_timeout_seconds=1, contract_023={"advisory_lock_key": 1},
+            ),
+        }
+        authority_candidates = {
+            name for name, function in candidates.items()
+            if set(inspect.signature(function).parameters) & suspicious_parameters
+        } | {"run_incremental_apply"}
+        self.assertEqual(
+            authority_candidates - {"run_authorized_june_refresh_023"},
+            set(invocation_cases),
+        )
+        evidence_write = mock.Mock()
+        receipt_write = mock.Mock()
+        fake_psycopg2 = types.SimpleNamespace(connect=lambda _dsn: connection)
+        with mock.patch.object(refresh, "write_json_exclusive", evidence_write), \
+             mock.patch.object(refresh, "write_committed_recovery_receipt", receipt_write), \
+             mock.patch.dict(sys.modules, {"psycopg2": fake_psycopg2}):
+            for name, invoke in invocation_cases.items():
+                with self.subTest(callable=name):
+                    try:
+                        invoke()
+                    except TypeError as exc:
+                        self.fail(f"{name} was not behaviorally exercised: {exc}")
+                    except Exception:
+                        pass
+        self.assertEqual(connection.cursor_value.delete_calls, 0)
+        self.assertEqual(connection.cursor_value.insert_calls, 0)
+        self.assertEqual(connection.commit_calls, 0)
+        evidence_write.assert_not_called()
+        receipt_write.assert_not_called()
 
 
 class Phase023FingerprintTests(unittest.TestCase):
     COLUMNS = ["grain", "count", "nullable"]
+
+    @staticmethod
+    def _weekly_row(daily_stage: list[dict[str, int]]) -> tuple[object, ...]:
+        values: dict[str, object] = {column: None for column in refresh.WEEKLY_FACT_COLUMNS}
+        values.update({
+            "COD_RT": "R1", "COD_B2B": "B1", "LOCAL": "Local",
+            "CLIENTE": "Cliente", "SEMANA_INICIO": "2026-06-01",
+            "SEMANA_ISO": 23, "VISITA": 2,
+            "VISITA_REALIZADA": sum(row["useful_day"] for row in daily_stage),
+            "VISITA_REALIZADA_RAW": sum(row["useful_day"] for row in daily_stage),
+            "VISITA_REALIZADA_CAP": min(2, sum(row["useful_day"] for row in daily_stage)),
+            "DIAS_KPIONE": sum(row["tiene_kpione1"] for row in daily_stage),
+            "DIAS_KPIONE2": sum(row["tiene_kpione2"] for row in daily_stage),
+            "DIAS_POWER_APP": sum(row["tiene_power_app"] for row in daily_stage),
+            "CLIENTE_NORM_FILTER": "cliente",
+        })
+        return tuple(values[column] for column in refresh.WEEKLY_FACT_COLUMNS)
+
+    class _WeeklyProjectionCursor:
+        def __init__(self, old_daily_fact, daily_stage) -> None:
+            self.old_daily_fact = old_daily_fact
+            self.daily_stage = daily_stage
+            self.queries: list[str] = []
+            self.overlay_used = False
+            self._rows: list[tuple[object, ...]] = []
+        def execute(self, query, _params=None):
+            rendered = str(query)
+            self.queries.append(rendered)
+            if ") source_weekly" in rendered:
+                self.overlay_used = all(fragment in rendered for fragment in (
+                    "daily_stage AS MATERIALIZED", "daily_overlay AS MATERIALIZED",
+                    "UNION ALL", "LEFT JOIN daily_overlay d",
+                ))
+                self._rows = [Phase023FingerprintTests._weekly_row(self.daily_stage)]
+            else:
+                self._rows = []
+        def fetchmany(self, _size=1000):
+            rows, self._rows = self._rows, []
+            return rows
 
     def test_equal_aggregates_but_different_content_have_different_hashes(self) -> None:
         left = [("A", 1, None), ("B", 2, "x")]
@@ -289,6 +466,18 @@ class Phase023FingerprintTests(unittest.TestCase):
             refresh.fingerprint_rows(reversed(rows), self.COLUMNS),
         )
 
+    def test_column_name_order_and_count_are_bound_into_hash(self) -> None:
+        row = [("A", 1, None)]
+        baseline = refresh.fingerprint_rows(row, ["grain", "count", "nullable"])
+        renamed = refresh.fingerprint_rows(row, ["grain", "amount", "nullable"])
+        reordered = refresh.fingerprint_rows(row, ["count", "grain", "nullable"])
+        empty_baseline = refresh.fingerprint_rows([], ["grain", "count", "nullable"])
+        shortened = refresh.fingerprint_rows([], ["grain", "count"])
+        self.assertEqual(baseline["columns"], ["grain", "count", "nullable"])
+        self.assertNotEqual(baseline["sha256"], renamed["sha256"])
+        self.assertNotEqual(baseline["sha256"], reordered["sha256"])
+        self.assertNotEqual(empty_baseline["sha256"], shortened["sha256"])
+
     def test_null_and_empty_string_are_distinct(self) -> None:
         self.assertNotEqual(
             refresh.fingerprint_rows([("A", 1, None)], self.COLUMNS)["sha256"],
@@ -296,15 +485,18 @@ class Phase023FingerprintTests(unittest.TestCase):
         )
 
     def test_source_or_target_drift_blocks(self) -> None:
-        base = {
-            key: {"schema_version": refresh.FINGERPRINT_SCHEMA_VERSION, "row_count": 1, "sha256": hashlib.sha256(key.encode()).hexdigest()}
-            for key in refresh.FINGERPRINT_KEYS
-        }
+        base = fingerprint_contracts()
         for key in ("source_daily_stage_sha256", "target_weekly_sha256"):
             changed = copy.deepcopy(base)
             changed[key]["sha256"] = "changed"
             with self.assertRaisesRegex(refresh.RefreshContractError, "PRESTATE_OR_SOURCE_DRIFT"):
                 refresh._assert_fingerprints_match(base, changed)
+        altered_contract = copy.deepcopy(base)
+        altered_contract["source_weekly_stage_sha256"]["columns"] = list(
+            reversed(refresh.WEEKLY_FACT_COLUMNS)
+        )
+        with self.assertRaisesRegex(refresh.RefreshContractError, "fingerprint_invalid"):
+            refresh._assert_fingerprints_match(altered_contract, altered_contract)
 
     def test_daily_loaded_at_is_part_of_the_exact_fingerprint(self) -> None:
         columns = ["key", "mart_loaded_at"]
@@ -321,11 +513,42 @@ class Phase023FingerprintTests(unittest.TestCase):
         self.assertNotIn(f"LEFT JOIN {refresh.DAILY_FACT} d", query)
         self.assertIn("%s::timestamptz AS mart_loaded_at", query)
 
-    def test_changed_daily_stage_changes_weekly_source_fingerprint(self) -> None:
-        columns = ["week", "daily_stage_rows"]
-        before = refresh.fingerprint_rows([("2026-06-01", "A:1")], columns)
-        after = refresh.fingerprint_rows([("2026-06-01", "A:2")], columns)
-        self.assertNotEqual(before["sha256"], after["sha256"])
+    def test_real_weekly_builder_hashes_authorized_daily_overlay_behaviorally(self) -> None:
+        old_daily_fact = [
+            {"date": "2026-06-01", "useful_day": 1, "tiene_kpione1": 1},
+            {"date": "2026-06-02", "useful_day": 1, "tiene_kpione1": 1},
+        ]
+        stage_a = [
+            {"useful_day": 1, "tiene_kpione1": 1, "tiene_kpione2": 0, "tiene_power_app": 0},
+            {"useful_day": 1, "tiene_kpione1": 1, "tiene_kpione2": 0, "tiene_power_app": 0},
+        ]
+        stage_b = [
+            {"useful_day": 1, "tiene_kpione1": 0, "tiene_kpione2": 0, "tiene_power_app": 1},
+            {"useful_day": 1, "tiene_kpione1": 0, "tiene_kpione2": 0, "tiene_power_app": 1},
+        ]
+        self.assertEqual((len(stage_a), sum(row["useful_day"] for row in stage_a)),
+                         (len(stage_b), sum(row["useful_day"] for row in stage_b)))
+        cursors = [
+            self._WeeklyProjectionCursor(old_daily_fact, stage_a),
+            self._WeeklyProjectionCursor(old_daily_fact, stage_b),
+        ]
+        observed = [
+            refresh._compute_content_fingerprints(
+                cursor, ["2026-06-01", "2026-06-02"], ["2026-06-01"],
+                "2026-07-20T00:00:00Z",
+            )["source_weekly_stage_sha256"]
+            for cursor in cursors
+        ]
+        self.assertNotEqual(observed[0]["sha256"], observed[1]["sha256"])
+        for cursor, fingerprint in zip(cursors, observed):
+            self.assertTrue(cursor.overlay_used)
+            self.assertEqual(fingerprint["columns"], refresh.WEEKLY_FACT_COLUMNS)
+            self.assertEqual(fingerprint["row_count"], 1)
+            self.assertTrue(any(refresh.DAILY_FACT in query for query in cursor.queries))
+            self.assertTrue(any("FROM daily_stage" in query for query in cursor.queries))
+        insert = refresh._insert_weekly_query()
+        for column in refresh.WEEKLY_FACT_COLUMNS:
+            self.assertIn(f'"{column}"', insert)
 
 
 class _CoreCursor:
@@ -361,6 +584,49 @@ class _CoreConnection:
     def close(self): self.closed += 1
 
 
+class _BridgeCursor:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+        self.ddl_calls = 0
+        self._one = None
+        self._all = []
+    def __enter__(self): return self
+    def __exit__(self, *_args): return False
+    def execute(self, query, _params=None):
+        rendered = str(query)
+        self.calls.append(rendered)
+        self._one, self._all = None, []
+        if rendered == bridge.SQL_PATH.read_text(encoding="utf-8"):
+            self.ddl_calls += 1
+        elif "SELECT current_user,session_user" in rendered:
+            self._one = ("postgres", "postgres", "postgres", "none", "off")
+        elif "SELECT c.relkind" in rendered:
+            self._one = ("v",)
+        elif "FROM pg_attribute" in rendered:
+            self._all = list(bridge.BRIDGE_SIGNATURE)
+        elif "SELECT has_table_privilege" in rendered:
+            self._one = (True, True)
+        elif "information_schema.role_table_grants" in rendered:
+            self._all = [
+                ("stock_zero_codex_ro", "SELECT"),
+                ("stock_zero_app_ro", "SELECT"),
+            ]
+    def fetchone(self): return self._one
+    def fetchall(self): return list(self._all)
+
+
+class _BridgeConnection:
+    def __init__(self) -> None:
+        self.cursor_value = _BridgeCursor()
+        self.commits = 0
+        self.rollbacks = 0
+    def __enter__(self): return self
+    def __exit__(self, *_args): return False
+    def cursor(self): return self.cursor_value
+    def commit(self): self.commits += 1
+    def rollback(self): self.rollbacks += 1
+
+
 class Phase023ApplyTransactionTests(unittest.TestCase):
     @staticmethod
     def _minimal_args():
@@ -373,8 +639,14 @@ class Phase023ApplyTransactionTests(unittest.TestCase):
             statement_timeout_seconds=1, post_apply_validate=True,
         )
 
-    def _run(self, connection: _CoreConnection, *, observed_fingerprints=None):
-        fingerprints = {key: {"schema_version": refresh.FINGERPRINT_SCHEMA_VERSION, "row_count": 1, "sha256": hashlib.sha256(key.encode()).hexdigest()} for key in refresh.FINGERPRINT_KEYS}
+    def _run(
+        self,
+        connection: _CoreConnection,
+        *,
+        observed_fingerprints=None,
+        postcommit_faults: tuple[bool, bool] | None = None,
+    ):
+        fingerprints = fingerprint_contracts()
         observed_fingerprints = fingerprints if observed_fingerprints is None else observed_fingerprints
         present = [
             {"semana_inicio": week, "scope_status": "present"}
@@ -415,7 +687,28 @@ class Phase023ApplyTransactionTests(unittest.TestCase):
                  mock.patch.object(refresh, "_run_weekly_fact_validation", return_value={"validation_status": "ok"}), \
                  mock.patch.dict(sys.modules, {"psycopg2": psycopg2}), \
                  mock.patch.dict(os.environ, {refresh.MART_REFRESH_ENV: "postgresql://not-opened"}, clear=False):
-                return refresh.run_authorized_june_refresh_023()
+                if postcommit_faults is None:
+                    return refresh.run_authorized_june_refresh_023()
+                receipt_fails, stderr_fails = postcommit_faults
+                broken_stderr = mock.Mock()
+                if stderr_fails:
+                    broken_stderr.write.side_effect = OSError("stderr")
+                else:
+                    broken_stderr.write.return_value = 1
+                receipt_patch = (
+                    mock.patch.object(
+                        refresh, "write_committed_recovery_receipt",
+                        side_effect=OSError("receipt"),
+                    )
+                    if receipt_fails else mock.patch.object(
+                        refresh, "write_committed_recovery_receipt",
+                        return_value=Path(tempfile.gettempdir()) / "receipt.json",
+                    )
+                )
+                with mock.patch.object(refresh, "write_json_exclusive", side_effect=OSError("evidence")), \
+                     receipt_patch, \
+                     mock.patch.object(refresh.sys, "stderr", broken_stderr):
+                    return refresh.run_authorized_june_refresh_023()
 
     def test_daily_success_weekly_failure_rolls_back_once_without_commit(self) -> None:
         connection = _CoreConnection(fail_weekly=True)
@@ -432,18 +725,30 @@ class Phase023ApplyTransactionTests(unittest.TestCase):
         self.assertFalse(result["rolled_back"])
         self.assertEqual(result["commit_state"], refresh.COMMITTED_EVIDENCE_RECORDED)
 
-    def test_postcommit_evidence_failure_is_recovery_not_reapply(self) -> None:
-        connection = _CoreConnection()
-        with mock.patch.object(refresh, "write_json_exclusive", side_effect=OSError("disk")), \
-             mock.patch.object(refresh, "write_committed_recovery_receipt", return_value=Path(tempfile.gettempdir()) / "receipt.json"):
-            result = self._run(connection)
-        self.assertTrue(result["committed"])
-        self.assertFalse(result["rolled_back"])
-        self.assertFalse(result["reapply_allowed"])
-        self.assertEqual(result["verdict"], refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED)
+    def test_refresh_productive_postcommit_fault_matrix_never_reapplies(self) -> None:
+        scenarios = {
+            "A_canonical": (False, False),
+            "B_canonical_receipt": (True, False),
+            "C_canonical_stderr": (False, True),
+            "D_all": (True, True),
+        }
+        for name, faults in scenarios.items():
+            with self.subTest(name=name):
+                connection = _CoreConnection()
+                result = self._run(connection, postcommit_faults=faults)
+                deletes = [call for call in connection.cursor_value.calls if call.lstrip().startswith("DELETE FROM")]
+                inserts = [call for call in connection.cursor_value.calls if call.lstrip().startswith("INSERT INTO")]
+                self.assertEqual((connection.commits, connection.rollbacks), (1, 0))
+                self.assertEqual((len(deletes), len(inserts)), (2, 2))
+                self.assertEqual(len(deletes + inserts), len(set(deletes + inserts)))
+                self.assertTrue(result["committed"])
+                self.assertFalse(result["rolled_back"])
+                self.assertFalse(result["reapply_allowed"])
+                self.assertEqual(result["verdict"], refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED)
+                self.assertNotEqual(result.get("final_status"), "apply_failed_rolled_back")
 
     def test_each_fingerprint_mismatch_blocks_before_dml(self) -> None:
-        expected = {key: {"schema_version": refresh.FINGERPRINT_SCHEMA_VERSION, "row_count": 1, "sha256": hashlib.sha256(key.encode()).hexdigest()} for key in refresh.FINGERPRINT_KEYS}
+        expected = fingerprint_contracts()
         for key in refresh.FINGERPRINT_KEYS:
             observed = copy.deepcopy(expected); observed[key]["sha256"] = "0" * 64
             connection = _CoreConnection()
@@ -500,28 +805,62 @@ class Phase023EvidenceWriterTests(unittest.TestCase):
                 refresh.write_json_exclusive(path, {"new": True})
             self.assertEqual(path.read_bytes(), b"original")
 
-    def test_bridge_evidence_failure_emits_no_pass(self) -> None:
-        argv = ["bridge", "--expected-git-ref", "a" * 40, "--db-url-env", "DB_URL_ADMIN", "--expected-project-ref", "xheyrgfagpoigpgakilu", "--confirm", bridge.CONFIRM_TOKEN, "--run-id", "12345678-1234-4123-8123-123456789abc", "--evidence-json", "unused"]
-        output = io.StringIO()
-        committed = {"committed": True, "rolled_back": False, "content": "ok"}
-        recovery = {"verdict": refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED, "committed": True, "rolled_back": False, "reapply_allowed": False}
-        with mock.patch.object(sys, "argv", argv), mock.patch.object(bridge, "_load_plan", return_value={}), mock.patch.object(bridge, "validate_git_guard", return_value={"approved_git_sha": "a" * 40, "sql_raw_sha256": "b" * 64}), mock.patch.object(bridge, "_canonical_evidence_path", return_value=ROOT / "never.json"), mock.patch.object(bridge, "validate_dsn"), mock.patch.object(bridge, "apply_bridge", return_value=committed), mock.patch.object(bridge, "_emit_committed_recovery_nonthrowing", return_value=recovery), mock.patch.dict(os.environ, {"STOCK_ZERO_OPERATION_PROFILE": "admin-ddl", "STOCK_ZERO_OPERATION": "apply-route-b-bridge-023", "DB_URL_ADMIN": "hidden"}), contextlib.redirect_stdout(output):
-            self.assertEqual(bridge.main(), 3)
-        self.assertNotIn("PASS_ROUTE_B_APP_BRIDGE_APPLY", output.getvalue())
-        self.assertIn(refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED, output.getvalue())
-
-    def test_committed_recovery_survives_all_three_emitter_failures(self) -> None:
-        report = {"run_id": "12345678-1234-4123-8123-123456789abc", "committed": True}
-        broken_stderr = mock.Mock()
-        broken_stderr.write.side_effect = OSError("stderr")
-        with mock.patch.object(refresh, "write_json_exclusive", side_effect=OSError("evidence")), \
-             mock.patch.object(refresh, "write_committed_recovery_receipt", side_effect=OSError("receipt")), \
-             mock.patch.object(refresh.sys, "stderr", broken_stderr):
-            result = refresh._emit_committed_recovery_nonthrowing(Path("never.json"), report)
-        self.assertEqual(result["verdict"], refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED)
-        self.assertTrue(result["committed"])
-        self.assertFalse(result["rolled_back"])
-        self.assertFalse(result["reapply_allowed"])
+    def test_bridge_productive_postcommit_fault_matrix_never_reapplies(self) -> None:
+        argv = [
+            "bridge", "--expected-git-ref", "a" * 40,
+            "--db-url-env", "DB_URL_ADMIN",
+            "--expected-project-ref", "xheyrgfagpoigpgakilu",
+            "--confirm", bridge.CONFIRM_TOKEN,
+            "--run-id", "12345678-1234-4123-8123-123456789abc",
+            "--evidence-json", "unused",
+        ]
+        scenarios = {
+            "A_canonical": (False, False),
+            "B_canonical_receipt": (True, False),
+            "C_canonical_stderr": (False, True),
+            "D_all": (True, True),
+        }
+        for name, (receipt_fails, stderr_fails) in scenarios.items():
+            with self.subTest(name=name):
+                connection = _BridgeConnection()
+                output = io.StringIO()
+                broken_stderr = mock.Mock()
+                if stderr_fails:
+                    broken_stderr.write.side_effect = OSError("stderr")
+                else:
+                    broken_stderr.write.return_value = 1
+                receipt_patch = (
+                    mock.patch.object(
+                        refresh, "write_committed_recovery_receipt",
+                        side_effect=OSError("receipt"),
+                    )
+                    if receipt_fails else mock.patch.object(
+                        refresh, "write_committed_recovery_receipt",
+                        return_value=Path(tempfile.gettempdir()) / "receipt.json",
+                    )
+                )
+                plan = {"advisory_lock_key": bridge.LOCK_KEY}
+                with mock.patch.object(sys, "argv", argv), \
+                     mock.patch.object(bridge, "_load_plan", return_value=plan), \
+                     mock.patch.object(bridge, "validate_git_guard", return_value={"approved_git_sha": "a" * 40, "sql_raw_sha256": "b" * 64}), \
+                     mock.patch.object(bridge, "_canonical_evidence_path", return_value=ROOT / "never.json"), \
+                     mock.patch.object(bridge, "validate_dsn"), \
+                     mock.patch.object(bridge.psycopg, "connect", return_value=connection), \
+                     mock.patch.object(refresh, "write_json_exclusive", side_effect=OSError("evidence")), \
+                     receipt_patch, \
+                     mock.patch.object(refresh.sys, "stderr", broken_stderr), \
+                     mock.patch.dict(os.environ, {"STOCK_ZERO_OPERATION_PROFILE": "admin-ddl", "STOCK_ZERO_OPERATION": "apply-route-b-bridge-023", "DB_URL_ADMIN": "hidden"}), \
+                     contextlib.redirect_stdout(output):
+                    code = bridge.main()
+                result = json.loads(output.getvalue())
+                self.assertEqual(code, 3)
+                self.assertEqual((connection.commits, connection.rollbacks), (1, 0))
+                self.assertEqual(connection.cursor_value.ddl_calls, 1)
+                self.assertTrue(result["committed"])
+                self.assertFalse(result["rolled_back"])
+                self.assertFalse(result["reapply_allowed"])
+                self.assertEqual(result["verdict"], refresh.COMMITTED_EVIDENCE_RECOVERY_REQUIRED)
+                self.assertNotIn("PASS_ROUTE_B_APP_BRIDGE_APPLY", output.getvalue())
 
 
 class Phase023SqlAndRoleContractTests(unittest.TestCase):
@@ -632,6 +971,45 @@ class Phase023WrapperAndObserverTests(unittest.TestCase):
         required, snapshot = self._app_snapshot()
         with self.assertRaisesRegex(observer.ReadonlyValidationError, "ALLOWLIST_NOT_FROZEN"):
             observer.evaluate_app_capability_snapshot(snapshot, required, required, observer.APP_ALLOWLIST_PENDING)
+
+    def test_app_public_main_blocks_pending_allowlist_before_io(self) -> None:
+        plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
+        plan["status"] = "BRIDGE_AND_REFRESH_COMMITTED_APP_VALIDATION_PENDING"
+        plan["approved_git_sha"] = "a" * 40
+        plan["gate_open"] = True
+        plan["productive_actions_authorized"] = True
+        for name in plan["authorizations"]:
+            plan["authorizations"][name] = name == "runtime_app_validation_authorized"
+        plan["app_readonly_surface"]["status"] = observer.APP_ALLOWLIST_PENDING
+        run_id = "12345678-1234-4123-8123-123456789abc"
+        with tempfile.TemporaryDirectory() as folder:
+            plan_path = Path(folder) / "plan.json"
+            report_path = Path(folder) / "05_readonly_app_postcheck.json"
+            plan_path.write_text(json.dumps(plan), encoding="utf-8")
+            argv = [
+                "observer", "--mode", "app", "--plan-023", str(plan_path),
+                "--expected-git-ref", "a" * 40,
+                "--expected-project-ref", observer.EXPECTED_PROJECT,
+                "--confirm", plan["confirmation_tokens"]["runtime_app_validation"],
+                "--run-id", run_id, "--report-json", str(report_path),
+            ]
+            connection_factory = mock.Mock()
+            query_executor = mock.Mock()
+            evidence_writer = mock.Mock()
+            output = io.StringIO()
+            with mock.patch.object(sys, "argv", argv), \
+                 mock.patch.object(observer.psycopg, "connect", connection_factory), \
+                 mock.patch.object(observer, "_run_observation", query_executor), \
+                 mock.patch.object(Path, "write_text", evidence_writer), \
+                 mock.patch.dict(os.environ, {"STOCK_ZERO_OPERATION_PROFILE": "app-readonly", "STOCK_ZERO_OPERATION": "validate-app-readonly-023"}, clear=True), \
+                 contextlib.redirect_stdout(output):
+                code = observer.main()
+            self.assertEqual(code, 2)
+            self.assertIn("STOP_023_APP_READ_ALLOWLIST_NOT_FROZEN", output.getvalue())
+            connection_factory.assert_not_called()
+            query_executor.assert_not_called()
+            evidence_writer.assert_not_called()
+            self.assertFalse(report_path.exists())
 
     def test_app_full_capability_snapshot_rejects_every_forbidden_class(self) -> None:
         required, base = self._app_snapshot()
